@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0F6E56">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>MediStock — Enfermería</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  :root{
+    --teal:#0F6E56;--teal-mid:#1D9E75;--teal-light:#E1F5EE;--teal-pale:#F0FAF6;
+    --coral:#D85A30;--coral-light:#FAECE7;
+    --amber:#BA7517;--amber-light:#FAEEDA;--amber-pale:#FDF6E8;
+    --red:#A32D2D;--red-mid:#E24B4A;--red-light:#FCEBEB;
+    --green:#3B6D11;--green-light:#EAF3DE;
+    --blue:#185FA5;--blue-light:#E6F1FB;
+    --gray-50:#F8F7F4;--gray-100:#EEEDE8;--gray-200:#D3D1C7;
+    --gray-400:#888780;--gray-600:#5F5E5A;--gray-800:#2C2C2A;
+    --white:#ffffff;
+    --font:'DM Sans',system-ui,sans-serif;
+    --mono:'DM Mono',monospace;
+    --radius-sm:6px;--radius-md:10px;--radius-lg:16px;--radius-xl:20px;
+    --shadow-sm:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+    --shadow-md:0 4px 12px rgba(0,0,0,.08),0 2px 4px rgba(0,0,0,.04);
+  }
+  html,body{height:100%;background:var(--gray-50);font-family:var(--font);color:var(--gray-800)}
+  a{color:inherit;text-decoration:none}
+  button{font-family:var(--font);cursor:pointer}
+  input,select{font-family:var(--font)}
+
+  /* ── LAYOUT ── */
+  .app{display:flex;flex-direction:column;height:100vh;max-width:430px;margin:0 auto;background:var(--white);box-shadow:0 0 40px rgba(0,0,0,.12);position:relative;overflow:hidden}
+
+  /* ── HEADER ── */
+  .header{background:var(--teal);color:white;padding:env(safe-area-inset-top,0) 0 0;position:relative;z-index:50;flex-shrink:0}
+  .header-inner{padding:14px 16px 12px;display:flex;align-items:center;justify-content:space-between}
+  .header-brand{display:flex;align-items:center;gap:10px}
+  .header-logo{width:36px;height:36px;background:rgba(255,255,255,.15);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
+  .header-logo i{font-size:20px;color:white}
+  .header-title{font-size:16px;font-weight:600;letter-spacing:-.01em}
+  .header-sub{font-size:11px;opacity:.7;margin-top:1px}
+  .bodega-switcher{display:flex;background:rgba(0,0,0,.2);border-radius:20px;padding:3px;gap:2px}
+  .b-btn{padding:4px 12px;border:none;border-radius:17px;font-size:12px;font-weight:500;background:none;color:rgba(255,255,255,.7);transition:all .18s;letter-spacing:.01em}
+  .b-btn.active{background:white;color:var(--teal);box-shadow:0 1px 4px rgba(0,0,0,.15)}
+
+  /* ── NAV ── */
+  .nav{display:flex;background:var(--white);border-top:1px solid var(--gray-100);padding-bottom:env(safe-area-inset-bottom,0);position:absolute;bottom:0;left:0;right:0;z-index:50}
+  .nav-btn{flex:1;padding:8px 4px 10px;border:none;background:none;font-size:10px;font-weight:500;color:var(--gray-400);display:flex;flex-direction:column;align-items:center;gap:3px;letter-spacing:.02em;transition:color .15s;position:relative}
+  .nav-btn i{font-size:22px;transition:transform .15s}
+  .nav-btn.active{color:var(--teal)}
+  .nav-btn.active i{transform:translateY(-1px)}
+  .nav-btn .nav-dot{position:absolute;top:6px;right:calc(50% - 16px);width:6px;height:6px;background:var(--red-mid);border-radius:50%;display:none}
+  .nav-btn .nav-dot.show{display:block}
+
+  /* ── SCROLL AREA ── */
+  .scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:16px 16px 80px;-webkit-overflow-scrolling:touch}
+  .scroll::-webkit-scrollbar{display:none}
+
+  /* ── VIEWS ── */
+  .view{display:none;animation:fadeIn .15s ease}
+  .view.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+  /* ── SECTION LABEL ── */
+  .section-label{font-size:11px;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:.07em;margin:20px 0 10px}
+  .section-label:first-child{margin-top:0}
+
+  /* ── STAT CARDS ── */
+  .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px}
+  .stat-card{background:var(--gray-50);border:1px solid var(--gray-100);border-radius:var(--radius-lg);padding:14px 14px 12px;position:relative;overflow:hidden}
+  .stat-card::before{content:'';position:absolute;top:-12px;right:-12px;width:60px;height:60px;border-radius:50%;opacity:.08}
+  .stat-card.s-green::before{background:var(--teal)}
+  .stat-card.s-amber::before{background:var(--amber)}
+  .stat-card.s-red::before{background:var(--red)}
+  .stat-card.s-blue::before{background:var(--blue)}
+  .stat-icon{width:30px;height:30px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+  .stat-icon.green{background:var(--teal-light);color:var(--teal)}
+  .stat-icon.amber{background:var(--amber-light);color:var(--amber)}
+  .stat-icon.red{background:var(--red-light);color:var(--red)}
+  .stat-icon.blue{background:var(--blue-light);color:var(--blue)}
+  .stat-icon i{font-size:17px}
+  .stat-val{font-size:26px;font-weight:600;line-height:1;letter-spacing:-.02em}
+  .stat-val.red{color:var(--red)}
+  .stat-val.amber{color:var(--amber)}
+  .stat-lbl{font-size:11px;color:var(--gray-400);margin-top:3px}
+
+  /* ── ALERT STRIP ── */
+  .alert-strip{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:var(--radius-md);margin-bottom:8px;border:1px solid transparent}
+  .alert-strip.warn{background:var(--amber-pale);border-color:#F0D090}
+  .alert-strip.exp{background:var(--red-light);border-color:#F5B8B8}
+  .alert-strip i{font-size:18px;flex-shrink:0}
+  .alert-strip.warn i{color:var(--amber)}
+  .alert-strip.exp i{color:var(--red)}
+  .alert-strip-text{flex:1}
+  .alert-strip-name{font-size:13px;font-weight:500}
+  .alert-strip-meta{font-size:11px;color:var(--gray-400);margin-top:1px}
+  .alert-strip-days{font-size:12px;font-weight:600;padding:3px 10px;border-radius:12px;flex-shrink:0}
+  .alert-strip.warn .alert-strip-days{background:var(--amber-light);color:var(--amber)}
+  .alert-strip.exp .alert-strip-days{background:var(--red-light);color:var(--red)}
+
+  /* ── TOOLBAR ── */
+  .toolbar{display:flex;gap:8px;margin-bottom:12px}
+  .search-wrap{flex:1;position:relative}
+  .search-wrap i{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:16px;color:var(--gray-400);pointer-events:none}
+  .toolbar input[type=text]{width:100%;padding:9px 10px 9px 34px;border:1px solid var(--gray-200);border-radius:var(--radius-md);background:var(--white);font-size:14px;color:var(--gray-800);outline:none;transition:border-color .15s}
+  .toolbar input[type=text]:focus{border-color:var(--teal-mid)}
+  .toolbar select{padding:9px 10px;border:1px solid var(--gray-200);border-radius:var(--radius-md);background:var(--white);font-size:13px;color:var(--gray-800);outline:none;min-width:110px}
+
+  /* ── MED CARD ── */
+  .med-card{background:var(--white);border:1px solid var(--gray-100);border-radius:var(--radius-lg);padding:14px;margin-bottom:8px;transition:box-shadow .15s,border-color .15s;position:relative}
+  .med-card:hover{box-shadow:var(--shadow-sm);border-color:var(--gray-200)}
+  .med-card.exp-card{border-color:#F5C0C0;background:#FFFBFB}
+  .med-card.warn-card{border-color:#F0D898;background:#FFFDF5}
+  .med-card-top{display:flex;align-items:flex-start;gap:10px}
+  .med-pill-icon{width:40px;height:40px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .med-pill-icon.ok{background:var(--teal-light);color:var(--teal)}
+  .med-pill-icon.warn{background:var(--amber-light);color:var(--amber)}
+  .med-pill-icon.exp{background:var(--red-light);color:var(--red)}
+  .med-pill-icon i{font-size:20px}
+  .med-info{flex:1;min-width:0}
+  .med-name{font-size:14px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .med-sku{font-size:11px;font-family:var(--mono);color:var(--gray-400);margin-top:1px}
+  .med-badges{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+  .badge{font-size:10px;font-weight:500;padding:3px 8px;border-radius:10px;font-family:var(--mono)}
+  .b-lote{background:#EEF3FB;color:#1A4A8C}
+  .b-invima{background:var(--gray-100);color:var(--gray-600)}
+  .b-sku{background:var(--teal-light);color:var(--teal)}
+  .b-exp-ok{background:var(--green-light);color:var(--green)}
+  .b-exp-warn{background:var(--amber-light);color:var(--amber)}
+  .b-exp-exp{background:var(--red-light);color:var(--red)}
+  .med-footer{display:flex;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--gray-100)}
+  .med-stock-display{display:flex;align-items:baseline;gap:4px}
+  .med-stock-num{font-size:24px;font-weight:600;letter-spacing:-.03em;line-height:1}
+  .med-stock-unit{font-size:12px;color:var(--gray-400)}
+  .med-actions{display:flex;gap:6px;margin-left:auto}
+  .act-btn{width:32px;height:32px;border-radius:var(--radius-md);border:1px solid var(--gray-200);background:var(--gray-50);display:flex;align-items:center;justify-content:center;transition:all .15s}
+  .act-btn:hover{border-color:var(--gray-400)}
+  .act-btn i{font-size:15px;color:var(--gray-600)}
+  .act-btn.add:hover{background:var(--teal-light);border-color:var(--teal-mid);color:var(--teal)}
+  .act-btn.add:hover i{color:var(--teal)}
+  .act-btn.sub:hover{background:var(--amber-light);border-color:var(--amber);color:var(--amber)}
+  .act-btn.sub:hover i{color:var(--amber)}
+  .act-btn.move:hover{background:var(--blue-light);border-color:var(--blue)}
+  .act-btn.move:hover i{color:var(--blue)}
+  .act-btn.del:hover{background:var(--red-light);border-color:var(--red-mid)}
+  .act-btn.del:hover i{color:var(--red-mid)}
+
+  /* ── FORM ── */
+  .form-section{background:var(--white);border:1px solid var(--gray-100);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px}
+  .form-section-title{font-size:13px;font-weight:600;color:var(--gray-600);display:flex;align-items:center;gap:7px;margin-bottom:14px}
+  .form-section-title i{font-size:16px;color:var(--teal)}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .form-row.full{grid-template-columns:1fr}
+  .form-group{display:flex;flex-direction:column;gap:5px}
+  .form-group label{font-size:11px;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:.05em}
+  .form-group input,.form-group select{padding:9px 12px;border:1px solid var(--gray-200);border-radius:var(--radius-md);font-size:14px;color:var(--gray-800);background:var(--white);outline:none;transition:border-color .15s;-webkit-appearance:none}
+  .form-group input:focus,.form-group select:focus{border-color:var(--teal-mid);box-shadow:0 0 0 3px rgba(29,158,117,.08)}
+  .form-group input::placeholder{color:var(--gray-200)}
+  .btn-submit{width:100%;margin-top:4px;padding:13px;background:var(--teal);color:white;border:none;border-radius:var(--radius-md);font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .15s,transform .1s;letter-spacing:-.01em}
+  .btn-submit:hover{opacity:.9}
+  .btn-submit:active{transform:scale(.98)}
+  .btn-submit i{font-size:17px}
+
+  /* ── TRANSFER VIEW ── */
+  .transfer-visual{display:flex;align-items:center;gap:10px;padding:14px;background:var(--teal-pale);border:1px solid #C0E8DA;border-radius:var(--radius-lg);margin:14px 0}
+  .t-box{flex:1;background:var(--white);border-radius:var(--radius-md);padding:10px 12px;border:1px solid var(--gray-100);text-align:center}
+  .t-box.t-active{border-color:var(--teal-mid);background:var(--teal-light)}
+  .t-box-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:2px}
+  .t-box-name{font-size:13px;font-weight:600;color:var(--gray-800)}
+  .t-box-stock{font-size:11px;color:var(--teal);margin-top:3px;font-weight:500}
+  .t-arrow{font-size:24px;color:var(--teal-mid);flex-shrink:0}
+
+  /* ── STOCK COMPARISON ── */
+  .stock-compare-card{background:var(--white);border:1px solid var(--gray-100);border-radius:var(--radius-lg);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+  .sc-name{flex:1;font-size:13px;font-weight:500;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sc-badges{display:flex;gap:6px}
+  .sc-b{font-size:12px;font-weight:600;padding:4px 10px;border-radius:10px}
+  .sc-b.b1{background:var(--teal-light);color:var(--teal)}
+  .sc-b.b2{background:var(--gray-100);color:var(--gray-600)}
+
+  /* ── LOG ── */
+  .log-item{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid var(--gray-100)}
+  .log-item:last-child{border-bottom:none}
+  .log-icon{width:32px;height:32px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+  .log-icon.in{background:var(--teal-light);color:var(--teal)}
+  .log-icon.out{background:var(--amber-light);color:var(--amber)}
+  .log-icon.transfer{background:var(--blue-light);color:var(--blue)}
+  .log-icon.delete{background:var(--red-light);color:var(--red)}
+  .log-icon i{font-size:15px}
+  .log-text{font-size:13px;color:var(--gray-800);line-height:1.4}
+  .log-time{font-size:11px;color:var(--gray-400);margin-top:3px;font-family:var(--mono)}
+  .log-container{background:var(--white);border:1px solid var(--gray-100);border-radius:var(--radius-lg);padding:4px 14px}
+
+  /* ── EMPTY STATE ── */
+  .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;color:var(--gray-400);text-align:center}
+  .empty i{font-size:44px;margin-bottom:10px;opacity:.35}
+  .empty-title{font-size:14px;font-weight:500;margin-bottom:4px;color:var(--gray-600)}
+  .empty-sub{font-size:12px}
+
+  /* ── MODALS ── */
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px)}
+  .modal-bg.open{display:flex}
+  .modal-sheet{background:var(--white);border-radius:var(--radius-xl) var(--radius-xl) 0 0;padding:0 20px 20px;width:100%;max-width:430px;animation:slideUp .2s ease}
+  @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  .modal-handle{width:36px;height:4px;background:var(--gray-200);border-radius:2px;margin:10px auto 16px}
+  .modal-title{font-size:16px;font-weight:600;margin-bottom:4px;letter-spacing:-.01em}
+  .modal-sub{font-size:13px;color:var(--gray-400);margin-bottom:16px;line-height:1.4}
+  .modal-actions{display:flex;gap:8px;margin-top:8px}
+  .btn-cancel{flex:1;padding:12px;border:1px solid var(--gray-200);border-radius:var(--radius-md);background:none;font-size:14px;font-weight:500;color:var(--gray-600);transition:background .15s}
+  .btn-cancel:hover{background:var(--gray-50)}
+  .btn-danger{flex:1;padding:12px;border:none;border-radius:var(--radius-md);background:var(--red-mid);color:white;font-size:14px;font-weight:600;transition:opacity .15s}
+  .btn-danger:hover{opacity:.88}
+
+  /* ── NUMPAD MODAL ── */
+  .numpad-display{background:var(--gray-50);border-radius:var(--radius-md);padding:16px;text-align:center;margin-bottom:14px;border:1px solid var(--gray-100)}
+  .numpad-val{font-size:40px;font-weight:600;letter-spacing:-.03em;color:var(--gray-800);font-family:var(--mono);line-height:1}
+  .numpad-unit{font-size:12px;color:var(--gray-400);margin-top:3px}
+  .numpad{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
+  .np-btn{padding:14px;border:1px solid var(--gray-100);border-radius:var(--radius-md);background:var(--gray-50);font-size:18px;font-weight:500;color:var(--gray-800);transition:all .1s;font-family:var(--mono)}
+  .np-btn:hover{background:var(--gray-100)}
+  .np-btn:active{transform:scale(.95)}
+  .np-btn.clear{color:var(--red-mid);background:var(--red-light);border-color:#F5C0C0}
+  .np-btn.ok{background:var(--teal);color:white;border-color:var(--teal);font-size:20px}
+  .np-btn.ok:hover{opacity:.9}
+
+  /* ── TOAST ── */
+  .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--gray-800);color:white;padding:10px 20px;border-radius:30px;font-size:13px;font-weight:500;z-index:300;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;box-shadow:var(--shadow-md)}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* ── CHIPS ── */
+  .chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid transparent;cursor:pointer;transition:all .15s}
+  .chip.teal{background:var(--teal-light);color:var(--teal);border-color:#9FE1CB}
+  .chip.gray{background:var(--gray-50);color:var(--gray-600);border-color:var(--gray-200)}
+
+  /* ── BODEGA TAG ── */
+  .b-tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px;font-family:var(--mono);letter-spacing:.03em}
+  .b-tag.b1{background:var(--teal-light);color:var(--teal)}
+  .b-tag.b2{background:var(--gray-100);color:var(--gray-600)}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <div class="header-logo"><i class="ti ti-first-aid-kit"></i></div>
+        <div>
+          <div class="header-title">MediStock</div>
+          <div class="header-sub" id="hdr-sub">Bodega Principal · B1</div>
+        </div>
+      </div>
+      <div class="bodega-switcher">
+        <button class="b-btn active" onclick="setBodega(1)">B1</button>
+        <button class="b-btn" onclick="setBodega(2)">B2</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCROLL AREA -->
+  <div class="scroll" id="scroll">
+
+    <!-- ═══ DASHBOARD ═══ -->
+    <div class="view active" id="view-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card s-green">
+          <div class="stat-icon green"><i class="ti ti-pill"></i></div>
+          <div class="stat-val" id="d-meds">0</div>
+          <div class="stat-lbl">Medicamentos</div>
+        </div>
+        <div class="stat-card s-blue">
+          <div class="stat-icon blue"><i class="ti ti-package"></i></div>
+          <div class="stat-val" id="d-units">0</div>
+          <div class="stat-lbl">Unidades totales</div>
+        </div>
+        <div class="stat-card s-amber">
+          <div class="stat-icon amber"><i class="ti ti-alert-triangle"></i></div>
+          <div class="stat-val amber" id="d-warn">0</div>
+          <div class="stat-lbl">Por vencer</div>
+        </div>
+        <div class="stat-card s-red">
+          <div class="stat-icon red"><i class="ti ti-alert-circle"></i></div>
+          <div class="stat-val red" id="d-exp">0</div>
+          <div class="stat-lbl">Vencidos</div>
+        </div>
+      </div>
+      <div class="section-label">Alertas activas</div>
+      <div id="d-alerts"></div>
+    </div>
+
+    <!-- ═══ INVENTARIO ═══ -->
+    <div class="view" id="view-inventario">
+      <div class="toolbar">
+        <div class="search-wrap">
+          <i class="ti ti-search"></i>
+          <input type="text" id="s-input" placeholder="Buscar nombre, SKU, lote…" oninput="renderInv()">
+        </div>
+        <select id="s-filter" onchange="renderInv()">
+          <option value="">Todos</option>
+          <option value="ok">Vigentes</option>
+          <option value="warn">Por vencer</option>
+          <option value="exp">Vencidos</option>
+        </select>
+      </div>
+      <div id="inv-list"></div>
+    </div>
+
+    <!-- ═══ AGREGAR ═══ -->
+    <div class="view" id="view-agregar">
+      <div class="form-section">
+        <div class="form-section-title"><i class="ti ti-pill"></i>Información del medicamento</div>
+        <div class="form-row full" style="margin-bottom:10px">
+          <div class="form-group">
+            <label>Nombre del medicamento</label>
+            <input type="text" id="f-nombre" placeholder="Ej. Paracetamol 500mg">
+          </div>
+        </div>
+        <div class="form-row" style="margin-bottom:10px">
+          <div class="form-group">
+            <label>SKU</label>
+            <input type="text" id="f-sku" placeholder="MED-001">
+          </div>
+          <div class="form-group">
+            <label>Lote</label>
+            <input type="text" id="f-lote" placeholder="LT-2024-001">
+          </div>
+        </div>
+        <div class="form-row full" style="margin-bottom:10px">
+          <div class="form-group">
+            <label>Registro INVIMA</label>
+            <input type="text" id="f-invima" placeholder="INVIMA2024M-001234">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Fecha caducidad</label>
+            <input type="date" id="f-caducidad">
+          </div>
+          <div class="form-group">
+            <label>Unidad</label>
+            <select id="f-unidad">
+              <option>Tabletas</option>
+              <option>Ampollas</option>
+              <option>Frascos</option>
+              <option>Sobres</option>
+              <option>Cápsulas</option>
+              <option>ml</option>
+              <option>Unidades</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-title"><i class="ti ti-warehouse"></i>Stock inicial</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Cantidad</label>
+            <input type="number" id="f-cantidad" placeholder="0" min="0">
+          </div>
+          <div class="form-group">
+            <label>Bodega</label>
+            <select id="f-bodega">
+              <option value="1">B1 — Principal</option>
+              <option value="2">B2 — Secundaria</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn-submit" onclick="agregarMed()">
+          <i class="ti ti-check"></i>Registrar medicamento
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══ TRASLADO ═══ -->
+    <div class="view" id="view-traslado">
+      <div class="form-section">
+        <div class="form-section-title"><i class="ti ti-transfer"></i>Traslado entre bodegas</div>
+        <div class="form-row full" style="margin-bottom:10px">
+          <div class="form-group">
+            <label>Medicamento</label>
+            <select id="t-med" onchange="updTrans()">
+              <option value="">Seleccionar medicamento…</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row" style="margin-bottom:0">
+          <div class="form-group">
+            <label>Origen</label>
+            <select id="t-origen" onchange="updTrans()">
+              <option value="1">B1 — Principal</option>
+              <option value="2">B2 — Secundaria</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Cantidad</label>
+            <input type="number" id="t-cantidad" placeholder="0" min="1">
+          </div>
+        </div>
+        <div class="transfer-visual">
+          <div class="t-box t-active">
+            <div class="t-box-label">Origen</div>
+            <div class="t-box-name" id="t-orig-name">B1 — Principal</div>
+            <div class="t-box-stock" id="t-orig-stock">— disponibles</div>
+          </div>
+          <i class="ti ti-arrow-right t-arrow"></i>
+          <div class="t-box">
+            <div class="t-box-label">Destino</div>
+            <div class="t-box-name" id="t-dest-name">B2 — Secundaria</div>
+          </div>
+        </div>
+        <button class="btn-submit" style="background:var(--blue)" onclick="hacerTraslado()">
+          <i class="ti ti-transfer"></i>Confirmar traslado
+        </button>
+      </div>
+
+      <div class="section-label">Stock actual</div>
+      <div class="log-container" id="t-stock-list" style="padding:6px 14px"></div>
+    </div>
+
+    <!-- ═══ HISTORIAL ═══ -->
+    <div class="view" id="view-historial">
+      <div class="toolbar" style="margin-bottom:14px">
+        <select id="h-filter" onchange="renderLog()" style="flex:1;padding:9px 12px;border:1px solid var(--gray-200);border-radius:var(--radius-md);font-size:14px;color:var(--gray-800);background:var(--white);outline:none">
+          <option value="">Todos los movimientos</option>
+          <option value="in">Entradas</option>
+          <option value="out">Consumos</option>
+          <option value="transfer">Traslados</option>
+          <option value="delete">Eliminaciones</option>
+        </select>
+      </div>
+      <div class="log-container" id="log-list"></div>
+    </div>
+
+  </div><!-- /scroll -->
+
+  <!-- BOTTOM NAV -->
+  <nav class="nav">
+    <button class="nav-btn active" onclick="goTo('dashboard',0)">
+      <span class="nav-dot" id="dot-0"></span>
+      <i class="ti ti-layout-dashboard"></i>Inicio
+    </button>
+    <button class="nav-btn" onclick="goTo('inventario',1)">
+      <i class="ti ti-pill"></i>Inventario
+    </button>
+    <button class="nav-btn" onclick="goTo('agregar',2)">
+      <i class="ti ti-circle-plus"></i>Agregar
+    </button>
+    <button class="nav-btn" onclick="goTo('traslado',3)">
+      <i class="ti ti-transfer"></i>Traslado
+    </button>
+    <button class="nav-btn" onclick="goTo('historial',4)">
+      <i class="ti ti-history"></i>Historial
+    </button>
+  </nav>
+</div>
+
+<!-- ── MODAL: CONFIRMAR BORRADO ── -->
+<div class="modal-bg" id="m-delete">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Eliminar medicamento</div>
+    <div class="modal-sub" id="m-del-msg">¿Estás seguro?</div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeM('m-delete')">Cancelar</button>
+      <button class="btn-danger" id="m-del-btn">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: NUMPAD ── -->
+<div class="modal-bg" id="m-qty">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="np-title">Ajustar stock</div>
+    <div class="modal-sub" id="np-sub"></div>
+    <div class="numpad-display">
+      <div class="numpad-val" id="np-val">0</div>
+      <div class="numpad-unit" id="np-unit">unidades</div>
+    </div>
+    <div class="numpad">
+      <button class="np-btn" onclick="nk('1')">1</button>
+      <button class="np-btn" onclick="nk('2')">2</button>
+      <button class="np-btn" onclick="nk('3')">3</button>
+      <button class="np-btn" onclick="nk('4')">4</button>
+      <button class="np-btn" onclick="nk('5')">5</button>
+      <button class="np-btn" onclick="nk('6')">6</button>
+      <button class="np-btn" onclick="nk('7')">7</button>
+      <button class="np-btn" onclick="nk('8')">8</button>
+      <button class="np-btn" onclick="nk('9')">9</button>
+      <button class="np-btn clear" onclick="nk('C')">⌫</button>
+      <button class="np-btn" onclick="nk('0')">0</button>
+      <button class="np-btn ok" onclick="npOk()"><i class="ti ti-check"></i></button>
+    </div>
+    <button class="btn-cancel" onclick="closeM('m-qty')" style="width:100%">Cancelar</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATE ──
+const S = {
+  b: 1,
+  bNames: {1:'Bodega Principal · B1', 2:'Bodega Secundaria · B2'},
+  bShort: {1:'B1 — Principal', 2:'B2 — Secundaria'},
+  meds: [
+    {id:1,n:'Paracetamol 500mg',sku:'MED-001',lote:'LT-2024-001',inv:'INVIMA2023M-012345',cad:'2026-08-15',u:'Tabletas',s:{1:120,2:45}},
+    {id:2,n:'Amoxicilina 500mg',sku:'MED-002',lote:'LT-2024-002',inv:'INVIMA2022M-054321',cad:'2025-07-01',u:'Cápsulas',s:{1:80,2:0}},
+    {id:3,n:'Ibuprofeno 400mg',sku:'MED-003',lote:'LT-2023-009',inv:'INVIMA2021M-009876',cad:'2025-04-10',u:'Tabletas',s:{1:35,2:20}},
+    {id:4,n:'Metformina 850mg',sku:'MED-004',lote:'LT-2024-015',inv:'INVIMA2024M-001122',cad:'2027-03-20',u:'Tabletas',s:{1:200,2:60}},
+    {id:5,n:'Omeprazol 20mg',sku:'MED-005',lote:'LT-2024-007',inv:'INVIMA2023M-007788',cad:'2026-11-30',u:'Cápsulas',s:{1:55,2:30}},
+    {id:6,n:'Losartán 50mg',sku:'MED-006',lote:'LT-2024-020',inv:'INVIMA2023M-003344',cad:'2025-06-15',u:'Tabletas',s:{1:90,2:0}},
+  ],
+  log: [],
+  nid: 7,
+};
+
+// ── HELPERS ──
+function expSt(d){
+  const diff=(new Date(d)-new Date())/(864e5);
+  return diff<0?'exp':diff<90?'warn':'ok';
+}
+function expLbl(s){return s==='exp'?'Vencido':s==='warn'?'Por vencer':'Vigente';}
+function fmtDate(d){
+  const [y,m,day]=d.split('-');
+  return `${day}/${m}/${y}`;
+}
+function addLog(type,msg){
+  S.log.push({type,msg,t:new Date().toLocaleString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})});
+}
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),2200);
+}
+function closeM(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-bg').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');}));
+
+// ── NAVIGATION ──
+const views=['dashboard','inventario','agregar','traslado','historial'];
+function goTo(v,i){
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(el=>el.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  document.querySelectorAll('.nav-btn')[i].classList.add('active');
+  document.getElementById('scroll').scrollTop=0;
+  if(v==='traslado') renderTraslado();
+}
+function setBodega(n){
+  S.b=n;
+  document.getElementById('hdr-sub').textContent=S.bNames[n];
+  document.querySelectorAll('.b-btn').forEach((b,i)=>b.classList.toggle('active',i+1===n));
+  renderAll();
+}
+
+// ── DASHBOARD ──
+function renderDash(){
+  const b=S.b, m=S.meds;
+  const active=m.filter(x=>x.s[b]>0).length;
+  const units=m.reduce((a,x)=>a+(x.s[b]||0),0);
+  const warns=m.filter(x=>expSt(x.cad)==='warn');
+  const exps=m.filter(x=>expSt(x.cad)==='exp');
+  document.getElementById('d-meds').textContent=active;
+  document.getElementById('d-units').textContent=units.toLocaleString('es-CO');
+  document.getElementById('d-warn').textContent=warns.length;
+  document.getElementById('d-exp').textContent=exps.length;
+  // dot
+  document.getElementById('dot-0').classList.toggle('show',(warns.length+exps.length)>0);
+  // alerts
+  const alerts=[...exps.map(x=>({m:x,t:'exp'})),...warns.map(x=>({m:x,t:'warn'}))];
+  const el=document.getElementById('d-alerts');
+  if(!alerts.length){
+    el.innerHTML='<div class="empty"><i class="ti ti-circle-check"></i><div class="empty-title">Sin alertas</div><div class="empty-sub">Todos los medicamentos están en orden</div></div>';
+    return;
+  }
+  el.innerHTML=alerts.map(({m,t})=>`
+    <div class="alert-strip ${t}">
+      <i class="ti ti-${t==='exp'?'alert-circle':'alert-triangle'}"></i>
+      <div class="alert-strip-text">
+        <div class="alert-strip-name">${m.n}</div>
+        <div class="alert-strip-meta">SKU ${m.sku} · Lote ${m.lote} · ${m.s[b]||0} ${m.u}</div>
+      </div>
+      <div class="alert-strip-days">${fmtDate(m.cad)}</div>
+    </div>`).join('');
+}
+
+// ── INVENTARIO ──
+function renderInv(){
+  const q=(document.getElementById('s-input').value||'').toLowerCase();
+  const f=document.getElementById('s-filter').value;
+  const b=S.b;
+  let list=S.meds.filter(m=>{
+    const st=expSt(m.cad);
+    return (!q||m.n.toLowerCase().includes(q)||m.sku.toLowerCase().includes(q)||m.lote.toLowerCase().includes(q)||m.inv.toLowerCase().includes(q))
+      &&(!f||st===f);
+  });
+  const el=document.getElementById('inv-list');
+  if(!list.length){
+    el.innerHTML='<div class="empty"><i class="ti ti-search"></i><div class="empty-title">Sin resultados</div><div class="empty-sub">Prueba con otro término de búsqueda</div></div>';
+    return;
+  }
+  el.innerHTML=list.map(m=>{
+    const st=expSt(m.cad), stk=m.s[b]||0;
+    return `<div class="med-card ${st!=='ok'?st+'-card':''}">
+      <div class="med-card-top">
+        <div class="med-pill-icon ${st}"><i class="ti ti-pill"></i></div>
+        <div class="med-info">
+          <div class="med-name">${m.n}</div>
+          <div class="med-sku">${m.sku}</div>
+          <div class="med-badges">
+            <span class="badge b-lote">Lote: ${m.lote}</span>
+            <span class="badge b-invima">${m.inv}</span>
+            <span class="badge b-exp-${st}">Cad: ${fmtDate(m.cad)} · ${expLbl(st)}</span>
+          </div>
+        </div>
+      </div>
+      <div class="med-footer">
+        <div class="med-stock-display">
+          <span class="med-stock-num">${stk}</span>
+          <span class="med-stock-unit">${m.u}</span>
+        </div>
+        <div class="med-actions">
+          <button class="act-btn add" title="Agregar stock" onclick="openNP(${m.id},'add')"><i class="ti ti-plus"></i></button>
+          <button class="act-btn sub" title="Consumir" onclick="openNP(${m.id},'sub')"><i class="ti ti-minus"></i></button>
+          <button class="act-btn move" title="Trasladar" onclick="quickMove(${m.id})"><i class="ti ti-transfer"></i></button>
+          <button class="act-btn del" title="Eliminar" onclick="askDel(${m.id})"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── TRASLADO ──
+function renderTraslado(){
+  const sel=document.getElementById('t-med');
+  sel.innerHTML='<option value="">Seleccionar medicamento…</option>'+
+    S.meds.map(m=>`<option value="${m.id}">${m.n} (${m.sku})</option>`).join('');
+  renderTStock();
+  updTrans();
+}
+function updTrans(){
+  const mid=parseInt(document.getElementById('t-med').value);
+  const ori=parseInt(document.getElementById('t-origen').value);
+  const med=S.meds.find(m=>m.id===mid);
+  document.getElementById('t-orig-name').textContent=S.bShort[ori];
+  document.getElementById('t-dest-name').textContent=S.bShort[ori===1?2:1];
+  document.getElementById('t-orig-stock').textContent=med?`${med.s[ori]||0} ${med.u} disponibles`:'— disponibles';
+}
+function renderTStock(){
+  document.getElementById('t-stock-list').innerHTML=S.meds.map(m=>`
+    <div class="stock-compare-card">
+      <div class="sc-name">${m.n}</div>
+      <div class="sc-badges">
+        <span class="sc-b b1"><span class="b-tag b1">B1</span> ${m.s[1]||0}</span>
+        <span class="sc-b b2"><span class="b-tag b2">B2</span> ${m.s[2]||0}</span>
+      </div>
+    </div>`).join('');
+}
+function hacerTraslado(){
+  const mid=parseInt(document.getElementById('t-med').value);
+  const cant=parseInt(document.getElementById('t-cantidad').value)||0;
+  const ori=parseInt(document.getElementById('t-origen').value);
+  const dest=ori===1?2:1;
+  if(!mid){toast('Selecciona un medicamento');return;}
+  if(cant<=0){toast('Ingresa una cantidad válida');return;}
+  const med=S.meds.find(m=>m.id===mid);
+  if((med.s[ori]||0)<cant){toast('Stock insuficiente en origen');return;}
+  med.s[ori]-=cant;
+  med.s[dest]=(med.s[dest]||0)+cant;
+  addLog('transfer',`Traslado: ${cant} ${med.u} de ${med.n} | ${S.bShort[ori]} → ${S.bShort[dest]}`);
+  document.getElementById('t-cantidad').value='';
+  toast('✓ Traslado realizado');
+  renderAll();
+  renderTStock();
+  updTrans();
+}
+
+// ── HISTORIAL ──
+function renderLog(){
+  const f=document.getElementById('h-filter').value;
+  const logs=f?S.log.filter(l=>l.type===f):S.log;
+  const el=document.getElementById('log-list');
+  if(!logs.length){
+    el.innerHTML='<div class="empty" style="padding:30px 20px"><i class="ti ti-history"></i><div class="empty-title">Sin movimientos</div><div class="empty-sub">Los registros aparecerán aquí</div></div>';
+    return;
+  }
+  const icons={in:'ti-plus',out:'ti-minus',transfer:'ti-transfer',delete:'ti-trash'};
+  el.innerHTML=[...logs].reverse().map(l=>`
+    <div class="log-item">
+      <div class="log-icon ${l.type}"><i class="ti ${icons[l.type]}"></i></div>
+      <div><div class="log-text">${l.msg}</div><div class="log-time">${l.t}</div></div>
+    </div>`).join('');
+}
+
+// ── AGREGAR MED ──
+function agregarMed(){
+  const nombre=document.getElementById('f-nombre').value.trim();
+  const sku=document.getElementById('f-sku').value.trim();
+  const lote=document.getElementById('f-lote').value.trim();
+  const inv=document.getElementById('f-invima').value.trim();
+  const cad=document.getElementById('f-caducidad').value;
+  const cant=parseInt(document.getElementById('f-cantidad').value)||0;
+  const u=document.getElementById('f-unidad').value;
+  const bod=parseInt(document.getElementById('f-bodega').value);
+  if(!nombre||!sku||!lote||!inv||!cad){toast('Completa todos los campos obligatorios');return;}
+  const med={id:S.nid++,n:nombre,sku,lote,inv,cad,u,s:{1:0,2:0}};
+  med.s[bod]=cant;
+  S.meds.push(med);
+  addLog('in',`Alta: ${nombre} · ${cant} ${u} · Lote ${lote} · ${S.bShort[bod]}`);
+  ['f-nombre','f-sku','f-lote','f-invima','f-caducidad','f-cantidad'].forEach(id=>document.getElementById(id).value='');
+  toast('✓ Medicamento registrado');
+  renderAll();
+  goTo('inventario',1);
+}
+
+// ── DELETE ──
+let _delId=null;
+function askDel(id){
+  _delId=id;
+  const med=S.meds.find(m=>m.id===id);
+  document.getElementById('m-del-msg').textContent=`¿Eliminar "${med.n}" (Lote: ${med.lote}) de todo el inventario? Esta acción no se puede deshacer.`;
+  document.getElementById('m-del-btn').onclick=doDel;
+  document.getElementById('m-delete').classList.add('open');
+}
+function doDel(){
+  const med=S.meds.find(m=>m.id===_delId);
+  addLog('delete',`Baja: ${med.n} · SKU ${med.sku} · Lote ${med.lote}`);
+  S.meds=S.meds.filter(m=>m.id!==_delId);
+  closeM('m-delete');
+  toast('Medicamento eliminado');
+  renderAll();
+}
+
+// ── NUMPAD ──
+let _npMode=null,_npId=null,_npV='0';
+function openNP(id,mode){
+  _npMode=mode;_npId=id;_npV='0';
+  const med=S.meds.find(m=>m.id===id);
+  document.getElementById('np-title').textContent=mode==='add'?'Agregar stock':'Registrar consumo';
+  document.getElementById('np-sub').textContent=`${med.n} · Stock actual: ${med.s[S.b]||0} ${med.u}`;
+  document.getElementById('np-unit').textContent=med.u;
+  document.getElementById('np-val').textContent='0';
+  document.getElementById('m-qty').classList.add('open');
+}
+function nk(k){
+  if(k==='C'){_npV='0';}
+  else if(_npV==='0'){_npV=k;}
+  else{_npV=(_npV+k).slice(0,5);}
+  document.getElementById('np-val').textContent=parseInt(_npV)||0;
+}
+function npOk(){
+  const cant=parseInt(_npV)||0;
+  if(cant<=0){closeM('m-qty');return;}
+  const b=S.b;
+  const med=S.meds.find(m=>m.id===_npId);
+  if(_npMode==='add'){
+    med.s[b]=(med.s[b]||0)+cant;
+    addLog('in',`Entrada: +${cant} ${med.u} de ${med.n} · ${S.bShort[b]}`);
+    toast(`+${cant} ${med.u} agregadas`);
+  } else {
+    if((med.s[b]||0)<cant){toast('Stock insuficiente');return;}
+    med.s[b]-=cant;
+    addLog('out',`Consumo: -${cant} ${med.u} de ${med.n} · ${S.bShort[b]}`);
+    toast(`-${cant} ${med.u} registradas`);
+  }
+  closeM('m-qty');
+  renderAll();
+}
+
+// ── QUICK MOVE ──
+function quickMove(id){
+  goTo('traslado',3);
+  setTimeout(()=>{document.getElementById('t-med').value=id;updTrans();},80);
+}
+
+// ── RENDER ALL ──
+function renderAll(){renderDash();renderInv();renderLog();}
+renderAll();
+
+// ── PWA MANIFEST (inline) ──
+const manifest={name:'MediStock Enfermería',short_name:'MediStock',start_url:'.',display:'standalone',background_color:'#ffffff',theme_color:'#0F6E56',icons:[{src:'https://placehold.co/192x192/0F6E56/ffffff?text=M',sizes:'192x192',type:'image/png'},{src:'https://placehold.co/512x512/0F6E56/ffffff?text=M',sizes:'512x512',type:'image/png'}]};
+const blob=new Blob([JSON.stringify(manifest)],{type:'application/json'});
+const link=document.createElement('link');
+link.rel='manifest';link.href=URL.createObjectURL(blob);
+document.head.appendChild(link);
+</script>
+</body>
+</html>
