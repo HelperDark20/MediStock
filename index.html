@@ -1470,7 +1470,7 @@ function acOpen(ns){
         <div class="ac-item-icon ${i.familia}"><i class="ti ti-pill"></i></div>
         <div class="ac-item-body">
           <div class="ac-item-name">${i.nombre}</div>
-          <div class="ac-item-meta"><span>${i.sku}</span>${i.proveedor&&i.proveedor!=='—'?`<span>${i.proveedor}</span>`:''}<span class="sem ${sem}" style="font-size:9px;padding:1px 6px">${semLabel(sem)}</span></div>
+          <div class="ac-item-meta"><span>${i.sku}</span>${i.proveedor&&i.proveedor!=='—'?`<span>${i.proveedor}</span>`:''}<span style="background:var(--ink2);color:rgba(255,255,255,.85);padding:1px 6px;border-radius:4px;font-size:9px">📍 ${i.ubicacion}</span><span class="sem ${sem}" style="font-size:9px;padding:1px 6px">${semLabel(sem)}</span></div>
         </div>
         <div class="ac-item-stock">${i.cantidad} ${i.unidad}</div>
       </div>`;
@@ -1495,7 +1495,7 @@ function acSelect(ns, id){
   const pill = document.getElementById(`${ns}-ac-pill`);
   const pillText = document.getElementById(`${ns}-ac-pill-text`);
   pill.classList.add('show');
-  pillText.innerHTML = `${item.nombre} <span class="ac-selected-pill-sku">${item.sku} · ${item.cantidad} ${item.unidad}</span>`;
+  pillText.innerHTML = `${item.nombre} <span class="ac-selected-pill-sku">${item.sku} · ${item.cantidad} ${item.unidad} · 📍 ${item.ubicacion}</span>`;
   // callback
   if(ns==='mov') updateMovInfo();
   if(ns==='traz') renderTrazabilidad();
