@@ -1471,9 +1471,8 @@ function acOpen(ns){
         <div class="ac-item-body">
           <div class="ac-item-name">
             ${i.nombre}
-            <span style="font-size:10px;font-weight:600;background:var(--ink);color:rgba(255,255,255,.9);padding:2px 7px;border-radius:6px;margin-left:6px;vertical-align:middle;font-family:var(--font-mono)">${i.ubicacion}</span>
           </div>
-          <div class="ac-item-meta"><span>${i.sku}</span>${i.proveedor&&i.proveedor!=='—'?`<span>${i.proveedor}</span>`:''}<span class="sem ${sem}" style="font-size:9px;padding:1px 6px">${semLabel(sem)}</span></div>
+          <div class="ac-item-meta"><span>${i.sku}</span>${i.proveedor&&i.proveedor!=='—'?`<span>${i.proveedor}</span>`:''}<span style="background:var(--ink);color:rgba(255,255,255,.9);padding:1px 7px;border-radius:4px;font-size:9px;font-weight:600">📍 ${i.ubicacion}</span><span class="sem ${sem}" style="font-size:9px;padding:1px 6px">${semLabel(sem)}</span></div>
         </div>
         <div class="ac-item-stock">${i.cantidad} ${i.unidad}</div>
       </div>`;
