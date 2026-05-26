@@ -362,6 +362,39 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
   .form-grid{grid-template-columns:1fr}
   .form-grid.cols3{grid-template-columns:1fr}
 }
+
+/* ── AUTOCOMPLETE ── */
+.ac-wrap{position:relative;flex:1}
+.ac-input{width:100%;padding:9px 12px 9px 36px;border:1px solid var(--cream3);border-radius:var(--r-md);font-size:13px;color:var(--ink);background:#fff;outline:none;transition:border-color .15s,box-shadow .15s}
+.ac-input:focus{border-color:var(--emerald2);box-shadow:0 0 0 3px rgba(15,144,104,.1)}
+.ac-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:16px;color:#aaa;pointer-events:none}
+.ac-clear{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:14px;color:#bbb;cursor:pointer;display:none;border:none;background:none;padding:2px}
+.ac-clear.show{display:block}
+.ac-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--cream3);border-radius:var(--r-lg);box-shadow:var(--sh3);z-index:200;max-height:280px;overflow-y:auto;display:none}
+.ac-dropdown.open{display:block}
+.ac-dropdown::-webkit-scrollbar{width:4px}
+.ac-dropdown::-webkit-scrollbar-thumb{background:var(--cream3);border-radius:2px}
+.ac-item{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--cream2);transition:background .1s;display:flex;align-items:flex-start;gap:10px}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover,.ac-item.focused{background:var(--cream)}
+.ac-item-icon{width:32px;height:32px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.ac-item-icon.MED{background:#EEF3FB;color:#1A4B8C}
+.ac-item-icon.INS,.ac-item-icon.INP{background:#EDF7F1;color:#1A6B3C}
+.ac-item-icon.DM,.ac-item-icon.DOT{background:#F5F0FB;color:#6B3FA0}
+.ac-item-icon.EB,.ac-item-icon.ASE{background:#FDF6EC;color:#B7680A}
+.ac-item-icon i{font-size:15px}
+.ac-item-body{flex:1;min-width:0}
+.ac-item-name{font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ac-item-name mark{background:var(--lime2);color:var(--ink);border-radius:2px;padding:0 1px}
+.ac-item-meta{font-size:11px;color:#888;font-family:var(--font-mono);margin-top:2px;display:flex;gap:8px;flex-wrap:wrap}
+.ac-item-stock{font-size:11px;font-weight:700;color:var(--emerald);margin-left:auto;white-space:nowrap;align-self:center}
+.ac-selected-pill{display:none;align-items:center;gap:8px;background:var(--teal-light,#E1F5EE);border:1px solid #9FE1CB;border-radius:var(--r-md);padding:8px 12px;margin-top:8px}
+.ac-selected-pill.show{display:flex}
+.ac-selected-pill-text{flex:1;font-size:13px;font-weight:500;color:var(--emerald)}
+.ac-selected-pill-sku{font-size:11px;font-family:var(--font-mono);color:#888;margin-left:4px}
+.ac-selected-pill button{border:none;background:none;cursor:pointer;color:#aaa;font-size:16px;padding:0;line-height:1;transition:color .15s}
+.ac-selected-pill button:hover{color:var(--red)}
+.ac-no-results{padding:20px;text-align:center;color:#aaa;font-size:13px}
 </style>
 </head>
 <body>
@@ -598,8 +631,9 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
                   <input type="text" id="seg-prov" maxlength="5" placeholder="GEN" oninput="updateSKUfromSegs()" style="font-family:var(--font-mono);text-transform:uppercase">
                 </div>
                 <div class="form-group" id="seg-item-wrap">
-                  <label>Seg. Ítem</label>
-                  <input type="text" id="seg-item" maxlength="5" placeholder="ACE" oninput="updateSKUfromSegs()" style="font-family:var(--font-mono);text-transform:uppercase">
+                  <label>Seg. Ítem <span id="seg-item-hint" style="font-weight:400;color:var(--emerald);display:none">· editable</span></label>
+                  <input type="text" id="seg-item" maxlength="12" placeholder="GLUCOMETRO" oninput="updateSKUfromSegs()" style="font-family:var(--font-mono);text-transform:uppercase;font-size:13px">
+                  <span class="hint" id="seg-item-help" style="display:none">Modifica el SKU para diferenciarlo si ya existe otro igual</span>
                 </div>
                 <div class="form-group" id="seg-pres-wrap">
                   <label>Seg. Presentación</label>
@@ -682,9 +716,18 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
           <div class="form-grid">
             <div class="form-group fg-full">
               <label>SKU / Ítem</label>
-              <select id="mov-sku" onchange="updateMovInfo()">
-                <option value="">Seleccionar…</option>
-              </select>
+              <div class="ac-wrap" id="mov-ac-wrap">
+                <i class="ti ti-search ac-icon"></i>
+                <input type="text" class="ac-input" id="mov-ac-input" placeholder="Buscar por nombre, SKU o lote…" autocomplete="off"
+                  oninput="acFilter('mov')" onfocus="acOpen('mov')" onkeydown="acKey(event,'mov')">
+                <button class="ac-clear" id="mov-ac-clear" onclick="acClear('mov')"><i class="ti ti-x"></i></button>
+                <div class="ac-dropdown" id="mov-ac-drop"></div>
+              </div>
+              <div class="ac-selected-pill" id="mov-ac-pill">
+                <span class="ac-selected-pill-text" id="mov-ac-pill-text"></span>
+                <button onclick="acClear('mov')"><i class="ti ti-x"></i></button>
+              </div>
+              <input type="hidden" id="mov-sku">
             </div>
             <div class="form-group">
               <label>Tipo de movimiento</label>
@@ -736,9 +779,18 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
           <div style="display:flex;gap:10px;align-items:flex-end">
             <div class="form-group" style="flex:1">
               <label>SKU a rastrear</label>
-              <select id="traz-sku" onchange="renderTrazabilidad()">
-                <option value="">Seleccionar SKU…</option>
-              </select>
+              <div class="ac-wrap" id="traz-ac-wrap">
+                <i class="ti ti-search ac-icon"></i>
+                <input type="text" class="ac-input" id="traz-ac-input" placeholder="Buscar por nombre, SKU o lote…" autocomplete="off"
+                  oninput="acFilter('traz')" onfocus="acOpen('traz')" onkeydown="acKey(event,'traz')">
+                <button class="ac-clear" id="traz-ac-clear" onclick="acClear('traz')"><i class="ti ti-x"></i></button>
+                <div class="ac-dropdown" id="traz-ac-drop"></div>
+              </div>
+              <div class="ac-selected-pill" id="traz-ac-pill">
+                <span class="ac-selected-pill-text" id="traz-ac-pill-text"></span>
+                <button onclick="acClear('traz')"><i class="ti ti-x"></i></button>
+              </div>
+              <input type="hidden" id="traz-sku">
             </div>
           </div>
         </div>
@@ -936,19 +988,12 @@ function populateSelects(){
   f_u.innerHTML='';
   UBICACIONES.forEach(u=>{const o=document.createElement('option');o.value=u;o.textContent=u;f_u.appendChild(o)});
   // mov selects
-  const movSku=document.getElementById('mov-sku');
-  movSku.innerHTML='<option value="">Seleccionar…</option>';
-  inventario.forEach(i=>{const o=document.createElement('option');o.value=i.id;o.textContent=`${i.sku} — ${i.nombre}`;movSku.appendChild(o)});
   const movOrig=document.getElementById('mov-origen');
   const movDest=document.getElementById('mov-destino');
   [movOrig,movDest].forEach(sel=>{
     sel.innerHTML='';
     UBICACIONES.forEach(u=>{const o=document.createElement('option');o.value=u;o.textContent=u;sel.appendChild(o)});
   });
-  // trazabilidad
-  const traz=document.getElementById('traz-sku');
-  traz.innerHTML='<option value="">Seleccionar SKU…</option>';
-  inventario.forEach(i=>{const o=document.createElement('option');o.value=i.sku;o.textContent=i.sku+' — '+i.nombre;traz.appendChild(o)});
 }
 
 // ══════════════════════════════════
@@ -1083,6 +1128,15 @@ function setModo(m){
   // campos opcionales solo en genérico
   const opCard=document.getElementById('fg-opcionales-card');
   if(opCard) opCard.style.display=m==='generico'?'block':'none';
+  // en genérico mostrar solo seg-item, ocultar prov y pres
+  const segProvWrap=document.getElementById('seg-prov-wrap');
+  const segPresWrap=document.getElementById('seg-pres-wrap');
+  const segItemHint=document.getElementById('seg-item-hint');
+  const segItemHelp=document.getElementById('seg-item-help');
+  if(segProvWrap) segProvWrap.style.display=m==='trazable'?'':'none';
+  if(segPresWrap) segPresWrap.style.display=m==='trazable'?'':'none';
+  if(segItemHint) segItemHint.style.display=m==='generico'?'':'none';
+  if(segItemHelp) segItemHelp.style.display=m==='generico'?'':'none';
   document.querySelectorAll('.sku-sep').forEach(s=>s.style.display=m==='trazable'?'':'none');
   updateSubgrupos();
   updateSKU();
@@ -1108,14 +1162,21 @@ function updateSKU(){
     document.getElementById('sku-preview-type').textContent='Tipo: Trazable por lote · Segmentos editables abajo';
     checkSkuDuplicate(`${segProv}-${segItem}-${segPres}-${segLote}`);
   } else {
-    const segItem=siglas(nombre,3);
-    const seg2=nombre.split(' ').map(w=>siglas(w,3)).filter(s=>s&&s!==segItem).slice(0,1)[0]||'---';
+    // SKU Genérico: inteligente según cantidad de palabras
+    const palabras = nombre.trim().split(/\s+/).filter(Boolean);
+    let skuGen = '';
+    if(palabras.length === 1){
+      skuGen = palabras[0].replace(/[^a-zA-Z0-9]/g,'').substring(0,6).toUpperCase();
+    } else {
+      skuGen = palabras.slice(0,3).map(w=>w.replace(/[^a-zA-Z0-9]/g,'').substring(0,3).toUpperCase()).filter(Boolean).join('-');
+    }
     document.getElementById('sp-prov').textContent='';
-    document.getElementById('sp-item').textContent=segItem;
-    document.getElementById('sp-pres').textContent=seg2;
+    document.getElementById('sp-item').textContent=skuGen;
+    document.getElementById('sp-pres').textContent='';
     document.getElementById('sp-lote').textContent='';
-    document.getElementById('sku-preview-type').textContent='Tipo: Genérico · SKU fijo sin lote';
-    checkSkuDuplicate(`${segItem}-${seg2}`);
+    document.getElementById('sku-preview-type').textContent='Tipo: Genérico · Edita el SKU abajo antes de guardar';
+    document.getElementById('seg-item').value=skuGen;
+    checkSkuDuplicate(skuGen);
   }
 }
 
@@ -1144,7 +1205,8 @@ function getCurrentSKU(){
     const l=document.getElementById('sp-lote').textContent;
     return`${p}-${i}-${pr}-${l}`;
   } else {
-    return`${document.getElementById('sp-item').textContent}-${document.getElementById('sp-pres').textContent}`;
+    // En genérico usar el campo editable seg-item directamente
+    return (document.getElementById('seg-item').value||'').toUpperCase().trim() || document.getElementById('sp-item').textContent;
   }
 }
 
@@ -1200,7 +1262,7 @@ function toggleMovFields(){
 }
 
 function updateMovInfo(){
-  const id=parseInt(document.getElementById('mov-sku').value);
+  const id=parseInt(document.getElementById('mov-sku').value)||0;
   const origen=document.getElementById('mov-origen').value;
   const item=inventario.find(i=>i.id===id);
   if(!item){document.getElementById('mov-stock-info').textContent='Selecciona un ítem para ver el stock disponible';return;}
@@ -1210,7 +1272,7 @@ function updateMovInfo(){
 
 function registrarMovimiento(){
   if(currentRole==='auditor'){toast('Sin permiso','error');return;}
-  const id=parseInt(document.getElementById('mov-sku').value);
+  const id=parseInt(document.getElementById('mov-sku').value)||0;
   const tipo=document.getElementById('mov-tipo').value;
   const cant=parseInt(document.getElementById('mov-cantidad').value)||0;
   const origen=document.getElementById('mov-origen').value;
@@ -1257,7 +1319,7 @@ function quickMov(id){
   if(!item) return;
   goTo('movimientos');
   setTimeout(()=>{
-    document.getElementById('mov-sku').value=id;
+    acSelect('mov', id);
     document.getElementById('mov-origen').value=item.ubicacion;
     updateMovInfo();
   },100);
@@ -1267,7 +1329,7 @@ function quickMov(id){
 // TRAZABILIDAD
 // ══════════════════════════════════
 function renderTrazabilidad(){
-  const sku=document.getElementById('traz-sku').value;
+  const sku=document.getElementById('traz-sku').value||'';
   const result=document.getElementById('traz-result');
   if(!sku){result.innerHTML='<div class="empty-state"><i class="ti ti-timeline"></i><p>Selecciona un SKU para ver su trazabilidad completa</p></div>';return;}
   const movs=movimientos.filter(m=>m.sku===sku);
@@ -1339,6 +1401,155 @@ function confirmDelete(id){
   };
   document.getElementById('modal-confirm').classList.add('open');
 }
+
+
+// ══════════════════════════════════
+// AUTOCOMPLETE ENGINE
+// ══════════════════════════════════
+const AC = {
+  mov:  {selectedId: null, focusIdx: -1},
+  traz: {selectedId: null, focusIdx: -1},
+};
+
+function acFilter(ns){
+  const q = (document.getElementById(`${ns}-ac-input`).value||'').toLowerCase().trim();
+  const drop = document.getElementById(`${ns}-ac-drop`);
+  const clear = document.getElementById(`${ns}-ac-clear`);
+  clear.classList.toggle('show', q.length > 0);
+  AC[ns].focusIdx = -1;
+
+  if(!q){ drop.classList.remove('open'); drop.innerHTML=''; return; }
+
+  const results = inventario.filter(i =>
+    i.nombre.toLowerCase().includes(q) ||
+    i.sku.toLowerCase().includes(q) ||
+    (i.lote||'').toLowerCase().includes(q) ||
+    (i.proveedor||'').toLowerCase().includes(q) ||
+    (i.subgrupo||'').toLowerCase().includes(q)
+  ).slice(0, 12);
+
+  if(!results.length){
+    drop.innerHTML = '<div class="ac-no-results"><i class="ti ti-search" style="display:block;font-size:24px;margin-bottom:6px;opacity:.3"></i>Sin resultados para "'+q+'"</div>';
+    drop.classList.add('open');
+    return;
+  }
+
+  drop.innerHTML = results.map((i,idx) => {
+    const sem = getSemaforo(i.caducidad);
+    const stock = i.cantidad;
+    const hilite = (str) => str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'), '<mark>$1</mark>');
+    return `<div class="ac-item" data-id="${i.id}" data-sku="${i.sku}" data-idx="${idx}"
+      onmousedown="acSelect('${ns}',${i.id})" onmouseover="acHover('${ns}',${idx})">
+      <div class="ac-item-icon ${i.familia}"><i class="ti ti-pill"></i></div>
+      <div class="ac-item-body">
+        <div class="ac-item-name">${hilite(i.nombre)}</div>
+        <div class="ac-item-meta">
+          <span>${hilite(i.sku)}</span>
+          ${i.lote&&i.lote!=='—'?`<span>Lote: ${hilite(i.lote)}</span>`:''}
+          ${i.proveedor&&i.proveedor!=='—'?`<span>${i.proveedor}</span>`:''}
+          <span class="sem ${sem}" style="font-size:9px;padding:1px 6px">${semLabel(sem)}</span>
+        </div>
+      </div>
+      <div class="ac-item-stock">${stock} ${i.unidad}</div>
+    </div>`;
+  }).join('');
+  drop.classList.add('open');
+}
+
+function acOpen(ns){
+  const q = document.getElementById(`${ns}-ac-input`).value||'';
+  if(q.length > 0) acFilter(ns);
+  else {
+    // mostrar todos al hacer foco sin texto
+    const drop = document.getElementById(`${ns}-ac-drop`);
+    const all = inventario.slice(0,10);
+    drop.innerHTML = all.map((i,idx)=>{
+      const sem = getSemaforo(i.caducidad);
+      return `<div class="ac-item" data-id="${i.id}" data-idx="${idx}"
+        onmousedown="acSelect('${ns}',${i.id})" onmouseover="acHover('${ns}',${idx})">
+        <div class="ac-item-icon ${i.familia}"><i class="ti ti-pill"></i></div>
+        <div class="ac-item-body">
+          <div class="ac-item-name">${i.nombre}</div>
+          <div class="ac-item-meta"><span>${i.sku}</span>${i.proveedor&&i.proveedor!=='—'?`<span>${i.proveedor}</span>`:''}<span class="sem ${sem}" style="font-size:9px;padding:1px 6px">${semLabel(sem)}</span></div>
+        </div>
+        <div class="ac-item-stock">${i.cantidad} ${i.unidad}</div>
+      </div>`;
+    }).join('') + (inventario.length>10?`<div class="ac-no-results" style="padding:8px;font-size:11px">+${inventario.length-10} más · escribe para filtrar</div>`:'');
+    drop.classList.add('open');
+  }
+}
+
+function acSelect(ns, id){
+  const item = inventario.find(i=>i.id===parseInt(id));
+  if(!item) return;
+  AC[ns].selectedId = item.id;
+  // hidden input
+  document.getElementById(`${ns}-sku`).value = ns==='traz' ? item.sku : item.id;
+  // input text
+  document.getElementById(`${ns}-ac-input`).value = item.nombre;
+  // clear btn
+  document.getElementById(`${ns}-ac-clear`).classList.add('show');
+  // cerrar dropdown
+  document.getElementById(`${ns}-ac-drop`).classList.remove('open');
+  // pill
+  const pill = document.getElementById(`${ns}-ac-pill`);
+  const pillText = document.getElementById(`${ns}-ac-pill-text`);
+  pill.classList.add('show');
+  pillText.innerHTML = `${item.nombre} <span class="ac-selected-pill-sku">${item.sku} · ${item.cantidad} ${item.unidad}</span>`;
+  // callback
+  if(ns==='mov') updateMovInfo();
+  if(ns==='traz') renderTrazabilidad();
+}
+
+function acClear(ns){
+  AC[ns].selectedId = null;
+  document.getElementById(`${ns}-sku`).value = '';
+  document.getElementById(`${ns}-ac-input`).value = '';
+  document.getElementById(`${ns}-ac-clear`).classList.remove('show');
+  document.getElementById(`${ns}-ac-drop`).classList.remove('open');
+  document.getElementById(`${ns}-ac-pill`).classList.remove('show');
+  document.getElementById(`${ns}-ac-input`).focus();
+  if(ns==='mov') document.getElementById('mov-stock-info').textContent='Selecciona un ítem para ver el stock disponible';
+  if(ns==='traz') document.getElementById('traz-result').innerHTML='<div class="empty-state"><i class="ti ti-timeline"></i><p>Selecciona un SKU para ver su trazabilidad completa</p></div>';
+}
+
+function acHover(ns, idx){
+  AC[ns].focusIdx = idx;
+  document.querySelectorAll(`#${ns}-ac-drop .ac-item`).forEach((el,i)=>el.classList.toggle('focused',i===idx));
+}
+
+function acKey(e, ns){
+  const drop = document.getElementById(`${ns}-ac-drop`);
+  const items = drop.querySelectorAll('.ac-item');
+  if(!items.length) return;
+  if(e.key==='ArrowDown'){
+    e.preventDefault();
+    AC[ns].focusIdx = Math.min(AC[ns].focusIdx+1, items.length-1);
+    items.forEach((el,i)=>el.classList.toggle('focused',i===AC[ns].focusIdx));
+    items[AC[ns].focusIdx]?.scrollIntoView({block:'nearest'});
+  } else if(e.key==='ArrowUp'){
+    e.preventDefault();
+    AC[ns].focusIdx = Math.max(AC[ns].focusIdx-1, 0);
+    items.forEach((el,i)=>el.classList.toggle('focused',i===AC[ns].focusIdx));
+    items[AC[ns].focusIdx]?.scrollIntoView({block:'nearest'});
+  } else if(e.key==='Enter' && AC[ns].focusIdx>=0){
+    e.preventDefault();
+    const id = parseInt(items[AC[ns].focusIdx].dataset.id);
+    acSelect(ns, id);
+  } else if(e.key==='Escape'){
+    drop.classList.remove('open');
+  }
+}
+
+// Cerrar dropdown al hacer click fuera
+document.addEventListener('click', e=>{
+  ['mov','traz'].forEach(ns=>{
+    const wrap = document.getElementById(`${ns}-ac-wrap`);
+    if(wrap && !wrap.contains(e.target)){
+      document.getElementById(`${ns}-ac-drop`).classList.remove('open');
+    }
+  });
+});
 
 // INIT
 setModo('trazable');
