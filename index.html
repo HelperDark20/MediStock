@@ -220,6 +220,9 @@ tr:hover td{background:var(--cream)}
 .fam{font-size:10px;font-weight:600;padding:2px 8px;border-radius:8px;font-family:var(--font-mono)}
 .fam.MED{background:#EEF3FB;color:#1A4B8C}
 .fam.INS{background:#EDF7F1;color:#1A6B3C}
+.fam.INP{background:#F0FAF6;color:#0A6E4F}
+.fam.DM{background:#F5F0FB;color:#6B3FA0}
+.fam.EB{background:#FDF6EC;color:#B7680A}
 .fam.DOT{background:#F5F0FB;color:#6B3FA0}
 .fam.ASE{background:#FDF6EC;color:#B7680A}
 
@@ -490,7 +493,11 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
               <option value="">Familia</option>
               <option value="MED">Medicamento</option>
               <option value="INS">Insumo</option>
+              <option value="INP">Insumo Pediátrico</option>
+              <option value="DM">Dispositivo Médico</option>
+              <option value="EB">Equipo Biomédico</option>
               <option value="DOT">Dotación</option>
+              <option value="ASE">Aseo</option>
             </select>
           </div>
           <table>
@@ -602,10 +609,48 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
             </div>
           </div>
 
+          <!-- CAMPOS OPCIONALES GENÉRICO -->
+          <div class="form-card" id="fg-opcionales-card" style="display:none">
+            <div class="form-card-title"><i class="ti ti-info-circle"></i>Datos adicionales <span style="font-size:11px;font-weight:400;color:#aaa;margin-left:6px">(opcionales)</span></div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Lote</label>
+                <input type="text" id="f-lote-gen" placeholder="Ej. LT-2024-001">
+              </div>
+              <div class="form-group">
+                <label>Registro INVIMA</label>
+                <input type="text" id="f-invima-gen" placeholder="INVIMA2024DM-001234">
+              </div>
+              <div class="form-group fg-full">
+                <label>Fecha de vencimiento</label>
+                <input type="date" id="f-caducidad-gen">
+                <span class="hint">Solo si el equipo tiene fecha de vencimiento</span>
+              </div>
+            </div>
+          </div>
+
           <!-- STOCK Y DESTINO -->
           <div class="form-card">
-            <div class="form-card-title"><i class="ti ti-warehouse"></i>Stock y destino</div>
+            <div class="form-card-title"><i class="ti ti-warehouse"></i>Clasificación y destino</div>
             <div class="form-grid">
+              <div class="form-group">
+                <label>Familia</label>
+                <select id="f-familia" onchange="updateSubgrupos()">
+                  <option value="MED">Medicamento</option>
+                  <option value="INS">Insumo</option>
+                  <option value="INP">Insumo Pediátrico</option>
+                  <option value="DM">Dispositivo Médico</option>
+                  <option value="EB">Equipo Biomédico</option>
+                  <option value="DOT">Dotación</option>
+                  <option value="ASE">Aseo</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Subgrupo</label>
+                <select id="f-subgrupo">
+                  <option value="">Seleccionar subgrupo…</option>
+                </select>
+              </div>
               <div class="form-group">
                 <label>Cantidad</label>
                 <input type="number" id="f-cantidad" placeholder="0" min="1">
@@ -618,18 +663,9 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
                   <option>Paquetes</option><option>ml</option>
                 </select>
               </div>
-              <div class="form-group">
+              <div class="form-group fg-full">
                 <label>Ubicación destino</label>
                 <select id="f-ubicacion"></select>
-              </div>
-              <div class="form-group">
-                <label>Familia</label>
-                <select id="f-familia">
-                  <option value="MED">Medicamento</option>
-                  <option value="INS">Insumo</option>
-                  <option value="DOT">Dotación</option>
-                  <option value="ASE">Aseo</option>
-                </select>
               </div>
             </div>
             <button style="width:100%;margin-top:14px;padding:13px;background:var(--emerald);color:#fff;border:none;border-radius:var(--r-md);font-family:var(--font-head);font-size:15px;font-weight:700;cursor:pointer;transition:background .15s" onclick="registrarEntrada()" onmouseenter="this.style.background='var(--emerald2)'" onmouseleave="this.style.background='var(--emerald)'">
@@ -749,16 +785,44 @@ const ROLES = {
 
 const UBICACIONES = ['Almacén General','Almacén Palmaseca','MEC 1 MED','BTQ I 01','Enfermería Palmaseca'];
 
+const FAMILIAS = {
+  MED: 'Medicamento',
+  INS: 'Insumo',
+  INP: 'Insumo Pediátrico',
+  DM:  'Dispositivo Médico',
+  EB:  'Equipo Biomédico',
+  DOT: 'Dotación',
+  ASE: 'Aseo',
+};
+
+const SUBGRUPOS = {
+  MED: ['AINES','ANALGÉSICO','ANESTÉSICO','ANESTÉSICO TÓPICO','ANTAGONISTA OPIOIDE','ANTIARRÍTMICO','ANTIBIÓTICO TÓPICO','ANTICOLINÉRGICO','ANTICONVULSIVO','ANTIDIARRÉICO','ANTIESPAMÓDICOS','ANTIHEMETICOS','ANTIHIPERTENSIVO','ANTIHISTAMÍNICO','ANTIPIRÉTICO','BRONCODILATADOR','CARDIOTÓNICOS','CIRCULATORIO','CORTICOIDE','CORTICOIDE TÓPICO','PROTECTOR GÁSTRICO','REPOSICIÓN ELECTROLÍTICA','RESPIRATORIO','SIQUIÁTRICO','SOLUCIÓN OFTÁLMICA'],
+  INS: ['INSUMO','QUIRÚRGICO'],
+  INP: ['INSUMO','QUIRÚRGICO'],
+  DM:  ['DISPOSITIVO MÉDICO','DISPOSITIVO MÉDICO PEDIÁTRICO'],
+  EB:  ['EQUIPO BIOMÉDICO'],
+  DOT: ['DOTACIÓN'],
+  ASE: ['ASEO'],
+};
+
+function updateSubgrupos(){
+  const familia=document.getElementById('f-familia')?.value||'MED';
+  const sel=document.getElementById('f-subgrupo');
+  if(!sel) return;
+  const lista=SUBGRUPOS[familia]||[];
+  sel.innerHTML='<option value="">Seleccionar subgrupo…</option>'+lista.map(s=>`<option value="${s}">${s}</option>`).join('');
+}
+
 // Inventario inicial con 8 ítems representativos
 let inventario = [
-  {id:1,sku:'GEN-ACE-500-LF01529B',nombre:'Acetaminofén Tab 500mg',proveedor:'Genfar',lote:'LF01529B',invima:'2021M-006528-R4',caducidad:'2026-06-30',familia:'MED',unidad:'Tabletas',ubicacion:'MEC 1 MED',cantidad:27,tipo:'trazable'},
-  {id:2,sku:'GEN-ACE-500-25B382',nombre:'Acetaminofén Tab 500mg',proveedor:'Genfar',lote:'25B382',invima:'2023M-0002317-R3',caducidad:'2026-08-15',familia:'MED',unidad:'Tabletas',ubicacion:'BTQ I 01',cantidad:100,tipo:'trazable'},
-  {id:3,sku:'LAB-DIC-75-S24055842',nombre:'Diclofenaco 75mg/3ml AMP',proveedor:'Labiosano',lote:'S24055842',invima:'2022M-0004505-R2',caducidad:'2026-11-30',familia:'MED',unidad:'Ampollas',ubicacion:'MEC 1 MED',cantidad:5,tipo:'trazable'},
-  {id:4,sku:'VIT-DEX-4-A241044',nombre:'Dexametasona 4mg/1ml AMP',proveedor:'Vitalis',lote:'A241044',invima:'2020M-0007728-R1',caducidad:'2025-06-10',familia:'MED',unidad:'Ampollas',ubicacion:'Almacén General',cantidad:8,tipo:'trazable'},
-  {id:5,sku:'FAR-OME-20-B5H004',nombre:'Omeprazol Tab 20mg',proveedor:'Farmacol',lote:'B5H004',invima:'2021M-013239-R3',caducidad:'2025-04-30',familia:'MED',unidad:'Tabletas',ubicacion:'Enfermería Palmaseca',cantidad:27,tipo:'trazable'},
-  {id:6,sku:'BAX-SAL-500-SB251G9',nombre:'Solución Salina 0.9% 500cc',proveedor:'Baxter',lote:'SB251G9',invima:'2020M-001117-R4',caducidad:'2026-09-20',familia:'INS',unidad:'Bolsas',ubicacion:'Almacén Palmaseca',cantidad:15,tipo:'trazable'},
-  {id:7,sku:'ALL-GAS-E5-20250910',nombre:'Gasa Paquete Estéril Pqx5',proveedor:'Allmed',lote:'20250910',invima:'2023DM-0026559',caducidad:'2027-09-10',familia:'INS',unidad:'Sobres',ubicacion:'Almacén General',cantidad:50,tipo:'trazable'},
-  {id:8,sku:'TIJ-CRT',nombre:'Tijera Cortatodo',proveedor:'—',lote:'—',invima:'—',caducidad:'',familia:'DOT',unidad:'Unidades',ubicacion:'BTQ I 01',cantidad:3,tipo:'generico'},
+  {id:1,sku:'GEN-ACE-500-LF01529B',nombre:'Acetaminofén Tab 500mg',proveedor:'Genfar',lote:'LF01529B',invima:'2021M-006528-R4',caducidad:'2026-06-30',familia:'MED',subgrupo:'ANALGÉSICO',unidad:'Tabletas',ubicacion:'MEC 1 MED',cantidad:27,tipo:'trazable'},
+  {id:2,sku:'GEN-ACE-500-25B382',nombre:'Acetaminofén Tab 500mg',proveedor:'Genfar',lote:'25B382',invima:'2023M-0002317-R3',caducidad:'2026-08-15',familia:'MED',subgrupo:'ANALGÉSICO',unidad:'Tabletas',ubicacion:'BTQ I 01',cantidad:100,tipo:'trazable'},
+  {id:3,sku:'LAB-DIC-75-S24055842',nombre:'Diclofenaco 75mg/3ml AMP',proveedor:'Labiosano',lote:'S24055842',invima:'2022M-0004505-R2',caducidad:'2026-11-30',familia:'MED',subgrupo:'AINES',unidad:'Ampollas',ubicacion:'MEC 1 MED',cantidad:5,tipo:'trazable'},
+  {id:4,sku:'VIT-DEX-4-A241044',nombre:'Dexametasona 4mg/1ml AMP',proveedor:'Vitalis',lote:'A241044',invima:'2020M-0007728-R1',caducidad:'2025-06-10',familia:'MED',subgrupo:'CORTICOIDE',unidad:'Ampollas',ubicacion:'Almacén General',cantidad:8,tipo:'trazable'},
+  {id:5,sku:'FAR-OME-20-B5H004',nombre:'Omeprazol Tab 20mg',proveedor:'Farmacol',lote:'B5H004',invima:'2021M-013239-R3',caducidad:'2025-04-30',familia:'MED',subgrupo:'PROTECTOR GÁSTRICO',unidad:'Tabletas',ubicacion:'Enfermería Palmaseca',cantidad:27,tipo:'trazable'},
+  {id:6,sku:'BAX-SAL-500-SB251G9',nombre:'Solución Salina 0.9% 500cc',proveedor:'Baxter',lote:'SB251G9',invima:'2020M-001117-R4',caducidad:'2026-09-20',familia:'INS',subgrupo:'INSUMO',unidad:'Bolsas',ubicacion:'Almacén Palmaseca',cantidad:15,tipo:'trazable'},
+  {id:7,sku:'ALL-GAS-E5-20250910',nombre:'Gasa Paquete Estéril Pqx5',proveedor:'Allmed',lote:'20250910',invima:'2023DM-0026559',caducidad:'2027-09-10',familia:'INS',subgrupo:'QUIRÚRGICO',unidad:'Sobres',ubicacion:'Almacén General',cantidad:50,tipo:'trazable'},
+  {id:8,sku:'TIJ-CRT',nombre:'Tijera Cortatodo',proveedor:'—',lote:'—',invima:'—',caducidad:'',familia:'DOT',subgrupo:'DOTACIÓN',unidad:'Unidades',ubicacion:'BTQ I 01',cantidad:3,tipo:'generico'},
 ];
 
 let movimientos = [
@@ -972,7 +1036,10 @@ function renderInv(){
       <td><span class="sku-code">${i.sku}</span></td>
       <td>
         <div style="font-weight:500;font-size:13px">${i.nombre}</div>
-        <span class="fam ${i.familia}">${{MED:'Medicamento',INS:'Insumo',DOT:'Dotación',ASE:'Aseo'}[i.familia]}</span>
+        <div style="display:flex;gap:5px;margin-top:3px;flex-wrap:wrap">
+          <span class="fam ${i.familia}">${FAMILIAS[i.familia]||i.familia}</span>
+          ${i.subgrupo?`<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:var(--cream);color:#666;font-family:var(--font-mono)">${i.subgrupo}</span>`:''}
+        </div>
       </td>
       <td>
         <div style="font-size:12px;font-family:var(--font-mono);color:#666">${i.proveedor}</div>
@@ -1000,6 +1067,7 @@ function renderRegistro(){
   document.getElementById('registro-locked-msg').style.display=locked?'block':'none';
   document.getElementById('registro-form').style.opacity=locked?'.4':'1';
   document.getElementById('registro-form').style.pointerEvents=locked?'none':'auto';
+  updateSubgrupos();
   updateSKU();
 }
 
@@ -1007,14 +1075,16 @@ function setModo(m){
   skuModo=m;
   document.getElementById('modo-trazable').classList.toggle('active',m==='trazable');
   document.getElementById('modo-generico').classList.toggle('active',m==='generico');
-  // mostrar/ocultar campos
   const traceable=['fg-proveedor','fg-pres','fg-lote','fg-invima','fg-caducidad','sku-segs-edit'];
   traceable.forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.style.display=m==='trazable'?'':'none';
   });
-  // en genérico ocultar separadores del preview
+  // campos opcionales solo en genérico
+  const opCard=document.getElementById('fg-opcionales-card');
+  if(opCard) opCard.style.display=m==='generico'?'block':'none';
   document.querySelectorAll('.sku-sep').forEach(s=>s.style.display=m==='trazable'?'':'none');
+  updateSubgrupos();
   updateSKU();
 }
 
@@ -1083,24 +1153,29 @@ function registrarEntrada(){
   const nombre=document.getElementById('f-nombre').value.trim();
   const cantidad=parseInt(document.getElementById('f-cantidad').value)||0;
   const ubicacion=document.getElementById('f-ubicacion').value;
+  const familia=document.getElementById('f-familia').value;
+  const subgrupo=document.getElementById('f-subgrupo').value;
   const sku=getCurrentSKU();
   if(!nombre){toast('Ingresa el nombre del ítem','error');return;}
   if(cantidad<=0){toast('Ingresa una cantidad válida','error');return;}
   if(sku.includes('---')){toast('Completa los datos para generar el SKU','error');return;}
+  if(!subgrupo){toast('Selecciona un subgrupo','error');return;}
+
+  // lote/invima/caducidad: trazable usa campos principales, genérico usa opcionales
+  const lote      = skuModo==='trazable' ? (document.getElementById('f-lote').value||'—')      : (document.getElementById('f-lote-gen').value||'—');
+  const invima    = skuModo==='trazable' ? (document.getElementById('f-invima').value||'—')    : (document.getElementById('f-invima-gen').value||'—');
+  const caducidad = skuModo==='trazable' ? (document.getElementById('f-caducidad').value||'')  : (document.getElementById('f-caducidad-gen').value||'');
+
   const nuevo={
     id:nextId++,sku,nombre,
-    proveedor:document.getElementById('f-proveedor').value||'—',
-    lote:document.getElementById('f-lote').value||'—',
-    invima:document.getElementById('f-invima').value||'—',
-    caducidad:document.getElementById('f-caducidad').value||'',
-    familia:document.getElementById('f-familia').value,
+    proveedor:document.getElementById('f-proveedor')?.value||'—',
+    lote, invima, caducidad, familia, subgrupo,
     unidad:document.getElementById('f-unidad').value,
     ubicacion,cantidad,tipo:skuModo,
   };
   inventario.push(nuevo);
   movimientos.push({id:movimientos.length+1,fecha:new Date().toISOString().split('T')[0],sku,tipo:'compra',origen:'—',destino:ubicacion,cantidad,usuario:'Admin'});
-  // reset form
-  ['f-nombre','f-proveedor','f-pres','f-lote','f-invima','f-caducidad','f-cantidad'].forEach(id=>document.getElementById(id).value='');
+  ['f-nombre','f-proveedor','f-pres','f-lote','f-invima','f-caducidad','f-cantidad','f-lote-gen','f-invima-gen','f-caducidad-gen'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   updateSKU();
   populateSelects();
   toast('✓ Entrada registrada correctamente','success');
