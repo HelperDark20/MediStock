@@ -1447,7 +1447,7 @@ function acFilter(ns){
           <span>${hilite(i.sku)}</span>
           ${i.lote&&i.lote!=='—'?`<span>Lote: ${hilite(i.lote)}</span>`:''}
           ${i.proveedor&&i.proveedor!=='—'?`<span>${i.proveedor}</span>`:''}
-          <span style="background:var(--ink);color:#fff;padding:1px 7px;border-radius:4px;font-size:9px;font-weight:600">📍 ${i.ubicacion}</span>
+          <span style="background:var(--cream2);color:var(--gray-600,#5F5E5A);padding:1px 7px;border-radius:4px;font-size:9px;font-weight:600;border:1px solid var(--cream3)">📍 ${i.ubicacion}</span>
           <span class="sem ${sem}" style="font-size:9px;padding:1px 6px">${semLabel(sem)}</span>
         </div>
       </div>
@@ -1473,7 +1473,7 @@ function acOpen(ns){
           <div class="ac-item-name">
             ${i.nombre}
           </div>
-          <div class="ac-item-meta"><span>${i.sku}</span>${i.proveedor&&i.proveedor!=='—'?`<span>${i.proveedor}</span>`:''}<span style="background:var(--ink);color:rgba(255,255,255,.9);padding:1px 7px;border-radius:4px;font-size:9px;font-weight:600">📍 ${i.ubicacion}</span><span class="sem ${sem}" style="font-size:9px;padding:1px 6px">${semLabel(sem)}</span></div>
+          <div class="ac-item-meta"><span>${i.sku}</span>${i.proveedor&&i.proveedor!=='—'?`<span>${i.proveedor}</span>`:''}<span style="background:var(--cream2);color:var(--gray-600,#5F5E5A);padding:1px 7px;border-radius:4px;font-size:9px;font-weight:600;border:1px solid var(--cream3)">📍 ${i.ubicacion}</span><span class="sem ${sem}" style="font-size:9px;padding:1px 6px">${semLabel(sem)}</span></div>
         </div>
         <div class="ac-item-stock">${i.cantidad} ${i.unidad}</div>
       </div>`;
