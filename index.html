@@ -462,6 +462,9 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
     </div>
     <div class="sb-nav" id="sb-nav"></div>
     <div class="sb-footer">
+      <button class="logout-btn" onclick="resetState()" style="margin-bottom:10px;color:rgba(255,255,255,.3)" title="Restaurar datos de demo">
+        <i class="ti ti-refresh"></i>Restaurar demo
+      </button>
       <button class="logout-btn" onclick="doLogout()">
         <i class="ti ti-logout"></i>Cerrar sesión
       </button>
@@ -866,7 +869,8 @@ function updateSubgrupos(){
 }
 
 // Inventario inicial con 8 ítems representativos
-let inventario = [
+// ── DATOS SEMILLA (no se tocan si ya hay datos en localStorage) ──
+const SEED_INVENTARIO = [
   {id:1,sku:'GEN-ACE-500-LF01529B',nombre:'Acetaminofén Tab 500mg',proveedor:'Genfar',lote:'LF01529B',invima:'2021M-006528-R4',caducidad:'2026-06-30',familia:'MED',subgrupo:'ANALGÉSICO',unidad:'Tabletas',ubicacion:'MEC 1 MED',cantidad:27,tipo:'trazable'},
   {id:2,sku:'GEN-ACE-500-25B382',nombre:'Acetaminofén Tab 500mg',proveedor:'Genfar',lote:'25B382',invima:'2023M-0002317-R3',caducidad:'2026-08-15',familia:'MED',subgrupo:'ANALGÉSICO',unidad:'Tabletas',ubicacion:'BTQ I 01',cantidad:100,tipo:'trazable'},
   {id:3,sku:'LAB-DIC-75-S24055842',nombre:'Diclofenaco 75mg/3ml AMP',proveedor:'Labiosano',lote:'S24055842',invima:'2022M-0004505-R2',caducidad:'2026-11-30',familia:'MED',subgrupo:'AINES',unidad:'Ampollas',ubicacion:'MEC 1 MED',cantidad:5,tipo:'trazable'},
@@ -875,19 +879,72 @@ let inventario = [
   {id:6,sku:'BAX-SAL-500-SB251G9',nombre:'Solución Salina 0.9% 500cc',proveedor:'Baxter',lote:'SB251G9',invima:'2020M-001117-R4',caducidad:'2026-09-20',familia:'INS',subgrupo:'INSUMO',unidad:'Bolsas',ubicacion:'Almacén Palmaseca',cantidad:15,tipo:'trazable'},
   {id:7,sku:'ALL-GAS-E5-20250910',nombre:'Gasa Paquete Estéril Pqx5',proveedor:'Allmed',lote:'20250910',invima:'2023DM-0026559',caducidad:'2027-09-10',familia:'INS',subgrupo:'QUIRÚRGICO',unidad:'Sobres',ubicacion:'Almacén General',cantidad:50,tipo:'trazable'},
   {id:8,sku:'TIJ-CRT',nombre:'Tijera Cortatodo',proveedor:'—',lote:'—',invima:'—',caducidad:'',familia:'DOT',subgrupo:'DOTACIÓN',unidad:'Unidades',ubicacion:'BTQ I 01',cantidad:3,tipo:'generico'},
+  {id:9,sku:'ECR-LOS-50M-F090616',nombre:'Losartán 50mg Tab',proveedor:'Ecar',lote:'F090616',invima:'2020M-0012345-R2',caducidad:'2026-12-31',familia:'MED',subgrupo:'ANTIHIPERTENSIVO',unidad:'Tabletas',ubicacion:'MEC 1 MED',cantidad:240,tipo:'trazable'},
+  {id:10,sku:'ECR-LOS-50M-F090616',nombre:'Losartán 50mg Tab',proveedor:'Ecar',lote:'F090616',invima:'2020M-0012345-R2',caducidad:'2026-12-31',familia:'MED',subgrupo:'ANTIHIPERTENSIVO',unidad:'Tabletas',ubicacion:'Almacén Palmaseca',cantidad:60,tipo:'trazable'},
+  {id:11,sku:'BAX-GLU-5P-G241101',nombre:'Dextrosa 5% 500cc',proveedor:'Baxter',lote:'G241101',invima:'2019M-0008877-R3',caducidad:'2026-07-15',familia:'MED',subgrupo:'REPOSICIÓN ELECTROLÍTICA',unidad:'Bolsas',ubicacion:'BTQ I 01',cantidad:12,tipo:'trazable'},
 ];
 
-let movimientos = [
-  {id:1,fecha:'2026-05-10',sku:'GEN-ACE-500-LF01529B',tipo:'compra',origen:'—',destino:'Almacén General',cantidad:50,usuario:'Admin'},
-  {id:2,fecha:'2026-05-11',sku:'GEN-ACE-500-LF01529B',tipo:'asignacion',origen:'Almacén General',destino:'MEC 1 MED',cantidad:30,usuario:'Admin'},
-  {id:3,fecha:'2026-05-12',sku:'GEN-ACE-500-LF01529B',tipo:'consumo',origen:'MEC 1 MED',destino:'—',cantidad:3,usuario:'Enfermero/a'},
-  {id:4,fecha:'2026-05-15',sku:'BAX-SAL-500-SB251G9',tipo:'compra',origen:'—',destino:'Almacén Palmaseca',cantidad:20,usuario:'Admin'},
-  {id:5,fecha:'2026-05-18',sku:'VIT-DEX-4-A241044',tipo:'traslado',origen:'Almacén General',destino:'MEC 1 MED',cantidad:4,usuario:'Admin'},
-  {id:6,fecha:'2026-05-20',sku:'FAR-OME-20-B5H004',tipo:'consumo',origen:'Enfermería Palmaseca',destino:'—',cantidad:2,usuario:'Enfermero/a'},
-  {id:7,fecha:'2026-05-22',sku:'ALL-GAS-E5-20250910',tipo:'asignacion',origen:'Almacén General',destino:'BTQ I 01',cantidad:10,usuario:'Admin'},
+const SEED_MOVIMIENTOS = [
+  {id:1,fecha:'2026-04-01',sku:'GEN-ACE-500-LF01529B',tipo:'compra',origen:'—',destino:'Almacén General',cantidad:50,usuario:'Admin'},
+  {id:2,fecha:'2026-04-02',sku:'GEN-ACE-500-LF01529B',tipo:'asignacion',origen:'Almacén General',destino:'MEC 1 MED',cantidad:30,usuario:'Admin'},
+  {id:3,fecha:'2026-04-05',sku:'GEN-ACE-500-LF01529B',tipo:'consumo',origen:'MEC 1 MED',destino:'—',cantidad:3,usuario:'Enfermero/a'},
+  {id:4,fecha:'2026-04-08',sku:'BAX-SAL-500-SB251G9',tipo:'compra',origen:'—',destino:'Almacén Palmaseca',cantidad:20,usuario:'Admin'},
+  {id:5,fecha:'2026-04-10',sku:'BAX-SAL-500-SB251G9',tipo:'asignacion',origen:'Almacén Palmaseca',destino:'BTQ I 01',cantidad:8,usuario:'Admin'},
+  {id:6,fecha:'2026-04-12',sku:'BAX-SAL-500-SB251G9',tipo:'consumo',origen:'BTQ I 01',destino:'—',cantidad:2,usuario:'Enfermero/a'},
+  {id:7,fecha:'2026-04-15',sku:'VIT-DEX-4-A241044',tipo:'compra',origen:'—',destino:'Almacén General',cantidad:12,usuario:'Admin'},
+  {id:8,fecha:'2026-04-16',sku:'VIT-DEX-4-A241044',tipo:'traslado',origen:'Almacén General',destino:'MEC 1 MED',cantidad:4,usuario:'Admin'},
+  {id:9,fecha:'2026-04-18',sku:'FAR-OME-20-B5H004',tipo:'compra',origen:'—',destino:'Almacén Palmaseca',cantidad:30,usuario:'Admin'},
+  {id:10,fecha:'2026-04-20',sku:'FAR-OME-20-B5H004',tipo:'asignacion',origen:'Almacén Palmaseca',destino:'Enfermería Palmaseca',cantidad:10,usuario:'Admin'},
+  {id:11,fecha:'2026-04-22',sku:'FAR-OME-20-B5H004',tipo:'consumo',origen:'Enfermería Palmaseca',destino:'—',cantidad:2,usuario:'Enfermero/a'},
+  {id:12,fecha:'2026-04-25',sku:'ALL-GAS-E5-20250910',tipo:'compra',origen:'—',destino:'Almacén General',cantidad:60,usuario:'Admin'},
+  {id:13,fecha:'2026-04-26',sku:'ALL-GAS-E5-20250910',tipo:'asignacion',origen:'Almacén General',destino:'BTQ I 01',cantidad:10,usuario:'Admin'},
+  {id:14,fecha:'2026-04-28',sku:'ECR-LOS-50M-F090616',tipo:'compra',origen:'—',destino:'Almacén General',cantidad:300,usuario:'Admin'},
+  {id:15,fecha:'2026-04-29',sku:'ECR-LOS-50M-F090616',tipo:'asignacion',origen:'Almacén General',destino:'MEC 1 MED',cantidad:240,usuario:'Admin'},
+  {id:16,fecha:'2026-04-29',sku:'ECR-LOS-50M-F090616',tipo:'asignacion',origen:'Almacén General',destino:'Almacén Palmaseca',cantidad:60,usuario:'Admin'},
+  {id:17,fecha:'2026-05-02',sku:'ECR-LOS-50M-F090616',tipo:'consumo',origen:'MEC 1 MED',destino:'—',cantidad:15,usuario:'Enfermero/a'},
+  {id:18,fecha:'2026-05-05',sku:'BAX-GLU-5P-G241101',tipo:'compra',origen:'—',destino:'Almacén General',cantidad:20,usuario:'Admin'},
+  {id:19,fecha:'2026-05-06',sku:'BAX-GLU-5P-G241101',tipo:'asignacion',origen:'Almacén General',destino:'BTQ I 01',cantidad:12,usuario:'Admin'},
+  {id:20,fecha:'2026-05-10',sku:'LAB-DIC-75-S24055842',tipo:'compra',origen:'—',destino:'Almacén General',cantidad:10,usuario:'Admin'},
+  {id:21,fecha:'2026-05-11',sku:'LAB-DIC-75-S24055842',tipo:'asignacion',origen:'Almacén General',destino:'MEC 1 MED',cantidad:5,usuario:'Admin'},
+  {id:22,fecha:'2026-05-15',sku:'GEN-ACE-500-LF01529B',tipo:'consumo',origen:'MEC 1 MED',destino:'—',cantidad:5,usuario:'Enfermero/a'},
+  {id:23,fecha:'2026-05-18',sku:'ECR-LOS-50M-F090616',tipo:'traslado',origen:'Almacén Palmaseca',destino:'Enfermería Palmaseca',cantidad:20,usuario:'Enfermero/a'},
+  {id:24,fecha:'2026-05-20',sku:'BAX-SAL-500-SB251G9',tipo:'consumo',origen:'BTQ I 01',destino:'—',cantidad:1,usuario:'Enfermero/a'},
+  {id:25,fecha:'2026-05-22',sku:'VIT-DEX-4-A241044',tipo:'destruccion',origen:'MEC 1 MED',destino:'—',cantidad:1,usuario:'Auditor'},
 ];
 
-let nextId = 9;
+// ── PERSISTENCIA localStorage ──
+function saveState(){
+  try {
+    localStorage.setItem('nb_inventario', JSON.stringify(inventario));
+    localStorage.setItem('nb_movimientos', JSON.stringify(movimientos));
+    localStorage.setItem('nb_nextId', String(nextId));
+  } catch(e){ console.warn('localStorage no disponible', e); }
+}
+
+function loadState(){
+  try {
+    const inv = localStorage.getItem('nb_inventario');
+    const mov = localStorage.getItem('nb_movimientos');
+    const nid = localStorage.getItem('nb_nextId');
+    if(inv) inventario = JSON.parse(inv);
+    if(mov) movimientos = JSON.parse(mov);
+    if(nid) nextId = parseInt(nid);
+  } catch(e){ console.warn('Error cargando localStorage', e); }
+}
+
+function resetState(){
+  inventario = JSON.parse(JSON.stringify(SEED_INVENTARIO));
+  movimientos = JSON.parse(JSON.stringify(SEED_MOVIMIENTOS));
+  nextId = 30;
+  saveState();
+  renderAll();
+  toast('Datos restaurados a la demo inicial','success');
+}
+
+let inventario = JSON.parse(JSON.stringify(SEED_INVENTARIO));
+let movimientos = JSON.parse(JSON.stringify(SEED_MOVIMIENTOS));
+let nextId = 30;
+loadState();
 
 // ══════════════════════════════════
 // HELPERS
@@ -1240,6 +1297,7 @@ function registrarEntrada(){
   ['f-nombre','f-proveedor','f-pres','f-lote','f-invima','f-caducidad','f-cantidad','f-lote-gen','f-invima-gen','f-caducidad-gen'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   updateSKU();
   populateSelects();
+  saveState();
   toast('✓ Entrada registrada correctamente','success');
   setTimeout(()=>goTo('inventario'),800);
 }
@@ -1295,6 +1353,7 @@ function registrarMovimiento(){
   movimientos.push({id:movimientos.length+1,fecha:new Date().toISOString().split('T')[0],sku:item.sku,tipo,origen,destino:tipo==='traslado'?destino:'—',cantidad:cant,usuario:{admin:'Admin',enfermero:'Enfermero/a',auditor:'Auditor'}[currentRole]});
   document.getElementById('mov-cantidad').value='';
   populateSelects();
+  saveState();
   renderMovBody();
   toast(`✓ ${tipo.charAt(0).toUpperCase()+tipo.slice(1)} registrado`,'success');
 }
