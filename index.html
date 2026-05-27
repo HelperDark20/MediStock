@@ -525,7 +525,11 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
               <option value="R">● Crítico</option>
               <option value="N">✕ Vencido</option>
             </select>
-            <select id="inv-familia" onchange="renderInv()">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#888;cursor:pointer;white-space:nowrap">
+            <input type="checkbox" id="inv-agotados" onchange="renderInv()" style="accent-color:var(--emerald2)">
+            Ver agotados
+          </label>
+          <select id="inv-familia" onchange="renderInv()">
               <option value="">Familia</option>
               <option value="MED">Medicamento</option>
               <option value="INS">Insumo</option>
@@ -1124,8 +1128,10 @@ function renderInv(){
   const u=document.getElementById('inv-ubicacion').value;
   const s=document.getElementById('inv-sem').value;
   const f=document.getElementById('inv-familia').value;
+  const showAgotados = document.getElementById('inv-agotados')?.checked;
   const list=inventario.filter(i=>{
     const sem=getSemaforo(i.caducidad);
+    if(i.agotado && !showAgotados) return false;
     return(!q||i.sku.toLowerCase().includes(q)||i.nombre.toLowerCase().includes(q)||i.lote.toLowerCase().includes(q)||i.proveedor.toLowerCase().includes(q))
       &&(!u||i.ubicacion===u)&&(!s||sem===s)&&(!f||i.familia===f);
   });
@@ -1342,13 +1348,13 @@ function registrarMovimiento(){
   if(tipo==='traslado'&&origen===destino){toast('Origen y destino son iguales','error');return;}
   if(tipo==='consumo'||tipo==='destruccion'){
     item.cantidad-=cant;
-    if(item.cantidad<=0) inventario=inventario.filter(i=>i.id!==id);
+    if(item.cantidad<=0){ item.cantidad=0; item.agotado=true; }
   } else if(tipo==='traslado'){
     item.cantidad-=cant;
-    if(item.cantidad<=0) inventario=inventario.filter(i=>i.id!==id);
-    const destItem=inventario.find(i=>i.sku===item.sku&&i.ubicacion===destino);
+    if(item.cantidad<=0){ item.cantidad=0; item.agotado=true; }
+    const destItem=inventario.find(i=>i.sku===item.sku&&i.ubicacion===destino&&!i.agotado);
     if(destItem) destItem.cantidad+=cant;
-    else inventario.push({...item,id:nextId++,cantidad:cant,ubicacion:destino});
+    else inventario.push({...item,id:nextId++,cantidad:cant,ubicacion:destino,agotado:false});
   }
   movimientos.push({id:movimientos.length+1,fecha:new Date().toISOString().split('T')[0],sku:item.sku,tipo,origen,destino:tipo==='traslado'?destino:'—',cantidad:cant,usuario:{admin:'Admin',enfermero:'Enfermero/a',auditor:'Auditor'}[currentRole]});
   document.getElementById('mov-cantidad').value='';
@@ -1486,6 +1492,9 @@ function acFilter(ns){
     (i.proveedor||'').toLowerCase().includes(q) ||
     (i.subgrupo||'').toLowerCase().includes(q)
   ).slice(0, 12);
+  // En movimientos excluir agotados, en trazabilidad incluirlos
+  const filtered = ns==='traz' ? results : results.filter(i=>!i.agotado);
+  if(!filtered.length && ns!=='traz') { results.length=0; } else if(ns!=='traz') { results.splice(0,results.length,...filtered); }
 
   if(!results.length){
     drop.innerHTML = '<div class="ac-no-results"><i class="ti ti-search" style="display:block;font-size:24px;margin-bottom:6px;opacity:.3"></i>Sin resultados para "'+q+'"</div>';
@@ -1510,7 +1519,7 @@ function acFilter(ns){
           <span class="sem ${sem}" style="font-size:9px;padding:1px 6px">${semLabel(sem)}</span>
         </div>
       </div>
-      <div class="ac-item-stock">${stock} ${i.unidad}</div>
+      <div class="ac-item-stock" style="${i.agotado?'color:#bbb':''}">${i.agotado?'AGOTADO':`${stock} ${i.unidad}`}</div>
     </div>`;
   }).join('');
   drop.classList.add('open');
