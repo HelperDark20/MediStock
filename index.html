@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<meta name="theme-color" content="#0D1A2E">
+<meta name="theme-color" content="#0A1628">
 <title>Nova Bridge — Sistema de Inventario</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Instrument+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -11,390 +11,347 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
-  --ink:#0D1A14;--ink2:#1C3028;--ink3:#2D4A3E;
-  --emerald:#0D7FC2;--emerald2:#2196D3;--emerald3:#4DB8F0;
-  --lime:#4DB8F0;--lime2:#90D8F7;
-  --cream:#F4F1E8;--cream2:#EAE6D8;--cream3:#DDD8C4;
+  --blue:#2196D3;--blue2:#4DB8F0;--blue3:#90D8F7;--blue-bg:#E3F4FC;--blue-pale:#EBF6FD;
+  --ink:#0A1628;--ink2:#1A2B45;--ink3:#2D4060;
+  --cream:#F4F2EE;--cream2:#EAE7DE;--cream3:#D8D4C8;
   --red:#C0392B;--red2:#E74C3C;--red-bg:#FDF0EF;
   --amber:#B7680A;--amber2:#E08C1A;--amber-bg:#FDF6EC;
-  --yellow:#8B6914;--yellow-bg:#FEFAEC;
-  --green:#0D7FC2;--green-bg:#E3F4FC;
-  --blue:#1A4B8C;--blue-bg:#EEF3FB;
+  --green:#1A6B3C;--green-bg:#EDF7F1;
+  --white:#FFFFFF;
   --font-head:'Syne',sans-serif;
   --font-body:'Instrument Sans',sans-serif;
   --font-mono:'JetBrains Mono',monospace;
   --r-sm:6px;--r-md:10px;--r-lg:16px;--r-xl:24px;
   --sh1:0 1px 3px rgba(0,0,0,.08);
   --sh2:0 4px 16px rgba(0,0,0,.1);
-  --sh3:0 12px 40px rgba(0,0,0,.15);
+  --sh3:0 12px 40px rgba(0,0,0,.18);
 }
 html,body{height:100%;background:var(--cream);font-family:var(--font-body);color:var(--ink);overflow:hidden}
 button{font-family:var(--font-body);cursor:pointer}
 input,select,textarea{font-family:var(--font-body)}
 
 /* ── LOGIN ── */
-#login-screen{
-  position:fixed;inset:0;z-index:1000;
-  background:var(--ink);
-  display:flex;align-items:center;justify-content:center;
-  flex-direction:column;gap:0;
-  transition:opacity .4s,transform .4s;
-}
+#login-screen{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;transition:opacity .4s,transform .4s;background:var(--ink)}
 #login-screen.out{opacity:0;transform:scale(1.04);pointer-events:none}
-.login-bg{
-  position:absolute;inset:0;
-  background:radial-gradient(ellipse at 20% 50%, #0A2A45 0%, transparent 60%),
-              radial-gradient(ellipse at 80% 20%, #061828 0%, transparent 50%),
-              var(--ink);
-}
-.login-noise{
-  position:absolute;inset:0;opacity:.04;
-  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-.login-card{
-  position:relative;z-index:1;
-  width:100%;max-width:400px;padding:0 24px;
-}
-.login-logo{
-  display:flex;align-items:center;gap:12px;margin-bottom:40px;
-}
-.login-logo-icon{
-  width:48px;height:48px;background:var(--emerald);border-radius:14px;
-  display:flex;align-items:center;justify-content:center;
-}
-.login-logo-icon i{font-size:26px;color:#fff}
-.login-logo-text{font-family:var(--font-head);font-size:28px;font-weight:800;color:#fff;letter-spacing:-.02em}
-.login-logo-sub{font-size:12px;color:rgba(255,255,255,.4);margin-top:2px;font-family:var(--font-mono)}
+.login-bg{position:absolute;inset:0;background:radial-gradient(ellipse at 20% 50%,#0A2A45 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,#061828 0%,transparent 50%),var(--ink)}
+.login-card{position:relative;z-index:1;width:100%;max-width:420px;padding:0 24px}
+.login-logo{display:flex;align-items:center;gap:14px;margin-bottom:44px}
+.login-logo img{width:56px;height:56px;object-fit:contain}
+.login-logo-text{font-family:var(--font-head);font-size:30px;font-weight:800;color:#fff;letter-spacing:.22em}
+.login-logo-sub{font-size:11px;color:rgba(255,255,255,.4);margin-top:3px;font-family:var(--font-mono);letter-spacing:.06em}
 .login-title{font-family:var(--font-head);font-size:22px;font-weight:700;color:#fff;margin-bottom:6px}
 .login-sub{font-size:13px;color:rgba(255,255,255,.5);margin-bottom:28px}
-.login-roles{display:flex;flex-direction:column;gap:10px;margin-bottom:24px}
-.role-btn{
-  padding:16px 18px;border-radius:var(--r-lg);border:1px solid rgba(255,255,255,.08);
-  background:rgba(255,255,255,.04);color:#fff;
-  display:flex;align-items:center;gap:14px;text-align:left;
-  transition:all .18s;cursor:pointer;
-}
-.role-btn:hover{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.18);transform:translateX(4px)}
-.role-btn.selected{background:rgba(33,150,211,.15);border-color:#4DB8F0}
-.role-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.role-icon.admin{background:#2196D3}
-.role-icon.enfermero{background:#1A5C8C}
-.role-icon.auditor{background:#6B3FA0}
-.role-icon i{font-size:19px;color:#fff}
-.role-info strong{display:block;font-size:14px;font-weight:600;margin-bottom:1px}
-.role-info span{font-size:12px;color:rgba(255,255,255,.5)}
-.role-check{margin-left:auto;width:20px;height:20px;border-radius:50%;border:1.5px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;transition:all .15s}
-.role-btn.selected .role-check{background:var(--emerald3);border-color:#4DB8F0}
-.role-check i{font-size:11px;color:#fff;opacity:0;transition:opacity .15s}
-.role-btn.selected .role-check i{opacity:1}
-.login-btn{
-  width:100%;padding:14px;background:#2196D3;color:#fff;border:none;
-  border-radius:var(--r-md);font-family:var(--font-head);font-size:15px;font-weight:700;
-  letter-spacing:.01em;transition:all .15s;
-}
-.login-btn:hover{background:#4DB8F0;transform:translateY(-1px)}
-.login-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.login-form{display:flex;flex-direction:column;gap:12px;margin-bottom:20px}
+.login-field{display:flex;flex-direction:column;gap:5px}
+.login-field label{font-size:11px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.07em;font-family:var(--font-mono)}
+.login-field input{padding:12px 14px;border:1px solid rgba(255,255,255,.1);border-radius:var(--r-md);background:rgba(255,255,255,.06);color:#fff;font-size:14px;outline:none;transition:border-color .15s}
+.login-field input:focus{border-color:var(--blue);background:rgba(33,150,211,.08)}
+.login-field input::placeholder{color:rgba(255,255,255,.25)}
+.login-btn{width:100%;padding:14px;background:var(--blue);color:#fff;border:none;border-radius:var(--r-md);font-family:var(--font-head);font-size:15px;font-weight:700;letter-spacing:.01em;transition:all .15s;margin-top:4px}
+.login-btn:hover{background:var(--blue2);transform:translateY(-1px)}
+.login-roles-demo{display:flex;flex-direction:column;gap:8px;padding:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:var(--r-lg)}
+.login-roles-title{font-size:10px;font-weight:700;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.1em;font-family:var(--font-mono);margin-bottom:4px}
+.demo-role{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-md);cursor:pointer;border:1px solid transparent;transition:all .15s}
+.demo-role:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.1)}
+.demo-role.selected{background:rgba(33,150,211,.12);border-color:var(--blue)}
+.demo-role-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.demo-role-icon i{font-size:14px;color:#fff}
+.n1{background:#6B3FA0}.n2{background:#1A5C8C}.n3{background:#0D7FC2}.n4{background:#0A5C3A}
+.demo-role-info strong{display:block;font-size:12px;font-weight:600;color:#fff}
+.demo-role-info span{font-size:10px;color:rgba(255,255,255,.4);font-family:var(--font-mono)}
 
-/* ── APP SHELL ── */
+/* ── APP ── */
 #app{display:flex;height:100vh;opacity:0;transition:opacity .3s}
 #app.visible{opacity:1}
 
 /* ── SIDEBAR ── */
-.sidebar{
-  width:220px;flex-shrink:0;
-  background:#0A0F1A;
-  display:flex;flex-direction:column;
-  padding:0;overflow:hidden;
-}
-.sb-header{padding:20px 18px 16px;border-bottom:1px solid rgba(33,150,211,.15)}
+.sidebar{width:224px;flex-shrink:0;background:#0A1628;display:flex;flex-direction:column;overflow:hidden}
+.sb-header{padding:18px 16px 14px;border-bottom:1px solid rgba(33,150,211,.15)}
 .sb-logo{display:flex;align-items:center;gap:10px}
-.sb-logo-icon{width:32px;height:32px;background:var(--emerald);border-radius:8px;display:flex;align-items:center;justify-content:center}
-.sb-logo-icon i{font-size:17px;color:#fff}
-.sb-logo-text{font-family:var(--font-head);font-size:17px;font-weight:800;color:#fff;letter-spacing:-.01em}
-.sb-user{padding:14px 18px;border-bottom:1px solid rgba(33,150,211,.12);display:flex;align-items:center;gap:10px}
-.sb-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0}
-.sb-avatar.admin{background:#2196D3}
-.sb-avatar.enfermero{background:#1A5C8C}
-.sb-avatar.auditor{background:#6B3FA0}
-.sb-user-info strong{display:block;font-size:12px;font-weight:600;color:#fff}
+.sb-logo img{width:30px;height:30px;object-fit:contain}
+.sb-logo-text{font-family:var(--font-head);font-size:16px;font-weight:800;color:#fff;letter-spacing:.18em}
+.sb-user{padding:12px 16px;border-bottom:1px solid rgba(33,150,211,.12);display:flex;align-items:center;gap:10px}
+.sb-avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;font-family:var(--font-mono)}
+.sb-avatar.n1{background:#6B3FA0}.sb-avatar.n2{background:#1A5C8C}.sb-avatar.n3{background:#0D7FC2}.sb-avatar.n4{background:#0A5C3A}
+.sb-user-info strong{display:block;font-size:12px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px}
 .sb-user-info span{font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono)}
-.sb-nav{flex:1;padding:12px 10px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.sb-nav{flex:1;padding:10px 8px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
 .sb-nav::-webkit-scrollbar{display:none}
-.sb-section{font-size:9px;font-weight:700;color:rgba(255,255,255,.25);text-transform:uppercase;letter-spacing:.1em;padding:10px 8px 4px;font-family:var(--font-mono)}
-.nav-item{
-  display:flex;align-items:center;gap:10px;
-  padding:9px 10px;border-radius:var(--r-md);
-  color:rgba(255,255,255,.55);font-size:13px;font-weight:500;
-  cursor:pointer;border:none;background:none;width:100%;text-align:left;
-  transition:all .15s;position:relative;
-}
+.sb-section{font-size:9px;font-weight:700;color:rgba(255,255,255,.2);text-transform:uppercase;letter-spacing:.1em;padding:10px 8px 4px;font-family:var(--font-mono)}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--r-md);color:rgba(255,255,255,.5);font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;width:100%;text-align:left;transition:all .15s;position:relative}
 .nav-item i{font-size:17px;flex-shrink:0}
 .nav-item:hover{color:#fff;background:rgba(255,255,255,.07)}
 .nav-item.active{color:#fff;background:rgba(33,150,211,.18)}
-.nav-item.active::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:3px;background:#4DB8F0;border-radius:0 3px 3px 0}
-.nav-badge{margin-left:auto;background:var(--red2);color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;font-family:var(--font-mono)}
-.sb-footer{padding:14px 18px;border-top:1px solid rgba(33,150,211,.12)}
-.logout-btn{display:flex;align-items:center;gap:8px;color:rgba(255,255,255,.4);font-size:12px;cursor:pointer;border:none;background:none;transition:color .15s;padding:0}
-.logout-btn:hover{color:rgba(255,255,255,.8)}
-.logout-btn i{font-size:15px}
+.nav-item.active::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:3px;background:var(--blue2);border-radius:0 3px 3px 0}
+.nav-badge{margin-left:auto;background:var(--red2);color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;font-family:var(--font-mono)}
+.sb-footer{padding:12px 16px;border-top:1px solid rgba(33,150,211,.12);display:flex;flex-direction:column;gap:6px}
+.sb-footer-btn{display:flex;align-items:center;gap:8px;color:rgba(255,255,255,.35);font-size:12px;cursor:pointer;border:none;background:none;transition:color .15s;padding:4px 0;text-align:left}
+.sb-footer-btn:hover{color:rgba(255,255,255,.7)}
+.sb-footer-btn i{font-size:15px}
 
 /* ── MAIN ── */
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--cream)}
-.topbar{
-  background:#fff;border-bottom:1px solid var(--cream3);
-  padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;
-  flex-shrink:0;
-}
-.topbar-left{display:flex;align-items:center;gap:12px}
+.topbar{background:var(--white);border-bottom:1px solid var(--cream3);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 .page-title{font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--ink)}
 .topbar-right{display:flex;align-items:center;gap:10px}
-.tb-btn{
-  padding:7px 14px;border-radius:var(--r-md);font-size:13px;font-weight:500;
-  display:flex;align-items:center;gap:6px;border:1px solid var(--cream3);
-  background:#fff;color:var(--ink);cursor:pointer;transition:all .15s;
-}
+.tb-btn{padding:7px 14px;border-radius:var(--r-md);font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px;border:1px solid var(--cream3);background:var(--white);color:var(--ink);cursor:pointer;transition:all .15s}
 .tb-btn:hover{border-color:#aaa;background:var(--cream)}
 .tb-btn i{font-size:15px}
-.tb-btn.primary{background:var(--emerald);color:#fff;border-color:var(--emerald)}
-.tb-btn.primary:hover{background:var(--emerald2)}
-.content{flex:1;overflow-y:auto;padding:24px}
+.tb-btn.primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+.tb-btn.primary:hover{background:var(--blue2)}
+.tb-btn.danger{background:var(--red2);color:#fff;border-color:var(--red2)}
+.content{flex:1;overflow-y:auto;padding:22px 24px 24px}
 .content::-webkit-scrollbar{width:4px}
-.content::-webkit-scrollbar-track{background:transparent}
 .content::-webkit-scrollbar-thumb{background:var(--cream3);border-radius:2px}
 
 /* ── VIEWS ── */
 .view{display:none}
-.view.active{display:block;animation:fadeUp .2s ease}
-@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.view.active{display:block;animation:fadeUp .18s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
 
-/* ── GRID & CARDS ── */
-.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+/* ── GRID ── */
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.stat-card{
-  background:#fff;border-radius:var(--r-lg);padding:18px 20px;
-  border:1px solid var(--cream3);position:relative;overflow:hidden;
-}
-.stat-card-accent{position:absolute;top:0;right:0;width:60px;height:60px;border-radius:0 var(--r-lg) 0 60px;opacity:.08}
-.stat-card-accent.green{background:#2196D3}
+
+/* ── STAT CARDS ── */
+.stat-card{background:var(--white);border-radius:var(--r-lg);padding:16px 18px;border:1px solid var(--cream3);position:relative;overflow:hidden}
+.stat-card-accent{position:absolute;top:0;right:0;width:56px;height:56px;border-radius:0 var(--r-lg) 0 56px;opacity:.07}
+.stat-card-accent.blue{background:var(--blue)}
 .stat-card-accent.red{background:var(--red)}
 .stat-card-accent.amber{background:var(--amber)}
-.stat-card-accent.blue{background:var(--blue)}
-.stat-label{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;font-family:var(--font-mono)}
-.stat-val{font-family:var(--font-head);font-size:32px;font-weight:800;line-height:1;letter-spacing:-.03em}
-.stat-val.green{color:#0D7FC2}
-.stat-val.red{color:var(--red)}
-.stat-val.amber{color:var(--amber)}
-.stat-sub{font-size:11px;color:#999;margin-top:4px}
-.stat-icon{width:36px;height:36px;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;margin-bottom:10px}
-.stat-icon.green{background:var(--blue-bg);color:var(--blue)}
+.stat-card-accent.green{background:var(--green)}
+.stat-icon{width:34px;height:34px;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.stat-icon.blue{background:var(--blue-bg);color:var(--blue)}
 .stat-icon.red{background:var(--red-bg);color:var(--red)}
 .stat-icon.amber{background:var(--amber-bg);color:var(--amber)}
-.stat-icon.blue{background:var(--blue-bg);color:var(--blue)}
-.stat-icon i{font-size:18px}
+.stat-icon.green{background:var(--green-bg);color:var(--green)}
+.stat-icon i{font-size:17px}
+.stat-label{font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;font-family:var(--font-mono)}
+.stat-val{font-family:var(--font-head);font-size:30px;font-weight:800;line-height:1;letter-spacing:-.03em}
+.stat-val.blue{color:var(--blue)}
+.stat-val.red{color:var(--red)}
+.stat-val.amber{color:var(--amber)}
+.stat-sub{font-size:11px;color:#999;margin-top:3px}
 
-/* ── SECTION HEADERS ── */
-.sec-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.sec-title{font-family:var(--font-head);font-size:15px;font-weight:700;color:var(--ink)}
-.sec-link{font-size:12px;color:#2196D3;cursor:pointer;font-weight:500}
+/* ── SECTION HEADER ── */
+.sec-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sec-title{font-family:var(--font-head);font-size:14px;font-weight:700;color:var(--ink)}
+.sec-link{font-size:12px;color:var(--blue);cursor:pointer;font-weight:500}
+
+/* ── CARDS ── */
+.card{background:var(--white);border-radius:var(--r-lg);border:1px solid var(--cream3);overflow:hidden;margin-bottom:16px}
+.card-header{padding:14px 18px;border-bottom:1px solid var(--cream3);display:flex;align-items:center;gap:8px}
+.card-title{font-family:var(--font-head);font-size:14px;font-weight:700;color:var(--ink)}
+.card-title i{font-size:16px;color:var(--blue)}
+.card-body{padding:16px 18px}
 
 /* ── TABLE ── */
-.table-wrap{background:#fff;border-radius:var(--r-lg);border:1px solid var(--cream3);overflow:hidden;margin-bottom:20px}
-.table-toolbar{padding:14px 18px;border-bottom:1px solid var(--cream3);display:flex;gap:10px;align-items:center}
+.table-wrap{background:var(--white);border-radius:var(--r-lg);border:1px solid var(--cream3);overflow:hidden;margin-bottom:16px}
+.table-toolbar{padding:12px 16px;border-bottom:1px solid var(--cream3);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 table{width:100%;border-collapse:collapse}
 thead tr{background:var(--cream);border-bottom:1px solid var(--cream3)}
-th{padding:10px 16px;font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.06em;text-align:left;font-family:var(--font-mono);white-space:nowrap}
-td{padding:11px 16px;font-size:13px;color:var(--ink);border-bottom:1px solid var(--cream2)}
+th{padding:9px 14px;font-size:10px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.07em;text-align:left;font-family:var(--font-mono);white-space:nowrap}
+td{padding:10px 14px;font-size:13px;color:var(--ink);border-bottom:1px solid var(--cream2)}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:var(--cream)}
-.sku-code{font-family:var(--font-mono);font-size:11px;font-weight:600;background:var(--cream);padding:3px 8px;border-radius:6px;color:var(--ink2);border:1px solid var(--cream3)}
 
-/* ── SEMAFORO BADGES ── */
-.sem{font-size:10px;font-weight:700;padding:3px 9px;border-radius:12px;font-family:var(--font-mono);letter-spacing:.03em;display:inline-flex;align-items:center;gap:4px}
+/* ── BADGES ── */
+.sku-code{font-family:var(--font-mono);font-size:11px;font-weight:600;background:var(--cream);padding:3px 8px;border-radius:5px;color:var(--ink2);border:1px solid var(--cream3)}
+.sub-sku{font-family:var(--font-mono);font-size:10px;font-weight:500;background:var(--blue-bg);padding:2px 7px;border-radius:5px;color:var(--blue);border:1px solid #B8DFF5}
+.sem{font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;font-family:var(--font-mono);display:inline-flex;align-items:center;gap:3px}
 .sem::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0}
-.sem.V{background:var(--blue-bg);color:var(--blue)}.sem.V::before{background:var(--blue)}
+.sem.V{background:var(--green-bg);color:var(--green)}.sem.V::before{background:var(--green)}
 .sem.A{background:var(--amber-bg);color:var(--amber)}.sem.A::before{background:var(--amber)}
 .sem.R{background:var(--red-bg);color:var(--red)}.sem.R::before{background:var(--red2)}
-.sem.N{background:#F0F0F0;color:#666}.sem.N::before{background:#999}
-
-/* ── FAMILIA BADGES ── */
+.sem.N{background:#F0F0EE;color:#888}.sem.N::before{background:#aaa}
 .fam{font-size:10px;font-weight:600;padding:2px 8px;border-radius:8px;font-family:var(--font-mono)}
 .fam.MED{background:#EEF3FB;color:#1A4B8C}
-.fam.INS{background:#E3F4FC;color:#0D7FC2}
-.fam.INP{background:#EBF6FD;color:#0D7FC2}
+.fam.INS,.fam.INP{background:var(--blue-bg);color:var(--blue)}
 .fam.DM{background:#F5F0FB;color:#6B3FA0}
-.fam.EB{background:#FDF6EC;color:#B7680A}
+.fam.EB{background:var(--amber-bg);color:var(--amber)}
 .fam.DOT{background:#F5F0FB;color:#6B3FA0}
-.fam.ASE{background:#FDF6EC;color:#B7680A}
+.fam.ASE{background:var(--amber-bg);color:var(--amber)}
+.ubic{font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;background:var(--ink2);color:rgba(255,255,255,.9);font-family:var(--font-mono)}
+.nivel-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:10px;font-family:var(--font-mono)}
+.nivel-badge.n1{background:#F5F0FB;color:#6B3FA0}
+.nivel-badge.n2{background:#EEF3FB;color:#1A5C8C}
+.nivel-badge.n3{background:var(--blue-bg);color:var(--blue)}
+.nivel-badge.n4{background:var(--green-bg);color:var(--green)}
+.mov-tipo{font-size:10px;font-weight:700;padding:3px 9px;border-radius:10px;font-family:var(--font-mono)}
+.mov-tipo.compra{background:var(--green-bg);color:var(--green)}
+.mov-tipo.asignacion{background:var(--blue-bg);color:var(--blue)}
+.mov-tipo.traslado{background:var(--amber-bg);color:var(--amber)}
+.mov-tipo.consumo{background:var(--red-bg);color:var(--red)}
+.mov-tipo.destruccion{background:#F0F0EE;color:#666}
 
-/* ── UBICACION BADGE ── */
-.ubic{font-size:10px;font-weight:600;padding:2px 7px;border-radius:6px;background:var(--ink2);color:rgba(255,255,255,.9);font-family:var(--font-mono)}
-
-/* ── SEARCH & FILTERS ── */
+/* ── SEARCH & INPUTS ── */
 .search-wrap{position:relative;flex:1}
-.search-wrap i.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;color:#aaa;pointer-events:none}
-input[type=text],input[type=date],input[type=number],select{
-  padding:8px 12px;border:1px solid var(--cream3);border-radius:var(--r-md);
-  font-size:13px;color:var(--ink);background:#fff;outline:none;
-  transition:border-color .15s,box-shadow .15s;
-}
-input[type=text]:focus,input[type=date]:focus,input[type=number]:focus,select:focus{
-  border-color:var(--emerald2);box-shadow:0 0 0 3px rgba(15,144,104,.1);
-}
+.search-wrap i.si{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;color:#aaa;pointer-events:none}
+input[type=text],input[type=date],input[type=number],input[type=password],select,textarea{padding:9px 12px;border:1px solid var(--cream3);border-radius:var(--r-md);font-size:13px;color:var(--ink);background:var(--white);outline:none;transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(33,150,211,.1)}
+input::placeholder{color:#bbb}
 .search-input{padding-left:34px;width:100%}
 select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
 
 /* ── ACTION BTNS ── */
-.act-btn{width:28px;height:28px;border-radius:var(--r-sm);border:1px solid var(--cream3);background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s}
+.act-btn{width:28px;height:28px;border-radius:var(--r-sm);border:1px solid var(--cream3);background:var(--white);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s}
 .act-btn i{font-size:14px;color:#888}
 .act-btn:hover{border-color:#bbb}
 .act-btn.danger:hover{background:var(--red-bg);border-color:var(--red2)}
 .act-btn.danger:hover i{color:var(--red)}
-.act-btn.primary:hover{background:var(--blue-bg);border-color:var(--emerald)}
-.act-btn.primary:hover i{color:var(--emerald)}
+.act-btn.success:hover{background:var(--green-bg);border-color:var(--green)}
+.act-btn.success:hover i{color:var(--green)}
+.act-btn.primary:hover{background:var(--blue-bg);border-color:var(--blue)}
+.act-btn.primary:hover i{color:var(--blue)}
 .act-btn-group{display:flex;gap:4px}
 
 /* ── FORM ── */
-.form-card{background:#fff;border-radius:var(--r-lg);border:1px solid var(--cream3);padding:20px;margin-bottom:16px}
-.form-card-title{font-family:var(--font-head);font-size:14px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px;color:var(--ink)}
-.form-card-title i{font-size:17px;color:#2196D3}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .form-grid.cols3{grid-template-columns:1fr 1fr 1fr}
 .fg-full{grid-column:1/-1}
 .form-group{display:flex;flex-direction:column;gap:5px}
 .form-group label{font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono)}
-.form-group input,.form-group select{width:100%}
+.form-group input,.form-group select,.form-group textarea{width:100%}
 .form-group .hint{font-size:11px;color:#aaa;margin-top:2px}
+.form-group textarea{resize:vertical;min-height:70px}
+.btn-submit{width:100%;margin-top:14px;padding:13px;background:var(--blue);color:#fff;border:none;border-radius:var(--r-md);font-family:var(--font-head);font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s}
+.btn-submit:hover{background:var(--blue2)}
+.btn-submit i{font-size:17px}
+.btn-submit.green{background:var(--green)}
+.btn-submit.green:hover{background:#1E8048}
 
 /* ── SKU PREVIEW ── */
-.sku-preview-box{
-  background:var(--ink);border-radius:var(--r-lg);padding:16px 20px;margin-bottom:16px;
-}
-.sku-preview-label{font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;font-family:var(--font-mono);margin-bottom:8px}
-.sku-preview-code{
-  font-family:var(--font-mono);font-size:20px;font-weight:600;color:#4DB8F0;
-  letter-spacing:.05em;display:flex;align-items:center;gap:4px;flex-wrap:wrap;
-}
-.sku-seg{transition:all .2s}
-.sku-sep{color:rgba(255,255,255,.2)}
-.sku-preview-type{font-size:10px;color:rgba(255,255,255,.35);margin-top:6px;font-family:var(--font-mono)}
-.sku-mode-toggle{display:flex;gap:8px;margin-bottom:16px}
-.mode-btn{flex:1;padding:9px;border-radius:var(--r-md);border:1px solid var(--cream3);background:#fff;font-size:12px;font-weight:600;color:#888;cursor:pointer;transition:all .15s;text-align:center}
-.mode-btn.active{background:var(--ink);color:#fff;border-color:var(--ink)}
-.sku-warning{background:var(--amber-bg);border:1px solid #F5D8A0;border-radius:var(--r-md);padding:10px 14px;font-size:12px;color:var(--amber);display:none;margin-bottom:12px;align-items:center;gap:8px}
+.sku-preview-box{background:var(--ink);border-radius:var(--r-lg);padding:16px 20px;margin-bottom:14px}
+.sku-preview-label{font-size:10px;font-weight:700;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.1em;font-family:var(--font-mono);margin-bottom:8px}
+.sku-preview-global{font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--blue2);letter-spacing:.06em}
+.sku-preview-sub{font-family:var(--font-mono);font-size:13px;color:rgba(255,255,255,.45);margin-top:6px;letter-spacing:.03em}
+.sku-preview-sub span{color:var(--blue3)}
+.sku-warning{background:var(--amber-bg);border:1px solid #F0D898;border-radius:var(--r-md);padding:10px 14px;font-size:12px;color:var(--amber);display:none;margin-bottom:12px;align-items:center;gap:8px}
 .sku-warning.show{display:flex}
 .sku-warning i{font-size:16px;flex-shrink:0}
 
-/* ── TRAZABILIDAD TIMELINE ── */
+/* ── TOGGLE CAMPOS ── */
+.campos-toggle{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.campo-chip{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;border:1px solid var(--cream3);background:var(--white);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;color:#888;user-select:none}
+.campo-chip input[type=checkbox]{display:none}
+.campo-chip.active{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
+.campo-chip i{font-size:14px}
+
+/* ── TRANSFER VISUAL ── */
+.transfer-visual{display:flex;align-items:center;gap:10px;padding:14px;background:var(--blue-pale);border:1px solid #C0DEF0;border-radius:var(--r-lg);margin:14px 0}
+.t-box{flex:1;background:var(--white);border-radius:var(--r-md);padding:10px 12px;border:1px solid var(--cream3);text-align:center}
+.t-box.t-active{border-color:var(--blue);background:var(--blue-bg)}
+.t-box-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#888;margin-bottom:2px;font-family:var(--font-mono)}
+.t-box-name{font-size:13px;font-weight:600;color:var(--ink)}
+.t-box-stock{font-size:11px;color:var(--blue);margin-top:3px;font-weight:500}
+.t-arrow{font-size:22px;color:var(--blue);flex-shrink:0}
+
+/* ── TIMELINE ── */
 .timeline{position:relative;padding-left:24px}
 .timeline::before{content:'';position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:var(--cream3)}
-.tl-item{position:relative;margin-bottom:20px}
-.tl-dot{position:absolute;left:-24px;top:2px;width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 2px var(--cream3)}
-.tl-dot.compra{background:#2196D3}
-.tl-dot.asignacion{background:var(--blue)}
-.tl-dot.traslado{background:var(--amber2)}
+.tl-item{position:relative;margin-bottom:16px}
+.tl-dot{position:absolute;left:-24px;top:3px;width:16px;height:16px;border-radius:50%;border:2px solid var(--white);box-shadow:0 0 0 2px var(--cream3)}
+.tl-dot.compra{background:var(--green)}
+.tl-dot.asignacion,.tl-dot.traslado{background:var(--blue)}
 .tl-dot.consumo{background:var(--red2)}
-.tl-dot.destruccion{background:#666}
-.tl-card{background:#fff;border-radius:var(--r-lg);border:1px solid var(--cream3);padding:14px 16px}
-.tl-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px}
+.tl-dot.destruccion{background:#888}
+.tl-card{background:var(--white);border-radius:var(--r-lg);border:1px solid var(--cream3);padding:12px 14px}
+.tl-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;gap:8px;flex-wrap:wrap}
 .tl-tipo{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;font-family:var(--font-mono)}
-.tl-tipo.compra{color:#0D7FC2}
-.tl-tipo.asignacion{color:var(--blue)}
-.tl-tipo.traslado{color:var(--amber)}
-.tl-tipo.consumo{color:var(--red)}
-.tl-tipo.destruccion{color:#666}
+.tl-tipo.compra{color:var(--green)}.tl-tipo.asignacion,.tl-tipo.traslado{color:var(--blue)}.tl-tipo.consumo{color:var(--red)}.tl-tipo.destruccion{color:#666}
 .tl-fecha{font-size:11px;color:#aaa;font-family:var(--font-mono)}
-.tl-desc{font-size:13px;color:var(--ink);line-height:1.5}
-.tl-meta{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
-.tl-chip{font-size:10px;padding:2px 8px;border-radius:8px;background:var(--cream);color:#666;font-family:var(--font-mono)}
+.tl-desc{font-size:13px;color:var(--ink);line-height:1.5;margin-bottom:8px}
+.tl-user{display:flex;align-items:center;gap:6px;font-size:11px;color:#666;font-family:var(--font-mono)}
+.tl-user-dot{width:6px;height:6px;border-radius:50%}
+.tl-user-dot.n1{background:#6B3FA0}.tl-user-dot.n2{background:#1A5C8C}.tl-user-dot.n3{background:var(--blue)}.tl-user-dot.n4{background:var(--green)}
 
 /* ── ALERT STRIPS ── */
-.alert-strip{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:var(--r-md);margin-bottom:8px;border:1px solid transparent}
-.alert-strip.N{background:#F8F6F6;border-color:#E8E0E0}
+.alert-strip{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--r-md);margin-bottom:6px;border:1px solid transparent}
 .alert-strip.R{background:var(--red-bg);border-color:#F5C0C0}
 .alert-strip.A{background:var(--amber-bg);border-color:#F0D898}
-.alert-strip i{font-size:18px;flex-shrink:0}
-.alert-strip.N i{color:#999}
-.alert-strip.R i{color:var(--red2)}
-.alert-strip.A i{color:var(--amber2)}
+.alert-strip.ok{background:var(--green-bg);border-color:#9FD9B8}
+.alert-strip i{font-size:16px;flex-shrink:0}
+.alert-strip.R i{color:var(--red2)}.alert-strip.A i{color:var(--amber2)}.alert-strip.ok i{color:var(--green)}
 .alert-text{flex:1}
 .alert-name{font-size:13px;font-weight:600}
 .alert-meta{font-size:11px;color:#888;margin-top:1px;font-family:var(--font-mono)}
-.alert-days{font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;font-family:var(--font-mono)}
-.alert-strip.N .alert-days{background:#EEE;color:#666}
+.alert-days{font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;font-family:var(--font-mono);flex-shrink:0}
 .alert-strip.R .alert-days{background:var(--red-bg);color:var(--red)}
 .alert-strip.A .alert-days{background:var(--amber-bg);color:var(--amber)}
+
+/* ── AUTOCOMPLETE ── */
+.ac-wrap{position:relative}
+.ac-input{width:100%;padding:9px 12px 9px 36px;border:1px solid var(--cream3);border-radius:var(--r-md);font-size:13px;color:var(--ink);background:var(--white);outline:none;transition:border-color .15s,box-shadow .15s}
+.ac-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(33,150,211,.1)}
+.ac-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;color:#aaa;pointer-events:none}
+.ac-clear{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:14px;color:#bbb;cursor:pointer;display:none;border:none;background:none;padding:2px}
+.ac-clear.show{display:block}
+.ac-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--white);border:1px solid var(--cream3);border-radius:var(--r-lg);box-shadow:var(--sh3);z-index:200;max-height:280px;overflow-y:auto;display:none}
+.ac-dropdown.open{display:block}
+.ac-item{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--cream2);transition:background .1s;display:flex;align-items:flex-start;gap:10px}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover,.ac-item.focused{background:var(--cream)}
+.ac-item-icon{width:30px;height:30px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--blue-bg);color:var(--blue)}
+.ac-item-icon i{font-size:14px}
+.ac-item-body{flex:1;min-width:0}
+.ac-item-name{font-size:13px;font-weight:600;color:var(--ink)}
+.ac-item-name mark{background:#FFF176;color:var(--ink);border-radius:2px;padding:0 1px}
+.ac-item-meta{font-size:11px;color:#888;font-family:var(--font-mono);margin-top:2px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.ac-item-stock{font-size:11px;font-weight:700;color:var(--blue);margin-left:auto;white-space:nowrap;align-self:center}
+.ac-selected-pill{display:none;align-items:center;gap:8px;background:var(--blue-bg);border:1px solid #9FD5F0;border-radius:var(--r-md);padding:8px 12px;margin-top:8px}
+.ac-selected-pill.show{display:flex}
+.ac-selected-pill-text{flex:1;font-size:13px;font-weight:500;color:var(--blue)}
+.ac-selected-pill button{border:none;background:none;cursor:pointer;color:#aaa;font-size:16px;padding:0;line-height:1}
+.ac-no-results{padding:20px;text-align:center;color:#aaa;font-size:13px}
 
 /* ── MODAL ── */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;align-items:flex-end;justify-content:center;backdrop-filter:blur(3px)}
 .modal-overlay.open{display:flex}
-.modal-sheet{background:#fff;border-radius:var(--r-xl) var(--r-xl) 0 0;padding:0 24px 32px;width:100%;max-width:480px;animation:slideUp .22s ease;max-height:90vh;overflow-y:auto}
+.modal-sheet{background:var(--white);border-radius:var(--r-xl) var(--r-xl) 0 0;padding:0 22px 28px;width:100%;max-width:480px;animation:slideUp .2s ease;max-height:90vh;overflow-y:auto}
 .modal-sheet::-webkit-scrollbar{display:none}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-.modal-handle{width:40px;height:4px;background:var(--cream3);border-radius:2px;margin:12px auto 20px}
+.modal-handle{width:40px;height:4px;background:var(--cream3);border-radius:2px;margin:12px auto 18px}
 .modal-title{font-family:var(--font-head);font-size:18px;font-weight:700;margin-bottom:4px}
-.modal-sub{font-size:13px;color:#888;margin-bottom:20px;line-height:1.5}
-.modal-actions{display:flex;gap:10px;margin-top:20px}
-.btn-cancel{flex:1;padding:12px;border:1px solid var(--cream3);border-radius:var(--r-md);background:#fff;font-size:14px;font-weight:600;color:#666;cursor:pointer;transition:background .15s}
-.btn-cancel:hover{background:var(--cream)}
-.btn-confirm{flex:2;padding:12px;border:none;border-radius:var(--r-md);background:#2196D3;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font-head);transition:background .15s}
-.btn-confirm:hover{background:#4DB8F0}
-.btn-danger-solid{flex:1;padding:12px;border:none;border-radius:var(--r-md);background:var(--red2);color:#fff;font-size:14px;font-weight:700;cursor:pointer;transition:background .15s}
+.modal-sub{font-size:13px;color:#888;margin-bottom:18px;line-height:1.5}
+.modal-actions{display:flex;gap:8px;margin-top:16px}
+.btn-cancel{flex:1;padding:11px;border:1px solid var(--cream3);border-radius:var(--r-md);background:var(--white);font-size:14px;font-weight:600;color:#666;cursor:pointer}
+.btn-danger-solid{flex:1;padding:11px;border:none;border-radius:var(--r-md);background:var(--red2);color:var(--white);font-size:14px;font-weight:700;cursor:pointer}
+.btn-confirm{flex:2;padding:11px;border:none;border-radius:var(--r-md);background:var(--blue);color:var(--white);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font-head)}
 
-/* ── TOAST ── */
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--ink);color:#fff;padding:11px 20px;border-radius:30px;font-size:13px;font-weight:500;z-index:999;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;box-shadow:var(--sh3);font-family:var(--font-body)}
-.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-.toast.success{background:var(--emerald)}
-.toast.error{background:var(--red2)}
+/* ── LOCKED VIEW ── */
+.locked-banner{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--red-bg);border:1px solid #F5C0C0;border-radius:var(--r-md);margin-bottom:16px;font-size:13px;color:var(--red)}
+.locked-banner i{font-size:18px;flex-shrink:0}
+
+/* ── USUARIO CARD ── */
+.user-card{background:var(--white);border:1px solid var(--cream3);border-radius:var(--r-lg);padding:14px 16px;display:flex;align-items:center;gap:12px;margin-bottom:8px;transition:box-shadow .15s}
+.user-card:hover{box-shadow:var(--sh1)}
+.user-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--white);flex-shrink:0}
+.user-info{flex:1;min-width:0}
+.user-name{font-size:14px;font-weight:600;color:var(--ink)}
+.user-cedula{font-size:11px;color:#888;font-family:var(--font-mono);margin-top:1px}
+
+/* ── BODEGA CARD ── */
+.bodega-card{background:var(--white);border:1px solid var(--cream3);border-radius:var(--r-lg);padding:14px 16px;display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.bodega-icon{width:38px;height:38px;border-radius:var(--r-md);background:var(--blue-bg);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.bodega-icon i{font-size:18px}
+.bodega-info{flex:1}
+.bodega-name{font-size:14px;font-weight:600;color:var(--ink)}
+.bodega-prefix{font-size:11px;color:#888;font-family:var(--font-mono);margin-top:1px}
 
 /* ── EMPTY STATE ── */
-.empty-state{text-align:center;padding:50px 20px;color:#aaa}
-.empty-state i{font-size:48px;margin-bottom:12px;display:block;opacity:.3}
-.empty-state p{font-size:14px}
+.empty-state{text-align:center;padding:48px 20px;color:#aaa}
+.empty-state i{font-size:44px;margin-bottom:10px;display:block;opacity:.3}
+.empty-state p{font-size:13px}
 
-/* ── LOCKED OVERLAY ── */
-.locked{position:relative}
-.locked::after{content:'🔒 Sin permiso para esta acción';position:absolute;inset:0;background:rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;font-size:13px;color:#888;border-radius:var(--r-lg);backdrop-filter:blur(2px)}
+/* ── TOAST ── */
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--ink);color:var(--white);padding:10px 20px;border-radius:30px;font-size:13px;font-weight:500;z-index:999;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;box-shadow:var(--sh3)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.success{background:var(--green)}
+.toast.error{background:var(--red2)}
 
 /* ── RESPONSIVE ── */
-@media(max-width:768px){
-  .sidebar{display:none}
-  .grid-4{grid-template-columns:1fr 1fr}
-  .form-grid{grid-template-columns:1fr}
-  .form-grid.cols3{grid-template-columns:1fr}
-}
-
-/* ── AUTOCOMPLETE ── */
-.ac-wrap{position:relative;flex:1}
-.ac-input{width:100%;padding:9px 12px 9px 36px;border:1px solid var(--cream3);border-radius:var(--r-md);font-size:13px;color:var(--ink);background:#fff;outline:none;transition:border-color .15s,box-shadow .15s}
-.ac-input:focus{border-color:var(--emerald2);box-shadow:0 0 0 3px rgba(15,144,104,.1)}
-.ac-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:16px;color:#aaa;pointer-events:none}
-.ac-clear{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:14px;color:#bbb;cursor:pointer;display:none;border:none;background:none;padding:2px}
-.ac-clear.show{display:block}
-.ac-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--cream3);border-radius:var(--r-lg);box-shadow:var(--sh3);z-index:200;max-height:280px;overflow-y:auto;display:none}
-.ac-dropdown.open{display:block}
-.ac-dropdown::-webkit-scrollbar{width:4px}
-.ac-dropdown::-webkit-scrollbar-thumb{background:var(--cream3);border-radius:2px}
-.ac-item{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--cream2);transition:background .1s;display:flex;align-items:flex-start;gap:10px}
-.ac-item:last-child{border-bottom:none}
-.ac-item:hover,.ac-item.focused{background:var(--cream)}
-.ac-item-icon{width:32px;height:32px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
-.ac-item-icon.MED{background:#EEF3FB;color:#1A4B8C}
-.ac-item-icon.INS,.ac-item-icon.INP{background:#E3F4FC;color:#0D7FC2}
-.ac-item-icon.DM,.ac-item-icon.DOT{background:#F5F0FB;color:#6B3FA0}
-.ac-item-icon.EB,.ac-item-icon.ASE{background:#FDF6EC;color:#B7680A}
-.ac-item-icon i{font-size:15px}
-.ac-item-body{flex:1;min-width:0}
-.ac-item-name{font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ac-item-name mark{background:var(--lime2);color:var(--ink);border-radius:2px;padding:0 1px}
-.ac-item-meta{font-size:11px;color:#888;font-family:var(--font-mono);margin-top:2px;display:flex;gap:8px;flex-wrap:wrap}
-.ac-item-stock{font-size:11px;font-weight:700;color:var(--emerald);margin-left:auto;white-space:nowrap;align-self:center}
-.ac-selected-pill{display:none;align-items:center;gap:8px;background:var(--teal-light,#E3F4FC);border:1px solid #9FE1CB;border-radius:var(--r-md);padding:8px 12px;margin-top:8px}
-.ac-selected-pill.show{display:flex}
-.ac-selected-pill-text{flex:1;font-size:13px;font-weight:500;color:var(--emerald)}
-.ac-selected-pill-sku{font-size:11px;font-family:var(--font-mono);color:#888;margin-left:4px}
-.ac-selected-pill button{border:none;background:none;cursor:pointer;color:#aaa;font-size:16px;padding:0;line-height:1;transition:color .15s}
-.ac-selected-pill button:hover{color:var(--red)}
-.ac-no-results{padding:20px;text-align:center;color:#aaa;font-size:13px}
+@media(max-width:768px){.sidebar{display:none}.grid-4{grid-template-columns:1fr 1fr}.form-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -402,81 +359,75 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 <!-- LOGIN -->
 <div id="login-screen">
   <div class="login-bg"></div>
-  <div class="login-noise"></div>
   <div class="login-card">
     <div class="login-logo">
-      <img src="logo.png" style="width:64px;height:64px;object-fit:contain">
+      <img src="logo.png" alt="Nova Bridge">
       <div>
-        <div class="login-logo-text" style="letter-spacing:.22em;font-size:30px">N O V A</div>
+        <div class="login-logo-text">N O V A</div>
         <div class="login-logo-sub">BRIDGE · Sistema de Inventario</div>
       </div>
     </div>
-    <div class="login-title">Selecciona tu perfil</div>
-    <div class="login-sub">Boceto de demostración — elige un rol para continuar</div>
-    <div class="login-roles">
-      <button class="role-btn" onclick="selectRole('admin')" id="role-admin">
-        <div class="role-icon admin"><i class="ti ti-shield-check"></i></div>
-        <div class="role-info">
-          <strong>Administrador</strong>
-          <span>Acceso total · compras · configuración</span>
-        </div>
-        <div class="role-check"><i class="ti ti-check"></i></div>
-      </button>
-      <button class="role-btn" onclick="selectRole('enfermero')" id="role-enfermero">
-        <div class="role-icon enfermero"><i class="ti ti-stethoscope"></i></div>
-        <div class="role-info">
-          <strong>Enfermero/a</strong>
-          <span>Consumos · traslados · consulta</span>
-        </div>
-        <div class="role-check"><i class="ti ti-check"></i></div>
-      </button>
-      <button class="role-btn" onclick="selectRole('auditor')" id="role-auditor">
-        <div class="role-icon auditor"><i class="ti ti-chart-bar"></i></div>
-        <div class="role-info">
-          <strong>Auditor</strong>
-          <span>Solo lectura · trazabilidad · reportes</span>
-        </div>
-        <div class="role-check"><i class="ti ti-check"></i></div>
-      </button>
+    <div class="login-title">Iniciar sesión</div>
+    <div class="login-sub">Ingresa tu cédula y contraseña asignada</div>
+    <div class="login-form">
+      <div class="login-field">
+        <label>Número de cédula</label>
+        <input type="text" id="l-cedula" placeholder="Ej. 1006166884">
+      </div>
+      <div class="login-field">
+        <label>Contraseña</label>
+        <input type="password" id="l-pass" placeholder="••••••••">
+      </div>
+      <button class="login-btn" onclick="doLogin()">Ingresar al sistema</button>
     </div>
-    <button class="login-btn" id="login-btn" onclick="doLogin()" disabled>Ingresar al sistema</button>
+    <div class="login-roles-demo">
+      <div class="login-roles-title">Demo — selecciona un perfil</div>
+      <div class="demo-role" onclick="selectDemo('auditor')">
+        <div class="demo-role-icon n1"><i class="ti ti-chart-bar"></i></div>
+        <div class="demo-role-info"><strong>Auditor</strong><span>Nivel 1 · Solo consulta</span></div>
+      </div>
+      <div class="demo-role" onclick="selectDemo('enfermero')">
+        <div class="demo-role-icon n2"><i class="ti ti-stethoscope"></i></div>
+        <div class="demo-role-info"><strong>Enfermero/a</strong><span>Nivel 2 · Consumos</span></div>
+      </div>
+      <div class="demo-role" onclick="selectDemo('supervisor')">
+        <div class="demo-role-icon n3"><i class="ti ti-clipboard-check"></i></div>
+        <div class="demo-role-info"><strong>Supervisor</strong><span>Nivel 3 · Movimientos + Entradas</span></div>
+      </div>
+      <div class="demo-role" onclick="selectDemo('admin')">
+        <div class="demo-role-icon n4"><i class="ti ti-shield-check"></i></div>
+        <div class="demo-role-info"><strong>Administrador</strong><span>Nivel 4 · Control total</span></div>
+      </div>
+    </div>
   </div>
 </div>
 
 <!-- APP -->
 <div id="app">
-  <!-- SIDEBAR -->
   <div class="sidebar">
     <div class="sb-header">
       <div class="sb-logo">
-        <img src="logo.png" style="width:36px;height:36px;object-fit:contain">
-        <div class="sb-logo-text" style="font-family:var(--font-head);letter-spacing:.18em;font-size:15px;font-weight:800;color:#fff">N O V A</div>
+        <img src="logo.png" alt="NB" style="width:28px;height:28px;object-fit:contain">
+        <div class="sb-logo-text">N O V A</div>
       </div>
     </div>
     <div class="sb-user">
-      <div class="sb-avatar" id="sb-avatar">A</div>
+      <div class="sb-avatar" id="sb-avatar">AU</div>
       <div class="sb-user-info">
         <strong id="sb-name">Usuario</strong>
-        <span id="sb-role-label">ROL</span>
+        <span id="sb-nivel">NIVEL 1</span>
       </div>
     </div>
     <div class="sb-nav" id="sb-nav"></div>
     <div class="sb-footer">
-      <button class="logout-btn" onclick="resetState()" style="margin-bottom:10px;color:rgba(255,255,255,.3)" title="Restaurar datos de demo">
-        <i class="ti ti-refresh"></i>Restaurar demo
-      </button>
-      <button class="logout-btn" onclick="doLogout()">
-        <i class="ti ti-logout"></i>Cerrar sesión
-      </button>
+      <button class="sb-footer-btn" onclick="resetState()"><i class="ti ti-refresh"></i>Restaurar demo</button>
+      <button class="sb-footer-btn" onclick="doLogout()"><i class="ti ti-logout"></i>Cerrar sesión</button>
     </div>
   </div>
 
-  <!-- MAIN -->
   <div class="main">
     <div class="topbar">
-      <div class="topbar-left">
-        <div class="page-title" id="page-title">Dashboard</div>
-      </div>
+      <div class="page-title" id="page-title">Dashboard</div>
       <div class="topbar-right" id="topbar-actions"></div>
     </div>
     <div class="content">
@@ -486,20 +437,14 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
         <div class="grid-4" id="dash-stats"></div>
         <div class="grid-2">
           <div>
-            <div class="sec-header">
-              <div class="sec-title">Alertas de vencimiento</div>
-              <div class="sec-link" onclick="goTo('inventario')">Ver inventario →</div>
-            </div>
+            <div class="sec-header"><div class="sec-title">Alertas de vencimiento</div><div class="sec-link" onclick="goTo('inventario')">Ver inventario →</div></div>
             <div id="dash-alerts"></div>
           </div>
           <div>
-            <div class="sec-header">
-              <div class="sec-title">Últimos movimientos</div>
-              <div class="sec-link" onclick="goTo('trazabilidad')">Ver trazabilidad →</div>
-            </div>
+            <div class="sec-header"><div class="sec-title">Últimos movimientos</div><div class="sec-link" onclick="goTo('trazabilidad')">Ver trazabilidad →</div></div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>SKU</th><th>Tipo</th><th>Ubicación</th><th>Cant.</th></tr></thead>
+                <thead><tr><th>SKU Global</th><th>Sub-SKU</th><th>Tipo</th><th>Usuario</th></tr></thead>
                 <tbody id="dash-movimientos"></tbody>
               </table>
             </div>
@@ -512,10 +457,10 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
         <div class="table-wrap">
           <div class="table-toolbar">
             <div class="search-wrap">
-              <i class="ti ti-search search-icon"></i>
+              <i class="ti ti-search si"></i>
               <input type="text" class="search-input" placeholder="Buscar SKU, nombre, lote, proveedor…" id="inv-search" oninput="renderInv()">
             </div>
-            <select id="inv-ubicacion" onchange="renderInv()" style="min-width:140px">
+            <select id="inv-ubicacion" onchange="renderInv()" style="min-width:130px">
               <option value="">Todas las ubicaciones</option>
             </select>
             <select id="inv-sem" onchange="renderInv()">
@@ -525,11 +470,7 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
               <option value="R">● Crítico</option>
               <option value="N">✕ Vencido</option>
             </select>
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#888;cursor:pointer;white-space:nowrap">
-            <input type="checkbox" id="inv-agotados" onchange="renderInv()" style="accent-color:var(--emerald2)">
-            Ver agotados
-          </label>
-          <select id="inv-familia" onchange="renderInv()">
+            <select id="inv-familia" onchange="renderInv()">
               <option value="">Familia</option>
               <option value="MED">Medicamento</option>
               <option value="INS">Insumo</option>
@@ -539,279 +480,328 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
               <option value="DOT">Dotación</option>
               <option value="ASE">Aseo</option>
             </select>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#888;cursor:pointer;white-space:nowrap">
+              <input type="checkbox" id="inv-agotados" onchange="renderInv()" style="accent-color:var(--blue)"> Agotados
+            </label>
           </div>
           <table>
-            <thead>
-              <tr>
-                <th>SKU</th>
-                <th>Ítem</th>
-                <th>Proveedor · Lote</th>
-                <th>Ubicación</th>
-                <th>Cant.</th>
-                <th>Caducidad</th>
-                <th>Estado</th>
-                <th></th>
-              </tr>
-            </thead>
+            <thead><tr><th>SKU Global</th><th>Ítem</th><th>Sub-SKU</th><th>Ubicación</th><th>Cant.</th><th>Caducidad</th><th>Estado</th><th></th></tr></thead>
             <tbody id="inv-body"></tbody>
           </table>
         </div>
       </div>
 
-      <!-- ═══ REGISTRAR ENTRADA ═══ -->
-      <div class="view" id="view-registro">
-        <div id="registro-locked-msg" style="display:none">
-          <div class="alert-strip R" style="margin-bottom:20px">
-            <i class="ti ti-lock"></i>
-            <div class="alert-text">
-              <div class="alert-name">Acceso restringido</div>
-              <div class="alert-meta">Solo el Administrador puede registrar entradas de inventario</div>
-            </div>
-          </div>
-        </div>
-        <div id="registro-form">
-          <!-- TIPO -->
-          <div class="form-card">
-            <div class="form-card-title"><i class="ti ti-tag"></i>Tipo de ítem</div>
-            <div class="sku-mode-toggle">
-              <button class="mode-btn active" id="modo-trazable" onclick="setModo('trazable')">
-                💊 Trazable (Medicamento / Insumo con lote)
-              </button>
-              <button class="mode-btn" id="modo-generico" onclick="setModo('generico')">
-                🔧 Genérico (Dotación / Equipos)
-              </button>
-            </div>
-          </div>
-
-          <!-- SKU PREVIEW -->
-          <div class="sku-preview-box">
-            <div class="sku-preview-label">SKU generado automáticamente</div>
-            <div class="sku-preview-code" id="sku-preview-code">
-              <span class="sku-seg" id="sp-prov">---</span><span class="sku-sep">-</span>
-              <span class="sku-seg" id="sp-item">---</span><span class="sku-sep">-</span>
-              <span class="sku-seg" id="sp-pres">---</span><span class="sku-sep">-</span>
-              <span class="sku-seg" id="sp-lote">--------</span>
-            </div>
-            <div class="sku-preview-type" id="sku-preview-type">Tipo: Trazable por lote · Modo: Automático</div>
-          </div>
-          <div class="sku-warning" id="sku-warning">
-            <i class="ti ti-alert-triangle"></i>
-            <span>Este SKU ya existe en el sistema. Modifícalo manualmente para diferenciarlo.</span>
-          </div>
-
-          <!-- DATOS PRINCIPALES -->
-          <div class="form-card">
-            <div class="form-card-title"><i class="ti ti-pill"></i>Datos del ítem</div>
-            <div class="form-grid">
+      <!-- ═══ MOVIMIENTOS ═══ -->
+      <div class="view" id="view-movimientos">
+        <div class="card" id="mov-card">
+          <div class="card-header"><i class="ti ti-transfer card-title"></i><span class="card-title">Registrar movimiento</span></div>
+          <div class="card-body">
+            <div id="mov-locked-msg"></div>
+            <div class="form-grid" style="margin-bottom:12px">
               <div class="form-group fg-full">
-                <label>Nombre del ítem</label>
-                <input type="text" id="f-nombre" placeholder="Ej. Acetaminofén Tab 500mg" oninput="updateSKU()">
-              </div>
-              <div class="form-group" id="fg-proveedor">
-                <label>Proveedor / Marca</label>
-                <input type="text" id="f-proveedor" placeholder="Ej. Genfar" oninput="updateSKU()">
-                <span class="hint">Sigla auto: primeras 3 letras · editable</span>
-              </div>
-              <div class="form-group" id="fg-pres">
-                <label>Presentación</label>
-                <input type="text" id="f-pres" placeholder="Ej. 500mg, 250cc" oninput="updateSKU()">
-              </div>
-              <div class="form-group" id="fg-lote">
-                <label>Lote (proveedor)</label>
-                <input type="text" id="f-lote" placeholder="Ej. LF01529B" oninput="updateSKU()">
-              </div>
-              <div class="form-group" id="fg-invima">
-                <label>Registro INVIMA</label>
-                <input type="text" id="f-invima" placeholder="INVIMA2024M-001234">
-              </div>
-              <div class="form-group" id="fg-caducidad">
-                <label>Fecha caducidad</label>
-                <input type="date" id="f-caducidad" onchange="updateSKU()">
-              </div>
-            </div>
-            <!-- SEGMENTOS EDITABLES -->
-            <div id="sku-segs-edit" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--cream3)">
-              <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;font-family:var(--font-mono)">Ajustar segmentos del SKU</div>
-              <div class="form-grid cols3">
-                <div class="form-group" id="seg-prov-wrap">
-                  <label>Seg. Proveedor</label>
-                  <input type="text" id="seg-prov" maxlength="5" placeholder="GEN" oninput="updateSKUfromSegs()" style="font-family:var(--font-mono);text-transform:uppercase">
+                <label>Buscar Sub-SKU / Ítem</label>
+                <div class="ac-wrap">
+                  <i class="ti ti-search ac-icon"></i>
+                  <input type="text" class="ac-input" id="mov-ac-input" placeholder="Buscar por nombre, SKU, lote…" autocomplete="off" oninput="acFilter('mov')" onfocus="acOpen('mov')" onkeydown="acKey(event,'mov')">
+                  <button class="ac-clear" id="mov-ac-clear" onclick="acClear('mov')"><i class="ti ti-x"></i></button>
+                  <div class="ac-dropdown" id="mov-ac-drop"></div>
                 </div>
-                <div class="form-group" id="seg-item-wrap">
-                  <label>Seg. Ítem <span id="seg-item-hint" style="font-weight:400;color:var(--emerald);display:none">· editable</span></label>
-                  <input type="text" id="seg-item" maxlength="12" placeholder="GLUCOMETRO" oninput="updateSKUfromSegs()" style="font-family:var(--font-mono);text-transform:uppercase;font-size:13px">
-                  <span class="hint" id="seg-item-help" style="display:none">Modifica el SKU para diferenciarlo si ya existe otro igual</span>
+                <div class="ac-selected-pill" id="mov-ac-pill">
+                  <span class="ac-selected-pill-text" id="mov-ac-pill-text"></span>
+                  <button onclick="acClear('mov')"><i class="ti ti-x"></i></button>
                 </div>
-                <div class="form-group" id="seg-pres-wrap">
-                  <label>Seg. Presentación</label>
-                  <input type="text" id="seg-pres" maxlength="5" placeholder="500" oninput="updateSKUfromSegs()" style="font-family:var(--font-mono);text-transform:uppercase">
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- CAMPOS OPCIONALES GENÉRICO -->
-          <div class="form-card" id="fg-opcionales-card" style="display:none">
-            <div class="form-card-title"><i class="ti ti-info-circle"></i>Datos adicionales <span style="font-size:11px;font-weight:400;color:#aaa;margin-left:6px">(opcionales)</span></div>
-            <div class="form-grid">
-              <div class="form-group">
-                <label>Lote</label>
-                <input type="text" id="f-lote-gen" placeholder="Ej. LT-2024-001">
+                <input type="hidden" id="mov-sku">
               </div>
               <div class="form-group">
-                <label>Registro INVIMA</label>
-                <input type="text" id="f-invima-gen" placeholder="INVIMA2024DM-001234">
-              </div>
-              <div class="form-group fg-full">
-                <label>Fecha de vencimiento</label>
-                <input type="date" id="f-caducidad-gen">
-                <span class="hint">Solo si el equipo tiene fecha de vencimiento</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- STOCK Y DESTINO -->
-          <div class="form-card">
-            <div class="form-card-title"><i class="ti ti-warehouse"></i>Clasificación y destino</div>
-            <div class="form-grid">
-              <div class="form-group">
-                <label>Familia</label>
-                <select id="f-familia" onchange="updateSubgrupos()">
-                  <option value="MED">Medicamento</option>
-                  <option value="INS">Insumo</option>
-                  <option value="INP">Insumo Pediátrico</option>
-                  <option value="DM">Dispositivo Médico</option>
-                  <option value="EB">Equipo Biomédico</option>
-                  <option value="DOT">Dotación</option>
-                  <option value="ASE">Aseo</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Subgrupo</label>
-                <select id="f-subgrupo">
-                  <option value="">Seleccionar subgrupo…</option>
+                <label>Tipo de movimiento</label>
+                <select id="mov-tipo" onchange="toggleMovFields()">
+                  <option value="consumo">Consumo</option>
+                  <option value="traslado" id="opt-traslado">Traslado</option>
+                  <option value="destruccion" id="opt-destruccion">Destrucción</option>
                 </select>
               </div>
               <div class="form-group">
                 <label>Cantidad</label>
-                <input type="number" id="f-cantidad" placeholder="0" min="1">
+                <input type="number" id="mov-cantidad" placeholder="0" min="1">
               </div>
-              <div class="form-group">
-                <label>Unidad de medida</label>
-                <select id="f-unidad">
-                  <option>Tabletas</option><option>Ampollas</option><option>Frascos</option>
-                  <option>Bolsas</option><option>Sobres</option><option>Unidades</option>
-                  <option>Paquetes</option><option>ml</option>
-                </select>
+              <div class="form-group" id="mov-origen-wrap">
+                <label>Origen</label>
+                <select id="mov-origen" onchange="updateMovInfo()"></select>
               </div>
-              <div class="form-group fg-full">
-                <label>Ubicación destino</label>
-                <select id="f-ubicacion"></select>
+              <div class="form-group" id="mov-destino-wrap" style="display:none">
+                <label>Destino</label>
+                <select id="mov-destino"></select>
+              </div>
+              <div class="form-group" id="mov-motivo-wrap" style="display:none">
+                <label>Motivo de destrucción</label>
+                <input type="text" id="mov-motivo" placeholder="Ej. Medicamento vencido, avería">
               </div>
             </div>
-            <button style="width:100%;margin-top:14px;padding:13px;background:var(--emerald);color:#fff;border:none;border-radius:var(--r-md);font-family:var(--font-head);font-size:15px;font-weight:700;cursor:pointer;transition:background .15s" onclick="registrarEntrada()" onmouseenter="this.style.background='var(--emerald2)'" onmouseleave="this.style.background='var(--emerald)'">
-              <i class="ti ti-circle-plus" style="margin-right:6px"></i>Registrar entrada
-            </button>
+            <div style="background:var(--cream);border-radius:var(--r-md);padding:10px 14px;font-size:12px;font-family:var(--font-mono);color:#666;margin-bottom:12px" id="mov-stock-info">Selecciona un ítem para ver el stock disponible</div>
+            <button class="btn-submit" onclick="registrarMovimiento()"><i class="ti ti-check"></i>Confirmar movimiento</button>
           </div>
         </div>
-      </div>
-
-      <!-- ═══ MOVIMIENTOS ═══ -->
-      <div class="view" id="view-movimientos">
-        <div class="form-card" id="mov-card">
-          <div class="form-card-title"><i class="ti ti-transfer"></i>Registrar movimiento</div>
-          <div class="form-grid">
-            <div class="form-group fg-full">
-              <label>SKU / Ítem</label>
-              <div class="ac-wrap" id="mov-ac-wrap">
-                <i class="ti ti-search ac-icon"></i>
-                <input type="text" class="ac-input" id="mov-ac-input" placeholder="Buscar por nombre, SKU o lote…" autocomplete="off"
-                  oninput="acFilter('mov')" onfocus="acOpen('mov')" onkeydown="acKey(event,'mov')">
-                <button class="ac-clear" id="mov-ac-clear" onclick="acClear('mov')"><i class="ti ti-x"></i></button>
-                <div class="ac-dropdown" id="mov-ac-drop"></div>
-              </div>
-              <div class="ac-selected-pill" id="mov-ac-pill">
-                <span class="ac-selected-pill-text" id="mov-ac-pill-text"></span>
-                <button onclick="acClear('mov')"><i class="ti ti-x"></i></button>
-              </div>
-              <input type="hidden" id="mov-sku">
-            </div>
-            <div class="form-group">
-              <label>Tipo de movimiento</label>
-              <select id="mov-tipo" onchange="toggleMovFields()">
-                <option value="consumo">Consumo</option>
-                <option value="traslado">Traslado</option>
-                <option value="destruccion">Destrucción</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Cantidad</label>
-              <input type="number" id="mov-cantidad" placeholder="0" min="1">
-            </div>
-            <div class="form-group" id="mov-origen-wrap">
-              <label>Origen</label>
-              <select id="mov-origen" onchange="updateMovInfo()"></select>
-            </div>
-            <div class="form-group" id="mov-destino-wrap" style="display:none">
-              <label>Destino</label>
-              <select id="mov-destino"></select>
-            </div>
-            <div class="form-group" id="mov-motivo-wrap" style="display:none">
-              <label>Motivo</label>
-              <input type="text" id="mov-motivo" placeholder="Ej. Medicamento vencido">
-            </div>
-          </div>
-          <div style="background:var(--cream);border-radius:var(--r-md);padding:12px 14px;margin-top:12px;font-size:12px;font-family:var(--font-mono);color:#666" id="mov-stock-info">
-            Selecciona un ítem para ver el stock disponible
-          </div>
-          <button style="width:100%;margin-top:14px;padding:13px;background:var(--ink);color:#fff;border:none;border-radius:var(--r-md);font-family:var(--font-head);font-size:15px;font-weight:700;cursor:pointer;transition:background .15s" onclick="registrarMovimiento()" onmouseenter="this.style.background=this.style.background||'var(--ink2)'" id="mov-btn">
-              Confirmar movimiento
-            </button>
-        </div>
-        <div class="sec-header" style="margin-top:4px">
-          <div class="sec-title">Historial de movimientos</div>
-        </div>
+        <div class="sec-header"><div class="sec-title">Historial de movimientos</div></div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Fecha</th><th>SKU</th><th>Tipo</th><th>Origen → Destino</th><th>Cant.</th><th>Usuario</th></tr></thead>
+            <thead><tr><th>Fecha</th><th>SKU Global</th><th>Sub-SKU</th><th>Tipo</th><th>Origen → Destino</th><th>Cant.</th><th>Usuario</th><th>Nivel</th></tr></thead>
             <tbody id="mov-body"></tbody>
           </table>
         </div>
       </div>
 
-      <!-- ═══ TRAZABILIDAD ═══ -->
-      <div class="view" id="view-trazabilidad">
-        <div class="form-card" style="margin-bottom:20px">
-          <div class="form-card-title"><i class="ti ti-timeline"></i>Buscar trazabilidad de SKU</div>
-          <div style="display:flex;gap:10px;align-items:flex-end">
-            <div class="form-group" style="flex:1">
-              <label>SKU a rastrear</label>
-              <div class="ac-wrap" id="traz-ac-wrap">
-                <i class="ti ti-search ac-icon"></i>
-                <input type="text" class="ac-input" id="traz-ac-input" placeholder="Buscar por nombre, SKU o lote…" autocomplete="off"
-                  oninput="acFilter('traz')" onfocus="acOpen('traz')" onkeydown="acKey(event,'traz')">
-                <button class="ac-clear" id="traz-ac-clear" onclick="acClear('traz')"><i class="ti ti-x"></i></button>
-                <div class="ac-dropdown" id="traz-ac-drop"></div>
+      <!-- ═══ REGISTRO (Supervisor) ═══ -->
+      <div class="view" id="view-registro">
+        <div id="reg-locked-msg"></div>
+        <div id="reg-form-wrap">
+          <div class="card">
+            <div class="card-header"><i class="ti ti-package-import card-title"></i><span class="card-title">Cargar entrada a SKU existente</span></div>
+            <div class="card-body">
+              <div class="form-group fg-full" style="margin-bottom:14px">
+                <label>Buscar SKU Global</label>
+                <select id="reg-sku-global" onchange="updateRegSKU()">
+                  <option value="">Seleccionar SKU Global…</option>
+                </select>
               </div>
-              <div class="ac-selected-pill" id="traz-ac-pill">
-                <span class="ac-selected-pill-text" id="traz-ac-pill-text"></span>
-                <button onclick="acClear('traz')"><i class="ti ti-x"></i></button>
+              <div id="reg-sku-info" style="display:none;background:var(--cream);border-radius:var(--r-md);padding:10px 14px;margin-bottom:14px">
+                <div style="font-size:11px;color:#888;font-family:var(--font-mono);margin-bottom:4px">SKU GLOBAL SELECCIONADO</div>
+                <div id="reg-sku-nombre" style="font-size:15px;font-weight:600;color:var(--ink)"></div>
+                <div id="reg-sku-familia" style="margin-top:4px"></div>
               </div>
-              <input type="hidden" id="traz-sku">
+
+              <!-- SUB-SKU PREVIEW -->
+              <div class="sku-preview-box" style="margin-bottom:14px">
+                <div class="sku-preview-label">Sub-SKU que se generará</div>
+                <div class="sku-preview-global" id="reg-subsku-preview">---- · -------- · ----------</div>
+                <div class="sku-preview-sub">Proveedor (4 letras) · Lote completo · INVIMA completo</div>
+              </div>
+
+              <div class="form-grid" style="margin-bottom:14px">
+                <div class="form-group">
+                  <label>Proveedor / Marca</label>
+                  <input type="text" id="reg-proveedor" placeholder="Ej. Laboratorios Ecar" oninput="updateSubSKU()">
+                  <span class="hint">Se genera abreviación automática (4 letras)</span>
+                </div>
+                <div class="form-group">
+                  <label>Lote</label>
+                  <input type="text" id="reg-lote" placeholder="Ej. LF01529B" oninput="updateSubSKU()">
+                </div>
+                <div class="form-group">
+                  <label>Registro INVIMA</label>
+                  <input type="text" id="reg-invima" placeholder="Ej. 2021M006528R4" oninput="updateSubSKU()">
+                </div>
+                <div class="form-group">
+                  <label>Fecha caducidad</label>
+                  <input type="date" id="reg-caducidad">
+                </div>
+                <div class="form-group">
+                  <label>Cantidad</label>
+                  <input type="number" id="reg-cantidad" placeholder="0" min="1">
+                </div>
+                <div class="form-group">
+                  <label>Unidad</label>
+                  <select id="reg-unidad">
+                    <option>Tabletas</option><option>Ampollas</option><option>Frascos</option>
+                    <option>Bolsas</option><option>Sobres</option><option>Unidades</option><option>ml</option>
+                  </select>
+                </div>
+                <div class="form-group fg-full">
+                  <label>Ubicación destino</label>
+                  <select id="reg-ubicacion"></select>
+                </div>
+              </div>
+              <button class="btn-submit" onclick="registrarEntrada()"><i class="ti ti-circle-plus"></i>Registrar entrada</button>
             </div>
-          </div>
-        </div>
-        <div id="traz-result">
-          <div class="empty-state">
-            <i class="ti ti-timeline"></i>
-            <p>Selecciona un SKU para ver su trazabilidad completa</p>
           </div>
         </div>
       </div>
 
-    </div><!-- /content -->
-  </div><!-- /main -->
-</div><!-- /app -->
+      <!-- ═══ SKU GLOBAL (Admin) ═══ -->
+      <div class="view" id="view-sku">
+        <div class="grid-2" style="margin-bottom:16px">
+          <div class="card">
+            <div class="card-header"><i class="ti ti-circle-plus card-title"></i><span class="card-title">Crear SKU Global</span></div>
+            <div class="card-body">
+              <div class="sku-preview-box" style="margin-bottom:14px">
+                <div class="sku-preview-label">SKU Global</div>
+                <div class="sku-preview-global" id="sku-global-preview">---</div>
+                <div class="sku-preview-sub">Nombre del ítem sin diferenciadores de lote o proveedor</div>
+              </div>
+              <div class="form-grid" style="margin-bottom:14px">
+                <div class="form-group fg-full">
+                  <label>Nombre del ítem</label>
+                  <input type="text" id="sku-nombre" placeholder="Ej. Acetaminofén Tab 500mg" oninput="updateGlobalSKU()">
+                </div>
+                <div class="form-group">
+                  <label>Nombre SKU</label>
+                  <input type="text" id="sku-codigo" placeholder="Ej. ACE-500" style="font-family:var(--font-mono);text-transform:uppercase">
+                  <span class="hint">Editable · Se sugiere automáticamente</span>
+                </div>
+                <div class="form-group">
+                  <label>Familia</label>
+                  <select id="sku-familia" onchange="updateSkuSubgrupos()">
+                    <option value="MED">Medicamento</option>
+                    <option value="INS">Insumo</option>
+                    <option value="INP">Insumo Pediátrico</option>
+                    <option value="DM">Dispositivo Médico</option>
+                    <option value="EB">Equipo Biomédico</option>
+                    <option value="DOT">Dotación</option>
+                    <option value="ASE">Aseo</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Subgrupo</label>
+                  <select id="sku-subgrupo"></select>
+                </div>
+                <div class="form-group fg-full">
+                  <label>Presentación</label>
+                  <input type="text" id="sku-presentacion" placeholder="Ej. Tableta 500mg, Ampolla 75mg/3ml">
+                </div>
+              </div>
+              <div style="margin-bottom:14px">
+                <div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono);margin-bottom:8px">Campos activables para este SKU</div>
+                <div class="campos-toggle">
+                  <label class="campo-chip" onclick="toggleCampo(this)"><input type="checkbox" value="lote" checked><i class="ti ti-check"></i>Lote</label>
+                  <label class="campo-chip active" onclick="toggleCampo(this)"><input type="checkbox" value="caducidad" checked><i class="ti ti-check"></i>Fecha Venc.</label>
+                  <label class="campo-chip active" onclick="toggleCampo(this)"><input type="checkbox" value="invima" checked><i class="ti ti-check"></i>Reg. INVIMA</label>
+                  <label class="campo-chip" onclick="toggleCampo(this)"><input type="checkbox" value="marca"><i class="ti ti-plus"></i>Marca</label>
+                  <label class="campo-chip" onclick="toggleCampo(this)"><input type="checkbox" value="serial"><i class="ti ti-plus"></i>Serial</label>
+                </div>
+              </div>
+              <button class="btn-submit green" onclick="crearSKUGlobal()"><i class="ti ti-check"></i>Crear SKU Global</button>
+            </div>
+          </div>
+          <div>
+            <div class="sec-header"><div class="sec-title">SKUs Globales registrados</div></div>
+            <div class="table-wrap">
+              <div class="table-toolbar">
+                <div class="search-wrap"><i class="ti ti-search si"></i><input type="text" class="search-input" placeholder="Buscar SKU…" id="sku-search" oninput="renderSKUs()"></div>
+              </div>
+              <table>
+                <thead><tr><th>SKU</th><th>Ítem</th><th>Familia</th><th>Campos</th><th></th></tr></thead>
+                <tbody id="sku-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ USUARIOS (Admin) ═══ -->
+      <div class="view" id="view-usuarios">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><i class="ti ti-user-plus card-title"></i><span class="card-title">Crear usuario</span></div>
+            <div class="card-body">
+              <div class="form-grid" style="margin-bottom:12px">
+                <div class="form-group fg-full">
+                  <label>Nombre completo</label>
+                  <input type="text" id="u-nombre" placeholder="Ej. María García López">
+                </div>
+                <div class="form-group">
+                  <label>Número de cédula</label>
+                  <input type="text" id="u-cedula" placeholder="Ej. 1006166884" style="font-family:var(--font-mono)">
+                </div>
+                <div class="form-group">
+                  <label>Fecha de nacimiento</label>
+                  <input type="date" id="u-nacimiento">
+                </div>
+                <div class="form-group">
+                  <label>Género</label>
+                  <select id="u-genero">
+                    <option value="">Seleccionar…</option>
+                    <option>Masculino</option>
+                    <option>Femenino</option>
+                    <option>Otro</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Nivel de acceso</label>
+                  <select id="u-nivel">
+                    <option value="1">Nivel 1 — Auditor</option>
+                    <option value="2">Nivel 2 — Enfermero/a</option>
+                    <option value="3">Nivel 3 — Supervisor</option>
+                    <option value="4">Nivel 4 — Administrador</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Contraseña asignada</label>
+                  <input type="text" id="u-pass" placeholder="Ej. NB2026*Carlos" style="font-family:var(--font-mono)">
+                  <span class="hint">El usuario no puede cambiarla</span>
+                </div>
+              </div>
+              <button class="btn-submit" onclick="crearUsuario()"><i class="ti ti-user-check"></i>Crear usuario</button>
+            </div>
+          </div>
+          <div>
+            <div class="sec-header"><div class="sec-title">Usuarios registrados</div></div>
+            <div id="users-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ BODEGAS (Admin) ═══ -->
+      <div class="view" id="view-bodegas">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><i class="ti ti-building-warehouse card-title"></i><span class="card-title">Crear ubicación / Bodega</span></div>
+            <div class="card-body">
+              <div class="form-grid" style="margin-bottom:12px">
+                <div class="form-group">
+                  <label>Tipo de depósito</label>
+                  <select id="b-tipo" onchange="updateBodegaPreview()">
+                    <option value="ALM">ALM — Almacén</option>
+                    <option value="BTQ">BTQ — Botiquín</option>
+                    <option value="ENF">ENF — Enfermería</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Sufijo / Nombre</label>
+                  <input type="text" id="b-sufijo" placeholder="Ej. GENERAL, CYA, PAL" oninput="updateBodegaPreview()" style="text-transform:uppercase;font-family:var(--font-mono)">
+                </div>
+                <div class="form-group fg-full">
+                  <label>Vista previa del nombre</label>
+                  <div style="padding:10px 14px;background:var(--ink);border-radius:var(--r-md);font-family:var(--font-mono);font-size:16px;font-weight:700;color:var(--blue2)" id="bodega-preview">ALM-</div>
+                </div>
+              </div>
+              <button class="btn-submit" onclick="crearBodega()"><i class="ti ti-plus"></i>Crear ubicación</button>
+            </div>
+          </div>
+          <div>
+            <div class="sec-header"><div class="sec-title">Ubicaciones registradas</div></div>
+            <div id="bodegas-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ TRAZABILIDAD ═══ -->
+      <div class="view" id="view-trazabilidad">
+        <div class="card" style="margin-bottom:18px">
+          <div class="card-header"><i class="ti ti-timeline card-title"></i><span class="card-title">Buscar trazabilidad</span></div>
+          <div class="card-body">
+            <div class="form-grid">
+              <div class="form-group">
+                <label>SKU Global</label>
+                <select id="traz-global" onchange="updateTrazSubs()">
+                  <option value="">Seleccionar SKU Global…</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Sub-SKU (opcional)</label>
+                <select id="traz-sub" onchange="renderTrazabilidad()">
+                  <option value="">Todos los Sub-SKUs</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="traz-result">
+          <div class="empty-state"><i class="ti ti-timeline"></i><p>Selecciona un SKU para ver su trazabilidad completa</p></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
 
 <!-- MODAL CONFIRMACIÓN -->
 <div class="modal-overlay" id="modal-confirm">
@@ -829,801 +819,841 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 <div class="toast" id="toast"></div>
 
 <script>
-// ══════════════════════════════════
-// STATE
-// ══════════════════════════════════
-let currentRole = null;
-let currentView = 'dashboard';
-let skuModo = 'trazable';
-
-const ROLES = {
-  admin:    {label:'Administrador',avatar:'AD',can:['dashboard','inventario','registro','movimientos','trazabilidad']},
-  enfermero:{label:'Enfermero/a',avatar:'EN',can:['dashboard','inventario','movimientos','trazabilidad']},
-  auditor:  {label:'Auditor',avatar:'AU',can:['dashboard','inventario','trazabilidad']},
-};
-
-const UBICACIONES = ['Almacén General','Almacén Palmaseca','MEC 1 MED','BTQ I 01','Enfermería Palmaseca'];
-
-const FAMILIAS = {
-  MED: 'Medicamento',
-  INS: 'Insumo',
-  INP: 'Insumo Pediátrico',
-  DM:  'Dispositivo Médico',
-  EB:  'Equipo Biomédico',
-  DOT: 'Dotación',
-  ASE: 'Aseo',
-};
-
+// ══════════════════════════════════════════════
+// CONSTANTES
+// ══════════════════════════════════════════════
+const FAMILIAS = {MED:'Medicamento',INS:'Insumo',INP:'Insumo Pediátrico',DM:'Dispositivo Médico',EB:'Equipo Biomédico',DOT:'Dotación',ASE:'Aseo'};
 const SUBGRUPOS = {
-  MED: ['AINES','ANALGÉSICO','ANESTÉSICO','ANESTÉSICO TÓPICO','ANTAGONISTA OPIOIDE','ANTIARRÍTMICO','ANTIBIÓTICO TÓPICO','ANTICOLINÉRGICO','ANTICONVULSIVO','ANTIDIARRÉICO','ANTIESPAMÓDICOS','ANTIHEMETICOS','ANTIHIPERTENSIVO','ANTIHISTAMÍNICO','ANTIPIRÉTICO','BRONCODILATADOR','CARDIOTÓNICOS','CIRCULATORIO','CORTICOIDE','CORTICOIDE TÓPICO','PROTECTOR GÁSTRICO','REPOSICIÓN ELECTROLÍTICA','RESPIRATORIO','SIQUIÁTRICO','SOLUCIÓN OFTÁLMICA'],
-  INS: ['INSUMO','QUIRÚRGICO'],
-  INP: ['INSUMO','QUIRÚRGICO'],
-  DM:  ['DISPOSITIVO MÉDICO','DISPOSITIVO MÉDICO PEDIÁTRICO'],
-  EB:  ['EQUIPO BIOMÉDICO'],
-  DOT: ['DOTACIÓN'],
-  ASE: ['ASEO'],
+  MED:['AINES','ANALGÉSICO','ANESTÉSICO','ANESTÉSICO TÓPICO','ANTAGONISTA OPIOIDE','ANTIARRÍTMICO','ANTIBIÓTICO TÓPICO','ANTICOLINÉRGICO','ANTICONVULSIVO','ANTIDIARRÉICO','ANTIESPAMÓDICOS','ANTIHEMETICOS','ANTIHIPERTENSIVO','ANTIHISTAMÍNICO','ANTIPIRÉTICO','BRONCODILATADOR','CARDIOTÓNICOS','CIRCULATORIO','CORTICOIDE','CORTICOIDE TÓPICO','PROTECTOR GÁSTRICO','REPOSICIÓN ELECTROLÍTICA','RESPIRATORIO','SIQUIÁTRICO','SOLUCIÓN OFTÁLMICA'],
+  INS:['INSUMO','QUIRÚRGICO'],INP:['INSUMO','QUIRÚRGICO'],
+  DM:['DISPOSITIVO MÉDICO','DISPOSITIVO MÉDICO PEDIÁTRICO'],
+  EB:['EQUIPO BIOMÉDICO'],DOT:['DOTACIÓN'],ASE:['ASEO']
+};
+const NIVELES = {1:{label:'Auditor',cls:'n1',nav:['dashboard','inventario','trazabilidad']},2:{label:'Enfermero/a',cls:'n2',nav:['dashboard','inventario','movimientos','trazabilidad']},3:{label:'Supervisor',cls:'n3',nav:['dashboard','inventario','movimientos','registro','trazabilidad']},4:{label:'Administrador',cls:'n4',nav:['dashboard','inventario','movimientos','registro','sku','usuarios','bodegas','trazabilidad']}};
+const NAV_CONFIG = [
+  {id:'dashboard',icon:'ti-layout-dashboard',label:'Dashboard',section:''},
+  {id:'inventario',icon:'ti-pill',label:'Inventario',section:''},
+  {id:'movimientos',icon:'ti-transfer',label:'Movimientos',section:''},
+  {id:'registro',icon:'ti-package-import',label:'Registro de entradas',section:''},
+  {id:'sku',icon:'ti-tag',label:'SKUs Globales',section:'ADMINISTRACIÓN'},
+  {id:'usuarios',icon:'ti-users',label:'Usuarios',section:''},
+  {id:'bodegas',icon:'ti-building-warehouse',label:'Ubicaciones',section:''},
+  {id:'trazabilidad',icon:'ti-timeline',label:'Trazabilidad',section:''},
+];
+
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+const SEED = {
+  skusGlobales:[
+    {id:1,codigo:'ACE-500',nombre:'Acetaminofén Tab 500mg',familia:'MED',subgrupo:'ANALGÉSICO',presentacion:'Tableta 500mg',campos:['lote','caducidad','invima']},
+    {id:2,codigo:'DIC-75',nombre:'Diclofenaco 75mg/3ml AMP',familia:'MED',subgrupo:'AINES',presentacion:'Ampolla 75mg/3ml',campos:['lote','caducidad','invima']},
+    {id:3,codigo:'DEX-4',nombre:'Dexametasona 4mg/1ml AMP',familia:'MED',subgrupo:'CORTICOIDE',presentacion:'Ampolla 4mg/1ml',campos:['lote','caducidad','invima']},
+    {id:4,codigo:'OME-20',nombre:'Omeprazol Tab 20mg',familia:'MED',subgrupo:'PROTECTOR GÁSTRICO',presentacion:'Tableta 20mg',campos:['lote','caducidad','invima']},
+    {id:5,codigo:'SAL-500',nombre:'Solución Salina 0.9% 500cc',familia:'INS',subgrupo:'INSUMO',presentacion:'Bolsa 500cc',campos:['lote','caducidad','invima']},
+    {id:6,codigo:'GAS-E5',nombre:'Gasa Paquete Estéril x5',familia:'INS',subgrupo:'QUIRÚRGICO',presentacion:'Paquete x5',campos:['lote','caducidad']},
+    {id:7,codigo:'LOS-50',nombre:'Losartán 50mg Tab',familia:'MED',subgrupo:'ANTIHIPERTENSIVO',presentacion:'Tableta 50mg',campos:['lote','caducidad','invima']},
+    {id:8,codigo:'TIJ-CRT',nombre:'Tijera Cortatodo',familia:'DOT',subgrupo:'DOTACIÓN',presentacion:'Unidad',campos:['serial']},
+  ],
+  subSkus:[
+    {id:1,skuGlobalId:1,subSku:'GENF-LF01529B-2021M006528R4',nombre:'Acetaminofén Tab 500mg',proveedor:'Genfar',lote:'LF01529B',invima:'2021M006528R4',caducidad:'2026-06-30',unidad:'Tabletas',agotado:false,stock:{'ALM-GENERAL':100,'MEC-1MED':27,'BTQ-CYA':0}},
+    {id:2,skuGlobalId:1,subSku:'GENF-25B382-2023M0002317R3',nombre:'Acetaminofén Tab 500mg',proveedor:'Genfar',lote:'25B382',invima:'2023M0002317R3',caducidad:'2026-08-15',unidad:'Tabletas',agotado:false,stock:{'BTQ-I01':100,'ENF-PAL':20}},
+    {id:3,skuGlobalId:2,subSku:'LABI-S24055842-2022M0004505R2',nombre:'Diclofenaco 75mg/3ml AMP',proveedor:'Labiosano',lote:'S24055842',invima:'2022M0004505R2',caducidad:'2026-11-30',unidad:'Ampollas',agotado:false,stock:{'MEC-1MED':5,'ALM-GENERAL':10}},
+    {id:4,skuGlobalId:3,subSku:'VITA-A241044-2020M0007728R1',nombre:'Dexametasona 4mg/1ml AMP',proveedor:'Vitalis',lote:'A241044',invima:'2020M0007728R1',caducidad:'2025-06-10',unidad:'Ampollas',agotado:false,stock:{'ALM-GENERAL':8}},
+    {id:5,skuGlobalId:4,subSku:'FARM-B5H004-2021M013239R3',nombre:'Omeprazol Tab 20mg',proveedor:'Farmacol',lote:'B5H004',invima:'2021M013239R3',caducidad:'2025-04-30',unidad:'Tabletas',agotado:false,stock:{'ENF-PAL':27}},
+    {id:6,skuGlobalId:5,subSku:'BAXT-SB251G9-2020M001117R4',nombre:'Solución Salina 0.9% 500cc',proveedor:'Baxter',lote:'SB251G9',invima:'2020M001117R4',caducidad:'2026-09-20',unidad:'Bolsas',agotado:false,stock:{'ALM-PAL':15,'BTQ-I01':8}},
+    {id:7,skuGlobalId:7,subSku:'ECAR-F090616-2020M0012345R2',nombre:'Losartán 50mg Tab',proveedor:'Laboratorios Ecar',lote:'F090616',invima:'2020M0012345R2',caducidad:'2026-12-31',unidad:'Tabletas',agotado:false,stock:{'MEC-1MED':240,'ALM-PAL':60}},
+  ],
+  bodegas:['ALM-GENERAL','ALM-PAL','MEC-1MED','BTQ-I01','BTQ-CYA','ENF-PAL'],
+  usuarios:[
+    {id:1,nombre:'Jorge Cardona',cedula:'94507925',nivel:4,genero:'Masculino',nacimiento:'1975-03-15'},
+    {id:2,nombre:'María García',cedula:'1098765432',nivel:3,genero:'Femenino',nacimiento:'1990-07-22'},
+    {id:3,nombre:'Juan Pérez',cedula:'1006543210',nivel:2,genero:'Masculino',nacimiento:'1995-11-08'},
+    {id:4,nombre:'Ana Torres',cedula:'1234567890',nivel:1,genero:'Femenino',nacimiento:'1988-04-30'},
+  ],
+  movimientos:[
+    {id:1,fecha:'2026-04-01',hora:'09:15',skuGlobal:'ACE-500',subSku:'GENF-LF01529B-2021M006528R4',tipo:'compra',origen:'—',destino:'ALM-GENERAL',cantidad:100,usuarioNombre:'Jorge Cardona',usuarioNivel:4},
+    {id:2,fecha:'2026-04-03',hora:'10:30',skuGlobal:'ACE-500',subSku:'GENF-LF01529B-2021M006528R4',tipo:'traslado',origen:'ALM-GENERAL',destino:'MEC-1MED',cantidad:30,usuarioNombre:'María García',usuarioNivel:3},
+    {id:3,fecha:'2026-04-05',hora:'08:45',skuGlobal:'ACE-500',subSku:'GENF-LF01529B-2021M006528R4',tipo:'consumo',origen:'MEC-1MED',destino:'—',cantidad:3,usuarioNombre:'Juan Pérez',usuarioNivel:2},
+    {id:4,fecha:'2026-04-08',hora:'11:00',skuGlobal:'SAL-500',subSku:'BAXT-SB251G9-2020M001117R4',tipo:'compra',origen:'—',destino:'ALM-PAL',cantidad:20,usuarioNombre:'María García',usuarioNivel:3},
+    {id:5,fecha:'2026-04-10',hora:'14:20',skuGlobal:'SAL-500',subSku:'BAXT-SB251G9-2020M001117R4',tipo:'traslado',origen:'ALM-PAL',destino:'BTQ-I01',cantidad:8,usuarioNombre:'María García',usuarioNivel:3},
+    {id:6,fecha:'2026-04-12',hora:'09:00',skuGlobal:'DEX-4',subSku:'VITA-A241044-2020M0007728R1',tipo:'compra',origen:'—',destino:'ALM-GENERAL',cantidad:12,usuarioNombre:'María García',usuarioNivel:3},
+    {id:7,fecha:'2026-04-15',hora:'16:30',skuGlobal:'OME-20',subSku:'FARM-B5H004-2021M013239R3',tipo:'compra',origen:'—',destino:'ALM-PAL',cantidad:30,usuarioNombre:'María García',usuarioNivel:3},
+    {id:8,fecha:'2026-04-18',hora:'10:15',skuGlobal:'OME-20',subSku:'FARM-B5H004-2021M013239R3',tipo:'traslado',origen:'ALM-PAL',destino:'ENF-PAL',cantidad:10,usuarioNombre:'María García',usuarioNivel:3},
+    {id:9,fecha:'2026-04-20',hora:'08:30',skuGlobal:'OME-20',subSku:'FARM-B5H004-2021M013239R3',tipo:'consumo',origen:'ENF-PAL',destino:'—',cantidad:3,usuarioNombre:'Juan Pérez',usuarioNivel:2},
+    {id:10,fecha:'2026-04-22',hora:'11:45',skuGlobal:'LOS-50',subSku:'ECAR-F090616-2020M0012345R2',tipo:'compra',origen:'—',destino:'ALM-GENERAL',cantidad:300,usuarioNombre:'María García',usuarioNivel:3},
+    {id:11,fecha:'2026-04-23',hora:'09:00',skuGlobal:'LOS-50',subSku:'ECAR-F090616-2020M0012345R2',tipo:'traslado',origen:'ALM-GENERAL',destino:'MEC-1MED',cantidad:240,usuarioNombre:'María García',usuarioNivel:3},
+    {id:12,fecha:'2026-04-23',hora:'09:30',skuGlobal:'LOS-50',subSku:'ECAR-F090616-2020M0012345R2',tipo:'traslado',origen:'ALM-GENERAL',destino:'ALM-PAL',cantidad:60,usuarioNombre:'María García',usuarioNivel:3},
+    {id:13,fecha:'2026-05-02',hora:'14:00',skuGlobal:'LOS-50',subSku:'ECAR-F090616-2020M0012345R2',tipo:'consumo',origen:'MEC-1MED',destino:'—',cantidad:15,usuarioNombre:'Juan Pérez',usuarioNivel:2},
+    {id:14,fecha:'2026-05-05',hora:'10:00',skuGlobal:'DIC-75',subSku:'LABI-S24055842-2022M0004505R2',tipo:'compra',origen:'—',destino:'ALM-GENERAL',cantidad:15,usuarioNombre:'María García',usuarioNivel:3},
+    {id:15,fecha:'2026-05-06',hora:'11:30',skuGlobal:'DIC-75',subSku:'LABI-S24055842-2022M0004505R2',tipo:'traslado',origen:'ALM-GENERAL',destino:'MEC-1MED',cantidad:5,usuarioNombre:'María García',usuarioNivel:3},
+    {id:16,fecha:'2026-05-10',hora:'08:00',skuGlobal:'ACE-500',subSku:'GENF-LF01529B-2021M006528R4',tipo:'consumo',origen:'MEC-1MED',destino:'—',cantidad:5,usuarioNombre:'Juan Pérez',usuarioNivel:2},
+    {id:17,fecha:'2026-05-12',hora:'15:00',skuGlobal:'DEX-4',subSku:'VITA-A241044-2020M0007728R1',tipo:'destruccion',origen:'ALM-GENERAL',destino:'—',cantidad:1,usuarioNombre:'María García',usuarioNivel:3},
+    {id:18,fecha:'2026-05-15',hora:'09:45',skuGlobal:'ACE-500',subSku:'GENF-25B382-2023M0002317R3',tipo:'compra',origen:'—',destino:'ALM-GENERAL',cantidad:100,usuarioNombre:'María García',usuarioNivel:3},
+    {id:19,fecha:'2026-05-16',hora:'10:00',skuGlobal:'ACE-500',subSku:'GENF-25B382-2023M0002317R3',tipo:'traslado',origen:'ALM-GENERAL',destino:'BTQ-I01',cantidad:60,usuarioNombre:'María García',usuarioNivel:3},
+    {id:20,fecha:'2026-05-18',hora:'08:15',skuGlobal:'SAL-500',subSku:'BAXT-SB251G9-2020M001117R4',tipo:'consumo',origen:'BTQ-I01',destino:'—',cantidad:2,usuarioNombre:'Juan Pérez',usuarioNivel:2},
+    {id:21,fecha:'2026-05-20',hora:'16:00',skuGlobal:'ACE-500',subSku:'GENF-25B382-2023M0002317R3',tipo:'traslado',origen:'BTQ-I01',destino:'ENF-PAL',cantidad:20,usuarioNombre:'María García',usuarioNivel:3},
+    {id:22,fecha:'2026-05-22',hora:'09:30',skuGlobal:'LOS-50',subSku:'ECAR-F090616-2020M0012345R2',tipo:'consumo',origen:'MEC-1MED',destino:'—',cantidad:10,usuarioNombre:'Juan Pérez',usuarioNivel:2},
+    {id:23,fecha:'2026-05-25',hora:'11:00',skuGlobal:'OME-20',subSku:'FARM-B5H004-2021M013239R3',tipo:'consumo',origen:'ENF-PAL',destino:'—',cantidad:5,usuarioNombre:'Juan Pérez',usuarioNivel:2},
+    {id:24,fecha:'2026-05-27',hora:'14:30',skuGlobal:'GAS-E5',subSku:'ALLS-20250910-',tipo:'compra',origen:'—',destino:'ALM-GENERAL',cantidad:50,usuarioNombre:'María García',usuarioNivel:3},
+    {id:25,fecha:'2026-05-28',hora:'08:00',skuGlobal:'DIC-75',subSku:'LABI-S24055842-2022M0004505R2',tipo:'consumo',origen:'MEC-1MED',destino:'—',cantidad:2,usuarioNombre:'Juan Pérez',usuarioNivel:2},
+  ],
+  nextId:10,nextMovId:26,nextUserId:5,nextBodegaId:7,nextSkuId:9
 };
 
-function updateSubgrupos(){
-  const familia=document.getElementById('f-familia')?.value||'MED';
-  const sel=document.getElementById('f-subgrupo');
-  if(!sel) return;
-  const lista=SUBGRUPOS[familia]||[];
-  sel.innerHTML='<option value="">Seleccionar subgrupo…</option>'+lista.map(s=>`<option value="${s}">${s}</option>`).join('');
-}
-
-// Inventario inicial con 8 ítems representativos
-// ── DATOS SEMILLA (no se tocan si ya hay datos en localStorage) ──
-const SEED_INVENTARIO = [
-  {id:1,sku:'GEN-ACE-500-LF01529B',nombre:'Acetaminofén Tab 500mg',proveedor:'Genfar',lote:'LF01529B',invima:'2021M-006528-R4',caducidad:'2026-06-30',familia:'MED',subgrupo:'ANALGÉSICO',unidad:'Tabletas',ubicacion:'MEC 1 MED',cantidad:27,tipo:'trazable'},
-  {id:2,sku:'GEN-ACE-500-25B382',nombre:'Acetaminofén Tab 500mg',proveedor:'Genfar',lote:'25B382',invima:'2023M-0002317-R3',caducidad:'2026-08-15',familia:'MED',subgrupo:'ANALGÉSICO',unidad:'Tabletas',ubicacion:'BTQ I 01',cantidad:100,tipo:'trazable'},
-  {id:3,sku:'LAB-DIC-75-S24055842',nombre:'Diclofenaco 75mg/3ml AMP',proveedor:'Labiosano',lote:'S24055842',invima:'2022M-0004505-R2',caducidad:'2026-11-30',familia:'MED',subgrupo:'AINES',unidad:'Ampollas',ubicacion:'MEC 1 MED',cantidad:5,tipo:'trazable'},
-  {id:4,sku:'VIT-DEX-4-A241044',nombre:'Dexametasona 4mg/1ml AMP',proveedor:'Vitalis',lote:'A241044',invima:'2020M-0007728-R1',caducidad:'2025-06-10',familia:'MED',subgrupo:'CORTICOIDE',unidad:'Ampollas',ubicacion:'Almacén General',cantidad:8,tipo:'trazable'},
-  {id:5,sku:'FAR-OME-20-B5H004',nombre:'Omeprazol Tab 20mg',proveedor:'Farmacol',lote:'B5H004',invima:'2021M-013239-R3',caducidad:'2025-04-30',familia:'MED',subgrupo:'PROTECTOR GÁSTRICO',unidad:'Tabletas',ubicacion:'Enfermería Palmaseca',cantidad:27,tipo:'trazable'},
-  {id:6,sku:'BAX-SAL-500-SB251G9',nombre:'Solución Salina 0.9% 500cc',proveedor:'Baxter',lote:'SB251G9',invima:'2020M-001117-R4',caducidad:'2026-09-20',familia:'INS',subgrupo:'INSUMO',unidad:'Bolsas',ubicacion:'Almacén Palmaseca',cantidad:15,tipo:'trazable'},
-  {id:7,sku:'ALL-GAS-E5-20250910',nombre:'Gasa Paquete Estéril Pqx5',proveedor:'Allmed',lote:'20250910',invima:'2023DM-0026559',caducidad:'2027-09-10',familia:'INS',subgrupo:'QUIRÚRGICO',unidad:'Sobres',ubicacion:'Almacén General',cantidad:50,tipo:'trazable'},
-  {id:8,sku:'TIJ-CRT',nombre:'Tijera Cortatodo',proveedor:'—',lote:'—',invima:'—',caducidad:'',familia:'DOT',subgrupo:'DOTACIÓN',unidad:'Unidades',ubicacion:'BTQ I 01',cantidad:3,tipo:'generico'},
-  {id:9,sku:'ECR-LOS-50M-F090616',nombre:'Losartán 50mg Tab',proveedor:'Ecar',lote:'F090616',invima:'2020M-0012345-R2',caducidad:'2026-12-31',familia:'MED',subgrupo:'ANTIHIPERTENSIVO',unidad:'Tabletas',ubicacion:'MEC 1 MED',cantidad:240,tipo:'trazable'},
-  {id:10,sku:'ECR-LOS-50M-F090616',nombre:'Losartán 50mg Tab',proveedor:'Ecar',lote:'F090616',invima:'2020M-0012345-R2',caducidad:'2026-12-31',familia:'MED',subgrupo:'ANTIHIPERTENSIVO',unidad:'Tabletas',ubicacion:'Almacén Palmaseca',cantidad:60,tipo:'trazable'},
-  {id:11,sku:'BAX-GLU-5P-G241101',nombre:'Dextrosa 5% 500cc',proveedor:'Baxter',lote:'G241101',invima:'2019M-0008877-R3',caducidad:'2026-07-15',familia:'MED',subgrupo:'REPOSICIÓN ELECTROLÍTICA',unidad:'Bolsas',ubicacion:'BTQ I 01',cantidad:12,tipo:'trazable'},
-];
-
-const SEED_MOVIMIENTOS = [
-  {id:1,fecha:'2026-04-01',sku:'GEN-ACE-500-LF01529B',tipo:'compra',origen:'—',destino:'Almacén General',cantidad:50,usuario:'Admin'},
-  {id:2,fecha:'2026-04-02',sku:'GEN-ACE-500-LF01529B',tipo:'asignacion',origen:'Almacén General',destino:'MEC 1 MED',cantidad:30,usuario:'Admin'},
-  {id:3,fecha:'2026-04-05',sku:'GEN-ACE-500-LF01529B',tipo:'consumo',origen:'MEC 1 MED',destino:'—',cantidad:3,usuario:'Enfermero/a'},
-  {id:4,fecha:'2026-04-08',sku:'BAX-SAL-500-SB251G9',tipo:'compra',origen:'—',destino:'Almacén Palmaseca',cantidad:20,usuario:'Admin'},
-  {id:5,fecha:'2026-04-10',sku:'BAX-SAL-500-SB251G9',tipo:'asignacion',origen:'Almacén Palmaseca',destino:'BTQ I 01',cantidad:8,usuario:'Admin'},
-  {id:6,fecha:'2026-04-12',sku:'BAX-SAL-500-SB251G9',tipo:'consumo',origen:'BTQ I 01',destino:'—',cantidad:2,usuario:'Enfermero/a'},
-  {id:7,fecha:'2026-04-15',sku:'VIT-DEX-4-A241044',tipo:'compra',origen:'—',destino:'Almacén General',cantidad:12,usuario:'Admin'},
-  {id:8,fecha:'2026-04-16',sku:'VIT-DEX-4-A241044',tipo:'traslado',origen:'Almacén General',destino:'MEC 1 MED',cantidad:4,usuario:'Admin'},
-  {id:9,fecha:'2026-04-18',sku:'FAR-OME-20-B5H004',tipo:'compra',origen:'—',destino:'Almacén Palmaseca',cantidad:30,usuario:'Admin'},
-  {id:10,fecha:'2026-04-20',sku:'FAR-OME-20-B5H004',tipo:'asignacion',origen:'Almacén Palmaseca',destino:'Enfermería Palmaseca',cantidad:10,usuario:'Admin'},
-  {id:11,fecha:'2026-04-22',sku:'FAR-OME-20-B5H004',tipo:'consumo',origen:'Enfermería Palmaseca',destino:'—',cantidad:2,usuario:'Enfermero/a'},
-  {id:12,fecha:'2026-04-25',sku:'ALL-GAS-E5-20250910',tipo:'compra',origen:'—',destino:'Almacén General',cantidad:60,usuario:'Admin'},
-  {id:13,fecha:'2026-04-26',sku:'ALL-GAS-E5-20250910',tipo:'asignacion',origen:'Almacén General',destino:'BTQ I 01',cantidad:10,usuario:'Admin'},
-  {id:14,fecha:'2026-04-28',sku:'ECR-LOS-50M-F090616',tipo:'compra',origen:'—',destino:'Almacén General',cantidad:300,usuario:'Admin'},
-  {id:15,fecha:'2026-04-29',sku:'ECR-LOS-50M-F090616',tipo:'asignacion',origen:'Almacén General',destino:'MEC 1 MED',cantidad:240,usuario:'Admin'},
-  {id:16,fecha:'2026-04-29',sku:'ECR-LOS-50M-F090616',tipo:'asignacion',origen:'Almacén General',destino:'Almacén Palmaseca',cantidad:60,usuario:'Admin'},
-  {id:17,fecha:'2026-05-02',sku:'ECR-LOS-50M-F090616',tipo:'consumo',origen:'MEC 1 MED',destino:'—',cantidad:15,usuario:'Enfermero/a'},
-  {id:18,fecha:'2026-05-05',sku:'BAX-GLU-5P-G241101',tipo:'compra',origen:'—',destino:'Almacén General',cantidad:20,usuario:'Admin'},
-  {id:19,fecha:'2026-05-06',sku:'BAX-GLU-5P-G241101',tipo:'asignacion',origen:'Almacén General',destino:'BTQ I 01',cantidad:12,usuario:'Admin'},
-  {id:20,fecha:'2026-05-10',sku:'LAB-DIC-75-S24055842',tipo:'compra',origen:'—',destino:'Almacén General',cantidad:10,usuario:'Admin'},
-  {id:21,fecha:'2026-05-11',sku:'LAB-DIC-75-S24055842',tipo:'asignacion',origen:'Almacén General',destino:'MEC 1 MED',cantidad:5,usuario:'Admin'},
-  {id:22,fecha:'2026-05-15',sku:'GEN-ACE-500-LF01529B',tipo:'consumo',origen:'MEC 1 MED',destino:'—',cantidad:5,usuario:'Enfermero/a'},
-  {id:23,fecha:'2026-05-18',sku:'ECR-LOS-50M-F090616',tipo:'traslado',origen:'Almacén Palmaseca',destino:'Enfermería Palmaseca',cantidad:20,usuario:'Enfermero/a'},
-  {id:24,fecha:'2026-05-20',sku:'BAX-SAL-500-SB251G9',tipo:'consumo',origen:'BTQ I 01',destino:'—',cantidad:1,usuario:'Enfermero/a'},
-  {id:25,fecha:'2026-05-22',sku:'VIT-DEX-4-A241044',tipo:'destruccion',origen:'MEC 1 MED',destino:'—',cantidad:1,usuario:'Auditor'},
-];
-
-// ── PERSISTENCIA localStorage ──
-function saveState(){
-  try {
-    localStorage.setItem('nb_inventario', JSON.stringify(inventario));
-    localStorage.setItem('nb_movimientos', JSON.stringify(movimientos));
-    localStorage.setItem('nb_nextId', String(nextId));
-  } catch(e){ console.warn('localStorage no disponible', e); }
-}
+let currentRole = null;
+let S = {};
 
 function loadState(){
   try {
-    const inv = localStorage.getItem('nb_inventario');
-    const mov = localStorage.getItem('nb_movimientos');
-    const nid = localStorage.getItem('nb_nextId');
-    if(inv) inventario = JSON.parse(inv);
-    if(mov) movimientos = JSON.parse(mov);
-    if(nid) nextId = parseInt(nid);
-  } catch(e){ console.warn('Error cargando localStorage', e); }
+    const saved = localStorage.getItem('nb_state_v2');
+    if(saved) S = JSON.parse(saved);
+    else resetState(false);
+  } catch(e){ resetState(false); }
 }
-
-function resetState(){
-  inventario = JSON.parse(JSON.stringify(SEED_INVENTARIO));
-  movimientos = JSON.parse(JSON.stringify(SEED_MOVIMIENTOS));
-  nextId = 30;
+function saveState(){ try{ localStorage.setItem('nb_state_v2', JSON.stringify(S)); }catch(e){} }
+function resetState(show=true){
+  S = JSON.parse(JSON.stringify(SEED));
   saveState();
-  renderAll();
-  toast('Datos restaurados a la demo inicial','success');
+  if(show){ renderAll(); toast('Datos restaurados','success'); }
 }
-
-let inventario = JSON.parse(JSON.stringify(SEED_INVENTARIO));
-let movimientos = JSON.parse(JSON.stringify(SEED_MOVIMIENTOS));
-let nextId = 30;
 loadState();
 
-// ══════════════════════════════════
+// ══════════════════════════════════════════════
 // HELPERS
-// ══════════════════════════════════
-function getSemaforo(caducidad){
+// ══════════════════════════════════════════════
+function getSem(caducidad){
   if(!caducidad) return 'V';
-  const diff=(new Date(caducidad)-new Date())/(864e5);
-  if(diff<0) return 'N';
-  if(diff<90) return 'R';
-  if(diff<180) return 'A';
-  return 'V';
+  const diff=(new Date(caducidad)-new Date())/864e5;
+  if(diff<0) return 'N'; if(diff<90) return 'R'; if(diff<180) return 'A'; return 'V';
 }
 function semLabel(s){return{V:'Vigente',A:'Por vencer',R:'Crítico',N:'Vencido'}[s]||s}
 function fmtDate(d){if(!d)return'—';const[y,m,day]=d.split('-');return`${day}/${m}/${y}`}
-function siglas(str,n=3){if(!str||str==='—') return '---';return str.replace(/[^a-zA-Z0-9]/g,'').substring(0,n).toUpperCase()}
+function abrevProv(str){
+  if(!str) return '----';
+  const words = str.trim().split(/\s+/).filter(Boolean);
+  if(words.length===1) return words[0].replace(/[^a-zA-Z0-9]/g,'').substring(0,4).toUpperCase();
+  return words.map(w=>w[0]?.toUpperCase()||'').join('').substring(0,4).padEnd(4,'X');
+}
+function buildSubSku(prov,lote,invima){
+  return `${abrevProv(prov)}-${(lote||'--------').toUpperCase()}-${(invima||'----------').replace(/\s/g,'')}`;
+}
 function toast(msg,type=''){
   const t=document.getElementById('toast');
   t.textContent=msg;t.className='toast show '+(type||'');
-  setTimeout(()=>t.className='toast',2500);
+  setTimeout(()=>t.className='toast',2400);
 }
 function closeModal(id){document.getElementById(id).classList.remove('open')}
 document.querySelectorAll('.modal-overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open')}));
+function getTotalStock(sub){ return Object.values(sub.stock||{}).reduce((a,v)=>a+v,0); }
+function getStockEnUbicacion(sub,ub){ return sub.stock?.[ub]||0; }
 
-// ══════════════════════════════════
+// ══════════════════════════════════════════════
 // LOGIN
-// ══════════════════════════════════
-function selectRole(role){
-  currentRole=role;
-  document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('selected'));
-  document.getElementById('role-'+role).classList.add('selected');
-  document.getElementById('login-btn').disabled=false;
+// ══════════════════════════════════════════════
+let selectedDemo = null;
+function selectDemo(role){
+  selectedDemo = role;
+  document.querySelectorAll('.demo-role').forEach(el=>el.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+  const map = {auditor:1,enfermero:2,supervisor:3,admin:4};
+  document.getElementById('l-cedula').value = {auditor:'1234567890',enfermero:'1006543210',supervisor:'1098765432',admin:'94507925'}[role];
+  document.getElementById('l-pass').value = 'demo2026';
 }
 function doLogin(){
-  if(!currentRole) return;
+  const cedula = document.getElementById('l-cedula').value.trim();
+  const user = S.usuarios.find(u=>u.cedula===cedula) || (cedula==='94507925'?{nivel:4,nombre:'Jorge Cardona'}:null);
+  const nivel = user?.nivel || (selectedDemo ? {auditor:1,enfermero:2,supervisor:3,admin:4}[selectedDemo] : null);
+  if(!nivel){ toast('Cédula no encontrada','error'); return; }
+  currentRole = nivel;
   document.getElementById('login-screen').classList.add('out');
   setTimeout(()=>{
     document.getElementById('login-screen').style.display='none';
-    setupApp();
+    setupApp(user || S.usuarios.find(u=>u.nivel===nivel) || S.usuarios[0]);
     document.getElementById('app').classList.add('visible');
   },400);
 }
 function doLogout(){
-  currentRole=null;
+  currentRole=null;selectedDemo=null;
   document.getElementById('app').classList.remove('visible');
   const ls=document.getElementById('login-screen');
   ls.style.display='flex';ls.classList.remove('out');
-  document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('selected'));
-  document.getElementById('login-btn').disabled=true;
+  document.querySelectorAll('.demo-role').forEach(el=>el.classList.remove('selected'));
+  ['l-cedula','l-pass'].forEach(id=>document.getElementById(id).value='');
 }
 
-// ══════════════════════════════════
+// ══════════════════════════════════════════════
 // APP SETUP
-// ══════════════════════════════════
-function setupApp(){
-  const role=ROLES[currentRole];
-  // avatar
-  const av=document.getElementById('sb-avatar');
-  av.textContent=role.avatar;av.className='sb-avatar '+currentRole;
-  document.getElementById('sb-name').textContent={admin:'Dr. Admin',enfermero:'Enf. García',auditor:'Aud. Torres'}[currentRole];
-  document.getElementById('sb-role-label').textContent=role.label;
+// ══════════════════════════════════════════════
+function setupApp(user){
+  const niv = NIVELES[currentRole];
+  const av = document.getElementById('sb-avatar');
+  av.textContent = (user.nombre||'U').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+  av.className = 'sb-avatar ' + niv.cls;
+  document.getElementById('sb-name').textContent = user.nombre || 'Usuario';
+  document.getElementById('sb-nivel').textContent = `NIVEL ${currentRole} · ${niv.label.toUpperCase()}`;
   buildNav();
   populateSelects();
   goTo('dashboard');
 }
+
 function buildNav(){
-  const role=ROLES[currentRole];
-  const nav=[
-    {id:'dashboard',icon:'ti-layout-dashboard',label:'Dashboard'},
-    {id:'inventario',icon:'ti-pill',label:'Inventario'},
-    {id:'registro',icon:'ti-circle-plus',label:'Registrar entrada'},
-    {id:'movimientos',icon:'ti-transfer',label:'Movimientos'},
-    {id:'trazabilidad',icon:'ti-timeline',label:'Trazabilidad'},
-  ];
-  const sb=document.getElementById('sb-nav');
-  sb.innerHTML='<div class="sb-section">Módulos</div>';
-  nav.forEach(n=>{
-    const allowed=role.can.includes(n.id);
-    const btn=document.createElement('button');
-    btn.className='nav-item'+(allowed?'':' nav-locked');
-    btn.innerHTML=`<i class="ti ${n.icon}"></i>${n.label}`;
-    if(n.id==='inventario'){
-      const alerts=inventario.filter(i=>['N','R'].includes(getSemaforo(i.caducidad))).length;
-      if(alerts>0) btn.innerHTML+=`<span class="nav-badge">${alerts}</span>`;
+  const niv = NIVELES[currentRole];
+  const sb = document.getElementById('sb-nav');
+  sb.innerHTML = '';
+  let lastSection = '';
+  NAV_CONFIG.forEach(n=>{
+    if(!niv.nav.includes(n.id)) return;
+    if(n.section && n.section !== lastSection){
+      lastSection = n.section;
+      const sec = document.createElement('div');
+      sec.className = 'sb-section';
+      sec.textContent = n.section;
+      sb.appendChild(sec);
     }
-    if(allowed) btn.onclick=()=>goTo(n.id);
-    else btn.style.opacity='.35';
+    const btn = document.createElement('button');
+    btn.className = 'nav-item';
+    btn.innerHTML = `<i class="ti ${n.icon}"></i>${n.label}`;
+    if(n.id==='inventario'){
+      const alerts = getAllSubSkus().filter(s=>['N','R'].includes(getSem(s.caducidad))&&!s.agotado).length;
+      if(alerts>0) btn.innerHTML += `<span class="nav-badge">${alerts}</span>`;
+    }
+    btn.onclick = ()=>goTo(n.id);
     sb.appendChild(btn);
   });
 }
 
 function populateSelects(){
-  // ubicaciones en filtros
-  const inv_u=document.getElementById('inv-ubicacion');
-  inv_u.innerHTML='<option value="">Todas las ubicaciones</option>';
-  UBICACIONES.forEach(u=>{const o=document.createElement('option');o.value=u;o.textContent=u;inv_u.appendChild(o)});
-  // ubicacion en formulario
-  const f_u=document.getElementById('f-ubicacion');
-  f_u.innerHTML='';
-  UBICACIONES.forEach(u=>{const o=document.createElement('option');o.value=u;o.textContent=u;f_u.appendChild(o)});
-  // mov selects
-  const movOrig=document.getElementById('mov-origen');
-  const movDest=document.getElementById('mov-destino');
-  [movOrig,movDest].forEach(sel=>{
-    sel.innerHTML='';
-    UBICACIONES.forEach(u=>{const o=document.createElement('option');o.value=u;o.textContent=u;sel.appendChild(o)});
+  // Ubicaciones
+  const opts = S.bodegas.map(b=>`<option value="${b}">${b}</option>`).join('');
+  ['inv-ubicacion','mov-origen','mov-destino','reg-ubicacion'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    const prefix = id==='inv-ubicacion'?'<option value="">Todas las ubicaciones</option>':'';
+    el.innerHTML = prefix + opts;
   });
+  // SKU Global en registro y trazabilidad
+  const skuOpts = S.skusGlobales.map(s=>`<option value="${s.id}">${s.codigo} — ${s.nombre}</option>`).join('');
+  ['reg-sku-global','traz-global'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.innerHTML = '<option value="">Seleccionar…</option>' + skuOpts;
+  });
+  // Subgrupos SKU
+  updateSkuSubgrupos();
 }
 
-// ══════════════════════════════════
+// ══════════════════════════════════════════════
 // NAVIGATION
-// ══════════════════════════════════
+// ══════════════════════════════════════════════
 function goTo(viewId){
-  currentView=viewId;
+  if(!NIVELES[currentRole].nav.includes(viewId)){ toast('Sin permiso','error'); return; }
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
   document.getElementById('view-'+viewId)?.classList.add('active');
   document.querySelectorAll('.nav-item').forEach(b=>{
-    if(b.textContent.trim().toLowerCase().startsWith(viewId)) b.classList.add('active');
+    if(b.textContent.trim().startsWith(NAV_CONFIG.find(n=>n.id===viewId)?.label?.slice(0,6)||'@@')) b.classList.add('active');
   });
-  const titles={dashboard:'Dashboard',inventario:'Inventario',registro:'Registrar entrada',movimientos:'Movimientos',trazabilidad:'Trazabilidad'};
-  document.getElementById('page-title').textContent=titles[viewId]||viewId;
-  // topbar actions
-  const ta=document.getElementById('topbar-actions');
-  ta.innerHTML='';
-  if(viewId==='inventario'&&currentRole==='admin'){
-    ta.innerHTML=`<button class="tb-btn primary" onclick="goTo('registro')"><i class="ti ti-plus"></i>Nueva entrada</button>`;
-  }
-  // render
-  const renders={dashboard:renderDash,inventario:renderInv,registro:renderRegistro,movimientos:renderMovimientos,trazabilidad:()=>{}};
+  const titles={dashboard:'Dashboard',inventario:'Inventario',movimientos:'Movimientos',registro:'Registro de entradas',sku:'SKUs Globales',usuarios:'Usuarios',bodegas:'Ubicaciones y Bodegas',trazabilidad:'Trazabilidad'};
+  document.getElementById('page-title').textContent = titles[viewId]||viewId;
+  const ta = document.getElementById('topbar-actions');
+  ta.innerHTML = '';
+  if(viewId==='inventario'&&currentRole>=3) ta.innerHTML=`<button class="tb-btn primary" onclick="goTo('registro')"><i class="ti ti-plus"></i>Nueva entrada</button>`;
+  if(viewId==='sku'&&currentRole===4) ta.innerHTML=`<button class="tb-btn primary" onclick="document.getElementById('sku-nombre').focus()"><i class="ti ti-plus"></i>Crear SKU</button>`;
+  const renders={dashboard:renderDash,inventario:renderInv,movimientos:renderMovimientos,registro:renderRegistro,sku:renderSKUs,usuarios:renderUsuarios,bodegas:renderBodegas};
   renders[viewId]?.();
 }
 
-// ══════════════════════════════════
+// ══════════════════════════════════════════════
 // DASHBOARD
-// ══════════════════════════════════
+// ══════════════════════════════════════════════
+function getAllSubSkus(){ return S.subSkus; }
 function renderDash(){
-  const total=inventario.length;
-  const totalU=inventario.reduce((a,i)=>a+i.cantidad,0);
-  const alerts=inventario.filter(i=>['N','R'].includes(getSemaforo(i.caducidad)));
-  const criticos=inventario.filter(i=>getSemaforo(i.caducidad)==='N').length;
+  const subs = getAllSubSkus();
+  const totalSKUs = S.skusGlobales.length;
+  const totalUnits = subs.reduce((a,s)=>a+getTotalStock(s),0);
+  const warns = subs.filter(s=>['A','R'].includes(getSem(s.caducidad))&&!s.agotado);
+  const exps = subs.filter(s=>getSem(s.caducidad)==='N'&&!s.agotado);
   document.getElementById('dash-stats').innerHTML=`
-    <div class="stat-card"><div class="stat-card-accent green"></div><div class="stat-icon green"><i class="ti ti-pill"></i></div><div class="stat-label">SKUs activos</div><div class="stat-val green">${total}</div><div class="stat-sub">en inventario</div></div>
-    <div class="stat-card"><div class="stat-card-accent blue"></div><div class="stat-icon blue"><i class="ti ti-package"></i></div><div class="stat-label">Total unidades</div><div class="stat-val">${totalU.toLocaleString('es-CO')}</div><div class="stat-sub">todas las ubicaciones</div></div>
-    <div class="stat-card"><div class="stat-card-accent amber"></div><div class="stat-icon amber"><i class="ti ti-alert-triangle"></i></div><div class="stat-label">Por vencer</div><div class="stat-val amber">${alerts.length}</div><div class="stat-sub">próximos 180 días</div></div>
-    <div class="stat-card"><div class="stat-card-accent red"></div><div class="stat-icon red"><i class="ti ti-alert-circle"></i></div><div class="stat-label">Vencidos</div><div class="stat-val red">${criticos}</div><div class="stat-sub">requieren baja</div></div>
+    <div class="stat-card"><div class="stat-card-accent blue"></div><div class="stat-icon blue"><i class="ti ti-tag"></i></div><div class="stat-label">SKUs Globales</div><div class="stat-val blue">${totalSKUs}</div><div class="stat-sub">medicamentos registrados</div></div>
+    <div class="stat-card"><div class="stat-card-accent green"></div><div class="stat-icon green"><i class="ti ti-package"></i></div><div class="stat-label">Unidades totales</div><div class="stat-val">${totalUnits.toLocaleString('es-CO')}</div><div class="stat-sub">todas las ubicaciones</div></div>
+    <div class="stat-card"><div class="stat-card-accent amber"></div><div class="stat-icon amber"><i class="ti ti-alert-triangle"></i></div><div class="stat-label">Por vencer</div><div class="stat-val amber">${warns.length}</div><div class="stat-sub">próximos 180 días</div></div>
+    <div class="stat-card"><div class="stat-card-accent red"></div><div class="stat-icon red"><i class="ti ti-alert-circle"></i></div><div class="stat-label">Vencidos</div><div class="stat-val red">${exps.length}</div><div class="stat-sub">requieren baja</div></div>
   `;
-  const al=document.getElementById('dash-alerts');
-  const alertItems=inventario.filter(i=>['N','R','A'].includes(getSemaforo(i.caducidad))).sort((a,b)=>new Date(a.caducidad)-new Date(b.caducidad)).slice(0,5);
-  if(!alertItems.length){al.innerHTML='<div class="alert-strip" style="background:var(--blue-bg);border-color:#9FD9B8"><i class="ti ti-circle-check" style="color:var(--blue)"></i><div class="alert-text"><div class="alert-name">Sin alertas activas</div><div class="alert-meta">Todos los medicamentos están vigentes</div></div></div>';return;}
-  al.innerHTML=alertItems.map(i=>{
-    const s=getSemaforo(i.caducidad);
-    const diff=i.caducidad?Math.round((new Date(i.caducidad)-new Date())/864e5):null;
-    return`<div class="alert-strip ${s}">
-      <i class="ti ${s==='N'?'ti-alert-circle':'ti-alert-triangle'}"></i>
-      <div class="alert-text">
-        <div class="alert-name">${i.nombre}</div>
-        <div class="alert-meta">${i.sku} · ${i.ubicacion} · ${i.cantidad} ${i.unidad}</div>
-      </div>
-      <div class="alert-days">${diff!==null?(diff<0?'Venc.':diff+'d'):''}</div>
-    </div>`;
+  const alertItems = [...exps.map(s=>({s,t:'R'})),...warns.filter(s=>getSem(s.caducidad)==='R').map(s=>({s,t:'R'})),...warns.filter(s=>getSem(s.caducidad)==='A').map(s=>({s,t:'A'}))].slice(0,5);
+  const al = document.getElementById('dash-alerts');
+  if(!alertItems.length){ al.innerHTML='<div class="alert-strip ok"><i class="ti ti-circle-check"></i><div class="alert-text"><div class="alert-name">Sin alertas activas</div><div class="alert-meta">Todos los medicamentos están vigentes</div></div></div>'; }
+  else al.innerHTML = alertItems.map(({s,t})=>{
+    const diff=s.caducidad?Math.round((new Date(s.caducidad)-new Date())/864e5):null;
+    const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
+    return `<div class="alert-strip ${t}"><i class="ti ti-alert-triangle"></i><div class="alert-text"><div class="alert-name">${s.nombre}</div><div class="alert-meta">${skuG?.codigo||''} · ${s.subSku} · ${getTotalStock(s)} ${s.unidad}</div></div><div class="alert-days">${diff!==null?(diff<0?'Vencido':diff+'d'):''}</div></div>`;
   }).join('');
-  // movimientos
-  const mb=document.getElementById('dash-movimientos');
-  mb.innerHTML=[...movimientos].reverse().slice(0,5).map(m=>`
-    <tr><td><span class="sku-code">${m.sku}</span></td>
-    <td><span class="sem ${m.tipo==='compra'?'V':m.tipo==='consumo'?'R':'A'}">${m.tipo}</span></td>
-    <td><span class="ubic">${m.destino!=='—'?m.destino:m.origen}</span></td>
-    <td style="font-family:var(--font-mono);font-weight:600">${m.cantidad}</td></tr>
-  `).join('');
+  const mb = document.getElementById('dash-movimientos');
+  mb.innerHTML = [...S.movimientos].reverse().slice(0,6).map(m=>`
+    <tr>
+      <td><span class="sku-code">${m.skuGlobal}</span></td>
+      <td><span class="sub-sku" style="font-size:9px">${m.subSku.split('-').slice(0,2).join('-')}</span></td>
+      <td><span class="mov-tipo ${m.tipo}">${m.tipo}</span></td>
+      <td style="font-size:11px"><div>${m.usuarioNombre}</div><span class="nivel-badge n${m.usuarioNivel}" style="font-size:9px">${NIVELES[m.usuarioNivel]?.label}</span></td>
+    </tr>`).join('');
 }
 
-// ══════════════════════════════════
+// ══════════════════════════════════════════════
 // INVENTARIO
-// ══════════════════════════════════
+// ══════════════════════════════════════════════
 function renderInv(){
   const q=(document.getElementById('inv-search').value||'').toLowerCase();
-  const u=document.getElementById('inv-ubicacion').value;
-  const s=document.getElementById('inv-sem').value;
-  const f=document.getElementById('inv-familia').value;
-  const showAgotados = document.getElementById('inv-agotados')?.checked;
-  const list=inventario.filter(i=>{
-    const sem=getSemaforo(i.caducidad);
-    if(i.agotado && !showAgotados) return false;
-    return(!q||i.sku.toLowerCase().includes(q)||i.nombre.toLowerCase().includes(q)||i.lote.toLowerCase().includes(q)||i.proveedor.toLowerCase().includes(q))
-      &&(!u||i.ubicacion===u)&&(!s||sem===s)&&(!f||i.familia===f);
+  const ub=document.getElementById('inv-ubicacion').value;
+  const sem=document.getElementById('inv-sem').value;
+  const fam=document.getElementById('inv-familia').value;
+  const showAgotados=document.getElementById('inv-agotados')?.checked;
+  let rows = [];
+  S.subSkus.forEach(s=>{
+    if(s.agotado&&!showAgotados) return;
+    const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
+    const st = getSem(s.caducidad);
+    if(sem&&st!==sem) return;
+    if(fam&&skuG?.familia!==fam) return;
+    if(q&&!s.nombre.toLowerCase().includes(q)&&!s.subSku.toLowerCase().includes(q)&&!(skuG?.codigo||'').toLowerCase().includes(q)&&!s.lote?.toLowerCase().includes(q)&&!s.proveedor?.toLowerCase().includes(q)) return;
+    const stockEntries = ub ? [[ub, s.stock?.[ub]||0]] : Object.entries(s.stock||{});
+    stockEntries.forEach(([ubicacion, cantidad])=>{
+      if(!ub&&cantidad===0) return;
+      rows.push({s,skuG,st,ubicacion,cantidad});
+    });
   });
-  const canEdit=currentRole==='admin'||currentRole==='enfermero';
-  const body=document.getElementById('inv-body');
-  if(!list.length){body.innerHTML='<tr><td colspan="8"><div class="empty-state"><i class="ti ti-search"></i><p>Sin resultados</p></div></td></tr>';return;}
-  body.innerHTML=list.map(i=>{
-    const sem=getSemaforo(i.caducidad);
-    return`<tr>
-      <td><span class="sku-code">${i.sku}</span></td>
+  const canAct = currentRole>=2;
+  const el = document.getElementById('inv-body');
+  if(!rows.length){el.innerHTML='<tr><td colspan="8"><div class="empty-state"><i class="ti ti-search"></i><p>Sin resultados</p></div></td></tr>';return;}
+  el.innerHTML = rows.map(({s,skuG,st,ubicacion,cantidad})=>`
+    <tr style="${s.agotado?'opacity:.5;':''}" >
+      <td><span class="sku-code">${skuG?.codigo||'—'}</span></td>
       <td>
-        <div style="font-weight:500;font-size:13px">${i.nombre}</div>
-        <div style="display:flex;gap:5px;margin-top:3px;flex-wrap:wrap">
-          <span class="fam ${i.familia}">${FAMILIAS[i.familia]||i.familia}</span>
-          ${i.subgrupo?`<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:var(--cream);color:#666;font-family:var(--font-mono)">${i.subgrupo}</span>`:''}
+        <div style="font-weight:500;font-size:13px">${s.nombre}</div>
+        <div style="display:flex;gap:4px;margin-top:3px;flex-wrap:wrap">
+          <span class="fam ${skuG?.familia||''}">${FAMILIAS[skuG?.familia]||''}</span>
+          ${s.agotado?'<span style="font-size:9px;padding:2px 6px;border-radius:6px;background:#F0F0EE;color:#888;font-family:var(--font-mono);font-weight:700">AGOTADO</span>':''}
         </div>
       </td>
-      <td>
-        <div style="font-size:12px;font-family:var(--font-mono);color:#666">${i.proveedor}</div>
-        <div style="font-size:11px;color:#aaa;font-family:var(--font-mono)">${i.lote}</div>
-      </td>
-      <td><span class="ubic">${i.ubicacion}</span></td>
-      <td style="font-family:var(--font-mono);font-weight:700;font-size:14px">${i.cantidad}<span style="font-size:10px;color:#aaa;font-weight:400;margin-left:3px">${i.unidad}</span></td>
-      <td style="font-size:12px;font-family:var(--font-mono)">${fmtDate(i.caducidad)}</td>
-      <td><span class="sem ${sem}">${semLabel(sem)}</span></td>
+      <td><span class="sub-sku">${s.subSku}</span></td>
+      <td><span class="ubic">${ubicacion}</span></td>
+      <td style="font-family:var(--font-mono);font-weight:700">${cantidad}<span style="font-size:10px;color:#aaa;font-weight:400;margin-left:3px">${s.unidad}</span></td>
+      <td style="font-size:12px;font-family:var(--font-mono)">${fmtDate(s.caducidad)}</td>
+      <td>${s.agotado?'<span class="sem N">Agotado</span>':`<span class="sem ${st}">${semLabel(st)}</span>`}</td>
       <td>
         <div class="act-btn-group">
-          ${canEdit?`<button class="act-btn primary" onclick="quickMov(${i.id})" title="Registrar movimiento"><i class="ti ti-transfer"></i></button>`:''}
-          ${currentRole==='admin'?`<button class="act-btn danger" onclick="confirmDelete(${i.id})" title="Eliminar"><i class="ti ti-trash"></i></button>`:''}
+          ${canAct?`<button class="act-btn primary" onclick="quickMov(${s.id},'${ubicacion}')" title="Movimiento"><i class="ti ti-transfer"></i></button>`:''}
+          ${currentRole>=4?`<button class="act-btn danger" onclick="confirmDelete(${s.id})" title="Eliminar"><i class="ti ti-trash"></i></button>`:''}
         </div>
       </td>
-    </tr>`;
-  }).join('');
+    </tr>`).join('');
 }
 
-// ══════════════════════════════════
-// REGISTRO
-// ══════════════════════════════════
-function renderRegistro(){
-  const locked=currentRole!=='admin';
-  document.getElementById('registro-locked-msg').style.display=locked?'block':'none';
-  document.getElementById('registro-form').style.opacity=locked?'.4':'1';
-  document.getElementById('registro-form').style.pointerEvents=locked?'none':'auto';
-  updateSubgrupos();
-  updateSKU();
-}
-
-function setModo(m){
-  skuModo=m;
-  document.getElementById('modo-trazable').classList.toggle('active',m==='trazable');
-  document.getElementById('modo-generico').classList.toggle('active',m==='generico');
-  const traceable=['fg-proveedor','fg-pres','fg-lote','fg-invima','fg-caducidad','sku-segs-edit'];
-  traceable.forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.style.display=m==='trazable'?'':'none';
-  });
-  // campos opcionales solo en genérico
-  const opCard=document.getElementById('fg-opcionales-card');
-  if(opCard) opCard.style.display=m==='generico'?'block':'none';
-  // en genérico mostrar solo seg-item, ocultar prov y pres
-  const segProvWrap=document.getElementById('seg-prov-wrap');
-  const segPresWrap=document.getElementById('seg-pres-wrap');
-  const segItemHint=document.getElementById('seg-item-hint');
-  const segItemHelp=document.getElementById('seg-item-help');
-  if(segProvWrap) segProvWrap.style.display=m==='trazable'?'':'none';
-  if(segPresWrap) segPresWrap.style.display=m==='trazable'?'':'none';
-  if(segItemHint) segItemHint.style.display=m==='generico'?'':'none';
-  if(segItemHelp) segItemHelp.style.display=m==='generico'?'':'none';
-  document.querySelectorAll('.sku-sep').forEach(s=>s.style.display=m==='trazable'?'':'none');
-  updateSubgrupos();
-  updateSKU();
-}
-
-function updateSKU(){
-  const nombre=document.getElementById('f-nombre').value||'';
-  const prov=document.getElementById('f-proveedor').value||'';
-  const pres=document.getElementById('f-pres').value||'';
-  const lote=document.getElementById('f-lote').value||'';
-  if(skuModo==='trazable'){
-    const segProv=siglas(prov,3);
-    const segItem=siglas(nombre,3);
-    const segPres=siglas(pres,3)||'---';
-    const segLote=lote.replace(/\s/g,'').toUpperCase()||'--------';
-    document.getElementById('seg-prov').value=segProv;
-    document.getElementById('seg-item').value=segItem;
-    document.getElementById('seg-pres').value=segPres;
-    document.getElementById('sp-prov').textContent=segProv;
-    document.getElementById('sp-item').textContent=segItem;
-    document.getElementById('sp-pres').textContent=segPres;
-    document.getElementById('sp-lote').textContent=segLote;
-    document.getElementById('sku-preview-type').textContent='Tipo: Trazable por lote · Segmentos editables abajo';
-    checkSkuDuplicate(`${segProv}-${segItem}-${segPres}-${segLote}`);
-  } else {
-    // SKU Genérico: inteligente según cantidad de palabras
-    const palabras = nombre.trim().split(/\s+/).filter(Boolean);
-    let skuGen = '';
-    if(palabras.length === 1){
-      skuGen = palabras[0].replace(/[^a-zA-Z0-9]/g,'').substring(0,6).toUpperCase();
-    } else {
-      skuGen = palabras.slice(0,3).map(w=>w.replace(/[^a-zA-Z0-9]/g,'').substring(0,3).toUpperCase()).filter(Boolean).join('-');
-    }
-    document.getElementById('sp-prov').textContent='';
-    document.getElementById('sp-item').textContent=skuGen;
-    document.getElementById('sp-pres').textContent='';
-    document.getElementById('sp-lote').textContent='';
-    document.getElementById('sku-preview-type').textContent='Tipo: Genérico · Edita el SKU abajo antes de guardar';
-    document.getElementById('seg-item').value=skuGen;
-    checkSkuDuplicate(skuGen);
-  }
-}
-
-function updateSKUfromSegs(){
-  const p=document.getElementById('seg-prov').value.toUpperCase()||'---';
-  const i=document.getElementById('seg-item').value.toUpperCase()||'---';
-  const pr=document.getElementById('seg-pres').value.toUpperCase()||'---';
-  const lote=(document.getElementById('f-lote').value||'--------').toUpperCase();
-  document.getElementById('sp-prov').textContent=p;
-  document.getElementById('sp-item').textContent=i;
-  document.getElementById('sp-pres').textContent=pr;
-  document.getElementById('sp-lote').textContent=lote;
-  checkSkuDuplicate(`${p}-${i}-${pr}-${lote}`);
-}
-
-function checkSkuDuplicate(sku){
-  const exists=inventario.some(i=>i.sku===sku);
-  document.getElementById('sku-warning').classList.toggle('show',exists);
-}
-
-function getCurrentSKU(){
-  if(skuModo==='trazable'){
-    const p=document.getElementById('sp-prov').textContent;
-    const i=document.getElementById('sp-item').textContent;
-    const pr=document.getElementById('sp-pres').textContent;
-    const l=document.getElementById('sp-lote').textContent;
-    return`${p}-${i}-${pr}-${l}`;
-  } else {
-    // En genérico usar el campo editable seg-item directamente
-    return (document.getElementById('seg-item').value||'').toUpperCase().trim() || document.getElementById('sp-item').textContent;
-  }
-}
-
-function registrarEntrada(){
-  if(currentRole!=='admin'){toast('Sin permiso','error');return;}
-  const nombre=document.getElementById('f-nombre').value.trim();
-  const cantidad=parseInt(document.getElementById('f-cantidad').value)||0;
-  const ubicacion=document.getElementById('f-ubicacion').value;
-  const familia=document.getElementById('f-familia').value;
-  const subgrupo=document.getElementById('f-subgrupo').value;
-  const sku=getCurrentSKU();
-  if(!nombre){toast('Ingresa el nombre del ítem','error');return;}
-  if(cantidad<=0){toast('Ingresa una cantidad válida','error');return;}
-  if(sku.includes('---')){toast('Completa los datos para generar el SKU','error');return;}
-  if(!subgrupo){toast('Selecciona un subgrupo','error');return;}
-
-  // lote/invima/caducidad: trazable usa campos principales, genérico usa opcionales
-  const lote      = skuModo==='trazable' ? (document.getElementById('f-lote').value||'—')      : (document.getElementById('f-lote-gen').value||'—');
-  const invima    = skuModo==='trazable' ? (document.getElementById('f-invima').value||'—')    : (document.getElementById('f-invima-gen').value||'—');
-  const caducidad = skuModo==='trazable' ? (document.getElementById('f-caducidad').value||'')  : (document.getElementById('f-caducidad-gen').value||'');
-
-  const nuevo={
-    id:nextId++,sku,nombre,
-    proveedor:document.getElementById('f-proveedor')?.value||'—',
-    lote, invima, caducidad, familia, subgrupo,
-    unidad:document.getElementById('f-unidad').value,
-    ubicacion,cantidad,tipo:skuModo,
-  };
-  inventario.push(nuevo);
-  movimientos.push({id:movimientos.length+1,fecha:new Date().toISOString().split('T')[0],sku,tipo:'compra',origen:'—',destino:ubicacion,cantidad,usuario:'Admin'});
-  ['f-nombre','f-proveedor','f-pres','f-lote','f-invima','f-caducidad','f-cantidad','f-lote-gen','f-invima-gen','f-caducidad-gen'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  updateSKU();
-  populateSelects();
-  saveState();
-  toast('✓ Entrada registrada correctamente','success');
-  setTimeout(()=>goTo('inventario'),800);
-}
-
-// ══════════════════════════════════
+// ══════════════════════════════════════════════
 // MOVIMIENTOS
-// ══════════════════════════════════
+// ══════════════════════════════════════════════
 function renderMovimientos(){
-  const canMov=currentRole!=='auditor';
-  document.getElementById('mov-card').style.opacity=canMov?'1':'.4';
-  document.getElementById('mov-card').style.pointerEvents=canMov?'auto':'none';
+  // Restricciones por nivel
+  const canTraslado = currentRole>=3;
+  const canDestruccion = currentRole>=3;
+  const optTraslado = document.getElementById('opt-traslado');
+  const optDestruccion = document.getElementById('opt-destruccion');
+  if(optTraslado) optTraslado.disabled = !canTraslado;
+  if(optDestruccion) optDestruccion.disabled = !canDestruccion;
+  // Si el tipo actual no está permitido, resetear a consumo
+  if(!canTraslado && document.getElementById('mov-tipo').value!=='consumo'){
+    document.getElementById('mov-tipo').value='consumo';
+  }
+  const msg = document.getElementById('mov-locked-msg');
+  if(currentRole===2){
+    msg.innerHTML='<div class="alert-strip A" style="margin-bottom:12px"><i class="ti ti-info-circle"></i><div class="alert-text"><div class="alert-name">Modo Enfermero/a</div><div class="alert-meta">Solo puedes registrar consumos desde tu ubicación asignada</div></div></div>';
+  } else msg.innerHTML='';
   toggleMovFields();
   renderMovBody();
 }
 
 function toggleMovFields(){
-  const tipo=document.getElementById('mov-tipo').value;
-  document.getElementById('mov-destino-wrap').style.display=tipo==='traslado'?'':'none';
-  document.getElementById('mov-motivo-wrap').style.display=tipo==='destruccion'?'':'none';
+  const tipo = document.getElementById('mov-tipo').value;
+  document.getElementById('mov-destino-wrap').style.display = tipo==='traslado'?'':'none';
+  document.getElementById('mov-motivo-wrap').style.display = tipo==='destruccion'?'':'none';
 }
 
 function updateMovInfo(){
-  const id=parseInt(document.getElementById('mov-sku').value)||0;
-  const origen=document.getElementById('mov-origen').value;
-  const item=inventario.find(i=>i.id===id);
-  if(!item){document.getElementById('mov-stock-info').textContent='Selecciona un ítem para ver el stock disponible';return;}
-  const stockEnOrigen=item.ubicacion===origen?item.cantidad:0;
-  document.getElementById('mov-stock-info').innerHTML=`<strong>${item.nombre}</strong> · ${item.sku}<br>Stock en <strong>${origen}</strong>: <strong>${stockEnOrigen}</strong> ${item.unidad}`;
+  const id = parseInt(document.getElementById('mov-sku').value)||0;
+  const origen = document.getElementById('mov-origen').value;
+  const sub = S.subSkus.find(s=>s.id===id);
+  if(!sub){document.getElementById('mov-stock-info').textContent='Selecciona un ítem para ver el stock disponible';return;}
+  const stk = getStockEnUbicacion(sub, origen);
+  document.getElementById('mov-stock-info').innerHTML=`<strong>${sub.nombre}</strong> · ${sub.subSku}<br>Stock en <strong>${origen}</strong>: <strong style="color:var(--blue)">${stk}</strong> ${sub.unidad}`;
 }
 
 function registrarMovimiento(){
-  if(currentRole==='auditor'){toast('Sin permiso','error');return;}
   const id=parseInt(document.getElementById('mov-sku').value)||0;
   const tipo=document.getElementById('mov-tipo').value;
   const cant=parseInt(document.getElementById('mov-cantidad').value)||0;
   const origen=document.getElementById('mov-origen').value;
   const destino=document.getElementById('mov-destino').value;
-  const item=inventario.find(i=>i.id===id);
-  if(!item){toast('Selecciona un ítem','error');return;}
+  const sub=S.subSkus.find(s=>s.id===id);
+  const skuG=S.skusGlobales.find(g=>g.id===sub?.skuGlobalId);
+  const user=S.usuarios.find(u=>u.nivel===currentRole)||{nombre:'Usuario',nivel:currentRole};
+  if(!sub){toast('Selecciona un ítem','error');return;}
   if(cant<=0){toast('Ingresa una cantidad válida','error');return;}
-  if(item.ubicacion!==origen||item.cantidad<cant){toast('Stock insuficiente en origen','error');return;}
+  if(getStockEnUbicacion(sub,origen)<cant){toast('Stock insuficiente en origen','error');return;}
   if(tipo==='traslado'&&origen===destino){toast('Origen y destino son iguales','error');return;}
-  if(tipo==='consumo'||tipo==='destruccion'){
-    item.cantidad-=cant;
-    if(item.cantidad<=0){ item.cantidad=0; item.agotado=true; }
-  } else if(tipo==='traslado'){
-    item.cantidad-=cant;
-    if(item.cantidad<=0){ item.cantidad=0; item.agotado=true; }
-    const destItem=inventario.find(i=>i.sku===item.sku&&i.ubicacion===destino&&!i.agotado);
-    if(destItem) destItem.cantidad+=cant;
-    else inventario.push({...item,id:nextId++,cantidad:cant,ubicacion:destino,agotado:false});
-  }
-  movimientos.push({id:movimientos.length+1,fecha:new Date().toISOString().split('T')[0],sku:item.sku,tipo,origen,destino:tipo==='traslado'?destino:'—',cantidad:cant,usuario:{admin:'Admin',enfermero:'Enfermero/a',auditor:'Auditor'}[currentRole]});
+  if(!sub.stock) sub.stock={};
+  sub.stock[origen]=(sub.stock[origen]||0)-cant;
+  if(tipo==='traslado') sub.stock[destino]=(sub.stock[destino]||0)+cant;
+  if(getTotalStock(sub)<=0) sub.agotado=true;
+  const now=new Date();
+  S.movimientos.push({id:S.nextMovId++,fecha:now.toISOString().split('T')[0],hora:now.toTimeString().slice(0,5),skuGlobal:skuG?.codigo||'',subSku:sub.subSku,tipo,origen,destino:tipo==='traslado'?destino:'—',cantidad:cant,usuarioNombre:user.nombre,usuarioNivel:currentRole});
   document.getElementById('mov-cantidad').value='';
-  populateSelects();
+  acClear('mov');
   saveState();
   renderMovBody();
+  buildNav();
   toast(`✓ ${tipo.charAt(0).toUpperCase()+tipo.slice(1)} registrado`,'success');
 }
 
 function renderMovBody(){
   const body=document.getElementById('mov-body');
-  const cols={compra:'V',asignacion:'V',traslado:'A',consumo:'R',destruccion:'N'};
-  body.innerHTML=[...movimientos].reverse().map(m=>`
+  body.innerHTML=[...S.movimientos].reverse().map(m=>`
     <tr>
-      <td style="font-size:11px;font-family:var(--font-mono);color:#888">${m.fecha}</td>
-      <td><span class="sku-code">${m.sku}</span></td>
-      <td><span class="sem ${cols[m.tipo]||'V'}">${m.tipo}</span></td>
+      <td style="font-size:11px;font-family:var(--font-mono);color:#888">${m.fecha} ${m.hora}</td>
+      <td><span class="sku-code">${m.skuGlobal}</span></td>
+      <td><span class="sub-sku" style="font-size:9px">${m.subSku.split('-').slice(0,2).join('-')}</span></td>
+      <td><span class="mov-tipo ${m.tipo}">${m.tipo}</span></td>
       <td style="font-size:12px;color:#666">${m.origen} → ${m.destino}</td>
       <td style="font-family:var(--font-mono);font-weight:600">${m.cantidad}</td>
-      <td style="font-size:12px;color:#888">${m.usuario}</td>
-    </tr>
-  `).join('');
+      <td style="font-size:12px">
+        <div style="font-weight:500">${m.usuarioNombre}</div>
+        <span class="nivel-badge n${m.usuarioNivel}" style="font-size:9px">${NIVELES[m.usuarioNivel]?.label}</span>
+      </td>
+    </tr>`).join('');
 }
 
-function quickMov(id){
-  const item=inventario.find(i=>i.id===id);
-  if(!item) return;
-  goTo('movimientos');
-  setTimeout(()=>{
-    acSelect('mov', id);
-    document.getElementById('mov-origen').value=item.ubicacion;
-    updateMovInfo();
-  },100);
+// ══════════════════════════════════════════════
+// REGISTRO DE ENTRADAS (Supervisor)
+// ══════════════════════════════════════════════
+function renderRegistro(){
+  const locked = currentRole<3;
+  const msg = document.getElementById('reg-locked-msg');
+  const form = document.getElementById('reg-form-wrap');
+  if(locked){
+    msg.innerHTML='<div class="locked-banner"><i class="ti ti-lock"></i>Solo el Supervisor y Administrador pueden registrar entradas</div>';
+    form.style.opacity='.4';form.style.pointerEvents='none';
+  } else {
+    msg.innerHTML='';form.style.opacity='1';form.style.pointerEvents='auto';
+  }
 }
 
-// ══════════════════════════════════
+function updateRegSKU(){
+  const id=parseInt(document.getElementById('reg-sku-global').value)||0;
+  const skuG=S.skusGlobales.find(g=>g.id===id);
+  const info=document.getElementById('reg-sku-info');
+  if(!skuG){info.style.display='none';return;}
+  info.style.display='block';
+  document.getElementById('reg-sku-nombre').textContent=skuG.nombre;
+  document.getElementById('reg-sku-familia').innerHTML=`<span class="fam ${skuG.familia}">${FAMILIAS[skuG.familia]}</span> <span style="font-size:12px;color:#888;margin-left:6px">${skuG.subgrupo}</span>`;
+  updateSubSKU();
+}
+
+function updateSubSKU(){
+  const prov=document.getElementById('reg-proveedor').value;
+  const lote=document.getElementById('reg-lote').value;
+  const invima=document.getElementById('reg-invima').value;
+  const sub=buildSubSku(prov,lote,invima);
+  document.getElementById('reg-subsku-preview').textContent=sub;
+}
+
+function registrarEntrada(){
+  const skuGId=parseInt(document.getElementById('reg-sku-global').value)||0;
+  const prov=document.getElementById('reg-proveedor').value.trim();
+  const lote=document.getElementById('reg-lote').value.trim();
+  const invima=document.getElementById('reg-invima').value.trim();
+  const cad=document.getElementById('reg-caducidad').value;
+  const cant=parseInt(document.getElementById('reg-cantidad').value)||0;
+  const unidad=document.getElementById('reg-unidad').value;
+  const ub=document.getElementById('reg-ubicacion').value;
+  const skuG=S.skusGlobales.find(g=>g.id===skuGId);
+  if(!skuG){toast('Selecciona un SKU Global','error');return;}
+  if(cant<=0){toast('Ingresa una cantidad válida','error');return;}
+  if(!ub){toast('Selecciona una ubicación','error');return;}
+  const subSku=buildSubSku(prov,lote,invima);
+  const existing=S.subSkus.find(s=>s.subSku===subSku&&s.skuGlobalId===skuGId);
+  const user=S.usuarios.find(u=>u.nivel===currentRole)||{nombre:'Supervisor',nivel:3};
+  if(existing){
+    existing.stock[ub]=(existing.stock[ub]||0)+cant;
+    existing.agotado=false;
+  } else {
+    S.subSkus.push({id:S.nextId++,skuGlobalId:skuGId,subSku,nombre:skuG.nombre,proveedor:prov||'—',lote:lote||'—',invima:invima||'—',caducidad:cad,unidad,agotado:false,stock:{[ub]:cant}});
+  }
+  const now=new Date();
+  S.movimientos.push({id:S.nextMovId++,fecha:now.toISOString().split('T')[0],hora:now.toTimeString().slice(0,5),skuGlobal:skuG.codigo,subSku,tipo:'compra',origen:'—',destino:ub,cantidad:cant,usuarioNombre:user.nombre,usuarioNivel:currentRole});
+  ['reg-proveedor','reg-lote','reg-invima','reg-caducidad','reg-cantidad'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  updateSubSKU();
+  saveState();
+  populateSelects();
+  toast('✓ Entrada registrada','success');
+  setTimeout(()=>goTo('inventario'),700);
+}
+
+// ══════════════════════════════════════════════
+// SKU GLOBALES (Admin)
+// ══════════════════════════════════════════════
+function updateSkuSubgrupos(){
+  const fam=document.getElementById('sku-familia')?.value||'MED';
+  const sel=document.getElementById('sku-subgrupo');
+  if(!sel) return;
+  sel.innerHTML=(SUBGRUPOS[fam]||[]).map(s=>`<option value="${s}">${s}</option>`).join('');
+}
+function updateGlobalSKU(){
+  const nombre=document.getElementById('sku-nombre').value||'';
+  const words=nombre.trim().split(/\s+/).filter(Boolean);
+  let code='';
+  if(words.length===1) code=words[0].replace(/[^a-zA-Z0-9]/g,'').substring(0,6).toUpperCase();
+  else code=words.slice(0,3).map(w=>w.replace(/[^a-zA-Z0-9]/g,'').substring(0,3).toUpperCase()).join('-');
+  document.getElementById('sku-codigo').value=code;
+  document.getElementById('sku-global-preview').textContent=code||'---';
+}
+function toggleCampo(label){
+  const cb=label.querySelector('input[type=checkbox]');
+  cb.checked=!cb.checked;
+  label.classList.toggle('active',cb.checked);
+  const icon=label.querySelector('i');
+  if(icon) icon.className=cb.checked?'ti ti-check':'ti ti-plus';
+}
+function crearSKUGlobal(){
+  const nombre=document.getElementById('sku-nombre').value.trim();
+  const codigo=document.getElementById('sku-codigo').value.trim().toUpperCase();
+  const familia=document.getElementById('sku-familia').value;
+  const subgrupo=document.getElementById('sku-subgrupo').value;
+  const presentacion=document.getElementById('sku-presentacion').value.trim();
+  if(!nombre||!codigo){toast('Completa nombre y código SKU','error');return;}
+  if(S.skusGlobales.find(s=>s.codigo===codigo)){toast('Este SKU ya existe','error');return;}
+  const campos=[...document.querySelectorAll('.campo-chip input:checked')].map(cb=>cb.value);
+  S.skusGlobales.push({id:S.nextSkuId++,codigo,nombre,familia,subgrupo,presentacion,campos});
+  ['sku-nombre','sku-codigo','sku-presentacion'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('sku-global-preview').textContent='---';
+  saveState();
+  populateSelects();
+  renderSKUs();
+  toast('✓ SKU Global creado','success');
+}
+function renderSKUs(){
+  const q=(document.getElementById('sku-search')?.value||'').toLowerCase();
+  const list=S.skusGlobales.filter(s=>!q||s.codigo.toLowerCase().includes(q)||s.nombre.toLowerCase().includes(q));
+  const body=document.getElementById('sku-body');
+  if(!list.length){body.innerHTML='<tr><td colspan="5"><div class="empty-state"><i class="ti ti-tag"></i><p>Sin SKUs registrados</p></div></td></tr>';return;}
+  body.innerHTML=list.map(s=>`
+    <tr>
+      <td><span class="sku-code">${s.codigo}</span></td>
+      <td style="font-size:13px;font-weight:500">${s.nombre}<div style="font-size:11px;color:#aaa">${s.presentacion||''}</div></td>
+      <td><span class="fam ${s.familia}">${FAMILIAS[s.familia]}</span></td>
+      <td style="font-size:10px;color:#888;font-family:var(--font-mono)">${(s.campos||[]).join(', ')}</td>
+      <td><div class="act-btn-group"><button class="act-btn danger" onclick="confirmDeleteSKU(${s.id})"><i class="ti ti-trash"></i></button></div></td>
+    </tr>`).join('');
+}
+
+// ══════════════════════════════════════════════
+// USUARIOS (Admin)
+// ══════════════════════════════════════════════
+function crearUsuario(){
+  const nombre=document.getElementById('u-nombre').value.trim();
+  const cedula=document.getElementById('u-cedula').value.trim();
+  const nivel=parseInt(document.getElementById('u-nivel').value);
+  const genero=document.getElementById('u-genero').value;
+  const nacimiento=document.getElementById('u-nacimiento').value;
+  if(!nombre||!cedula){toast('Completa nombre y cédula','error');return;}
+  if(S.usuarios.find(u=>u.cedula===cedula)){toast('Esta cédula ya está registrada','error');return;}
+  S.usuarios.push({id:S.nextUserId++,nombre,cedula,nivel,genero,nacimiento});
+  ['u-nombre','u-cedula','u-nacimiento'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  saveState();
+  renderUsuarios();
+  toast('✓ Usuario creado','success');
+}
+function renderUsuarios(){
+  const el=document.getElementById('users-list');
+  el.innerHTML=S.usuarios.map(u=>`
+    <div class="user-card">
+      <div class="user-avatar n${u.nivel}">${u.nombre.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()}</div>
+      <div class="user-info">
+        <div class="user-name">${u.nombre}</div>
+        <div class="user-cedula">CC: ${u.cedula} · ${u.genero||'—'}</div>
+      </div>
+      <span class="nivel-badge n${u.nivel}">N${u.nivel} · ${NIVELES[u.nivel]?.label}</span>
+      ${currentRole===4?`<button class="act-btn danger" style="margin-left:6px" onclick="confirmDeleteUser(${u.id})"><i class="ti ti-trash"></i></button>`:''}
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════
+// BODEGAS (Admin)
+// ══════════════════════════════════════════════
+function updateBodegaPreview(){
+  const tipo=document.getElementById('b-tipo').value;
+  const sufijo=(document.getElementById('b-sufijo').value||'').toUpperCase();
+  document.getElementById('bodega-preview').textContent=`${tipo}-${sufijo||''}`;
+}
+function crearBodega(){
+  const tipo=document.getElementById('b-tipo').value;
+  const sufijo=document.getElementById('b-sufijo').value.trim().toUpperCase();
+  if(!sufijo){toast('Ingresa el sufijo de la bodega','error');return;}
+  const nombre=`${tipo}-${sufijo}`;
+  if(S.bodegas.includes(nombre)){toast('Esta ubicación ya existe','error');return;}
+  S.bodegas.push(nombre);
+  document.getElementById('b-sufijo').value='';
+  updateBodegaPreview();
+  saveState();
+  populateSelects();
+  renderBodegas();
+  toast(`✓ ${nombre} creada`,'success');
+}
+function renderBodegas(){
+  const el=document.getElementById('bodegas-list');
+  const icons={ALM:'ti-building-warehouse',BTQ:'ti-briefcase-medical',ENF:'ti-stethoscope'};
+  el.innerHTML=S.bodegas.map(b=>{
+    const prefix=b.split('-')[0];
+    return`<div class="bodega-card">
+      <div class="bodega-icon"><i class="ti ${icons[prefix]||'ti-map-pin'}"></i></div>
+      <div class="bodega-info"><div class="bodega-name">${b}</div><div class="bodega-prefix">${{ALM:'Almacén',BTQ:'Botiquín',ENF:'Enfermería'}[prefix]||prefix}</div></div>
+      ${currentRole===4?`<button class="act-btn danger" onclick="confirmDeleteBodega('${b}')"><i class="ti ti-trash"></i></button>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
 // TRAZABILIDAD
-// ══════════════════════════════════
+// ══════════════════════════════════════════════
+function updateTrazSubs(){
+  const gId=parseInt(document.getElementById('traz-global').value)||0;
+  const sel=document.getElementById('traz-sub');
+  sel.innerHTML='<option value="">Todos los Sub-SKUs</option>';
+  if(!gId){renderTrazabilidad();return;}
+  S.subSkus.filter(s=>s.skuGlobalId===gId).forEach(s=>{
+    const o=document.createElement('option');
+    o.value=s.id;o.textContent=s.subSku;
+    sel.appendChild(o);
+  });
+  renderTrazabilidad();
+}
 function renderTrazabilidad(){
-  const sku=document.getElementById('traz-sku').value||'';
+  const gId=parseInt(document.getElementById('traz-global').value)||0;
+  const sId=parseInt(document.getElementById('traz-sub').value)||0;
   const result=document.getElementById('traz-result');
-  if(!sku){result.innerHTML='<div class="empty-state"><i class="ti ti-timeline"></i><p>Selecciona un SKU para ver su trazabilidad completa</p></div>';return;}
-  const movs=movimientos.filter(m=>m.sku===sku);
-  const item=inventario.find(i=>i.sku===sku);
-  if(!movs.length&&!item){result.innerHTML='<div class="empty-state"><i class="ti ti-search"></i><p>Sin movimientos registrados para este SKU</p></div>';return;}
-  const tipoColor={compra:'compra',asignacion:'asignacion',traslado:'traslado',consumo:'consumo',destruccion:'destruccion'};
+  if(!gId){result.innerHTML='<div class="empty-state"><i class="ti ti-timeline"></i><p>Selecciona un SKU Global para ver su trazabilidad</p></div>';return;}
+  const skuG=S.skusGlobales.find(g=>g.id===gId);
+  const subs=S.subSkus.filter(s=>s.skuGlobalId===gId&&(!sId||s.id===sId));
+  let movs=S.movimientos.filter(m=>m.skuGlobal===skuG?.codigo&&(!sId||subs.some(s=>s.subSku===m.subSku)));
   const tipoIcon={compra:'ti-shopping-cart',asignacion:'ti-arrow-right',traslado:'ti-transfer',consumo:'ti-minus-circle',destruccion:'ti-trash'};
   result.innerHTML=`
-    <div class="form-card" style="margin-bottom:16px">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px">
-        <div>
-          <div style="font-family:var(--font-mono);font-size:18px;font-weight:700;color:var(--emerald);letter-spacing:.04em">${sku}</div>
-          <div style="font-size:15px;font-weight:600;margin-top:4px">${item?item.nombre:'(baja del sistema)'}</div>
-          ${item?`<div style="font-size:12px;color:#888;margin-top:4px;font-family:var(--font-mono)">${item.proveedor} · Lote: ${item.lote} · INVIMA: ${item.invima}</div>`:''}
-        </div>
-        <div style="text-align:right">
-          ${item?`<span class="sem ${getSemaforo(item.caducidad)}" style="font-size:12px">${semLabel(getSemaforo(item.caducidad))}</span>
-          <div style="font-size:12px;color:#888;margin-top:6px;font-family:var(--font-mono)">Cad: ${fmtDate(item.caducidad)}</div>
-          <div style="font-size:12px;font-weight:700;margin-top:4px">Stock actual: ${item.cantidad} ${item.unidad}</div>`
-          :'<span class="sem N">Sin stock</span>'}
-        </div>
-      </div>
-    </div>
-    <div class="sec-title" style="margin-bottom:14px">Línea de tiempo (${movs.length} evento${movs.length!==1?'s':''})</div>
-    <div class="timeline">
-      ${movs.map(m=>`
-        <div class="tl-item">
-          <div class="tl-dot ${tipoColor[m.tipo]||'asignacion'}"></div>
-          <div class="tl-card">
-            <div class="tl-header">
-              <div class="tl-tipo ${tipoColor[m.tipo]||'asignacion'}">
-                <i class="ti ${tipoIcon[m.tipo]||'ti-arrow-right'}" style="margin-right:4px"></i>${m.tipo.toUpperCase()}
-              </div>
-              <div class="tl-fecha">${fmtDate(m.fecha)}</div>
-            </div>
-            <div class="tl-desc">
-              ${m.tipo==='compra'?`Entrada de <strong>${m.cantidad} unidades</strong> al sistema → <strong>${m.destino}</strong>`
-              :m.tipo==='consumo'?`Consumo de <strong>${m.cantidad} unidades</strong> desde <strong>${m.origen}</strong>`
-              :m.tipo==='traslado'?`Traslado de <strong>${m.cantidad} unidades</strong> de <strong>${m.origen}</strong> a <strong>${m.destino}</strong>`
-              :m.tipo==='asignacion'?`Asignación de <strong>${m.cantidad} unidades</strong> a <strong>${m.destino}</strong>`
-              :`Baja de <strong>${m.cantidad} unidades</strong> desde <strong>${m.origen}</strong>`}
-            </div>
-            <div class="tl-meta">
-              <span class="tl-chip">👤 ${m.usuario}</span>
-              <span class="tl-chip">📦 ${m.cantidad} und.</span>
-              ${m.origen!=='—'?`<span class="tl-chip">📍 ${m.origen}</span>`:''}
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-body">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div>
+            <div style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--blue)">${skuG?.codigo}</div>
+            <div style="font-size:15px;font-weight:600;margin-top:4px">${skuG?.nombre}</div>
+            <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+              <span class="fam ${skuG?.familia}">${FAMILIAS[skuG?.familia]||''}</span>
+              <span style="font-size:11px;color:#888">${skuG?.subgrupo}</span>
             </div>
           </div>
-        </div>
-      `).join('')}
-    </div>
-  `;
-}
-
-// ══════════════════════════════════
-// DELETE
-// ══════════════════════════════════
-function confirmDelete(id){
-  const item=inventario.find(i=>i.id===id);
-  document.getElementById('modal-title').textContent='Eliminar ítem del inventario';
-  document.getElementById('modal-sub').textContent=`¿Eliminar "${item.nombre}" (${item.sku}) con ${item.cantidad} ${item.unidad} en ${item.ubicacion}? Esta acción no se puede deshacer.`;
-  document.getElementById('modal-ok-btn').onclick=()=>{
-    movimientos.push({id:movimientos.length+1,fecha:new Date().toISOString().split('T')[0],sku:item.sku,tipo:'destruccion',origen:item.ubicacion,destino:'—',cantidad:item.cantidad,usuario:'Admin'});
-    inventario=inventario.filter(i=>i.id!==id);
-    closeModal('modal-confirm');
-    populateSelects();
-    renderInv();
-    toast('Ítem eliminado','error');
-  };
-  document.getElementById('modal-confirm').classList.add('open');
-}
-
-
-// ══════════════════════════════════
-// AUTOCOMPLETE ENGINE
-// ══════════════════════════════════
-const AC = {
-  mov:  {selectedId: null, focusIdx: -1},
-  traz: {selectedId: null, focusIdx: -1},
-};
-
-function acFilter(ns){
-  const q = (document.getElementById(`${ns}-ac-input`).value||'').toLowerCase().trim();
-  const drop = document.getElementById(`${ns}-ac-drop`);
-  const clear = document.getElementById(`${ns}-ac-clear`);
-  clear.classList.toggle('show', q.length > 0);
-  AC[ns].focusIdx = -1;
-
-  if(!q){ drop.classList.remove('open'); drop.innerHTML=''; return; }
-
-  const results = inventario.filter(i =>
-    i.nombre.toLowerCase().includes(q) ||
-    i.sku.toLowerCase().includes(q) ||
-    (i.lote||'').toLowerCase().includes(q) ||
-    (i.proveedor||'').toLowerCase().includes(q) ||
-    (i.subgrupo||'').toLowerCase().includes(q)
-  ).slice(0, 12);
-  // En movimientos excluir agotados, en trazabilidad incluirlos
-  const filtered = ns==='traz' ? results : results.filter(i=>!i.agotado);
-  if(!filtered.length && ns!=='traz') { results.length=0; } else if(ns!=='traz') { results.splice(0,results.length,...filtered); }
-
-  if(!results.length){
-    drop.innerHTML = '<div class="ac-no-results"><i class="ti ti-search" style="display:block;font-size:24px;margin-bottom:6px;opacity:.3"></i>Sin resultados para "'+q+'"</div>';
-    drop.classList.add('open');
-    return;
-  }
-
-  drop.innerHTML = results.map((i,idx) => {
-    const sem = getSemaforo(i.caducidad);
-    const stock = i.cantidad;
-    const hilite = (str) => str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'), '<mark>$1</mark>');
-    return `<div class="ac-item" data-id="${i.id}" data-sku="${i.sku}" data-idx="${idx}"
-      onmousedown="acSelect('${ns}',${i.id})" onmouseover="acHover('${ns}',${idx})">
-      <div class="ac-item-icon ${i.familia}"><i class="ti ti-pill"></i></div>
-      <div class="ac-item-body">
-        <div class="ac-item-name">${hilite(i.nombre)}</div>
-        <div class="ac-item-meta">
-          <span>${hilite(i.sku)}</span>
-          ${i.lote&&i.lote!=='—'?`<span>Lote: ${hilite(i.lote)}</span>`:''}
-          ${i.proveedor&&i.proveedor!=='—'?`<span>${i.proveedor}</span>`:''}
-          <span style="background:var(--cream2);color:var(--gray-600,#5F5E5A);padding:1px 7px;border-radius:4px;font-size:9px;font-weight:600;border:1px solid var(--cream3)">📍 ${i.ubicacion}</span>
-          <span class="sem ${sem}" style="font-size:9px;padding:1px 6px">${semLabel(sem)}</span>
+          <div style="text-align:right">
+            <div style="font-size:12px;color:#888;font-family:var(--font-mono)">Sub-SKUs activos: ${subs.filter(s=>!s.agotado).length}</div>
+            <div style="font-size:12px;font-weight:700;margin-top:4px">Stock total: ${subs.reduce((a,s)=>a+getTotalStock(s),0)} ${subs[0]?.unidad||''}</div>
+          </div>
         </div>
       </div>
-      <div class="ac-item-stock" style="${i.agotado?'color:#bbb':''}">${i.agotado?'AGOTADO':`${stock} ${i.unidad}`}</div>
+    </div>
+    ${subs.map(sub=>{
+      const subMovs=movs.filter(m=>m.subSku===sub.subSku);
+      const st=getSem(sub.caducidad);
+      return`<div style="margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+          <span class="sub-sku" style="font-size:12px">${sub.subSku}</span>
+          <span class="sem ${st}">${semLabel(st)}</span>
+          <span style="font-size:11px;color:#888">Cad: ${fmtDate(sub.caducidad)}</span>
+          <span style="font-size:11px;font-weight:600">Stock: ${getTotalStock(sub)} ${sub.unidad}</span>
+          ${sub.agotado?'<span style="font-size:10px;padding:2px 8px;border-radius:8px;background:#F0F0EE;color:#888;font-family:var(--font-mono);font-weight:700">AGOTADO</span>':''}
+        </div>
+        <div class="timeline">
+          ${subMovs.length?subMovs.map(m=>`
+            <div class="tl-item">
+              <div class="tl-dot ${m.tipo}"></div>
+              <div class="tl-card">
+                <div class="tl-header">
+                  <div class="tl-tipo ${m.tipo}"><i class="ti ${tipoIcon[m.tipo]||'ti-arrow-right'}" style="margin-right:4px"></i>${m.tipo.toUpperCase()}</div>
+                  <div class="tl-fecha">${m.fecha} · ${m.hora}</div>
+                </div>
+                <div class="tl-desc">
+                  ${m.tipo==='compra'?`Entrada de <strong>${m.cantidad} ${sub.unidad}</strong> → <strong>${m.destino}</strong>`
+                  :m.tipo==='consumo'?`Consumo de <strong>${m.cantidad} ${sub.unidad}</strong> desde <strong>${m.origen}</strong>`
+                  :m.tipo==='traslado'?`Traslado de <strong>${m.cantidad} ${sub.unidad}</strong> de <strong>${m.origen}</strong> a <strong>${m.destino}</strong>`
+                  :`Baja de <strong>${m.cantidad} ${sub.unidad}</strong> desde <strong>${m.origen}</strong>`}
+                </div>
+                <div class="tl-user">
+                  <div class="tl-user-dot n${m.usuarioNivel}"></div>
+                  <strong>${m.usuarioNombre}</strong>
+                  <span class="nivel-badge n${m.usuarioNivel}" style="font-size:9px">${NIVELES[m.usuarioNivel]?.label}</span>
+                </div>
+              </div>
+            </div>`).join('')
+          :'<div style="font-size:13px;color:#aaa;padding:12px 0">Sin movimientos registrados para este Sub-SKU</div>'}
+        </div>
+      </div>`;
+    }).join('')}`;
+}
+
+// ══════════════════════════════════════════════
+// AUTOCOMPLETE
+// ══════════════════════════════════════════════
+const AC={mov:{selectedId:null,focusIdx:-1}};
+function acFilter(ns){
+  const q=(document.getElementById(`${ns}-ac-input`).value||'').toLowerCase().trim();
+  const drop=document.getElementById(`${ns}-ac-drop`);
+  const clear=document.getElementById(`${ns}-ac-clear`);
+  clear.classList.toggle('show',q.length>0);
+  AC[ns].focusIdx=-1;
+  if(!q){drop.classList.remove('open');drop.innerHTML='';return;}
+  const results=S.subSkus.filter(s=>!s.agotado&&(
+    s.nombre.toLowerCase().includes(q)||s.subSku.toLowerCase().includes(q)||
+    (s.lote||'').toLowerCase().includes(q)||(s.proveedor||'').toLowerCase().includes(q)
+  )).slice(0,10);
+  if(!results.length){drop.innerHTML='<div class="ac-no-results"><i class="ti ti-search" style="display:block;font-size:22px;margin-bottom:6px;opacity:.3"></i>Sin resultados</div>';drop.classList.add('open');return;}
+  const hilite=(str)=>str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'),'<mark>$1</mark>');
+  drop.innerHTML=results.map((s,idx)=>{
+    const skuG=S.skusGlobales.find(g=>g.id===s.skuGlobalId);
+    const total=getTotalStock(s);
+    return`<div class="ac-item" data-id="${s.id}" onmousedown="acSelect('${ns}',${s.id})" onmouseover="acHover('${ns}',${idx})">
+      <div class="ac-item-icon"><i class="ti ti-pill"></i></div>
+      <div class="ac-item-body">
+        <div class="ac-item-name">${hilite(s.nombre)}</div>
+        <div class="ac-item-meta">
+          <span class="sku-code" style="font-size:9px">${skuG?.codigo||''}</span>
+          <span>${hilite(s.subSku.split('-').slice(0,2).join('-'))}</span>
+          ${s.lote&&s.lote!=='—'?`<span>Lote: ${hilite(s.lote)}</span>`:''}
+          <span style="background:var(--cream2);color:#666;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:600">${Object.entries(s.stock||{}).filter(([,v])=>v>0).map(([k])=>k).join(', ')}</span>
+        </div>
+      </div>
+      <div class="ac-item-stock">${total} ${s.unidad}</div>
     </div>`;
   }).join('');
   drop.classList.add('open');
 }
-
 function acOpen(ns){
-  const q = document.getElementById(`${ns}-ac-input`).value||'';
-  if(q.length > 0) acFilter(ns);
+  const q=document.getElementById(`${ns}-ac-input`).value||'';
+  if(q) acFilter(ns);
   else {
-    // mostrar todos al hacer foco sin texto
-    const drop = document.getElementById(`${ns}-ac-drop`);
-    const all = inventario.slice(0,10);
-    drop.innerHTML = all.map((i,idx)=>{
-      const sem = getSemaforo(i.caducidad);
-      return `<div class="ac-item" data-id="${i.id}" data-idx="${idx}"
-        onmousedown="acSelect('${ns}',${i.id})" onmouseover="acHover('${ns}',${idx})">
-        <div class="ac-item-icon ${i.familia}"><i class="ti ti-pill"></i></div>
+    const drop=document.getElementById(`${ns}-ac-drop`);
+    const all=S.subSkus.filter(s=>!s.agotado).slice(0,8);
+    drop.innerHTML=all.map((s,idx)=>{
+      const skuG=S.skusGlobales.find(g=>g.id===s.skuGlobalId);
+      return`<div class="ac-item" data-id="${s.id}" onmousedown="acSelect('${ns}',${s.id})" onmouseover="acHover('${ns}',${idx})">
+        <div class="ac-item-icon"><i class="ti ti-pill"></i></div>
         <div class="ac-item-body">
-          <div class="ac-item-name">
-            ${i.nombre}
-          </div>
-          <div class="ac-item-meta"><span>${i.sku}</span>${i.proveedor&&i.proveedor!=='—'?`<span>${i.proveedor}</span>`:''}<span style="background:var(--cream2);color:var(--gray-600,#5F5E5A);padding:1px 7px;border-radius:4px;font-size:9px;font-weight:600;border:1px solid var(--cream3)">📍 ${i.ubicacion}</span><span class="sem ${sem}" style="font-size:9px;padding:1px 6px">${semLabel(sem)}</span></div>
+          <div class="ac-item-name">${s.nombre}</div>
+          <div class="ac-item-meta"><span class="sku-code" style="font-size:9px">${skuG?.codigo||''}</span><span>${s.subSku.split('-').slice(0,2).join('-')}</span><span style="background:var(--cream2);color:#666;padding:1px 6px;border-radius:4px;font-size:9px">${Object.entries(s.stock||{}).filter(([,v])=>v>0).map(([k])=>k).join(', ')}</span></div>
         </div>
-        <div class="ac-item-stock">${i.cantidad} ${i.unidad}</div>
+        <div class="ac-item-stock">${getTotalStock(s)} ${s.unidad}</div>
       </div>`;
-    }).join('') + (inventario.length>10?`<div class="ac-no-results" style="padding:8px;font-size:11px">+${inventario.length-10} más · escribe para filtrar</div>`:'');
+    }).join('')+(S.subSkus.length>8?`<div class="ac-no-results" style="padding:8px;font-size:11px">Escribe para filtrar más resultados</div>`:'');
     drop.classList.add('open');
   }
 }
-
-function acSelect(ns, id){
-  const item = inventario.find(i=>i.id===parseInt(id));
-  if(!item) return;
-  AC[ns].selectedId = item.id;
-  // hidden input
-  document.getElementById(`${ns}-sku`).value = ns==='traz' ? item.sku : item.id;
-  // input text
-  document.getElementById(`${ns}-ac-input`).value = item.nombre;
-  // clear btn
+function acSelect(ns,id){
+  const sub=S.subSkus.find(s=>s.id===parseInt(id));
+  if(!sub) return;
+  AC[ns].selectedId=sub.id;
+  document.getElementById(`${ns}-sku`).value=sub.id;
+  document.getElementById(`${ns}-ac-input`).value=sub.nombre;
   document.getElementById(`${ns}-ac-clear`).classList.add('show');
-  // cerrar dropdown
   document.getElementById(`${ns}-ac-drop`).classList.remove('open');
-  // pill
-  const pill = document.getElementById(`${ns}-ac-pill`);
-  const pillText = document.getElementById(`${ns}-ac-pill-text`);
+  const pill=document.getElementById(`${ns}-ac-pill`);
+  document.getElementById(`${ns}-ac-pill-text`).innerHTML=`${sub.nombre} <span style="opacity:.6;font-size:11px">${sub.subSku} · ${getTotalStock(sub)} ${sub.unidad}</span>`;
   pill.classList.add('show');
-  pillText.innerHTML = `${item.nombre} <span class="ac-selected-pill-sku">${item.sku} · ${item.cantidad} ${item.unidad} · ${item.ubicacion}</span>`;
-  // callback
   if(ns==='mov') updateMovInfo();
-  if(ns==='traz') renderTrazabilidad();
 }
-
 function acClear(ns){
-  AC[ns].selectedId = null;
-  document.getElementById(`${ns}-sku`).value = '';
-  document.getElementById(`${ns}-ac-input`).value = '';
+  AC[ns].selectedId=null;
+  document.getElementById(`${ns}-sku`).value='';
+  document.getElementById(`${ns}-ac-input`).value='';
   document.getElementById(`${ns}-ac-clear`).classList.remove('show');
   document.getElementById(`${ns}-ac-drop`).classList.remove('open');
   document.getElementById(`${ns}-ac-pill`).classList.remove('show');
   document.getElementById(`${ns}-ac-input`).focus();
   if(ns==='mov') document.getElementById('mov-stock-info').textContent='Selecciona un ítem para ver el stock disponible';
-  if(ns==='traz') document.getElementById('traz-result').innerHTML='<div class="empty-state"><i class="ti ti-timeline"></i><p>Selecciona un SKU para ver su trazabilidad completa</p></div>';
 }
-
-function acHover(ns, idx){
-  AC[ns].focusIdx = idx;
-  document.querySelectorAll(`#${ns}-ac-drop .ac-item`).forEach((el,i)=>el.classList.toggle('focused',i===idx));
-}
-
-function acKey(e, ns){
-  const drop = document.getElementById(`${ns}-ac-drop`);
-  const items = drop.querySelectorAll('.ac-item');
+function acHover(ns,idx){AC[ns].focusIdx=idx;document.querySelectorAll(`#${ns}-ac-drop .ac-item`).forEach((el,i)=>el.classList.toggle('focused',i===idx));}
+function acKey(e,ns){
+  const drop=document.getElementById(`${ns}-ac-drop`);
+  const items=drop.querySelectorAll('.ac-item');
   if(!items.length) return;
-  if(e.key==='ArrowDown'){
-    e.preventDefault();
-    AC[ns].focusIdx = Math.min(AC[ns].focusIdx+1, items.length-1);
-    items.forEach((el,i)=>el.classList.toggle('focused',i===AC[ns].focusIdx));
-    items[AC[ns].focusIdx]?.scrollIntoView({block:'nearest'});
-  } else if(e.key==='ArrowUp'){
-    e.preventDefault();
-    AC[ns].focusIdx = Math.max(AC[ns].focusIdx-1, 0);
-    items.forEach((el,i)=>el.classList.toggle('focused',i===AC[ns].focusIdx));
-    items[AC[ns].focusIdx]?.scrollIntoView({block:'nearest'});
-  } else if(e.key==='Enter' && AC[ns].focusIdx>=0){
-    e.preventDefault();
-    const id = parseInt(items[AC[ns].focusIdx].dataset.id);
-    acSelect(ns, id);
-  } else if(e.key==='Escape'){
-    drop.classList.remove('open');
-  }
+  if(e.key==='ArrowDown'){e.preventDefault();AC[ns].focusIdx=Math.min(AC[ns].focusIdx+1,items.length-1);items.forEach((el,i)=>el.classList.toggle('focused',i===AC[ns].focusIdx));items[AC[ns].focusIdx]?.scrollIntoView({block:'nearest'});}
+  else if(e.key==='ArrowUp'){e.preventDefault();AC[ns].focusIdx=Math.max(AC[ns].focusIdx-1,0);items.forEach((el,i)=>el.classList.toggle('focused',i===AC[ns].focusIdx));items[AC[ns].focusIdx]?.scrollIntoView({block:'nearest'});}
+  else if(e.key==='Enter'&&AC[ns].focusIdx>=0){e.preventDefault();acSelect(ns,parseInt(items[AC[ns].focusIdx].dataset.id));}
+  else if(e.key==='Escape') drop.classList.remove('open');
+}
+document.addEventListener('click',e=>{['mov'].forEach(ns=>{const wrap=document.getElementById(`${ns}-ac-wrap`);if(wrap&&!wrap.contains(e.target)) document.getElementById(`${ns}-ac-drop`).classList.remove('open');});});
+
+// ══════════════════════════════════════════════
+// DELETES
+// ══════════════════════════════════════════════
+let _delType=null,_delId=null;
+function confirmDelete(id){
+  _delType='sub';_delId=id;
+  const sub=S.subSkus.find(s=>s.id===id);
+  document.getElementById('modal-title').textContent='Eliminar Sub-SKU';
+  document.getElementById('modal-sub').textContent=`¿Eliminar "${sub?.subSku}"? Esta acción no se puede deshacer.`;
+  document.getElementById('modal-ok-btn').onclick=doDelete;
+  document.getElementById('modal-confirm').classList.add('open');
+}
+function confirmDeleteSKU(id){
+  _delType='global';_delId=id;
+  const s=S.skusGlobales.find(g=>g.id===id);
+  document.getElementById('modal-title').textContent='Eliminar SKU Global';
+  document.getElementById('modal-sub').textContent=`¿Eliminar "${s?.codigo} — ${s?.nombre}"? Se eliminarán también todos sus Sub-SKUs.`;
+  document.getElementById('modal-ok-btn').onclick=doDelete;
+  document.getElementById('modal-confirm').classList.add('open');
+}
+function confirmDeleteUser(id){
+  _delType='user';_delId=id;
+  const u=S.usuarios.find(u=>u.id===id);
+  document.getElementById('modal-title').textContent='Eliminar usuario';
+  document.getElementById('modal-sub').textContent=`¿Eliminar al usuario "${u?.nombre}"?`;
+  document.getElementById('modal-ok-btn').onclick=doDelete;
+  document.getElementById('modal-confirm').classList.add('open');
+}
+function confirmDeleteBodega(nombre){
+  _delType='bodega';_delId=nombre;
+  document.getElementById('modal-title').textContent='Eliminar ubicación';
+  document.getElementById('modal-sub').textContent=`¿Eliminar la ubicación "${nombre}"?`;
+  document.getElementById('modal-ok-btn').onclick=doDelete;
+  document.getElementById('modal-confirm').classList.add('open');
+}
+function doDelete(){
+  if(_delType==='sub'){ const sub=S.subSkus.find(s=>s.id===_delId);if(sub){sub.cantidad=0;sub.agotado=true;} }
+  else if(_delType==='global'){ S.skusGlobales=S.skusGlobales.filter(g=>g.id!==_delId);S.subSkus=S.subSkus.filter(s=>s.skuGlobalId!==_delId); }
+  else if(_delType==='user'){ S.usuarios=S.usuarios.filter(u=>u.id!==_delId); }
+  else if(_delType==='bodega'){ S.bodegas=S.bodegas.filter(b=>b!==_delId); }
+  closeModal('modal-confirm');
+  saveState();
+  populateSelects();
+  renderAll();
+  toast('Eliminado correctamente');
 }
 
-// Cerrar dropdown al hacer click fuera
-document.addEventListener('click', e=>{
-  ['mov','traz'].forEach(ns=>{
-    const wrap = document.getElementById(`${ns}-ac-wrap`);
-    if(wrap && !wrap.contains(e.target)){
-      document.getElementById(`${ns}-ac-drop`).classList.remove('open');
-    }
-  });
-});
+// ══════════════════════════════════════════════
+// QUICK MOV
+// ══════════════════════════════════════════════
+function quickMov(subId, ubicacion){
+  goTo('movimientos');
+  setTimeout(()=>{
+    acSelect('mov', subId);
+    document.getElementById('mov-origen').value=ubicacion;
+    updateMovInfo();
+  },100);
+}
 
-// INIT
-setModo('trazable');
+// ══════════════════════════════════════════════
+// RENDER ALL
+// ══════════════════════════════════════════════
+function renderAll(){renderDash();renderInv();renderMovBody();renderSKUs();renderUsuarios();renderBodegas();}
 </script>
 </body>
 </html>
