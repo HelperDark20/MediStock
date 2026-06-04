@@ -960,24 +960,45 @@ function selectDemo(role){
   document.getElementById('l-cedula').value = {auditor:'1234567890',enfermero:'1006543210',supervisor:'1098765432',admin:'94507925'}[role];
   document.getElementById('l-pass').value = 'demo2026';
 }
-function doLogin(){
+async function doLogin(){
   const cedula = document.getElementById('l-cedula').value.trim();
-  const user = S.usuarios.find(u=>u.cedula===cedula) || (cedula==='94507925'?{nivel:4,nombre:'Jorge Cardona'}:null);
-  const nivel = user?.nivel || (selectedDemo ? {auditor:1,enfermero:2,supervisor:3,admin:4}[selectedDemo] : null);
-  if(!nivel){ toast('Cédula no encontrada','error'); return; }
-  currentRole = nivel;
-  document.getElementById('login-screen').classList.add('out');
-  setTimeout(()=>{
-    document.getElementById('login-screen').style.display='none';
-    setupApp(user || S.usuarios.find(u=>u.nivel===nivel) || S.usuarios[0]);
-    document.getElementById('app').classList.add('visible');
-  },400);
+  const pass = document.getElementById('l-pass').value.trim();
+
+  if(!cedula || !pass){
+    toast('Ingresa tu cédula y contraseña', 'error');
+    return;
+  }
+
+  // Deshabilitar botón mientras carga
+  const btn = document.querySelector('.login-btn');
+  btn.textContent = 'Ingresando...';
+  btn.disabled = true;
+
+  try {
+    const data = await Auth.login(cedula, pass);
+    currentRole = data.usuario.nivel;
+
+    document.getElementById('login-screen').classList.add('out');
+    setTimeout(()=>{
+      document.getElementById('login-screen').style.display='none';
+      setupApp(data.usuario);
+      document.getElementById('app').classList.add('visible');
+    }, 400);
+
+  } catch(err){
+    toast(err.message || 'Error al iniciar sesión', 'error');
+    btn.textContent = 'Ingresar al sistema';
+    btn.disabled = false;
+  }
 }
 function doLogout(){
-  currentRole=null;selectedDemo=null;
+  Auth.logout();
+  currentRole = null;
+  selectedDemo = null;
   document.getElementById('app').classList.remove('visible');
-  const ls=document.getElementById('login-screen');
-  ls.style.display='flex';ls.classList.remove('out');
+  const ls = document.getElementById('login-screen');
+  ls.style.display = 'flex';
+  ls.classList.remove('out');
   document.querySelectorAll('.demo-role').forEach(el=>el.classList.remove('selected'));
   ['l-cedula','l-pass'].forEach(id=>document.getElementById(id).value='');
 }
@@ -1654,6 +1675,27 @@ function quickMov(subId, ubicacion){
 // RENDER ALL
 // ══════════════════════════════════════════════
 function renderAll(){renderDash();renderInv();renderMovBody();renderSKUs();renderUsuarios();renderBodegas();}
+// Verificar sesión al cargar
+(async function checkSession(){
+  const token = localStorage.getItem('nb_token');
+  if(!token) return;
+  try {
+    // Decodificar token sin verificar (solo para UI)
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const ahora = Math.floor(Date.now()/1000);
+    if(payload.exp < ahora){
+      localStorage.removeItem('nb_token');
+      return;
+    }
+    currentRole = payload.nivel;
+    document.getElementById('login-screen').style.display='none';
+    setupApp(payload);
+    document.getElementById('app').classList.add('visible');
+  } catch(e){
+    localStorage.removeItem('nb_token');
+  }
+})();
 </script>
+<script src="api.js"></script>
 </body>
 </html>
