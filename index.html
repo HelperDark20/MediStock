@@ -931,7 +931,7 @@ async function loadRealState(){
     S.bodegas = bodegas.map(b=>b.nombre);
     // SKUs globales
     S.skusGlobales = skusGlobales.map(s=>({...s,campos:Array.isArray(s.campos)?s.campos:[]}));
-    // Stock anidado por sub_sku_id
+    // Stock anidado por sub_sku_id (inventario) – cargado vía API con SKUs.getStock()
     const stockMap={};
     stockRows.forEach(r=>{ if(!stockMap[r.sub_sku_id]) stockMap[r.sub_sku_id]={}; stockMap[r.sub_sku_id][r.bodega_nombre]=r.cantidad; });
     // Sub-SKUs
