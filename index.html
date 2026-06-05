@@ -1001,7 +1001,7 @@ function getSem(caducidad){
   if(diff<0) return 'N'; if(diff<90) return 'R'; if(diff<180) return 'A'; return 'V';
 }
 function semLabel(s){return{V:'Vigente',A:'Por vencer',R:'Crítico',N:'Vencido'}[s]||s}
-function fmtDate(d){if(!d)return'—';const datePart = d.split('T')[0];const[y,m,day]=datePart.split('-');return `${day}/${m}/${y}`;
+function fmtDate(d){if(!d)return'—';const datePart = d.split('T')[0];const[y,m,day]=datePart.split('-');return `${day}/${m}/${y}`;}
 function abrevProv(str){
   if(!str) return '----';
   const words = str.trim().split(/\s+/).filter(Boolean);
