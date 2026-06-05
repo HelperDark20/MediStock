@@ -25,7 +25,7 @@ app.use(helmet({
     }
   }
 }));
-app.use(cors());
+app.use(cors());s
 app.use(express.json());
 
 // Servir archivos estáticos
