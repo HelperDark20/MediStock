@@ -907,12 +907,11 @@ let S = {};
 
 async function loadState(){
   try {
-    const saved = localStorage.getItem('nb_state_v2');
-    if(saved) {
-      S = JSON.parse(saved);
-      await loadRealState();
-    }
-    else await loadRealState();
+    toast('Cargando datos desde el servidor...');
+    await loadRealState();
+    // Renderizamos la vista actual (dashboard por defecto) una vez los datos estén listos
+    renderAll();
+    toast('Datos cargados','success');
   } catch(e){
     console.error('Error al cargar estado:',e);
     toast('Error al cargar datos','error');
@@ -972,6 +971,8 @@ async function loadRealState(){
     S.nextBodegaId = Math.max(1,...bodegas.map(b=>b.id))+1000;
     S.nextSkuId = Math.max(1,...S.skusGlobales.map(s=>s.id))+1000;
     console.log('[API] Datos cargados:',{bodegas:S.bodegas.length,skus:S.skusGlobales.length,subskus:S.subSkus.length,movs:S.movimientos.length,users:S.usuarios.length});
+    // Actualizar selects y UI con los datos recibidos
+    populateSelects();
   }catch(err){
     console.error('[API] Error:',err);
     toast('Error al cargar datos del servidor','error');
