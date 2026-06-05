@@ -904,18 +904,90 @@ const SEED = {
 let currentRole = null;
 let S = {};
 
-function loadState(){
+async function loadState(){
   try {
     const saved = localStorage.getItem('nb_state_v2');
-    if(saved) S = JSON.parse(saved);
-    else resetState(false);
-  } catch(e){ resetState(false); }
+    if(saved) {
+      S = JSON.parse(saved);
+      await loadRealState();
+    }
+    else await loadRealState();
+  } catch(e){
+    console.error('Error al cargar estado:',e);
+    toast('Error al cargar datos','error');
+  }
+}
+async function loadRealState(){
+  try {
+    const [bodegas, skusGlobales, subSkus, stockRows, movimientos, usuarios] = await Promise.all([
+      Bodegas.getAll(),
+      SKUs.getGlobales(),
+      SKUs.getSub(),
+      SKUs.getStock(),
+      Movimientos.getAll(),
+      Usuarios.getAll().catch(()=>[])
+    ]);
+    // Bodegas
+    S.bodegas = bodegas.map(b=>b.nombre);
+    // SKUs globales
+    S.skusGlobales = skusGlobales.map(s=>({...s,campos:Array.isArray(s.campos)?s.campos:[]}));
+    // Stock anidado por sub_sku_id
+    const stockMap={};
+    stockRows.forEach(r=>{ if(!stockMap[r.sub_sku_id]) stockMap[r.sub_sku_id]={}; stockMap[r.sub_sku_id][r.bodega_nombre]=r.cantidad; });
+    // Sub-SKUs
+    S.subSkus = subSkus.map(s=>({
+      id:s.id,
+      skuGlobalId:s.sku_global_id,
+      subSku:s.sub_sku,
+      nombre:s.nombre_global||s.nombre||'',
+      proveedor:s.proveedor||'—',
+      lote:s.lote||'—',
+      invima:s.invima||'—',
+      caducidad:s.caducidad,
+      unidad:s.unidad,
+      stock:stockMap[s.id]||{},
+      agotado:false
+    }));
+    // Movimientos
+    S.movimientos = movimientos.map(m=>({
+      id:m.id,
+      fecha:m.fecha?.split(' ')[0]||'2025-01-01',
+      hora:m.hora||'00:00',
+      skuGlobal:m.sku_global_codigo||'—',
+      subSku:m.sub_sku||'—',
+      tipo:m.tipo,
+      origen:m.origen_nombre||'—',
+      destino:m.destino_nombre||'—',
+      cantidad:m.cantidad,
+      usuarioNombre:usuarios.find(u=>u.id===m.usuario_id)?.nombre||'Usuario',
+      usuarioNivel:usuarios.find(u=>u.id===m.usuario_id)?.nivel||1
+    }));
+    // Usuarios
+    S.usuarios = usuarios;
+    // IDs para creaciones offline
+    S.nextId = Math.max(1,...S.subSkus.map(s=>s.id))+1000;
+    S.nextMovId = Math.max(1,...S.movimientos.map(m=>m.id))+1000;
+    S.nextUserId = Math.max(1,...S.usuarios.map(u=>u.id))+1000;
+    S.nextBodegaId = Math.max(1,...bodegas.map(b=>b.id))+1000;
+    S.nextSkuId = Math.max(1,...S.skusGlobales.map(s=>s.id))+1000;
+    console.log('[API] Datos cargados:',{bodegas:S.bodegas.length,skus:S.skusGlobales.length,subskus:S.subSkus.length,movs:S.movimientos.length,users:S.usuarios.length});
+  }catch(err){
+    console.error('[API] Error:',err);
+    toast('Error al cargar datos del servidor','error');
+    throw err;
+  }
 }
 function saveState(){ try{ localStorage.setItem('nb_state_v2', JSON.stringify(S)); }catch(e){} }
-function resetState(show=true){
-  S = JSON.parse(JSON.stringify(SEED));
-  saveState();
-  if(show){ renderAll(); toast('Datos restaurados','success'); }
+async function resetState(show=true){
+  try {
+    await loadRealState();
+    saveState();
+    renderAll();
+    if(show) toast('Datos actualizados desde el servidor','success');
+  }catch(e){
+    console.error('[API] Error al resetear:',e);
+    toast('Error al actualizar datos','error');
+  }
 }
 loadState();
 
