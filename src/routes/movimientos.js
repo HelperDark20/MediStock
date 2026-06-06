@@ -8,16 +8,19 @@ router.get('/', verificarToken, async (req, res) => {
   const { sku_global, sub_sku_id } = req.query;
   try {
     let query = `
-      SELECT m.*, 
-             g.codigo as sku_global_codigo,
-             s.sub_sku,
-             bo.nombre as origen_nombre,
-             bd.nombre as destino_nombre
+      SELECT m.*,
+            g.codigo as sku_global_codigo,
+            s.sub_sku,
+            bo.nombre as origen_nombre,
+            bd.nombre as destino_nombre,
+            u.nombre as usuario_nombre,
+            u.nivel as usuario_nivel
       FROM movimientos m
       JOIN sub_skus s ON m.sub_sku_id = s.id
       JOIN skus_globales g ON s.sku_global_id = g.id
       LEFT JOIN bodegas bo ON m.bodega_origen_id = bo.id
       LEFT JOIN bodegas bd ON m.bodega_destino_id = bd.id
+      LEFT JOIN usuarios u ON m.usuario_id = u.id
       WHERE 1=1
     `;
     const params = [];

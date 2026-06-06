@@ -28,9 +28,6 @@ app.use(helmet({
 app.use(cors());
 app.use(express.json());
 
-// Servir archivos estáticos
-app.use(require('express').static(require('path').join(__dirname, '..')));
-
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,

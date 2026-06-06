@@ -842,154 +842,84 @@ const NAV_CONFIG = [
   {id:'trazabilidad',icon:'ti-timeline',label:'Trazabilidad',section:''},
 ];
 
-// ══════════════════════════════════════════════
-// STATE
-// ══════════════════════════════════════════════
-const SEED = {
-  skusGlobales:[
-    {id:1,codigo:'ACE-500',nombre:'Acetaminofén Tab 500mg',familia:'MED',subgrupo:'ANALGÉSICO',presentacion:'Tableta 500mg',campos:['lote','caducidad','invima']},
-    {id:2,codigo:'DIC-75',nombre:'Diclofenaco 75mg/3ml AMP',familia:'MED',subgrupo:'AINES',presentacion:'Ampolla 75mg/3ml',campos:['lote','caducidad','invima']},
-    {id:3,codigo:'DEX-4',nombre:'Dexametasona 4mg/1ml AMP',familia:'MED',subgrupo:'CORTICOIDE',presentacion:'Ampolla 4mg/1ml',campos:['lote','caducidad','invima']},
-    {id:4,codigo:'OME-20',nombre:'Omeprazol Tab 20mg',familia:'MED',subgrupo:'PROTECTOR GÁSTRICO',presentacion:'Tableta 20mg',campos:['lote','caducidad','invima']},
-    {id:5,codigo:'SAL-500',nombre:'Solución Salina 0.9% 500cc',familia:'INS',subgrupo:'INSUMO',presentacion:'Bolsa 500cc',campos:['lote','caducidad','invima']},
-    {id:6,codigo:'GAS-E5',nombre:'Gasa Paquete Estéril x5',familia:'INS',subgrupo:'QUIRÚRGICO',presentacion:'Paquete x5',campos:['lote','caducidad']},
-    {id:7,codigo:'LOS-50',nombre:'Losartán 50mg Tab',familia:'MED',subgrupo:'ANTIHIPERTENSIVO',presentacion:'Tableta 50mg',campos:['lote','caducidad','invima']},
-    {id:8,codigo:'TIJ-CRT',nombre:'Tijera Cortatodo',familia:'DOT',subgrupo:'DOTACIÓN',presentacion:'Unidad',campos:['serial']},
-  ],
-  subSkus:[
-    {id:1,skuGlobalId:1,subSku:'GENF-LF01529B-2021M006528R4',nombre:'Acetaminofén Tab 500mg',proveedor:'Genfar',lote:'LF01529B',invima:'2021M006528R4',caducidad:'2026-06-30',unidad:'Tabletas',agotado:false,stock:{'ALM-GENERAL':100,'MEC-1MED':27,'BTQ-CYA':0}},
-    {id:2,skuGlobalId:1,subSku:'GENF-25B382-2023M0002317R3',nombre:'Acetaminofén Tab 500mg',proveedor:'Genfar',lote:'25B382',invima:'2023M0002317R3',caducidad:'2026-08-15',unidad:'Tabletas',agotado:false,stock:{'BTQ-I01':100,'ENF-PAL':20}},
-    {id:3,skuGlobalId:2,subSku:'LABI-S24055842-2022M0004505R2',nombre:'Diclofenaco 75mg/3ml AMP',proveedor:'Labiosano',lote:'S24055842',invima:'2022M0004505R2',caducidad:'2026-11-30',unidad:'Ampollas',agotado:false,stock:{'MEC-1MED':5,'ALM-GENERAL':10}},
-    {id:4,skuGlobalId:3,subSku:'VITA-A241044-2020M0007728R1',nombre:'Dexametasona 4mg/1ml AMP',proveedor:'Vitalis',lote:'A241044',invima:'2020M0007728R1',caducidad:'2025-06-10',unidad:'Ampollas',agotado:false,stock:{'ALM-GENERAL':8}},
-    {id:5,skuGlobalId:4,subSku:'FARM-B5H004-2021M013239R3',nombre:'Omeprazol Tab 20mg',proveedor:'Farmacol',lote:'B5H004',invima:'2021M013239R3',caducidad:'2025-04-30',unidad:'Tabletas',agotado:false,stock:{'ENF-PAL':27}},
-    {id:6,skuGlobalId:5,subSku:'BAXT-SB251G9-2020M001117R4',nombre:'Solución Salina 0.9% 500cc',proveedor:'Baxter',lote:'SB251G9',invima:'2020M001117R4',caducidad:'2026-09-20',unidad:'Bolsas',agotado:false,stock:{'ALM-PAL':15,'BTQ-I01':8}},
-    {id:7,skuGlobalId:7,subSku:'ECAR-F090616-2020M0012345R2',nombre:'Losartán 50mg Tab',proveedor:'Laboratorios Ecar',lote:'F090616',invima:'2020M0012345R2',caducidad:'2026-12-31',unidad:'Tabletas',agotado:false,stock:{'MEC-1MED':240,'ALM-PAL':60}},
-  ],
-  bodegas:['ALM-GENERAL','ALM-PAL','MEC-1MED','BTQ-I01','BTQ-CYA','ENF-PAL'],
-  usuarios:[
-    {id:1,nombre:'Jorge Cardona',cedula:'94507925',nivel:4,genero:'Masculino',nacimiento:'1975-03-15'},
-    {id:2,nombre:'María García',cedula:'1098765432',nivel:3,genero:'Femenino',nacimiento:'1990-07-22'},
-    {id:3,nombre:'Juan Pérez',cedula:'1006543210',nivel:2,genero:'Masculino',nacimiento:'1995-11-08'},
-    {id:4,nombre:'Ana Torres',cedula:'1234567890',nivel:1,genero:'Femenino',nacimiento:'1988-04-30'},
-  ],
-  movimientos:[
-    {id:1,fecha:'2026-04-01',hora:'09:15',skuGlobal:'ACE-500',subSku:'GENF-LF01529B-2021M006528R4',tipo:'compra',origen:'—',destino:'ALM-GENERAL',cantidad:100,usuarioNombre:'Jorge Cardona',usuarioNivel:4},
-    {id:2,fecha:'2026-04-03',hora:'10:30',skuGlobal:'ACE-500',subSku:'GENF-LF01529B-2021M006528R4',tipo:'traslado',origen:'ALM-GENERAL',destino:'MEC-1MED',cantidad:30,usuarioNombre:'María García',usuarioNivel:3},
-    {id:3,fecha:'2026-04-05',hora:'08:45',skuGlobal:'ACE-500',subSku:'GENF-LF01529B-2021M006528R4',tipo:'consumo',origen:'MEC-1MED',destino:'—',cantidad:3,usuarioNombre:'Juan Pérez',usuarioNivel:2},
-    {id:4,fecha:'2026-04-08',hora:'11:00',skuGlobal:'SAL-500',subSku:'BAXT-SB251G9-2020M001117R4',tipo:'compra',origen:'—',destino:'ALM-PAL',cantidad:20,usuarioNombre:'María García',usuarioNivel:3},
-    {id:5,fecha:'2026-04-10',hora:'14:20',skuGlobal:'SAL-500',subSku:'BAXT-SB251G9-2020M001117R4',tipo:'traslado',origen:'ALM-PAL',destino:'BTQ-I01',cantidad:8,usuarioNombre:'María García',usuarioNivel:3},
-    {id:6,fecha:'2026-04-12',hora:'09:00',skuGlobal:'DEX-4',subSku:'VITA-A241044-2020M0007728R1',tipo:'compra',origen:'—',destino:'ALM-GENERAL',cantidad:12,usuarioNombre:'María García',usuarioNivel:3},
-    {id:7,fecha:'2026-04-15',hora:'16:30',skuGlobal:'OME-20',subSku:'FARM-B5H004-2021M013239R3',tipo:'compra',origen:'—',destino:'ALM-PAL',cantidad:30,usuarioNombre:'María García',usuarioNivel:3},
-    {id:8,fecha:'2026-04-18',hora:'10:15',skuGlobal:'OME-20',subSku:'FARM-B5H004-2021M013239R3',tipo:'traslado',origen:'ALM-PAL',destino:'ENF-PAL',cantidad:10,usuarioNombre:'María García',usuarioNivel:3},
-    {id:9,fecha:'2026-04-20',hora:'08:30',skuGlobal:'OME-20',subSku:'FARM-B5H004-2021M013239R3',tipo:'consumo',origen:'ENF-PAL',destino:'—',cantidad:3,usuarioNombre:'Juan Pérez',usuarioNivel:2},
-    {id:10,fecha:'2026-04-22',hora:'11:45',skuGlobal:'LOS-50',subSku:'ECAR-F090616-2020M0012345R2',tipo:'compra',origen:'—',destino:'ALM-GENERAL',cantidad:300,usuarioNombre:'María García',usuarioNivel:3},
-    {id:11,fecha:'2026-04-23',hora:'09:00',skuGlobal:'LOS-50',subSku:'ECAR-F090616-2020M0012345R2',tipo:'traslado',origen:'ALM-GENERAL',destino:'MEC-1MED',cantidad:240,usuarioNombre:'María García',usuarioNivel:3},
-    {id:12,fecha:'2026-04-23',hora:'09:30',skuGlobal:'LOS-50',subSku:'ECAR-F090616-2020M0012345R2',tipo:'traslado',origen:'ALM-GENERAL',destino:'ALM-PAL',cantidad:60,usuarioNombre:'María García',usuarioNivel:3},
-    {id:13,fecha:'2026-05-02',hora:'14:00',skuGlobal:'LOS-50',subSku:'ECAR-F090616-2020M0012345R2',tipo:'consumo',origen:'MEC-1MED',destino:'—',cantidad:15,usuarioNombre:'Juan Pérez',usuarioNivel:2},
-    {id:14,fecha:'2026-05-05',hora:'10:00',skuGlobal:'DIC-75',subSku:'LABI-S24055842-2022M0004505R2',tipo:'compra',origen:'—',destino:'ALM-GENERAL',cantidad:15,usuarioNombre:'María García',usuarioNivel:3},
-    {id:15,fecha:'2026-05-06',hora:'11:30',skuGlobal:'DIC-75',subSku:'LABI-S24055842-2022M0004505R2',tipo:'traslado',origen:'ALM-GENERAL',destino:'MEC-1MED',cantidad:5,usuarioNombre:'María García',usuarioNivel:3},
-    {id:16,fecha:'2026-05-10',hora:'08:00',skuGlobal:'ACE-500',subSku:'GENF-LF01529B-2021M006528R4',tipo:'consumo',origen:'MEC-1MED',destino:'—',cantidad:5,usuarioNombre:'Juan Pérez',usuarioNivel:2},
-    {id:17,fecha:'2026-05-12',hora:'15:00',skuGlobal:'DEX-4',subSku:'VITA-A241044-2020M0007728R1',tipo:'destruccion',origen:'ALM-GENERAL',destino:'—',cantidad:1,usuarioNombre:'María García',usuarioNivel:3},
-    {id:18,fecha:'2026-05-15',hora:'09:45',skuGlobal:'ACE-500',subSku:'GENF-25B382-2023M0002317R3',tipo:'compra',origen:'—',destino:'ALM-GENERAL',cantidad:100,usuarioNombre:'María García',usuarioNivel:3},
-    {id:19,fecha:'2026-05-16',hora:'10:00',skuGlobal:'ACE-500',subSku:'GENF-25B382-2023M0002317R3',tipo:'traslado',origen:'ALM-GENERAL',destino:'BTQ-I01',cantidad:60,usuarioNombre:'María García',usuarioNivel:3},
-    {id:20,fecha:'2026-05-18',hora:'08:15',skuGlobal:'SAL-500',subSku:'BAXT-SB251G9-2020M001117R4',tipo:'consumo',origen:'BTQ-I01',destino:'—',cantidad:2,usuarioNombre:'Juan Pérez',usuarioNivel:2},
-    {id:21,fecha:'2026-05-20',hora:'16:00',skuGlobal:'ACE-500',subSku:'GENF-25B382-2023M0002317R3',tipo:'traslado',origen:'BTQ-I01',destino:'ENF-PAL',cantidad:20,usuarioNombre:'María García',usuarioNivel:3},
-    {id:22,fecha:'2026-05-22',hora:'09:30',skuGlobal:'LOS-50',subSku:'ECAR-F090616-2020M0012345R2',tipo:'consumo',origen:'MEC-1MED',destino:'—',cantidad:10,usuarioNombre:'Juan Pérez',usuarioNivel:2},
-    {id:23,fecha:'2026-05-25',hora:'11:00',skuGlobal:'OME-20',subSku:'FARM-B5H004-2021M013239R3',tipo:'consumo',origen:'ENF-PAL',destino:'—',cantidad:5,usuarioNombre:'Juan Pérez',usuarioNivel:2},
-    {id:24,fecha:'2026-05-27',hora:'14:30',skuGlobal:'GAS-E5',subSku:'ALLS-20250910-',tipo:'compra',origen:'—',destino:'ALM-GENERAL',cantidad:50,usuarioNombre:'María García',usuarioNivel:3},
-    {id:25,fecha:'2026-05-28',hora:'08:00',skuGlobal:'DIC-75',subSku:'LABI-S24055842-2022M0004505R2',tipo:'consumo',origen:'MEC-1MED',destino:'—',cantidad:2,usuarioNombre:'Juan Pérez',usuarioNivel:2},
-  ],
-  nextId:10,nextMovId:26,nextUserId:5,nextBodegaId:7,nextSkuId:9
+// ── ESTADO GLOBAL ──
+let currentRole = null;
+let S = {
+  skusGlobales: [],
+  subSkus: [],
+  stock: [],
+  bodegas: [],
+  usuarios: [],
+  movimientos: [],
 };
 
-let currentRole = null;
-let S = {};
-
+// ── CARGAR DATOS DESDE API ──
 async function loadState(){
   try {
-    toast('Cargando datos desde el servidor...');
-    await loadRealState();
-    // Renderizamos la vista actual (dashboard por defecto) una vez los datos estén listos
-    renderAll();
-    toast('Datos cargados','success');
-  } catch(e){
-    console.error('Error al cargar estado:',e);
-    toast('Error al cargar datos','error');
-  }
-}
-async function loadRealState(){
-  try {
-    const [bodegas, skusGlobales, subSkus, stockRows, movimientos, usuarios] = await Promise.all([
+    showLoading(true);
+    const [bodegas, globales, stock, movs] = await Promise.all([
       Bodegas.getAll(),
       SKUs.getGlobales(),
-      SKUs.getSub(),
       SKUs.getStock(),
-      Movimientos.getAll(),
-      Usuarios.getAll().catch(()=>[])
+      Movimientos.getAll()
     ]);
-    // Bodegas
-    S.bodegas = bodegas.map(b=>b.nombre);
-    // SKUs globales
-    S.skusGlobales = skusGlobales.map(s=>({...s,campos:Array.isArray(s.campos)?s.campos:[]}));
-    // Stock anidado por sub_sku_id (inventario) – cargado vía API con SKUs.getStock()
-    const stockMap={};
-    stockRows.forEach(r=>{ if(!stockMap[r.sub_sku_id]) stockMap[r.sub_sku_id]={}; stockMap[r.sub_sku_id][r.bodega_nombre]=r.cantidad; });
-    // Sub-SKUs
-    S.subSkus = subSkus.map(s=>({
-      id:s.id,
-      skuGlobalId:s.sku_global_id,
-      subSku:s.sub_sku,
-      nombre:s.nombre_global||s.nombre||'',
-      proveedor:s.proveedor||'—',
-      lote:s.lote||'—',
-      invima:s.invima||'—',
-      caducidad:s.caducidad,
-      unidad:s.unidad,
-      stock:stockMap[s.id]||{},
-      agotado:false
-    }));
-    // Movimientos
-    S.movimientos = movimientos.map(m=>({
-      id:m.id,
-      fecha:m.fecha?.split(' ')[0]||'2025-01-01',
-      hora:m.hora||'00:00',
-      skuGlobal:m.sku_global_codigo||'—',
-      subSku:m.sub_sku||'—',
-      tipo:m.tipo,
-      origen:m.origen_nombre||'—',
-      destino:m.destino_nombre||'—',
-      cantidad:m.cantidad,
-      usuarioNombre:usuarios.find(u=>u.id===m.usuario_id)?.nombre||'Usuario',
-      usuarioNivel:usuarios.find(u=>u.id===m.usuario_id)?.nivel||1
-    }));
-    // Usuarios
-    S.usuarios = usuarios;
-    // IDs para creaciones offline
-    S.nextId = Math.max(1,...S.subSkus.map(s=>s.id))+1000;
-    S.nextMovId = Math.max(1,...S.movimientos.map(m=>m.id))+1000;
-    S.nextUserId = Math.max(1,...S.usuarios.map(u=>u.id))+1000;
-    S.nextBodegaId = Math.max(1,...bodegas.map(b=>b.id))+1000;
-    S.nextSkuId = Math.max(1,...S.skusGlobales.map(s=>s.id))+1000;
-    console.log('[API] Datos cargados:',{bodegas:S.bodegas.length,skus:S.skusGlobales.length,subskus:S.subSkus.length,movs:S.movimientos.length,users:S.usuarios.length});
-    // Actualizar selects y UI con los datos recibidos
-    populateSelects();
-  }catch(err){
-    console.error('[API] Error:',err);
-    toast('Error al cargar datos del servidor','error');
-    throw err;
+    S.bodegas = bodegas.map(b => b.nombre);
+    S.skusGlobales = globales;
+    S.stock = stock;
+    S.movimientos = movs;
+
+    // Construir subSkus desde stock
+    const subMap = {};
+    stock.forEach(row => {
+      if(!subMap[row.sub_sku_id]){
+        subMap[row.sub_sku_id] = {
+          id: row.sub_sku_id,
+          skuGlobalId: row.sku_global_id,
+          subSku: row.sub_sku,
+          nombre: row.nombre,
+          proveedor: row.proveedor,
+          lote: row.lote,
+          invima: row.invima,
+          caducidad: row.caducidad,
+          unidad: row.unidad,
+          agotado: false,
+          stock: {}
+        };
+      }
+      subMap[row.sub_sku_id].stock[row.bodega_nombre] = row.cantidad;
+    });
+    S.subSkus = Object.values(subMap);
+
+    // Si es admin cargar usuarios
+    if(currentRole === 4){
+      S.usuarios = await Usuarios.getAll();
+    }
+
+  } catch(err){
+    console.error('Error cargando datos:', err);
+    toast('Error cargando datos del servidor', 'error');
+  } finally {
+    showLoading(false);
   }
 }
-function saveState(){ try{ localStorage.setItem('nb_state_v2', JSON.stringify(S)); }catch(e){} }
-async function resetState(show=true){
-  try {
-    await loadRealState();
-    saveState();
-    renderAll();
-    if(show) toast('Datos actualizados desde el servidor','success');
-  }catch(e){
-    console.error('[API] Error al resetear:',e);
-    toast('Error al actualizar datos','error');
+
+function showLoading(show){
+  let el = document.getElementById('loading-overlay');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'loading-overlay';
+    el.style.cssText = 'position:fixed;inset:0;background:rgba(10,22,40,.7);z-index:999;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;gap:10px;font-family:var(--font-body)';
+    el.innerHTML = '<i class="ti ti-loader-2" style="font-size:24px;animation:spin 1s linear infinite"></i> Cargando datos...';
+    document.body.appendChild(el);
+    const style = document.createElement('style');
+    style.textContent = '@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
+    document.head.appendChild(style);
   }
+  el.style.display = show ? 'flex' : 'none';
+}
+
+function resetState(){
+  loadState().then(()=>{ renderAll(); toast('Datos actualizados','success'); });
 }
 loadState();
 
@@ -1080,13 +1010,17 @@ function doLogout(){
 // ══════════════════════════════════════════════
 // APP SETUP
 // ══════════════════════════════════════════════
-function setupApp(user){
+async function setupApp(user){
   const niv = NIVELES[currentRole];
   const av = document.getElementById('sb-avatar');
   av.textContent = (user.nombre||'U').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
   av.className = 'sb-avatar ' + niv.cls;
   document.getElementById('sb-name').textContent = user.nombre || 'Usuario';
   document.getElementById('sb-nivel').textContent = `NIVEL ${currentRole} · ${niv.label.toUpperCase()}`;
+
+  // Cargar datos desde la API
+  await loadState();
+
   buildNav();
   populateSelects();
   goTo('dashboard');
@@ -1280,31 +1214,56 @@ function updateMovInfo(){
   document.getElementById('mov-stock-info').innerHTML=`<strong>${sub.nombre}</strong> · ${sub.subSku}<br>Stock en <strong>${origen}</strong>: <strong style="color:var(--blue)">${stk}</strong> ${sub.unidad}`;
 }
 
-function registrarMovimiento(){
-  const id=parseInt(document.getElementById('mov-sku').value)||0;
-  const tipo=document.getElementById('mov-tipo').value;
-  const cant=parseInt(document.getElementById('mov-cantidad').value)||0;
-  const origen=document.getElementById('mov-origen').value;
-  const destino=document.getElementById('mov-destino').value;
-  const sub=S.subSkus.find(s=>s.id===id);
-  const skuG=S.skusGlobales.find(g=>g.id===sub?.skuGlobalId);
-  const user=S.usuarios.find(u=>u.nivel===currentRole)||{nombre:'Usuario',nivel:currentRole};
-  if(!sub){toast('Selecciona un ítem','error');return;}
-  if(cant<=0){toast('Ingresa una cantidad válida','error');return;}
-  if(getStockEnUbicacion(sub,origen)<cant){toast('Stock insuficiente en origen','error');return;}
-  if(tipo==='traslado'&&origen===destino){toast('Origen y destino son iguales','error');return;}
-  if(!sub.stock) sub.stock={};
-  sub.stock[origen]=(sub.stock[origen]||0)-cant;
-  if(tipo==='traslado') sub.stock[destino]=(sub.stock[destino]||0)+cant;
-  if(getTotalStock(sub)<=0) sub.agotado=true;
-  const now=new Date();
-  S.movimientos.push({id:S.nextMovId++,fecha:now.toISOString().split('T')[0],hora:now.toTimeString().slice(0,5),skuGlobal:skuG?.codigo||'',subSku:sub.subSku,tipo,origen,destino:tipo==='traslado'?destino:'—',cantidad:cant,usuarioNombre:user.nombre,usuarioNivel:currentRole});
-  document.getElementById('mov-cantidad').value='';
-  acClear('mov');
-  saveState();
-  renderMovBody();
-  buildNav();
-  toast(`✓ ${tipo.charAt(0).toUpperCase()+tipo.slice(1)} registrado`,'success');
+async function registrarMovimiento(){
+  const id = parseInt(document.getElementById('mov-sku').value)||0;
+  const tipo = document.getElementById('mov-tipo').value;
+  const cant = parseInt(document.getElementById('mov-cantidad').value)||0;
+  const origenNombre = document.getElementById('mov-origen').value;
+  const destinoNombre = document.getElementById('mov-destino').value;
+  const motivo = document.getElementById('mov-motivo')?.value||'';
+
+  if(!id){ toast('Selecciona un ítem','error'); return; }
+  if(cant<=0){ toast('Ingresa una cantidad válida','error'); return; }
+
+  try {
+    // Obtener IDs de bodegas
+    const todasBodegas = await Bodegas.getAll();
+    const origenId = todasBodegas.find(b=>b.nombre===origenNombre)?.id;
+    const destinoId = todasBodegas.find(b=>b.nombre===destinoNombre)?.id;
+
+    if(tipo==='consumo'){
+      await Movimientos.consumo({
+        sub_sku_id: id,
+        bodega_origen_id: origenId,
+        cantidad: cant
+      });
+    } else if(tipo==='traslado'){
+      if(origenId===destinoId){ toast('Origen y destino son iguales','error'); return; }
+      await Movimientos.traslado({
+        sub_sku_id: id,
+        bodega_origen_id: origenId,
+        bodega_destino_id: destinoId,
+        cantidad: cant
+      });
+    } else if(tipo==='destruccion'){
+      await Movimientos.destruccion({
+        sub_sku_id: id,
+        bodega_origen_id: origenId,
+        cantidad: cant,
+        motivo
+      });
+    }
+
+    document.getElementById('mov-cantidad').value='';
+    acClear('mov');
+    await loadState();
+    renderMovBody();
+    buildNav();
+    toast(`✓ ${tipo.charAt(0).toUpperCase()+tipo.slice(1)} registrado`,'success');
+
+  } catch(err){
+    toast(err.message,'error');
+  }
 }
 
 function renderMovBody(){
@@ -1358,36 +1317,57 @@ function updateSubSKU(){
   document.getElementById('reg-subsku-preview').textContent=sub;
 }
 
-function registrarEntrada(){
-  const skuGId=parseInt(document.getElementById('reg-sku-global').value)||0;
-  const prov=document.getElementById('reg-proveedor').value.trim();
-  const lote=document.getElementById('reg-lote').value.trim();
-  const invima=document.getElementById('reg-invima').value.trim();
-  const cad=document.getElementById('reg-caducidad').value;
-  const cant=parseInt(document.getElementById('reg-cantidad').value)||0;
-  const unidad=document.getElementById('reg-unidad').value;
-  const ub=document.getElementById('reg-ubicacion').value;
-  const skuG=S.skusGlobales.find(g=>g.id===skuGId);
-  if(!skuG){toast('Selecciona un SKU Global','error');return;}
-  if(cant<=0){toast('Ingresa una cantidad válida','error');return;}
-  if(!ub){toast('Selecciona una ubicación','error');return;}
-  const subSku=buildSubSku(prov,lote,invima);
-  const existing=S.subSkus.find(s=>s.subSku===subSku&&s.skuGlobalId===skuGId);
-  const user=S.usuarios.find(u=>u.nivel===currentRole)||{nombre:'Supervisor',nivel:3};
-  if(existing){
-    existing.stock[ub]=(existing.stock[ub]||0)+cant;
-    existing.agotado=false;
-  } else {
-    S.subSkus.push({id:S.nextId++,skuGlobalId:skuGId,subSku,nombre:skuG.nombre,proveedor:prov||'—',lote:lote||'—',invima:invima||'—',caducidad:cad,unidad,agotado:false,stock:{[ub]:cant}});
+async function registrarEntrada(){
+  const skuGId = parseInt(document.getElementById('reg-sku-global').value)||0;
+  const prov = document.getElementById('reg-proveedor').value.trim();
+  const lote = document.getElementById('reg-lote').value.trim();
+  const invima = document.getElementById('reg-invima').value.trim();
+  const cad = document.getElementById('reg-caducidad').value;
+  const cant = parseInt(document.getElementById('reg-cantidad').value)||0;
+  const unidad = document.getElementById('reg-unidad').value;
+  const ubicacion = document.getElementById('reg-ubicacion').value;
+  const skuG = S.skusGlobales.find(g=>g.id===skuGId);
+
+  if(!skuG){ toast('Selecciona un SKU Global','error'); return; }
+  if(cant<=0){ toast('Ingresa una cantidad válida','error'); return; }
+  if(!ubicacion){ toast('Selecciona una ubicación','error'); return; }
+
+  try {
+    // 1. Crear o encontrar el Sub-SKU
+    const subData = await SKUs.createSub({
+      sku_global_id: skuGId,
+      proveedor: prov,
+      lote,
+      invima,
+      caducidad: cad,
+      unidad
+    });
+
+    // 2. Registrar la entrada de stock
+    const bodega = S.stock.find(s=>s.bodega_nombre===ubicacion);
+    const bodegaId = bodega?.bodega_id || 
+      (await Bodegas.getAll()).find(b=>b.nombre===ubicacion)?.id;
+
+    await Movimientos.entrada({
+      sub_sku_id: subData.id,
+      bodega_destino_id: bodegaId,
+      cantidad: cant
+    });
+
+    // 3. Limpiar formulario
+    ['reg-proveedor','reg-lote','reg-invima','reg-caducidad','reg-cantidad']
+      .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    updateSubSKU();
+
+    // 4. Recargar datos
+    await loadState();
+    populateSelects();
+    toast('✓ Entrada registrada','success');
+    setTimeout(()=>goTo('inventario'), 700);
+
+  } catch(err){
+    toast(err.message,'error');
   }
-  const now=new Date();
-  S.movimientos.push({id:S.nextMovId++,fecha:now.toISOString().split('T')[0],hora:now.toTimeString().slice(0,5),skuGlobal:skuG.codigo,subSku,tipo:'compra',origen:'—',destino:ub,cantidad:cant,usuarioNombre:user.nombre,usuarioNivel:currentRole});
-  ['reg-proveedor','reg-lote','reg-invima','reg-caducidad','reg-cantidad'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  updateSubSKU();
-  saveState();
-  populateSelects();
-  toast('✓ Entrada registrada','success');
-  setTimeout(()=>goTo('inventario'),700);
 }
 
 // ══════════════════════════════════════════════
@@ -1415,22 +1395,25 @@ function toggleCampo(label){
   const icon=label.querySelector('i');
   if(icon) icon.className=cb.checked?'ti ti-check':'ti ti-plus';
 }
-function crearSKUGlobal(){
-  const nombre=document.getElementById('sku-nombre').value.trim();
-  const codigo=document.getElementById('sku-codigo').value.trim().toUpperCase();
-  const familia=document.getElementById('sku-familia').value;
-  const subgrupo=document.getElementById('sku-subgrupo').value;
-  const presentacion=document.getElementById('sku-presentacion').value.trim();
-  if(!nombre||!codigo){toast('Completa nombre y código SKU','error');return;}
-  if(S.skusGlobales.find(s=>s.codigo===codigo)){toast('Este SKU ya existe','error');return;}
-  const campos=[...document.querySelectorAll('.campo-chip input:checked')].map(cb=>cb.value);
-  S.skusGlobales.push({id:S.nextSkuId++,codigo,nombre,familia,subgrupo,presentacion,campos});
-  ['sku-nombre','sku-codigo','sku-presentacion'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  document.getElementById('sku-global-preview').textContent='---';
-  saveState();
-  populateSelects();
-  renderSKUs();
-  toast('✓ SKU Global creado','success');
+async function crearSKUGlobal(){
+  const nombre = document.getElementById('sku-nombre').value.trim();
+  const codigo = document.getElementById('sku-codigo').value.trim().toUpperCase();
+  const familia = document.getElementById('sku-familia').value;
+  const subgrupo = document.getElementById('sku-subgrupo').value;
+  const presentacion = document.getElementById('sku-presentacion').value.trim();
+  if(!nombre||!codigo){ toast('Completa nombre y código SKU','error'); return; }
+  const campos = [...document.querySelectorAll('.campo-chip input:checked')].map(cb=>cb.value);
+  try {
+    await SKUs.createGlobal({ codigo, nombre, familia, subgrupo, presentacion, campos });
+    ['sku-nombre','sku-codigo','sku-presentacion'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('sku-global-preview').textContent='---';
+    S.skusGlobales = await SKUs.getGlobales();
+    populateSelects();
+    renderSKUs();
+    toast('✓ SKU Global creado','success');
+  } catch(err){
+    toast(err.message,'error');
+  }
 }
 function renderSKUs(){
   const q=(document.getElementById('sku-search')?.value||'').toLowerCase();
@@ -1450,19 +1433,23 @@ function renderSKUs(){
 // ══════════════════════════════════════════════
 // USUARIOS (Admin)
 // ══════════════════════════════════════════════
-function crearUsuario(){
-  const nombre=document.getElementById('u-nombre').value.trim();
-  const cedula=document.getElementById('u-cedula').value.trim();
-  const nivel=parseInt(document.getElementById('u-nivel').value);
-  const genero=document.getElementById('u-genero').value;
-  const nacimiento=document.getElementById('u-nacimiento').value;
-  if(!nombre||!cedula){toast('Completa nombre y cédula','error');return;}
-  if(S.usuarios.find(u=>u.cedula===cedula)){toast('Esta cédula ya está registrada','error');return;}
-  S.usuarios.push({id:S.nextUserId++,nombre,cedula,nivel,genero,nacimiento});
-  ['u-nombre','u-cedula','u-nacimiento'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  saveState();
-  renderUsuarios();
-  toast('✓ Usuario creado','success');
+async function crearUsuario(){
+  const nombre = document.getElementById('u-nombre').value.trim();
+  const cedula = document.getElementById('u-cedula').value.trim();
+  const nivel = parseInt(document.getElementById('u-nivel').value);
+  const genero = document.getElementById('u-genero').value;
+  const fecha_nacimiento = document.getElementById('u-nacimiento').value;
+  const password = document.getElementById('u-pass').value.trim();
+  if(!nombre||!cedula||!password){ toast('Completa nombre, cédula y contraseña','error'); return; }
+  try {
+    await Usuarios.create({ nombre, cedula, nivel, genero, fecha_nacimiento, password });
+    ['u-nombre','u-cedula','u-nacimiento','u-pass'].forEach(id=>document.getElementById(id).value='');
+    S.usuarios = await Usuarios.getAll();
+    renderUsuarios();
+    toast('✓ Usuario creado','success');
+  } catch(err){
+    toast(err.message,'error');
+  }
 }
 function renderUsuarios(){
   const el=document.getElementById('users-list');
@@ -1486,19 +1473,21 @@ function updateBodegaPreview(){
   const sufijo=(document.getElementById('b-sufijo').value||'').toUpperCase();
   document.getElementById('bodega-preview').textContent=`${tipo}-${sufijo||''}`;
 }
-function crearBodega(){
-  const tipo=document.getElementById('b-tipo').value;
-  const sufijo=document.getElementById('b-sufijo').value.trim().toUpperCase();
-  if(!sufijo){toast('Ingresa el sufijo de la bodega','error');return;}
-  const nombre=`${tipo}-${sufijo}`;
-  if(S.bodegas.includes(nombre)){toast('Esta ubicación ya existe','error');return;}
-  S.bodegas.push(nombre);
-  document.getElementById('b-sufijo').value='';
-  updateBodegaPreview();
-  saveState();
-  populateSelects();
-  renderBodegas();
-  toast(`✓ ${nombre} creada`,'success');
+async function crearBodega(){
+  const tipo = document.getElementById('b-tipo').value;
+  const sufijo = document.getElementById('b-sufijo').value.trim().toUpperCase();
+  if(!sufijo){ toast('Ingresa el sufijo de la bodega','error'); return; }
+  try {
+    await Bodegas.create(tipo, sufijo);
+    document.getElementById('b-sufijo').value='';
+    updateBodegaPreview();
+    await loadState();
+    populateSelects();
+    renderBodegas();
+    toast(`✓ ${tipo}-${sufijo} creada`,'success');
+  } catch(err){
+    toast(err.message,'error');
+  }
 }
 function renderBodegas(){
   const el=document.getElementById('bodegas-list');
@@ -1528,71 +1517,102 @@ function updateTrazSubs(){
   });
   renderTrazabilidad();
 }
-function renderTrazabilidad(){
-  const gId=parseInt(document.getElementById('traz-global').value)||0;
-  const sId=parseInt(document.getElementById('traz-sub').value)||0;
-  const result=document.getElementById('traz-result');
-  if(!gId){result.innerHTML='<div class="empty-state"><i class="ti ti-timeline"></i><p>Selecciona un SKU Global para ver su trazabilidad</p></div>';return;}
-  const skuG=S.skusGlobales.find(g=>g.id===gId);
-  const subs=S.subSkus.filter(s=>s.skuGlobalId===gId&&(!sId||s.id===sId));
-  let movs=S.movimientos.filter(m=>m.skuGlobal===skuG?.codigo&&(!sId||subs.some(s=>s.subSku===m.subSku)));
-  const tipoIcon={compra:'ti-shopping-cart',asignacion:'ti-arrow-right',traslado:'ti-transfer',consumo:'ti-minus-circle',destruccion:'ti-trash'};
-  result.innerHTML=`
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-body">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
-          <div>
-            <div style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--blue)">${skuG?.codigo}</div>
-            <div style="font-size:15px;font-weight:600;margin-top:4px">${skuG?.nombre}</div>
-            <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
-              <span class="fam ${skuG?.familia}">${FAMILIAS[skuG?.familia]||''}</span>
-              <span style="font-size:11px;color:#888">${skuG?.subgrupo}</span>
+async function renderTrazabilidad(){
+  const gId = parseInt(document.getElementById('traz-global').value)||0;
+  const sId = parseInt(document.getElementById('traz-sub').value)||0;
+  const result = document.getElementById('traz-result');
+
+  if(!gId){
+    result.innerHTML='<div class="empty-state"><i class="ti ti-timeline"></i><p>Selecciona un SKU Global para ver su trazabilidad</p></div>';
+    return;
+  }
+
+  try {
+    result.innerHTML='<div class="empty-state"><i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i><p>Cargando trazabilidad...</p></div>';
+
+    const skuG = S.skusGlobales.find(g=>g.id===gId);
+    const params = { sku_global: skuG?.codigo };
+    if(sId) params.sub_sku_id = sId;
+
+    const movs = await Movimientos.getAll(params);
+    const subs = S.subSkus.filter(s=>s.skuGlobalId===gId&&(!sId||s.id===sId));
+
+    const tipoIcon={
+      compra:'ti-shopping-cart',
+      asignacion:'ti-arrow-right',
+      traslado:'ti-transfer',
+      consumo:'ti-minus-circle',
+      destruccion:'ti-trash'
+    };
+
+    result.innerHTML=`
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-body">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div>
+              <div style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--blue)">${skuG?.codigo}</div>
+              <div style="font-size:15px;font-weight:600;margin-top:4px">${skuG?.nombre}</div>
+              <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+                <span class="fam ${skuG?.familia}">${FAMILIAS[skuG?.familia]||''}</span>
+                <span style="font-size:11px;color:#888">${skuG?.subgrupo}</span>
+              </div>
             </div>
-          </div>
-          <div style="text-align:right">
-            <div style="font-size:12px;color:#888;font-family:var(--font-mono)">Sub-SKUs activos: ${subs.filter(s=>!s.agotado).length}</div>
-            <div style="font-size:12px;font-weight:700;margin-top:4px">Stock total: ${subs.reduce((a,s)=>a+getTotalStock(s),0)} ${subs[0]?.unidad||''}</div>
+            <div style="text-align:right">
+              <div style="font-size:12px;color:#888;font-family:var(--font-mono)">
+                Sub-SKUs activos: ${subs.filter(s=>!s.agotado).length}
+              </div>
+              <div style="font-size:12px;font-weight:700;margin-top:4px">
+                Stock total: ${subs.reduce((a,s)=>a+getTotalStock(s),0)} ${subs[0]?.unidad||''}
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-    ${subs.map(sub=>{
-      const subMovs=movs.filter(m=>m.subSku===sub.subSku);
-      const st=getSem(sub.caducidad);
-      return`<div style="margin-bottom:20px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-          <span class="sub-sku" style="font-size:12px">${sub.subSku}</span>
-          <span class="sem ${st}">${semLabel(st)}</span>
-          <span style="font-size:11px;color:#888">Cad: ${fmtDate(sub.caducidad)}</span>
-          <span style="font-size:11px;font-weight:600">Stock: ${getTotalStock(sub)} ${sub.unidad}</span>
-          ${sub.agotado?'<span style="font-size:10px;padding:2px 8px;border-radius:8px;background:#F0F0EE;color:#888;font-family:var(--font-mono);font-weight:700">AGOTADO</span>':''}
-        </div>
-        <div class="timeline">
-          ${subMovs.length?subMovs.map(m=>`
-            <div class="tl-item">
-              <div class="tl-dot ${m.tipo}"></div>
-              <div class="tl-card">
-                <div class="tl-header">
-                  <div class="tl-tipo ${m.tipo}"><i class="ti ${tipoIcon[m.tipo]||'ti-arrow-right'}" style="margin-right:4px"></i>${m.tipo.toUpperCase()}</div>
-                  <div class="tl-fecha">${m.fecha} · ${m.hora}</div>
-                </div>
-                <div class="tl-desc">
-                  ${m.tipo==='compra'?`Entrada de <strong>${m.cantidad} ${sub.unidad}</strong> → <strong>${m.destino}</strong>`
-                  :m.tipo==='consumo'?`Consumo de <strong>${m.cantidad} ${sub.unidad}</strong> desde <strong>${m.origen}</strong>`
-                  :m.tipo==='traslado'?`Traslado de <strong>${m.cantidad} ${sub.unidad}</strong> de <strong>${m.origen}</strong> a <strong>${m.destino}</strong>`
-                  :`Baja de <strong>${m.cantidad} ${sub.unidad}</strong> desde <strong>${m.origen}</strong>`}
-                </div>
-                <div class="tl-user">
-                  <div class="tl-user-dot n${m.usuarioNivel}"></div>
-                  <strong>${m.usuarioNombre}</strong>
-                  <span class="nivel-badge n${m.usuarioNivel}" style="font-size:9px">${NIVELES[m.usuarioNivel]?.label}</span>
-                </div>
-              </div>
-            </div>`).join('')
-          :'<div style="font-size:13px;color:#aaa;padding:12px 0">Sin movimientos registrados para este Sub-SKU</div>'}
-        </div>
-      </div>`;
-    }).join('')}`;
+
+      ${movs.length===0
+        ? '<div class="empty-state"><i class="ti ti-timeline"></i><p>Sin movimientos registrados</p></div>'
+        : `<div class="sec-title" style="margin-bottom:14px">
+             Línea de tiempo (${movs.length} evento${movs.length!==1?'s':''})
+           </div>
+           <div class="timeline">
+             ${movs.map(m=>{
+               const nivel = m.usuario_nivel||m.nivel||0;
+               return`<div class="tl-item">
+                 <div class="tl-dot ${m.tipo}"></div>
+                 <div class="tl-card">
+                   <div class="tl-header">
+                     <div class="tl-tipo ${m.tipo}">
+                       <i class="ti ${tipoIcon[m.tipo]||'ti-arrow-right'}" style="margin-right:4px"></i>
+                       ${m.tipo.toUpperCase()}
+                     </div>
+                     <div class="tl-fecha">${new Date(m.created_at).toLocaleString('es-CO',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+                   </div>
+                   <div class="tl-desc">
+                     ${m.tipo==='compra'
+                       ? `Entrada de <strong>${m.cantidad}</strong> unidades → <strong>${m.destino_nombre||'—'}</strong>`
+                       : m.tipo==='consumo'
+                       ? `Consumo de <strong>${m.cantidad}</strong> unidades desde <strong>${m.origen_nombre||'—'}</strong>`
+                       : m.tipo==='traslado'
+                       ? `Traslado de <strong>${m.cantidad}</strong> unidades de <strong>${m.origen_nombre||'—'}</strong> a <strong>${m.destino_nombre||'—'}</strong>`
+                       : `Baja de <strong>${m.cantidad}</strong> unidades desde <strong>${m.origen_nombre||'—'}</strong>${m.motivo?' · Motivo: '+m.motivo:''}`}
+                   </div>
+                   <div class="tl-user">
+                     <div class="tl-user-dot n${nivel}"></div>
+                     <strong>${m.usuario_nombre||'—'}</strong>
+                     <span class="nivel-badge n${nivel}" style="font-size:9px">
+                       ${NIVELES[nivel]?.label||''}
+                     </span>
+                   </div>
+                 </div>
+               </div>`;
+             }).join('')}
+           </div>`
+      }`;
+
+  } catch(err){
+    result.innerHTML='<div class="empty-state"><i class="ti ti-alert-circle"></i><p>Error cargando trazabilidad</p></div>';
+    toast(err.message,'error');
+  }
 }
 
 // ══════════════════════════════════════════════
@@ -1721,16 +1741,28 @@ function confirmDeleteBodega(nombre){
   document.getElementById('modal-ok-btn').onclick=doDelete;
   document.getElementById('modal-confirm').classList.add('open');
 }
-function doDelete(){
-  if(_delType==='sub'){ const sub=S.subSkus.find(s=>s.id===_delId);if(sub){sub.cantidad=0;sub.agotado=true;} }
-  else if(_delType==='global'){ S.skusGlobales=S.skusGlobales.filter(g=>g.id!==_delId);S.subSkus=S.subSkus.filter(s=>s.skuGlobalId!==_delId); }
-  else if(_delType==='user'){ S.usuarios=S.usuarios.filter(u=>u.id!==_delId); }
-  else if(_delType==='bodega'){ S.bodegas=S.bodegas.filter(b=>b!==_delId); }
-  closeModal('modal-confirm');
-  saveState();
-  populateSelects();
-  renderAll();
-  toast('Eliminado correctamente');
+async function doDelete(){
+  try {
+    if(_delType==='sub'){
+      await Bodegas.delete(_delId);
+    } else if(_delType==='global'){
+      await SKUs.deleteGlobal(_delId);
+    } else if(_delType==='user'){
+      await Usuarios.delete(_delId);
+    } else if(_delType==='bodega'){
+      const todasBodegas = await Bodegas.getAll();
+      const bodega = todasBodegas.find(b=>b.nombre===_delId);
+      if(bodega) await Bodegas.delete(bodega.id);
+    }
+    closeModal('modal-confirm');
+    await loadState();
+    populateSelects();
+    renderAll();
+    toast('Eliminado correctamente');
+  } catch(err){
+    toast(err.message,'error');
+    closeModal('modal-confirm');
+  }
 }
 
 // ══════════════════════════════════════════════
@@ -1754,7 +1786,6 @@ function renderAll(){renderDash();renderInv();renderMovBody();renderSKUs();rende
   const token = localStorage.getItem('nb_token');
   if(!token) return;
   try {
-    // Decodificar token sin verificar (solo para UI)
     const payload = JSON.parse(atob(token.split('.')[1]));
     const ahora = Math.floor(Date.now()/1000);
     if(payload.exp < ahora){
@@ -1763,7 +1794,7 @@ function renderAll(){renderDash();renderInv();renderMovBody();renderSKUs();rende
     }
     currentRole = payload.nivel;
     document.getElementById('login-screen').style.display='none';
-    setupApp(payload);
+    await setupApp(payload);
     document.getElementById('app').classList.add('visible');
   } catch(e){
     localStorage.removeItem('nb_token');
