@@ -854,7 +854,10 @@ let S = {
 };
 
 // ── CARGAR DATOS DESDE API ──
-async function loadState(){
+async function loadState(){ 
+  // Si no hay token no cargar nada
+  if(!localStorage.getItem('nb_token')) return;
+
   try {
     showLoading(true);
     const [bodegas, globales, stock, movs] = await Promise.all([
@@ -1819,7 +1822,7 @@ function renderAll(){renderDash();renderInv();renderMovBody();renderSKUs();rende
 // Verificar sesión al cargar
 (async function checkSession(){
   const token = localStorage.getItem('nb_token');
-  if(!token) return;
+  if(!token) return; // Si no hay token mostrar login directo
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
     const ahora = Math.floor(Date.now()/1000);
@@ -1827,15 +1830,17 @@ function renderAll(){renderDash();renderInv();renderMovBody();renderSKUs();rende
       localStorage.removeItem('nb_token');
       return;
     }
+    // Token válido — ocultar login y cargar app
     currentRole = payload.nivel;
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app').classList.add('visible');
     await setupApp(payload);
   } catch(e){
-    console.error('Error en checkSession:', e);
+    console.error('Error checkSession:', e);
     localStorage.removeItem('nb_token');
   }
 })();
+
 </script>
 </body>
 </html>
