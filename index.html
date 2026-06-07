@@ -942,8 +942,8 @@ function abrevProv(str){
   if(words.length===1) return words[0].replace(/[^a-zA-Z0-9]/g,'').substring(0,4).toUpperCase();
   return words.map(w=>w[0]?.toUpperCase()||'').join('').substring(0,4).padEnd(4,'X');
 }
-function buildSubSku(prov,lote,invima){
-  return `${abrevProv(prov)}-${(lote||'--------').toUpperCase()}-${(invima||'----------').replace(/\s/g,'')}`;
+function buildSubSku(prov,lote){
+  return `${abrevProv(prov)}-${(lote||'--------').toUpperCase()}`;
 }
 function toast(msg,type=''){
   const t=document.getElementById('toast');
@@ -1349,8 +1349,7 @@ function updateRegSKU(){
 function updateSubSKU(){
   const prov=document.getElementById('reg-proveedor').value;
   const lote=document.getElementById('reg-lote').value;
-  const invima=document.getElementById('reg-invima').value;
-  const sub=buildSubSku(prov,lote,invima);
+  const sub=buildSubSku(prov,lote);
   document.getElementById('reg-subsku-preview').textContent=sub;
 }
 

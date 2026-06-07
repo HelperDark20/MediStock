@@ -88,7 +88,7 @@ router.post('/sub', verificarToken, verificarNivel(3), async (req, res) => {
     if (words.length === 1) return str.replace(/[^a-zA-Z0-9]/g,'').substring(0,4).toUpperCase();
     return words.map(w => w[0]?.toUpperCase() || '').join('').substring(0,4).padEnd(4,'X');
   };
-  const sub_sku = `${abrevProv(proveedor)}-${(lote||'--------').toUpperCase()}-${(invima||'----------').replace(/\s/g,'')}`;
+  const sub_sku = `${abrevProv(proveedor)}-${(lote||'--------').toUpperCase()}`;
   try {
     // Si ya existe el sub_sku para ese global, retornar el existente
     const existe = await pool.query(
