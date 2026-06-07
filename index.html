@@ -939,7 +939,6 @@ async function doLogin(){
     return;
   }
 
-  // Deshabilitar botón mientras carga
   const btn = document.querySelector('.login-btn');
   btn.textContent = 'Ingresando...';
   btn.disabled = true;
@@ -949,14 +948,16 @@ async function doLogin(){
     currentRole = data.usuario.nivel;
 
     document.getElementById('login-screen').classList.add('out');
-    setTimeout(()=>{
+    setTimeout(async ()=>{
       document.getElementById('login-screen').style.display='none';
-      setupApp(data.usuario);
       document.getElementById('app').classList.add('visible');
+      await setupApp(data.usuario);
     }, 400);
 
   } catch(err){
     toast(err.message || 'Error al iniciar sesión', 'error');
+  } finally {
+    // Siempre restaurar el botón
     btn.textContent = 'Ingresar al sistema';
     btn.disabled = false;
   }
