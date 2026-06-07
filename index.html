@@ -50,16 +50,8 @@ input,select,textarea{font-family:var(--font-body)}
 .login-field input::placeholder{color:rgba(255,255,255,.25)}
 .login-btn{width:100%;padding:14px;background:var(--blue);color:#fff;border:none;border-radius:var(--r-md);font-family:var(--font-head);font-size:15px;font-weight:700;letter-spacing:.01em;transition:all .15s;margin-top:4px}
 .login-btn:hover{background:var(--blue2);transform:translateY(-1px)}
-.login-roles-demo{display:flex;flex-direction:column;gap:8px;padding:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:var(--r-lg)}
 .login-roles-title{font-size:10px;font-weight:700;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.1em;font-family:var(--font-mono);margin-bottom:4px}
-.demo-role{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-md);cursor:pointer;border:1px solid transparent;transition:all .15s}
-.demo-role:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.1)}
-.demo-role.selected{background:rgba(33,150,211,.12);border-color:var(--blue)}
-.demo-role-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.demo-role-icon i{font-size:14px;color:#fff}
 .n1{background:#6B3FA0}.n2{background:#1A5C8C}.n3{background:#0D7FC2}.n4{background:#0A5C3A}
-.demo-role-info strong{display:block;font-size:12px;font-weight:600;color:#fff}
-.demo-role-info span{font-size:10px;color:rgba(255,255,255,.4);font-family:var(--font-mono)}
 
 /* ── APP ── */
 #app{display:flex;height:100vh;opacity:0;transition:opacity .3s}
@@ -380,25 +372,6 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
         <input type="password" id="l-pass" placeholder="••••••••">
       </div>
       <button class="login-btn" onclick="doLogin()">Ingresar al sistema</button>
-    </div>
-    <div class="login-roles-demo">
-      <div class="login-roles-title">Demo — selecciona un perfil</div>
-      <div class="demo-role" onclick="selectDemo('auditor')">
-        <div class="demo-role-icon n1"><i class="ti ti-chart-bar"></i></div>
-        <div class="demo-role-info"><strong>Auditor</strong><span>Nivel 1 · Solo consulta</span></div>
-      </div>
-      <div class="demo-role" onclick="selectDemo('enfermero')">
-        <div class="demo-role-icon n2"><i class="ti ti-stethoscope"></i></div>
-        <div class="demo-role-info"><strong>Enfermero/a</strong><span>Nivel 2 · Consumos</span></div>
-      </div>
-      <div class="demo-role" onclick="selectDemo('supervisor')">
-        <div class="demo-role-icon n3"><i class="ti ti-clipboard-check"></i></div>
-        <div class="demo-role-info"><strong>Supervisor</strong><span>Nivel 3 · Movimientos + Entradas</span></div>
-      </div>
-      <div class="demo-role" onclick="selectDemo('admin')">
-        <div class="demo-role-icon n4"><i class="ti ti-shield-check"></i></div>
-        <div class="demo-role-info"><strong>Administrador</strong><span>Nivel 4 · Control total</span></div>
-      </div>
     </div>
   </div>
 </div>
@@ -958,15 +931,6 @@ function getStockEnUbicacion(sub,ub){ return sub.stock?.[ub]||0; }
 // ══════════════════════════════════════════════
 // LOGIN
 // ══════════════════════════════════════════════
-let selectedDemo = null;
-function selectDemo(role){
-  selectedDemo = role;
-  document.querySelectorAll('.demo-role').forEach(el=>el.classList.remove('selected'));
-  event.currentTarget.classList.add('selected');
-  const map = {auditor:1,enfermero:2,supervisor:3,admin:4};
-  document.getElementById('l-cedula').value = {auditor:'1234567890',enfermero:'1006543210',supervisor:'1098765432',admin:'94507925'}[role];
-  document.getElementById('l-pass').value = 'demo2026';
-}
 async function doLogin(){
   const cedula = document.getElementById('l-cedula').value.trim();
   const pass = document.getElementById('l-pass').value.trim();
@@ -1001,12 +965,10 @@ async function doLogin(){
 function doLogout(){
   Auth.logout();
   currentRole = null;
-  selectedDemo = null;
   document.getElementById('app').classList.remove('visible');
   const ls = document.getElementById('login-screen');
   ls.style.display = 'flex';
   ls.classList.remove('out');
-  document.querySelectorAll('.demo-role').forEach(el=>el.classList.remove('selected'));
   ['l-cedula','l-pass'].forEach(id=>document.getElementById(id).value='');
 }
 
