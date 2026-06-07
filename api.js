@@ -7,17 +7,24 @@ function removeToken(){ localStorage.removeItem('nb_token'); }
 
 // ── HEADERS ──
 function authHeaders(){
+  const token = localStorage.getItem('nb_token');
+  if(!token) console.warn('No hay token en localStorage');
   return {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${getToken()}`
+    'Authorization': token ? `Bearer ${token}` : ''
   };
 }
 
 // ── REQUEST BASE ──
 async function request(method, path, body = null){
+  const token = localStorage.getItem('nb_token');
+  console.log(`${method} ${path} - Token: ${token ? 'OK' : 'MISSING'}`);
   const opts = {
     method,
-    headers: authHeaders()
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
   };
   if(body) opts.body = JSON.stringify(body);
   const res = await fetch(`${API_URL}${path}`, opts);
