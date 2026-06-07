@@ -1829,9 +1829,10 @@ function renderAll(){renderDash();renderInv();renderMovBody();renderSKUs();rende
     }
     currentRole = payload.nivel;
     document.getElementById('login-screen').style.display='none';
-    await setupApp(payload);
     document.getElementById('app').classList.add('visible');
+    await setupApp(payload);
   } catch(e){
+    console.error('Error en checkSession:', e);
     localStorage.removeItem('nb_token');
   }
 })();
