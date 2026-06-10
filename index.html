@@ -1378,13 +1378,16 @@ function updateSkuSubgrupos(){
   sel.innerHTML=(SUBGRUPOS[fam]||[]).map(s=>`<option value="${s}">${s}</option>`).join('');
 }
 function updateGlobalSKU(){
-  const nombre=document.getElementById('sku-nombre').value||'';
-  const words=nombre.trim().split(/\s+/).filter(Boolean);
-  let code='';
-  if(words.length===1) code=words[0].replace(/[^a-zA-Z0-9]/g,'').substring(0,6).toUpperCase();
-  else code=words.slice(0,3).map(w=>w.replace(/[^a-zA-Z0-9]/g,'').substring(0,3).toUpperCase()).join('-');
-  document.getElementById('sku-codigo').value=code;
-  document.getElementById('sku-global-preview').textContent=code||'---';
+  const nombre = document.getElementById('sku-nombre').value||'';
+  const words = nombre.trim().split(/\s+/).filter(Boolean);
+  let code = '';
+  if(words.length===1){
+    code = words[0].replace(/[^a-zA-Z0-9.]/g,'').substring(0,6).toUpperCase();
+  } else {
+    code = words.map(w=>w.replace(/[^a-zA-Z0-9.]/g,'').substring(0,3).toUpperCase()).filter(Boolean).join('-');
+  }
+  document.getElementById('sku-codigo').value = code;
+  document.getElementById('sku-global-preview').textContent = code||'---';
 }
 function toggleCampo(label){
   const cb=label.querySelector('input[type=checkbox]');
