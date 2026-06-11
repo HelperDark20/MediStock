@@ -36,11 +36,16 @@ function getStockEnUbicacion(sub, ub){
   return sub.stock?.[ub]||0;
 }
 
-function toast(msg, type=''){
+function toast(msg, type='', duracion=2400){
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.className = 'toast show '+(type||'');
-  setTimeout(()=>t.className='toast', 2400);
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(()=>t.className='toast', duracion);
+}
+
+function toastError(msg){
+  toast(msg, 'error', 8000);
 }
 
 function closeModal(id){

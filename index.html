@@ -172,6 +172,11 @@
                 <label>Motivo de destrucción</label>
                 <input type="text" id="mov-motivo" placeholder="Ej. Medicamento vencido, avería">
               </div>
+              <div class="form-group" id="mov-paciente-wrap" style="display:none">
+                <label>Cédula del paciente</label>
+                <input type="number" id="mov-paciente" placeholder="Ej. 1006166884">
+                <span class="hint">Opcional — paciente al que se administró</span>
+              </div>
             </div>
             <div style="background:var(--cream);border-radius:var(--r-md);padding:10px 14px;font-size:12px;font-family:var(--font-mono);color:#666;margin-bottom:12px" id="mov-stock-info">Selecciona un ítem para ver el stock disponible</div>
             <button class="btn-submit" onclick="registrarMovimiento()"><i class="ti ti-check"></i>Confirmar movimiento</button>
@@ -216,19 +221,27 @@
                 <div class="form-group">
                   <label>Proveedor / Marca</label>
                   <input type="text" id="reg-proveedor" placeholder="Ej. Laboratorios Ecar" oninput="updateSubSKU()">
-                  <span class="hint">Se genera abreviación automática (4 letras)</span>
+                  <span class="hint">Abreviación automática (4 letras)</span>
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="reg-lote-wrap">
                   <label>Lote</label>
                   <input type="text" id="reg-lote" placeholder="Ej. LF01529B" oninput="updateSubSKU()">
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="reg-invima-wrap">
                   <label>Registro INVIMA</label>
-                  <input type="text" id="reg-invima" placeholder="Ej. 2021M006528R4" oninput="updateSubSKU()">
+                  <input type="text" id="reg-invima" placeholder="Ej. 2021M006528R4">
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="reg-caducidad-wrap">
                   <label>Fecha caducidad</label>
                   <input type="date" id="reg-caducidad">
+                </div>
+                <div class="form-group" id="reg-precio-wrap" style="display:none">
+                  <label>Precio unitario (COP)</label>
+                  <input type="number" id="reg-precio" placeholder="Ej. 5000" min="0">
+                </div>
+                <div class="form-group" id="reg-serial-wrap" style="display:none">
+                  <label>Serial</label>
+                  <input type="text" id="reg-serial" placeholder="Ej. SN-2024-001">
                 </div>
                 <div class="form-group">
                   <label>Cantidad</label>
@@ -237,14 +250,20 @@
                 <div class="form-group">
                   <label>Unidad</label>
                   <select id="reg-unidad">
-                    <option>Tabletas</option><option>Ampollas</option><option>Frascos</option>
-                    <option>Bolsas</option><option>Sobres</option><option>Unidades</option><option>ml</option>
+                    <option>Tabletas</option>
+                    <option>Ampollas</option>
+                    <option>Frascos</option>
+                    <option>Bolsas</option>
+                    <option>Sobres</option>
+                    <option>Unidades</option>
+                    <option>ml</option>
                   </select>
                 </div>
                 <div class="form-group fg-full">
                   <label>Ubicación destino</label>
                   <select id="reg-ubicacion"></select>
                 </div>
+              </div>
               </div>
               <button class="btn-submit" onclick="registrarEntrada()"><i class="ti ti-circle-plus"></i>Registrar entrada</button>
             </div>
@@ -302,6 +321,7 @@
                   <label class="campo-chip active" onclick="toggleCampo(this)"><input type="checkbox" value="invima" checked><i class="ti ti-check"></i>Reg. INVIMA</label>
                   <label class="campo-chip" onclick="toggleCampo(this)"><input type="checkbox" value="marca"><i class="ti ti-plus"></i>Marca</label>
                   <label class="campo-chip" onclick="toggleCampo(this)"><input type="checkbox" value="serial"><i class="ti ti-plus"></i>Serial</label>
+                  <label class="campo-chip" onclick="toggleCampo(this)"><input type="checkbox" value="precio"><i class="ti ti-plus"></i>Precio</label>
                 </div>
               </div>
               <button class="btn-submit green" onclick="crearSKUGlobal()"><i class="ti ti-check"></i>Crear SKU Global</button>

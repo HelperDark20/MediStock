@@ -115,6 +115,7 @@ router.get('/stock', verificarToken, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT st.*, s.sub_sku, s.proveedor, s.lote, s.caducidad, s.unidad,
+              s.precio, s.serial,
               g.codigo as sku_global, g.nombre, g.familia, g.subgrupo,
               b.nombre as bodega_nombre
        FROM stock st
@@ -130,5 +131,15 @@ router.get('/stock', verificarToken, async (req, res) => {
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
+
+// En POST /api/skus/sub agrega precio y serial
+const { sku_global_id, proveedor, lote, invima, caducidad, unidad, precio, serial } = req.body;
+
+// Y en el INSERT:
+const result = await pool.query(
+  `INSERT INTO sub_skus (sku_global_id, sub_sku, proveedor, lote, invima, caducidad, unidad, precio, serial)
+   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+  [sku_global_id, sub_sku, proveedor, lote, invima, caducidad, unidad, precio||0, serial||'']
+);
 
 module.exports = router;

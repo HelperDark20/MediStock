@@ -20,18 +20,54 @@ function toggleMovFields(){
   const tipo = document.getElementById('mov-tipo').value;
   document.getElementById('mov-destino-wrap').style.display = tipo==='traslado'?'':'none';
   document.getElementById('mov-motivo-wrap').style.display = tipo==='destruccion'?'':'none';
+  document.getElementById('mov-paciente-wrap').style.display = tipo==='consumo'?'':'none';
 }
 
 function updateMovInfo(){
   const id = parseInt(document.getElementById('mov-sku').value)||0;
-  const origen = document.getElementById('mov-origen').value;
   const sub = S.subSkus.find(s=>s.id===id);
   if(!sub){
     document.getElementById('mov-stock-info').textContent='Selecciona un ítem para ver el stock disponible';
     return;
   }
-  const stk = getStockEnUbicacion(sub, origen);
-  document.getElementById('mov-stock-info').innerHTML=`<strong>${sub.nombre}</strong> · ${sub.subSku}<br>Stock en <strong>${origen}</strong>: <strong style="color:var(--blue)">${stk}</strong> ${sub.unidad}`;
+
+  // Filtrar solo bodegas con stock > 0
+  const bodegasConStock = Object.entries(sub.stock||{})
+    .filter(([,cantidad])=>cantidad>0)
+    .map(([nombre])=>nombre);
+
+  const origenSel = document.getElementById('mov-origen');
+  const destinoSel = document.getElementById('mov-destino');
+
+  // Actualizar origen con solo bodegas que tienen stock
+  origenSel.innerHTML = bodegasConStock.length
+    ? bodegasConStock.map(b=>`<option value="${b}">${b}</option>`).join('')
+    : '<option value="">Sin stock disponible</option>';
+
+  // Destino muestra todas las bodegas menos el origen actual
+  const todasBodegas = S.bodegas;
+  destinoSel.innerHTML = todasBodegas
+    .map(b=>`<option value="${b}">${b}</option>`).join('');
+
+  const origen = origenSel.value;
+  const stk = origen ? (sub.stock?.[origen]||0) : 0;
+  document.getElementById('mov-stock-info').innerHTML=`
+    <strong>${sub.nombre}</strong> · ${sub.subSku}<br>
+    Stock en <strong>${origen}</strong>: 
+    <strong style="color:var(--blue)">${stk}</strong> ${sub.unidad}
+    ${bodegasConStock.length>1?`<br><span style="font-size:11px;color:#888">También disponible en: ${bodegasConStock.filter(b=>b!==origen).join(', ')}</span>`:''}
+  `;
+
+  // Escuchar cambio de origen para actualizar stock mostrado
+  origenSel.onchange = ()=>{
+    const nuevoOrigen = origenSel.value;
+    const nuevoStk = sub.stock?.[nuevoOrigen]||0;
+    document.getElementById('mov-stock-info').innerHTML=`
+      <strong>${sub.nombre}</strong> · ${sub.subSku}<br>
+      Stock en <strong>${nuevoOrigen}</strong>: 
+      <strong style="color:var(--blue)">${nuevoStk}</strong> ${sub.unidad}
+    `;
+  };
 }
 
 async function registrarMovimiento(){
@@ -42,8 +78,9 @@ async function registrarMovimiento(){
   const destinoNombre = document.getElementById('mov-destino').value;
   const motivo = document.getElementById('mov-motivo')?.value||'';
 
-  if(!id){ toast('Selecciona un ítem','error'); return; }
-  if(cant<=0){ toast('Ingresa una cantidad válida','error'); return; }
+  if(!id){ toastError('Selecciona un ítem'); return; }
+  if(cant<=0){ toastError('Ingresa una cantidad válida'); return; }
+  if(origenId===destinoId){ toastError('Origen y destino son iguales'); return; }
 
   try {
     const todasBodegas = await Bodegas.getAll();
@@ -66,7 +103,7 @@ async function registrarMovimiento(){
     buildNav();
     toast(`✓ ${tipo.charAt(0).toUpperCase()+tipo.slice(1)} registrado`,'success');
   } catch(err){
-    toast(err.message,'error');
+    toastError(err.message);
   }
 }
 
