@@ -38,6 +38,9 @@ function doLogout(){
   ['l-cedula','l-pass'].forEach(id=>document.getElementById(id).value='');
 }
 
+window.doLogin = doLogin;
+window.doLogout = doLogout;
+
 async function setupApp(user){
   const niv = NIVELES[currentRole];
   const av = document.getElementById('sb-avatar');
