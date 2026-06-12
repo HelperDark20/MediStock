@@ -10,7 +10,6 @@ const usuariosRoutes = require('./routes/usuarios');
 const bodegasRoutes = require('./routes/bodegas');
 
 const app = express();
-const app = express();
 app.set('trust proxy', 1); // ← agregar esta línea
 
 // Seguridad
