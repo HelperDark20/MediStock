@@ -3,7 +3,7 @@ const router = express.Router();
 const pool = require('../config/db');
 const { verificarToken, verificarNivel } = require('../middlewares/auth');
 
-// GET /api/skus/globales — todos los niveles
+// GET /api/skus/globales
 router.get('/globales', verificarToken, async (req, res) => {
   try {
     const result = await pool.query(
@@ -16,7 +16,7 @@ router.get('/globales', verificarToken, async (req, res) => {
   }
 });
 
-// POST /api/skus/globales — solo nivel 4
+// POST /api/skus/globales — nivel 4
 router.post('/globales', verificarToken, verificarNivel(4), async (req, res) => {
   const { codigo, nombre, familia, subgrupo, presentacion, campos } = req.body;
   if (!codigo || !nombre || !familia || !subgrupo) {
@@ -44,12 +44,8 @@ router.post('/globales', verificarToken, verificarNivel(4), async (req, res) => 
 // DELETE /api/skus/globales/:id — nivel 4
 router.delete('/globales/:id', verificarToken, verificarNivel(4), async (req, res) => {
   try {
-    await pool.query(
-      'UPDATE skus_globales SET activo = false WHERE id = $1', [req.params.id]
-    );
-    await pool.query(
-      'UPDATE sub_skus SET activo = false WHERE sku_global_id = $1', [req.params.id]
-    );
+    await pool.query('UPDATE skus_globales SET activo = false WHERE id = $1', [req.params.id]);
+    await pool.query('UPDATE sub_skus SET activo = false WHERE sku_global_id = $1', [req.params.id]);
     res.json({ mensaje: 'SKU Global desactivado' });
   } catch (err) {
     console.error(err);
@@ -57,11 +53,11 @@ router.delete('/globales/:id', verificarToken, verificarNivel(4), async (req, re
   }
 });
 
-// GET /api/skus/sub — todos los niveles
+// GET /api/skus/sub
 router.get('/sub', verificarToken, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT s.*, g.codigo as sku_global, g.nombre as nombre_global, 
+      `SELECT s.*, g.codigo as sku_global, g.nombre as nombre_global,
               g.familia, g.subgrupo
        FROM sub_skus s
        JOIN skus_globales g ON s.sku_global_id = g.id
@@ -77,11 +73,10 @@ router.get('/sub', verificarToken, async (req, res) => {
 
 // POST /api/skus/sub — nivel 3 y 4
 router.post('/sub', verificarToken, verificarNivel(3), async (req, res) => {
-  const { sku_global_id, proveedor, lote, invima, caducidad, unidad } = req.body;
+  const { sku_global_id, proveedor, lote, invima, caducidad, unidad, precio, serial } = req.body;
   if (!sku_global_id || !unidad) {
     return res.status(400).json({ error: 'Faltan campos obligatorios' });
   }
-  // Generar sub_sku
   const abrevProv = (str) => {
     if (!str) return '----';
     const words = str.trim().split(/\s+/).filter(Boolean);
@@ -90,7 +85,6 @@ router.post('/sub', verificarToken, verificarNivel(3), async (req, res) => {
   };
   const sub_sku = `${abrevProv(proveedor)}-${(lote||'--------').toUpperCase()}`;
   try {
-    // Si ya existe el sub_sku para ese global, retornar el existente
     const existe = await pool.query(
       'SELECT * FROM sub_skus WHERE sub_sku = $1 AND sku_global_id = $2 AND activo = true',
       [sub_sku, sku_global_id]
@@ -99,9 +93,9 @@ router.post('/sub', verificarToken, verificarNivel(3), async (req, res) => {
       return res.json({ ...existe.rows[0], ya_existe: true });
     }
     const result = await pool.query(
-      `INSERT INTO sub_skus (sku_global_id, sub_sku, proveedor, lote, invima, caducidad, unidad)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [sku_global_id, sub_sku, proveedor, lote, invima, caducidad, unidad]
+      `INSERT INTO sub_skus (sku_global_id, sub_sku, proveedor, lote, invima, caducidad, unidad, precio, serial)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [sku_global_id, sub_sku, proveedor, lote, invima, caducidad, unidad, precio||0, serial||'']
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -110,7 +104,7 @@ router.post('/sub', verificarToken, verificarNivel(3), async (req, res) => {
   }
 });
 
-// GET /api/skus/stock — stock por sub_sku y bodega
+// GET /api/skus/stock
 router.get('/stock', verificarToken, async (req, res) => {
   try {
     const result = await pool.query(
@@ -131,15 +125,5 @@ router.get('/stock', verificarToken, async (req, res) => {
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
-
-// En POST /api/skus/sub agrega precio y serial
-const { sku_global_id, proveedor, lote, invima, caducidad, unidad, precio, serial } = req.body;
-
-// Y en el INSERT:
-const result = await pool.query(
-  `INSERT INTO sub_skus (sku_global_id, sub_sku, proveedor, lote, invima, caducidad, unidad, precio, serial)
-   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-  [sku_global_id, sub_sku, proveedor, lote, invima, caducidad, unidad, precio||0, serial||'']
-);
 
 module.exports = router;
