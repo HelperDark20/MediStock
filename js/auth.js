@@ -31,6 +31,8 @@ async function doLogin(){
 function doLogout(){
   Auth.logout();
   currentRole = null;
+  // Cerrar panel enfermero si está activo
+  document.getElementById('enfermero-panel').classList.remove('active');
   document.getElementById('app').classList.remove('visible');
   const ls = document.getElementById('login-screen');
   ls.style.display = 'flex';
@@ -43,6 +45,15 @@ window.doLogout = doLogout;
 
 async function setupApp(user){
   const niv = NIVELES[currentRole];
+
+  // Nivel 2 (Enfermero) → panel especial
+  if(currentRole === 2){
+    await loadState();
+    initEnfermeroPanel(user);
+    return;
+  }
+
+  // Resto de niveles → app normal
   const av = document.getElementById('sb-avatar');
   av.textContent = (user.nombre||'U').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
   av.className = 'sb-avatar ' + niv.cls;

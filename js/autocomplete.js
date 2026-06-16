@@ -77,9 +77,11 @@ function acSelect(ns, id){
   document.getElementById(`${ns}-ac-clear`).classList.add('show');
   document.getElementById(`${ns}-ac-drop`).classList.remove('open');
   const pill = document.getElementById(`${ns}-ac-pill`);
-  document.getElementById(`${ns}-ac-pill-text`).innerHTML = `${sub.nombre} <span style="opacity:.6;font-size:11px">${sub.subSku} · ${getTotalStock(sub)} ${sub.unidad}</span>`;
+  document.getElementById(`${ns}-ac-pill-text`).innerHTML =
+    `${sub.nombre} <span style="opacity:.6;font-size:11px">${sub.subSku} · ${getTotalStock(sub)} ${sub.unidad}</span>`;
   pill.classList.add('show');
   if(ns==='mov') updateMovInfo();
+  if(ns==='enf') enfOnMedSelect(sub);
 }
 
 function acClear(ns){
@@ -121,7 +123,7 @@ function acKey(e, ns){
 }
 
 document.addEventListener('click', e=>{
-  ['mov'].forEach(ns=>{
+  ['mov','enf'].forEach(ns=>{
     const wrap = document.getElementById(`${ns}-ac-wrap`);
     if(wrap&&!wrap.contains(e.target)) document.getElementById(`${ns}-ac-drop`).classList.remove('open');
   });

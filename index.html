@@ -494,6 +494,104 @@
 <script src="js/deletes.js"></script>
 <script src="js/main.js"></script>
 <script src="js/auth.js"></script>
+<script src="js/enfermero.js"></script>
+
+<!-- PANEL ENFERMERO -->
+<div id="enfermero-panel">
+  <div class="enf-header">
+    <div class="enf-header-logo">
+      <img src="logo.png" alt="NB">
+      <div class="enf-header-title">N O V A</div>
+    </div>
+    <div class="enf-user">
+      <div class="enf-avatar" id="enf-avatar">EN</div>
+      <span id="enf-nombre">Enfermero/a</span>
+    </div>
+    <button class="enf-logout" onclick="doLogout()">
+      <i class="ti ti-logout"></i>Salir
+    </button>
+  </div>
+
+  <div class="enf-body">
+    <div class="enf-grid">
+
+      <!-- COLUMNA IZQUIERDA: Búsqueda + Formulario -->
+      <div class="enf-form-panel">
+
+        <!-- Buscador -->
+        <div class="enf-search-box">
+          <div class="enf-search-title">
+            <i class="ti ti-search"></i>Buscar medicamento
+          </div>
+          <div class="ac-wrap">
+            <i class="ti ti-search ac-icon"></i>
+            <input type="text" class="ac-input" id="enf-ac-input"
+              placeholder="Nombre, SKU, lote..."
+              autocomplete="off"
+              oninput="acFilter('enf')"
+              onfocus="acOpen('enf')"
+              onkeydown="acKey(event,'enf')">
+            <button class="ac-clear" id="enf-ac-clear" onclick="acClear('enf')">
+              <i class="ti ti-x"></i>
+            </button>
+            <div class="ac-dropdown" id="enf-ac-drop"></div>
+          </div>
+          <div class="ac-selected-pill" id="enf-ac-pill">
+            <span class="ac-selected-pill-text" id="enf-ac-pill-text"></span>
+            <button onclick="acClear('enf')"><i class="ti ti-x"></i></button>
+          </div>
+          <input type="hidden" id="enf-sku">
+        </div>
+
+        <!-- Card medicamento seleccionado -->
+        <div class="enf-med-card" id="enf-med-card">
+          <div class="enf-med-name" id="enf-med-name">—</div>
+          <div class="enf-med-sub" id="enf-med-sub">—</div>
+          <div class="enf-med-stock" id="enf-med-stock"></div>
+        </div>
+
+        <!-- Formulario consumo -->
+        <div class="enf-form-box">
+          <div class="enf-form-title">
+            <i class="ti ti-minus-circle"></i>Registrar consumo
+          </div>
+          <div class="enf-field">
+            <label>Bodega origen</label>
+            <select id="enf-origen"></select>
+          </div>
+          <div class="enf-field">
+            <label>Cantidad</label>
+            <input type="number" id="enf-cantidad" placeholder="0" min="1">
+          </div>
+          <div class="enf-field">
+            <label>Cédula del paciente</label>
+            <input type="number" id="enf-paciente" placeholder="Ej. 1006166884">
+          </div>
+          <button class="enf-submit" onclick="enfRegistrarConsumo()" id="enf-submit-btn">
+            <i class="ti ti-check"></i>Registrar consumo
+          </button>
+        </div>
+
+      </div>
+
+      <!-- COLUMNA DERECHA: Historial -->
+      <div class="enf-history-panel">
+        <div class="enf-history-box">
+          <div class="enf-history-header">
+            <i class="ti ti-history"></i>Mis consumos de hoy
+          </div>
+          <div id="enf-history-list">
+            <div class="enf-empty">
+              <i class="ti ti-clipboard"></i>
+              <p>Sin consumos registrados hoy</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
