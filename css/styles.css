@@ -86,8 +86,8 @@ input,select,textarea{font-family:var(--font-body)}
 .content::-webkit-scrollbar-thumb{background:var(--cream3);border-radius:2px}
 
 /* ── VIEWS ── */
-.view{display:none}
-.view.active{display:block;animation:fadeUp .18s ease}
+.view{display:none;width:100%}
+.view.active{display:block;animation:fadeUp .18s ease;width:100%}
 @keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
 
 /* ── GRID ── */
@@ -655,3 +655,21 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 .enf-sem.A{ background:var(--amber-bg); color:var(--amber); }
 .enf-sem.R{ background:var(--red-bg); color:var(--red); }
 .enf-sem.N{ background:#F0F0EE; color:#888; }
+
+/* Fix espacios vacíos en vistas */
+#view-trazabilidad,
+#view-bodegas,
+#view-usuarios,
+#view-sku {
+  padding-top: 0;
+  margin-top: 0;
+}
+
+#reg-locked-msg:empty,
+#mov-locked-msg:empty {
+  display: none;
+}
+
+.empty-state {
+  padding: 24px 20px; /* era 48px */
+}

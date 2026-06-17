@@ -54,15 +54,19 @@ function closeModal(id){
 
 function showLoading(show){
   let el = document.getElementById('loading-overlay');
-  if(!el){
-    el = document.createElement('div');
-    el.id = 'loading-overlay';
-    el.style.cssText = 'position:fixed;inset:0;background:rgba(10,22,40,.7);z-index:999;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;gap:10px;font-family:var(--font-body)';
-    el.innerHTML = '<i class="ti ti-loader-2" style="font-size:24px;animation:spin 1s linear infinite"></i> Cargando datos...';
-    document.body.appendChild(el);
-    const style = document.createElement('style');
-    style.textContent = '@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
-    document.head.appendChild(style);
+  if(show){
+    if(!el){
+      el = document.createElement('div');
+      el.id = 'loading-overlay';
+      el.style.cssText = 'position:fixed;inset:0;background:rgba(10,22,40,.7);z-index:999;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;gap:10px;font-family:var(--font-body)';
+      el.innerHTML = '<i class="ti ti-loader-2" style="font-size:24px;animation:spin 1s linear infinite"></i> Cargando datos...';
+      document.body.appendChild(el);
+      const style = document.createElement('style');
+      style.textContent = '@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
+      document.head.appendChild(style);
+    }
+    el.style.display = 'flex';
+  } else {
+    if(el) el.remove(); // ← eliminar del DOM completamente, no solo ocultar
   }
-  el.style.display = show ? 'flex' : 'none';
 }
