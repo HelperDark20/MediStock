@@ -198,12 +198,25 @@
           <div class="card">
             <div class="card-header"><i class="ti ti-package-import card-title"></i><span class="card-title">Cargar entrada a SKU existente</span></div>
             <div class="card-body">
+
+              <!-- BUSCADOR SKU GLOBAL con autocomplete -->
               <div class="form-group fg-full" style="margin-bottom:14px">
                 <label>Buscar SKU Global</label>
-                <select id="reg-sku-global" onchange="updateRegSKU()">
-                  <option value="">Seleccionar SKU Global…</option>
-                </select>
+                <div class="ac-wrap" id="reg-ac-wrap">
+                  <i class="ti ti-search ac-icon"></i>
+                  <input type="text" class="ac-input" id="reg-ac-input"
+                    placeholder="Escribe nombre o código del SKU…"
+                    autocomplete="off"
+                    oninput="regAcFilter()"
+                    onfocus="regAcOpen()"
+                    onkeydown="regAcKey(event)">
+                  <button class="ac-clear" id="reg-ac-clear" onclick="regAcClear()"><i class="ti ti-x"></i></button>
+                  <div class="ac-dropdown" id="reg-ac-drop"></div>
+                </div>
+                <input type="hidden" id="reg-sku-global-id">
               </div>
+
+              <!-- INFO SKU SELECCIONADO -->
               <div id="reg-sku-info" style="display:none;background:var(--cream);border-radius:var(--r-md);padding:10px 14px;margin-bottom:14px">
                 <div style="font-size:11px;color:#888;font-family:var(--font-mono);margin-bottom:4px">SKU GLOBAL SELECCIONADO</div>
                 <div id="reg-sku-nombre" style="font-size:15px;font-weight:600;color:var(--ink)"></div>
@@ -213,52 +226,55 @@
               <!-- SUB-SKU PREVIEW -->
               <div class="sku-preview-box" style="margin-bottom:14px">
                 <div class="sku-preview-label">Sub-SKU que se generará</div>
-                <div class="sku-preview-global" id="reg-subsku-preview">---- · -------- · ----------</div>
-                <div class="sku-preview-sub">Proveedor (4 letras) · Lote completo · INVIMA completo</div>
+                <div class="sku-preview-global" id="reg-subsku-preview">—</div>
+                <div class="sku-preview-sub" id="reg-subsku-hint">Selecciona un SKU Global para continuar</div>
               </div>
 
               <div class="form-grid" style="margin-bottom:14px">
-                <div class="form-group">
+                <!-- Proveedor (si activado) -->
+                <div class="form-group" id="reg-proveedor-wrap" style="display:none">
                   <label>Proveedor / Marca</label>
                   <input type="text" id="reg-proveedor" placeholder="Ej. Laboratorios Ecar" oninput="updateSubSKU()">
                   <span class="hint">Abreviación automática (4 letras)</span>
                 </div>
-                <div class="form-group" id="reg-lote-wrap">
+                <!-- Lote (si activado) -->
+                <div class="form-group" id="reg-lote-wrap" style="display:none">
                   <label>Lote</label>
                   <input type="text" id="reg-lote" placeholder="Ej. LF01529B" oninput="updateSubSKU()">
                 </div>
-                <div class="form-group" id="reg-invima-wrap">
+                <!-- Sub-SKU manual (si ninguno de los dos está activo, o complemento) -->
+                <div class="form-group" id="reg-subsku-manual-wrap" style="display:none">
+                  <label>Identificador adicional <span style="font-weight:400;color:#aaa">(opcional)</span></label>
+                  <input type="text" id="reg-subsku-manual" placeholder="Dato adicional para el sub-SKU" oninput="updateSubSKU()">
+                </div>
+                <!-- INVIMA (si activado) -->
+                <div class="form-group" id="reg-invima-wrap" style="display:none">
                   <label>Registro INVIMA</label>
                   <input type="text" id="reg-invima" placeholder="Ej. 2021M006528R4">
                 </div>
-                <div class="form-group" id="reg-caducidad-wrap">
+                <!-- Fecha caducidad (si activado) -->
+                <div class="form-group" id="reg-caducidad-wrap" style="display:none">
                   <label>Fecha caducidad</label>
                   <input type="date" id="reg-caducidad">
                 </div>
+                <!-- Precio viene del SKU Global, solo lectura -->
                 <div class="form-group" id="reg-precio-wrap" style="display:none">
                   <label>Precio unitario (COP)</label>
-                  <input type="number" id="reg-precio" placeholder="Ej. 5000" min="0">
+                  <input type="number" id="reg-precio" placeholder="Cargado del SKU Global" min="0" readonly style="opacity:.6;cursor:not-allowed">
+                  <span class="hint">Definido en el SKU Global</span>
                 </div>
-                <div class="form-group" id="reg-serial-wrap" style="display:none">
-                  <label>Serial</label>
-                  <input type="text" id="reg-serial" placeholder="Ej. SN-2024-001">
-                </div>
+                <!-- Cantidad -->
                 <div class="form-group">
                   <label>Cantidad</label>
                   <input type="number" id="reg-cantidad" placeholder="0" min="1">
                 </div>
+                <!-- Unidad con sugerencias -->
                 <div class="form-group">
                   <label>Unidad</label>
-                  <select id="reg-unidad">
-                    <option>Tabletas</option>
-                    <option>Ampollas</option>
-                    <option>Frascos</option>
-                    <option>Bolsas</option>
-                    <option>Sobres</option>
-                    <option>Unidades</option>
-                    <option>ml</option>
-                  </select>
+                  <input type="text" id="reg-unidad" placeholder="Ej. Tabletas, Ampollas, Frascos…" oninput="checkSimilarUnidad()" autocomplete="off">
+                  <div id="reg-unidad-hint" class="similar-hint" style="display:none"></div>
                 </div>
+                <!-- Ubicación destino -->
                 <div class="form-group fg-full">
                   <label>Ubicación destino</label>
                   <select id="reg-ubicacion"></select>
@@ -302,19 +318,18 @@
                   <div id="sku-subgrupo-hint" class="similar-hint" style="display:none"></div>
                 </div>
                 <div class="form-group fg-full">
-                  <label>Presentación</label>
-                  <input type="text" id="sku-presentacion" placeholder="Ej. Tableta 500mg, Ampolla 75mg/3ml">
+                  <label>Precio unitario (COP)</label>
+                  <input type="number" id="sku-precio" placeholder="Ej. 5000" min="0">
+                  <span class="hint">Obligatorio — precio base del ítem</span>
                 </div>
               </div>
               <div style="margin-bottom:14px">
                 <div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono);margin-bottom:8px">Campos activables para este SKU</div>
                 <div class="campos-toggle">
-                  <label class="campo-chip" onclick="toggleCampo(this)"><input type="checkbox" value="lote" checked><i class="ti ti-check"></i>Lote</label>
+                  <label class="campo-chip active" onclick="toggleCampo(this)"><input type="checkbox" value="proveedor" checked><i class="ti ti-check"></i>Proveedor</label>
+                  <label class="campo-chip active" onclick="toggleCampo(this)"><input type="checkbox" value="lote" checked><i class="ti ti-check"></i>Lote</label>
                   <label class="campo-chip active" onclick="toggleCampo(this)"><input type="checkbox" value="caducidad" checked><i class="ti ti-check"></i>Fecha Venc.</label>
                   <label class="campo-chip active" onclick="toggleCampo(this)"><input type="checkbox" value="invima" checked><i class="ti ti-check"></i>Reg. INVIMA</label>
-                  <label class="campo-chip" onclick="toggleCampo(this)"><input type="checkbox" value="marca"><i class="ti ti-plus"></i>Marca</label>
-                  <label class="campo-chip" onclick="toggleCampo(this)"><input type="checkbox" value="serial"><i class="ti ti-plus"></i>Serial</label>
-                  <label class="campo-chip" onclick="toggleCampo(this)"><input type="checkbox" value="precio"><i class="ti ti-plus"></i>Precio</label>
                 </div>
               </div>
               <button class="btn-submit green" onclick="crearSKUGlobal()"><i class="ti ti-check"></i>Crear SKU Global</button>

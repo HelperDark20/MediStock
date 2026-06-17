@@ -18,7 +18,7 @@ router.get('/globales', verificarToken, async (req, res) => {
 
 // POST /api/skus/globales — nivel 4
 router.post('/globales', verificarToken, verificarNivel(4), async (req, res) => {
-  const { codigo, nombre, familia, subgrupo, presentacion, campos } = req.body;
+  const { codigo, nombre, familia, subgrupo, precio, campos } = req.body;
   if (!codigo || !nombre || !familia || !subgrupo) {
     return res.status(400).json({ error: 'Faltan campos obligatorios' });
   }
@@ -30,9 +30,9 @@ router.post('/globales', verificarToken, verificarNivel(4), async (req, res) => 
       return res.status(400).json({ error: 'Este SKU ya existe' });
     }
     const result = await pool.query(
-      `INSERT INTO skus_globales (codigo, nombre, familia, subgrupo, presentacion, campos)
+      `INSERT INTO skus_globales (codigo, nombre, familia, subgrupo, precio, campos)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [codigo, nombre, familia, subgrupo, presentacion, JSON.stringify(campos || [])]
+      [codigo, nombre, familia, subgrupo, precio||0, JSON.stringify(campos || [])]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -73,17 +73,26 @@ router.get('/sub', verificarToken, async (req, res) => {
 
 // POST /api/skus/sub — nivel 3 y 4
 router.post('/sub', verificarToken, verificarNivel(3), async (req, res) => {
-  const { sku_global_id, proveedor, lote, invima, caducidad, unidad, precio, serial } = req.body;
+  const { sku_global_id, proveedor, lote, invima, caducidad, unidad, precio, sub_sku_manual } = req.body;
   if (!sku_global_id || !unidad) {
     return res.status(400).json({ error: 'Faltan campos obligatorios' });
   }
   const abrevProv = (str) => {
-    if (!str) return '----';
+    if (!str) return null;
     const words = str.trim().split(/\s+/).filter(Boolean);
     if (words.length === 1) return str.replace(/[^a-zA-Z0-9]/g,'').substring(0,4).toUpperCase();
     return words.map(w => w[0]?.toUpperCase() || '').join('').substring(0,4).padEnd(4,'X');
   };
-  const sub_sku = `${abrevProv(proveedor)}-${(lote||'--------').toUpperCase()}`;
+
+  // Construir sub_sku dinámicamente según lo que venga
+  let partes = [];
+  if (proveedor) partes.push(abrevProv(proveedor));
+  if (lote)      partes.push(lote.toUpperCase());
+  if (sub_sku_manual) partes.push(sub_sku_manual.toUpperCase());
+  if (!partes.length) partes.push('GEN'); // fallback si nada activo
+
+  const sub_sku = partes.join('-');
+
   try {
     const existe = await pool.query(
       'SELECT * FROM sub_skus WHERE sub_sku = $1 AND sku_global_id = $2 AND activo = true',
@@ -93,9 +102,9 @@ router.post('/sub', verificarToken, verificarNivel(3), async (req, res) => {
       return res.json({ ...existe.rows[0], ya_existe: true });
     }
     const result = await pool.query(
-      `INSERT INTO sub_skus (sku_global_id, sub_sku, proveedor, lote, invima, caducidad, unidad, precio, serial)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [sku_global_id, sub_sku, proveedor, lote, invima, caducidad, unidad, precio||0, serial||'']
+      `INSERT INTO sub_skus (sku_global_id, sub_sku, proveedor, lote, invima, caducidad, unidad, precio)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [sku_global_id, sub_sku, proveedor||null, lote||null, invima||null, caducidad||null, unidad, precio||0]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
