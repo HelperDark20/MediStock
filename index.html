@@ -403,11 +403,8 @@
               <div class="form-grid" style="margin-bottom:12px">
                 <div class="form-group">
                   <label>Tipo de depósito</label>
-                  <select id="b-tipo" onchange="updateBodegaPreview()">
-                    <option value="ALM">ALM — Almacén</option>
-                    <option value="BTQ">BTQ — Botiquín</option>
-                    <option value="ENF">ENF — Enfermería</option>
-                  </select>
+                  <input type="text" id="b-tipo" placeholder="Ej. ALM, BTQ, ENF, MEC" oninput="updateBodegaPreview()" style="text-transform:uppercase;font-family:var(--font-mono)">
+                  <span class="hint">Se usará como prefijo del nombre</span>
                 </div>
                 <div class="form-group">
                   <label>Sufijo / Nombre</label>
@@ -415,7 +412,7 @@
                 </div>
                 <div class="form-group fg-full">
                   <label>Vista previa del nombre</label>
-                  <div style="padding:10px 14px;background:var(--ink);border-radius:var(--r-md);font-family:var(--font-mono);font-size:16px;font-weight:700;color:var(--blue2)" id="bodega-preview">ALM-</div>
+                  <div style="padding:10px 14px;background:var(--ink);border-radius:var(--r-md);font-family:var(--font-mono);font-size:16px;font-weight:700;color:var(--blue2)" id="bodega-preview">-</div>
                 </div>
               </div>
               <button class="btn-submit" onclick="crearBodega()"><i class="ti ti-plus"></i>Crear ubicación</button>
