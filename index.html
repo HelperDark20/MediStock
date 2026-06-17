@@ -560,11 +560,11 @@
           </div>
           <div class="enf-field">
             <label>Cantidad</label>
-            <input type="number" id="enf-cantidad" placeholder="0" min="1">
+            <input type="number" id="enf-cantidad" placeholder="0" min="1" inputmode="numeric" pattern="[0-9]*">
           </div>
           <div class="enf-field">
             <label>Cédula del paciente</label>
-            <input type="number" id="enf-paciente" placeholder="Ej. 1006166884">
+            <input type="number" id="enf-paciente" placeholder="Ej. 1006166884" inputmode="numeric" pattern="[0-9]*">
           </div>
           <button class="enf-submit" onclick="enfRegistrarConsumo()" id="enf-submit-btn">
             <i class="ti ti-check"></i>Registrar consumo
