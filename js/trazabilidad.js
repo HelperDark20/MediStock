@@ -3,12 +3,21 @@ async function updateTrazSubs(){
   const sel = document.getElementById('traz-sub');
   sel.innerHTML='<option value="">Todos los Sub-SKUs</option>';
   if(!gId){ await renderTrazabilidad(); return; }
+
   S.subSkus.filter(s=>s.skuGlobalId===gId).forEach(s=>{
+    const totalStock = getTotalStock(s);
+    const ubicaciones = Object.entries(s.stock||{})
+      .filter(([,v])=>v>0)
+      .map(([bodega, cant])=>`${bodega}: ${cant}`)
+      .join(' · ');
     const o = document.createElement('option');
     o.value = s.id;
-    o.textContent = s.subSku;
+    o.textContent = totalStock > 0
+      ? `${s.subSku} — ${ubicaciones}`
+      : `${s.subSku} — Sin stock`;
     sel.appendChild(o);
   });
+
   await renderTrazabilidad();
 }
 

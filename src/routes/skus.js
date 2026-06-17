@@ -108,15 +108,28 @@ router.post('/sub', verificarToken, verificarNivel(3), async (req, res) => {
 router.get('/stock', verificarToken, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT st.*, s.sub_sku, s.proveedor, s.lote, s.caducidad, s.unidad,
-              s.precio, s.serial,
-              g.codigo as sku_global, g.nombre, g.familia, g.subgrupo,
+      `SELECT st.sub_sku_id,
+              COALESCE(st.bodega_id, NULL) as bodega_id,
+              COALESCE(st.cantidad, 0) as cantidad,
+              s.id as sub_sku_id,
+              s.sku_global_id,
+              s.sub_sku,
+              s.proveedor,
+              s.lote,
+              s.caducidad,
+              s.unidad,
+              s.precio,
+              s.serial,
+              g.codigo as sku_global,
+              g.nombre,
+              g.familia,
+              g.subgrupo,
               b.nombre as bodega_nombre
-       FROM stock st
-       JOIN sub_skus s ON st.sub_sku_id = s.id
+       FROM sub_skus s
        JOIN skus_globales g ON s.sku_global_id = g.id
-       JOIN bodegas b ON st.bodega_id = b.id
-       WHERE s.activo = true AND b.activo = true
+       LEFT JOIN stock st ON st.sub_sku_id = s.id
+       LEFT JOIN bodegas b ON st.bodega_id = b.id AND b.activo = true
+       WHERE s.activo = true
        ORDER BY g.codigo, b.nombre`
     );
     res.json(result.rows);

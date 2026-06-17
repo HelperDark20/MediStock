@@ -25,12 +25,13 @@ async function loadState(){
     S.movimientos = movs;
 
     // Construir subSkus desde stock
-    // Incluye filas con cantidad 0 para no perder sub-SKUs agotados
+    // Incluye filas con cantidad 0 y sub-SKUs sin stock registrado (LEFT JOIN)
     const subMap = {};
     stock.forEach(row => {
-      if(!subMap[row.sub_sku_id]){
-        subMap[row.sub_sku_id] = {
-          id: row.sub_sku_id,
+      const sid = row.sub_sku_id;
+      if(!subMap[sid]){
+        subMap[sid] = {
+          id: sid,
           skuGlobalId: row.sku_global_id,
           subSku: row.sub_sku,
           nombre: row.nombre,
@@ -43,7 +44,10 @@ async function loadState(){
           stock: {}
         };
       }
-      subMap[row.sub_sku_id].stock[row.bodega_nombre] = row.cantidad;
+      // Solo agregar la bodega si existe (LEFT JOIN puede traer null)
+      if(row.bodega_nombre){
+        subMap[sid].stock[row.bodega_nombre] = row.cantidad || 0;
+      }
     });
 
     // Marcar agotado si el stock total es 0 en todas las ubicaciones
