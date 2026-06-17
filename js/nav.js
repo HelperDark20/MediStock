@@ -38,7 +38,6 @@ function populateSelects(){
     const el = document.getElementById(id);
     if(el) el.innerHTML = '<option value="">Seleccionar…</option>' + skuOpts;
   });
-  updateSkuSubgrupos();
 }
 
 function goTo(viewId){
