@@ -8,6 +8,7 @@ const skusRoutes = require('./routes/skus');
 const movimientosRoutes = require('./routes/movimientos');
 const usuariosRoutes = require('./routes/usuarios');
 const bodegasRoutes = require('./routes/bodegas');
+const ubicacionesRoutes = require('./routes/ubicaciones');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -54,6 +55,7 @@ app.use('/api/skus', apiLimiter, skusRoutes);
 app.use('/api/movimientos', apiLimiter, movimientosRoutes);
 app.use('/api/usuarios', apiLimiter, usuariosRoutes);
 app.use('/api/bodegas', apiLimiter, bodegasRoutes);
+app.use('/api/ubicaciones', apiLimiter, ubicacionesRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -390,33 +390,69 @@
 
       <!-- ═══ BODEGAS (Admin) ═══ -->
       <div class="view" id="view-bodegas">
-        <div class="grid-2">
-          <div class="card">
-            <div class="card-header"><i class="ti ti-building-warehouse card-title"></i><span class="card-title">Crear ubicación / Bodega</span></div>
+
+        <!-- Fila 1: Crear ubicación + Crear depósito -->
+        <div class="grid-2" style="margin-bottom:16px">
+
+          <!-- Card: Nueva ubicación (sede) -->
+          <div class="card" style="margin-bottom:0">
+            <div class="card-header">
+              <i class="ti ti-map-pin card-title"></i>
+              <span class="card-title">Nueva ubicación (sede)</span>
+            </div>
             <div class="card-body">
-              <div class="form-grid" style="margin-bottom:12px">
-                <div class="form-group">
-                  <label>Tipo de depósito</label>
-                  <input type="text" id="b-tipo" placeholder="Ej. ALM, BTQ, ENF, MEC" oninput="updateBodegaPreview()" style="text-transform:uppercase;font-family:var(--font-mono)">
-                  <span class="hint">Se usará como prefijo del nombre</span>
-                </div>
-                <div class="form-group">
-                  <label>Sufijo / Nombre</label>
-                  <input type="text" id="b-sufijo" placeholder="Ej. GENERAL, CYA, PAL" oninput="updateBodegaPreview()" style="text-transform:uppercase;font-family:var(--font-mono)">
-                </div>
-                <div class="form-group fg-full">
-                  <label>Vista previa del nombre</label>
-                  <div style="padding:10px 14px;background:var(--ink);border-radius:var(--r-md);font-family:var(--font-mono);font-size:16px;font-weight:700;color:var(--blue2)" id="bodega-preview">-</div>
-                </div>
+              <p style="font-size:12px;color:#888;margin-bottom:14px;line-height:1.5">
+                Una ubicación es la sede física donde opera el cliente.<br>
+                Ej: <strong>CAÑAVERALEJO</strong>, <strong>PALMASECA</strong>, <strong>CEVP</strong>
+              </p>
+              <div class="form-group" style="margin-bottom:0">
+                <label>Nombre de la sede</label>
+                <input type="text" id="ub-nombre" placeholder="Ej. CAÑAVERALEJO" style="text-transform:uppercase;font-family:var(--font-mono)">
               </div>
-              <button class="btn-submit" onclick="crearBodega()"><i class="ti ti-plus"></i>Crear ubicación</button>
+              <button class="btn-submit" onclick="crearUbicacion()"><i class="ti ti-plus"></i>Crear ubicación</button>
             </div>
           </div>
-          <div>
-            <div class="sec-header"><div class="sec-title">Ubicaciones registradas</div></div>
-            <div id="bodegas-list"></div>
+
+          <!-- Card: Nuevo depósito -->
+          <div class="card" style="margin-bottom:0">
+            <div class="card-header">
+              <i class="ti ti-building-warehouse card-title"></i>
+              <span class="card-title">Nuevo depósito</span>
+            </div>
+            <div class="card-body">
+              <p style="font-size:12px;color:#888;margin-bottom:14px;line-height:1.5">
+                Un depósito pertenece a una sede y almacena los items.<br>
+                Ej: <strong>BTQ-I-01-AC</strong>, <strong>ENF-ARENA</strong>, <strong>MEC-A-MED</strong>
+              </p>
+              <div class="form-grid" style="margin-bottom:12px">
+                <div class="form-group fg-full">
+                  <label>Ubicación (sede)</label>
+                  <select id="b-ubicacion">
+                    <option value="">Seleccionar ubicación…</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Tipo</label>
+                  <input type="text" id="b-tipo" placeholder="BTQ, ENF, MEC…" oninput="updateBodegaPreview()" style="text-transform:uppercase;font-family:var(--font-mono)">
+                  <span class="hint">Prefijo del nombre</span>
+                </div>
+                <div class="form-group">
+                  <label>Nombre / Sufijo</label>
+                  <input type="text" id="b-sufijo" placeholder="I-01-AC, ARENA…" oninput="updateBodegaPreview()" style="text-transform:uppercase;font-family:var(--font-mono)">
+                </div>
+                <div class="form-group fg-full">
+                  <label>Vista previa</label>
+                  <div style="padding:10px 14px;background:var(--ink);border-radius:var(--r-md);font-family:var(--font-mono);font-size:15px;font-weight:700;color:var(--blue2)" id="bodega-preview">-</div>
+                </div>
+              </div>
+              <button class="btn-submit" onclick="crearBodega()"><i class="ti ti-plus"></i>Crear depósito</button>
+            </div>
           </div>
         </div>
+
+        <!-- Fila 2: Lista agrupada por ubicación -->
+        <div class="sec-header"><div class="sec-title">Ubicaciones y depósitos registrados</div></div>
+        <div id="bodegas-list"></div>
       </div>
 
       <!-- ═══ TRAZABILIDAD ═══ -->

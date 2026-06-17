@@ -678,3 +678,19 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 .empty-state {
   padding: 24px 20px; /* era 48px */
 }
+/* ── UBICACION CARD (dos niveles) ── */
+.ubicacion-card{background:var(--white);border:1px solid var(--cream3);border-radius:var(--r-lg);margin-bottom:12px;overflow:hidden}
+.ubicacion-header{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--ink)}
+.ubicacion-icon{width:36px;height:36px;border-radius:var(--r-md);background:rgba(33,150,211,.2);color:var(--blue2);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ubicacion-icon i{font-size:18px}
+.ubicacion-info{flex:1}
+.ubicacion-name{font-size:14px;font-weight:700;color:#fff;font-family:var(--font-mono);letter-spacing:.04em}
+.ubicacion-sub{font-size:11px;color:rgba(255,255,255,.4);margin-top:1px}
+.depositos-list{padding:8px 12px 12px}
+.deposito-card{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--r-md);border:1px solid var(--cream2);background:var(--cream);margin-bottom:6px;transition:background .1s}
+.deposito-card:last-child{margin-bottom:0}
+.deposito-card:hover{background:var(--cream2)}
+.deposito-icon{width:28px;height:28px;border-radius:var(--r-sm);background:var(--blue-bg);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.deposito-icon i{font-size:13px}
+.deposito-info{flex:1}
+.deposito-name{font-size:12px;font-weight:600;color:var(--ink);font-family:var(--font-mono)}

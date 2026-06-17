@@ -52,8 +52,15 @@ const Auth = {
 // ── BODEGAS ──
 const Bodegas = {
   getAll: () => request('GET', '/api/bodegas'),
-  create: (tipo, sufijo) => request('POST', '/api/bodegas', { tipo, sufijo }),
+  create: (tipo, sufijo, ubicacion_id) => request('POST', '/api/bodegas', { tipo, sufijo, ubicacion_id }),
   delete: (id) => request('DELETE', `/api/bodegas/${id}`)
+};
+
+// ── UBICACIONES ──
+const Ubicaciones = {
+  getAll: () => request('GET', '/api/ubicaciones'),
+  create: (nombre) => request('POST', '/api/ubicaciones', { nombre }),
+  delete: (id) => request('DELETE', `/api/ubicaciones/${id}`)
 };
 
 // ── SKUs ──

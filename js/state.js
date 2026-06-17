@@ -4,6 +4,7 @@ let S = {
   subSkus: [],
   stock: [],
   bodegas: [],
+  ubicaciones: [],
   usuarios: [],
   movimientos: [],
 };
@@ -12,14 +13,17 @@ async function loadState(){
   if(!localStorage.getItem('nb_token')) return;
   try {
     showLoading(true);
-    const [bodegas, globales, stock, movs] = await Promise.all([
+    const [bodegas, globales, stock, movs, ubicaciones] = await Promise.all([
       Bodegas.getAll(),
       SKUs.getGlobales(),
       SKUs.getStock(),
-      Movimientos.getAll()
+      Movimientos.getAll(),
+      Ubicaciones.getAll()
     ]);
 
     S.bodegas = bodegas.map(b => b.nombre);
+    S.bodegasRaw = bodegas; // objetos completos con ubicacion_id
+    S.ubicaciones = ubicaciones;
     S.skusGlobales = globales;
     S.stock = stock;
     S.movimientos = movs;
