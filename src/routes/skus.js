@@ -36,8 +36,8 @@ router.post('/globales', verificarToken, verificarNivel(4), async (req, res) => 
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error del servidor' });
+    console.error('ERROR POST /skus/globales:', err.message, err.detail);
+    res.status(500).json({ error: err.message });
   }
 });
 
