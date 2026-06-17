@@ -29,12 +29,27 @@ app.use(helmet({
 app.use(cors());
 app.use(express.json());
 
-// Rate limiting
+// Rate limiting general (más permisivo)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100
+  max: 500,              // era 100
+  standardHeaders: true,
+  legacyHeaders: false,
 });
-app.use(limiter);
+
+// Limiter estricto solo para login (prevenir brute force)
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/api/auth', loginLimiter, authRoutes);
+app.use('/api/skus', limiter, skusRoutes);
+app.use('/api/movimientos', limiter, movimientosRoutes);
+app.use('/api/usuarios', limiter, usuariosRoutes);
+app.use('/api/bodegas', limiter, bodegasRoutes);
 
 // Rutas
 app.use('/api/auth', authRoutes);

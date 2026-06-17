@@ -16,7 +16,7 @@ async function loadState(){
       Bodegas.getAll(),
       SKUs.getGlobales(),
       SKUs.getStock(),
-      Movimientos.getAll()
+      Movimientos.getAll({ limit: 50 })  // limitar movimientos recientes
     ]);
 
     S.bodegas = bodegas.map(b => b.nombre);
