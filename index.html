@@ -293,19 +293,13 @@
                 </div>
                 <div class="form-group">
                   <label>Familia</label>
-                  <select id="sku-familia" onchange="updateSkuSubgrupos()">
-                    <option value="MED">Medicamento</option>
-                    <option value="INS">Insumo</option>
-                    <option value="INP">Insumo Pediátrico</option>
-                    <option value="DM">Dispositivo Médico</option>
-                    <option value="EB">Equipo Biomédico</option>
-                    <option value="DOT">Dotación</option>
-                    <option value="ASE">Aseo</option>
-                  </select>
+                  <input type="text" id="sku-familia" placeholder="Ej. Medicamento, Insumo, Aseo" oninput="checkSimilarFamilia()">
+                  <div id="sku-familia-hint" class="similar-hint" style="display:none"></div>
                 </div>
                 <div class="form-group">
                   <label>Subgrupo</label>
-                  <select id="sku-subgrupo"></select>
+                  <input type="text" id="sku-subgrupo" placeholder="Ej. Analgésico, Antibiótico" oninput="checkSimilarSubgrupo()">
+                  <div id="sku-subgrupo-hint" class="similar-hint" style="display:none"></div>
                 </div>
                 <div class="form-group fg-full">
                   <label>Presentación</label>
