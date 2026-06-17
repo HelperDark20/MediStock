@@ -126,4 +126,15 @@ router.get('/stock', verificarToken, async (req, res) => {
   }
 });
 
+// DELETE /api/skus/sub/:id — nivel 4
+router.delete('/sub/:id', verificarToken, verificarNivel(4), async (req, res) => {
+  try {
+    await pool.query('UPDATE sub_skus SET activo = false WHERE id = $1', [req.params.id]);
+    res.json({ mensaje: 'Sub-SKU desactivado' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
 module.exports = router;

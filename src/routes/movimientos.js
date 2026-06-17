@@ -81,7 +81,7 @@ router.post('/entrada', verificarToken, verificarNivel(3), async (req, res) => {
 
 // POST /api/movimientos/consumo — nivel 2, 3 y 4
 router.post('/consumo', verificarToken, verificarNivel(2), async (req, res) => {
-  const { sub_sku_id, bodega_origen_id, cantidad } = req.body;
+  const { sub_sku_id, bodega_origen_id, cantidad, cedula_paciente } = req.body;
   if (!sub_sku_id || !bodega_origen_id || !cantidad || cantidad <= 0) {
     return res.status(400).json({ error: 'Faltan campos obligatorios' });
   }
@@ -97,11 +97,11 @@ router.post('/consumo', verificarToken, verificarNivel(2), async (req, res) => {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Stock insuficiente' });
     }
-    // Registrar movimiento
+    // Registrar movimiento con cedula_paciente si viene informada
     await client.query(
-      `INSERT INTO movimientos (sub_sku_id, tipo, bodega_origen_id, cantidad, usuario_id)
-       VALUES ($1, 'consumo', $2, $3, $4)`,
-      [sub_sku_id, bodega_origen_id, cantidad, req.usuario.id]
+      `INSERT INTO movimientos (sub_sku_id, tipo, bodega_origen_id, cantidad, usuario_id, cedula_paciente)
+       VALUES ($1, 'consumo', $2, $3, $4, $5)`,
+      [sub_sku_id, bodega_origen_id, cantidad, req.usuario.id, cedula_paciente || null]
     );
     // Actualizar stock
     await client.query(

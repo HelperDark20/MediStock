@@ -10,7 +10,7 @@ const usuariosRoutes = require('./routes/usuarios');
 const bodegasRoutes = require('./routes/bodegas');
 
 const app = express();
-app.set('trust proxy', 1); // ← agregar esta línea
+app.set('trust proxy', 1);
 
 // Seguridad
 app.use(helmet({
@@ -22,41 +22,38 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"],
       imgSrc: ["'self'", "data:", "blob:"],
-      connectSrc: ["'self'", "https://cdn.jsdelivr.net"]
+      // Permitir llamadas al mismo origen sin importar el dominio exacto
+      connectSrc: ["'self'"]
     }
   }
 }));
 app.use(cors());
 app.use(express.json());
 
-// Rate limiting general (más permisivo)
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 500,              // era 100
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-// Limiter estricto solo para login (prevenir brute force)
+// Rate limit estricto solo para login (anti fuerza bruta)
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 20,
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 10,                   // máximo 10 intentos por IP
+  message: { error: 'Demasiados intentos de inicio de sesión. Intenta en 15 minutos.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-app.use('/api/auth', loginLimiter, authRoutes);
-app.use('/api/skus', limiter, skusRoutes);
-app.use('/api/movimientos', limiter, movimientosRoutes);
-app.use('/api/usuarios', limiter, usuariosRoutes);
-app.use('/api/bodegas', limiter, bodegasRoutes);
+// Rate limit general para el resto de la API
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Rutas
+app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth', authRoutes);
-app.use('/api/skus', skusRoutes);
-app.use('/api/movimientos', movimientosRoutes);
-app.use('/api/usuarios', usuariosRoutes);
-app.use('/api/bodegas', bodegasRoutes);
+app.use('/api/skus', apiLimiter, skusRoutes);
+app.use('/api/movimientos', apiLimiter, movimientosRoutes);
+app.use('/api/usuarios', apiLimiter, usuariosRoutes);
+app.use('/api/bodegas', apiLimiter, bodegasRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

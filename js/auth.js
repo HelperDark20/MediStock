@@ -13,6 +13,8 @@ async function doLogin(){
 
   try {
     const data = await Auth.login(cedula, pass);
+    // Usar siempre el nivel devuelto por el servidor tras autenticación real,
+    // nunca un payload JWT decodificado localmente sin verificar firma
     currentRole = data.usuario.nivel;
     document.getElementById('login-screen').classList.add('out');
     setTimeout(async ()=>{
@@ -31,7 +33,6 @@ async function doLogin(){
 function doLogout(){
   Auth.logout();
   currentRole = null;
-  // Cerrar panel enfermero si está activo
   document.getElementById('enfermero-panel').classList.remove('active');
   document.getElementById('app').classList.remove('visible');
   const ls = document.getElementById('login-screen');
@@ -69,7 +70,15 @@ async function setupApp(user){
   const token = localStorage.getItem('nb_token');
   if(!token) return;
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    // ADVERTENCIA: atob() solo decodifica el payload pero NO verifica la firma del JWT.
+    // El nivel que se asigna aquí controla únicamente qué UI se muestra en el cliente.
+    // La seguridad real recae en el backend (verificarToken + verificarNivel).
+    // Un atacante que manipule localStorage solo verá una UI diferente;
+    // todas las llamadas API seguirán siendo rechazadas por el servidor.
+    const parts = token.split('.');
+    if(parts.length !== 3) throw new Error('Token malformado');
+    const payload = JSON.parse(atob(parts[1]));
+    if(!payload.exp || !payload.nivel || !payload.id) throw new Error('Payload inválido');
     const ahora = Math.floor(Date.now()/1000);
     if(payload.exp < ahora){
       localStorage.removeItem('nb_token');

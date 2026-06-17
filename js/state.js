@@ -16,7 +16,7 @@ async function loadState(){
       Bodegas.getAll(),
       SKUs.getGlobales(),
       SKUs.getStock(),
-      Movimientos.getAll({ limit: 50 })  // limitar movimientos recientes
+      Movimientos.getAll()
     ]);
 
     S.bodegas = bodegas.map(b => b.nombre);
@@ -25,6 +25,7 @@ async function loadState(){
     S.movimientos = movs;
 
     // Construir subSkus desde stock
+    // Incluye filas con cantidad 0 para no perder sub-SKUs agotados
     const subMap = {};
     stock.forEach(row => {
       if(!subMap[row.sub_sku_id]){
@@ -44,7 +45,12 @@ async function loadState(){
       }
       subMap[row.sub_sku_id].stock[row.bodega_nombre] = row.cantidad;
     });
-    S.subSkus = Object.values(subMap);
+
+    // Marcar agotado si el stock total es 0 en todas las ubicaciones
+    S.subSkus = Object.values(subMap).map(s => ({
+      ...s,
+      agotado: Object.values(s.stock).reduce((a, v) => a + v, 0) === 0
+    }));
 
     if(currentRole === 4){
       S.usuarios = await Usuarios.getAll();

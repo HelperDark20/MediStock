@@ -63,6 +63,7 @@ const SKUs = {
   deleteGlobal: (id) => request('DELETE', `/api/skus/globales/${id}`),
   getSub: () => request('GET', '/api/skus/sub'),
   createSub: (data) => request('POST', '/api/skus/sub', data),
+  deleteSub: (id) => request('DELETE', `/api/skus/sub/${id}`),
   getStock: () => request('GET', '/api/skus/stock')
 };
 

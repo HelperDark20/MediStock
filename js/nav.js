@@ -19,6 +19,7 @@ function buildNav(){
       const alerts = S.subSkus.filter(s=>['N','R'].includes(getSem(s.caducidad))&&!s.agotado).length;
       if(alerts>0) btn.innerHTML += `<span class="nav-badge">${alerts}</span>`;
     }
+    btn.dataset.navId = n.id;
     btn.onclick = ()=>goTo(n.id);
     sb.appendChild(btn);
   });
@@ -48,10 +49,7 @@ function goTo(viewId){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
   document.getElementById('view-'+viewId)?.classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(b=>{
-    if(b.textContent.trim().startsWith(NAV_CONFIG.find(n=>n.id===viewId)?.label?.slice(0,6)||'@@'))
-      b.classList.add('active');
-  });
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active', b.dataset.navId===viewId));
   const titles = {
     dashboard:'Dashboard', inventario:'Inventario',
     movimientos:'Movimientos', registro:'Registro de entradas',

@@ -77,10 +77,10 @@ async function registrarMovimiento(){
   const origenNombre = document.getElementById('mov-origen').value;
   const destinoNombre = document.getElementById('mov-destino').value;
   const motivo = document.getElementById('mov-motivo')?.value||'';
+  const cedula_paciente = document.getElementById('mov-paciente')?.value.trim()||null;
 
   if(!id){ toastError('Selecciona un ítem'); return; }
   if(cant<=0){ toastError('Ingresa una cantidad válida'); return; }
-  if(origenId===destinoId){ toastError('Origen y destino son iguales'); return; }
 
   try {
     const todasBodegas = await Bodegas.getAll();
@@ -88,15 +88,16 @@ async function registrarMovimiento(){
     const destinoId = todasBodegas.find(b=>b.nombre===destinoNombre)?.id;
 
     if(tipo==='consumo'){
-      await Movimientos.consumo({ sub_sku_id:id, bodega_origen_id:origenId, cantidad:cant });
+      await Movimientos.consumo({ sub_sku_id:id, bodega_origen_id:origenId, cantidad:cant, cedula_paciente });
     } else if(tipo==='traslado'){
-      if(origenId===destinoId){ toast('Origen y destino son iguales','error'); return; }
+      if(origenId===destinoId){ toastError('Origen y destino son iguales'); return; }
       await Movimientos.traslado({ sub_sku_id:id, bodega_origen_id:origenId, bodega_destino_id:destinoId, cantidad:cant });
     } else if(tipo==='destruccion'){
       await Movimientos.destruccion({ sub_sku_id:id, bodega_origen_id:origenId, cantidad:cant, motivo });
     }
 
     document.getElementById('mov-cantidad').value='';
+    if(document.getElementById('mov-paciente')) document.getElementById('mov-paciente').value='';
     acClear('mov');
     await loadState();
     renderMovBody();
