@@ -17,6 +17,17 @@ function fmtDate(d){
   return `${day}/${m}/${y}`;
 }
 
+function formatFecha(input){
+  const digits = input.value.replace(/\D/g,'').slice(0,8);
+  if(digits.length > 4){
+    input.value = `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`;
+  } else if(digits.length > 2){
+    input.value = `${digits.slice(0,2)}/${digits.slice(2)}`;
+  } else {
+    input.value = digits;
+  }
+}
+
 function abrevProv(str){
   if(!str) return '----';
   const words = str.trim().split(/\s+/).filter(Boolean);
