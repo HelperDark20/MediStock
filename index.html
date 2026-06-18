@@ -254,23 +254,10 @@
                   <input type="text" id="reg-invima" placeholder="Ej. 2021M006528R4">
                 </div>
                 <!-- Fecha caducidad (si activado) -->
-                <div class="form-group fg-full" id="reg-caducidad-wrap" style="display:none">
+                <div class="form-group" id="reg-caducidad-wrap" style="display:none">
                   <label>Fecha de caducidad</label>
-                  <div style="display:flex;gap:8px">
-                    <select id="reg-cad-dia" style="flex:1">
-                      <option value="">Día</option>
-                      ${Array.from({length:31},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}">${i+1}</option>`).join('')}
-                    </select>
-                    <select id="reg-cad-mes" style="flex:2">
-                      <option value="">Mes</option>
-                      ${['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].map((m,i)=>`<option value="${String(i+1).padStart(2,'0')}">${m}</option>`).join('')}
-                    </select>
-                    <select id="reg-cad-año" style="flex:1.5">
-                      <option value="">Año</option>
-                      ${Array.from({length:15},(_,i)=>`<option value="${2024+i}">${2024+i}</option>`).join('')}
-                    </select>
-                  </div>
-                  <input type="hidden" id="reg-caducidad">
+                  <input type="text" id="reg-caducidad" placeholder="DD/MM/AAAA" maxlength="10" oninput="formatFecha(this)">
+                  <span class="hint">Formato: día/mes/año — Ej. 18/06/2026</span>
                 </div>
                 <!-- Precio viene del SKU Global, solo lectura -->
                 <div class="form-group" id="reg-precio-wrap" style="display:none">
