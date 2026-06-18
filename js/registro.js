@@ -259,10 +259,13 @@ async function registrarEntrada(){
   const lote   = tieneLote      ? document.getElementById('reg-lote').value.trim() : '';
   const manual = document.getElementById('reg-subsku-manual').value.trim();
   const invima = campos.includes('invima')    ? document.getElementById('reg-invima').value.trim() : '';
-  const dia  = document.getElementById('reg-cad-dia').value;
-  const mes  = document.getElementById('reg-cad-mes').value;
-  const año  = document.getElementById('reg-cad-año').value;
-  const cad  = (campos.includes('caducidad') && dia && mes && año) ? `${año}-${mes}-${dia}` : '';
+  const cadRaw = campos.includes('caducidad') ? document.getElementById('reg-caducidad').value.trim() : '';
+  // Convertir DD/MM/YYYY → YYYY-MM-DD para PostgreSQL
+  let cad = '';
+  if(cadRaw && cadRaw.includes('/')){
+    const [d, m, y] = cadRaw.split('/');
+    if(d && m && y) cad = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+  }
   const precio = parseFloat(document.getElementById('reg-precio')?.value)||0;
   const cant   = parseInt(document.getElementById('reg-cantidad').value)||0;
   const unidad = document.getElementById('reg-unidad').value.trim();
