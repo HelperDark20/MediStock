@@ -5,7 +5,7 @@ const { verificarToken, verificarNivel } = require('../middlewares/auth');
 
 // GET /api/movimientos — todos los niveles
 router.get('/', verificarToken, async (req, res) => {
-  const { sku_global, sub_sku_id, limit } = req.query;
+  const { sku_global, sub_sku_id, limit, bodega } = req.query;
   try {
     let query = `
       SELECT m.*,
@@ -31,6 +31,10 @@ router.get('/', verificarToken, async (req, res) => {
     if (sub_sku_id) {
       params.push(sub_sku_id);
       query += ` AND m.sub_sku_id = $${params.length}`;
+    }
+    if (bodega) {
+      params.push(bodega);
+      query += ` AND (bo.nombre = $${params.length} OR bd.nombre = $${params.length})`;
     }
     query += ' ORDER BY m.created_at DESC';
     if (limit) {

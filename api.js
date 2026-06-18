@@ -90,5 +90,6 @@ const Movimientos = {
 const Usuarios = {
   getAll: () => request('GET', '/api/usuarios'),
   create: (data) => request('POST', '/api/usuarios', data),
+  update: (id, data) => request('PUT', `/api/usuarios/${id}`, data),
   delete: (id) => request('DELETE', `/api/usuarios/${id}`)
 };

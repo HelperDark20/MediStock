@@ -35,7 +35,8 @@ router.post('/login', async (req, res) => {
         cedula: usuario.cedula,
         nombre: usuario.nombre,
         nivel: usuario.nivel,
-        genero: usuario.genero
+        genero: usuario.genero,
+        ubicacion_id: usuario.ubicacion_id || null
       },
       process.env.JWT_SECRET,
       { expiresIn: '8h' }
@@ -48,7 +49,8 @@ router.post('/login', async (req, res) => {
         nombre: usuario.nombre,
         cedula: usuario.cedula,
         nivel: usuario.nivel,
-        genero: usuario.genero
+        genero: usuario.genero,
+        ubicacion_id: usuario.ubicacion_id || null
       }
     });
 

@@ -2,39 +2,44 @@
 AC['enf'] = { selectedId: null, focusIdx: -1 };
 
 function initEnfermeroPanel(user){
-  // Avatar y nombre
   const av = document.getElementById('enf-avatar');
   av.textContent = (user.nombre||'EN').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
   document.getElementById('enf-nombre').textContent = user.nombre||'Enfermero/a';
-
-  // Mostrar panel
   document.getElementById('enfermero-panel').classList.add('active');
 
-  // Cargar bodegas en select
-  const sel = document.getElementById('enf-origen');
-  sel.innerHTML = S.bodegas.map(b=>`<option value="${b}">${b}</option>`).join('');
+  // Filtrar bodegas según ubicación asignada al usuario
+  const ubicacionId = user.ubicacion_id || null;
+  let bodegasFiltradas = S.bodegasRaw || [];
+  if(ubicacionId){
+    bodegasFiltradas = bodegasFiltradas.filter(b => b.ubicacion_id === ubicacionId);
+  }
 
-  // Cargar historial del día
+  const sel = document.getElementById('enf-origen');
+  sel.innerHTML = bodegasFiltradas.map(b=>`<option value="${b.nombre}">${b.nombre}</option>`).join('');
+
+  // Guardar lista de bodegas permitidas para filtrar el autocomplete
+  window._enfBodegasPermitidas = new Set(bodegasFiltradas.map(b => b.nombre));
+
   renderEnfHistorial();
 }
 
 function enfOnMedSelect(sub){
   if(!sub) return;
-
-  // Mostrar card del medicamento
   const card = document.getElementById('enf-med-card');
   card.classList.add('show');
   document.getElementById('enf-med-name').textContent = sub.nombre;
-
   const skuG = S.skusGlobales.find(g=>g.id===sub.skuGlobalId);
   document.getElementById('enf-med-sub').textContent =
     `${skuG?.codigo||''} · ${sub.subSku} · Cad: ${fmtDate(sub.caducidad)}`;
 
-  // Mostrar stock por bodega
+  // Filtrar por bodegas permitidas de la ubicación asignada
+  const permitidas = window._enfBodegasPermitidas;
+  const bodegasConStock = Object.entries(sub.stock||{})
+    .filter(([bodega, v]) => v > 0 && (!permitidas || permitidas.has(bodega)));
+
   const stockEl = document.getElementById('enf-med-stock');
-  const bodegasConStock = Object.entries(sub.stock||{}).filter(([,v])=>v>0);
   if(!bodegasConStock.length){
-    stockEl.innerHTML = '<span style="font-size:12px;color:var(--red)">Sin stock disponible</span>';
+    stockEl.innerHTML = '<span style="font-size:12px;color:var(--red)">Sin stock disponible en tu ubicación</span>';
   } else {
     const sem = getSem(sub.caducidad);
     stockEl.innerHTML = bodegasConStock.map(([bodega, cant])=>
@@ -45,7 +50,6 @@ function enfOnMedSelect(sub){
     ).join('') + `<span class="enf-sem ${sem}" style="margin-left:4px">${semLabel(sem)}</span>`;
   }
 
-  // Actualizar origen con solo bodegas con stock
   const sel = document.getElementById('enf-origen');
   sel.innerHTML = bodegasConStock.length
     ? bodegasConStock.map(([b])=>`<option value="${b}">${b}</option>`).join('')

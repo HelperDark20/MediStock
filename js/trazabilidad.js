@@ -93,6 +93,11 @@ async function updateTrazSubs(){
   const gId = parseInt(document.getElementById('traz-global').value)||0;
   const sel = document.getElementById('traz-sub');
   sel.innerHTML='<option value="">Todos los Sub-SKUs</option>';
+
+  // Resetear filtros de ubicación y depósito
+  document.getElementById('traz-ubicacion').innerHTML = '<option value="">Todas las ubicaciones</option>';
+  document.getElementById('traz-deposito').innerHTML  = '<option value="">Todos los depósitos</option>';
+
   if(!gId){ await renderTrazabilidad(); return; }
 
   S.subSkus.filter(s=>s.skuGlobalId===gId).forEach(s=>{
@@ -109,6 +114,7 @@ async function updateTrazSubs(){
     sel.appendChild(o);
   });
 
+  updateTrazFiltros();
   await renderTrazabilidad();
 }
 
@@ -128,6 +134,8 @@ async function renderTrazabilidad(){
     const skuG = S.skusGlobales.find(g=>g.id===gId);
     const params = { sku_global: skuG?.codigo };
     if(sId) params.sub_sku_id = sId;
+    const depositoFiltro = document.getElementById('traz-deposito').value;
+    if(depositoFiltro) params.bodega = depositoFiltro;
     const movs = await Movimientos.getAll(params);
     const subs = S.subSkus.filter(s=>s.skuGlobalId===gId&&(!sId||s.id===sId));
     const tipoIcon = {
@@ -203,4 +211,56 @@ async function renderTrazabilidad(){
     result.innerHTML='<div class="empty-state"><i class="ti ti-alert-circle"></i><p>Error cargando trazabilidad</p></div>';
     toast(err.message,'error');
   }
+}
+
+// ── FILTROS UBICACIÓN Y DEPÓSITO EN TRAZABILIDAD ──
+
+function updateTrazFiltros(){
+  const gId = parseInt(document.getElementById('traz-global').value)||0;
+
+  // Llenar ubicaciones que tienen existencia de este SKU
+  const ubSel = document.getElementById('traz-ubicacion');
+  const depSel = document.getElementById('traz-deposito');
+  ubSel.innerHTML  = '<option value="">Todas las ubicaciones</option>';
+  depSel.innerHTML = '<option value="">Todos los depósitos</option>';
+
+  if(!gId) return;
+
+  // Obtener bodegas donde este SKU tiene o tuvo stock
+  const subs = S.subSkus.filter(s => s.skuGlobalId === gId);
+  const bodegasConStock = new Set();
+  subs.forEach(s => Object.keys(s.stock||{}).forEach(b => bodegasConStock.add(b)));
+
+  // Ubicaciones únicas de esas bodegas
+  const ubicacionesVistas = new Set();
+  ;(S.bodegasRaw||[]).forEach(b => {
+    if(bodegasConStock.has(b.nombre) && b.ubicacion_nombre){
+      ubicacionesVistas.add(JSON.stringify({id: b.ubicacion_id, nombre: b.ubicacion_nombre}));
+    }
+  });
+
+  [...ubicacionesVistas].map(s=>JSON.parse(s)).forEach(u => {
+    ubSel.innerHTML += `<option value="${u.id}">${u.nombre}</option>`;
+  });
+}
+
+function updateTrazDepositos(){
+  const ubId  = parseInt(document.getElementById('traz-ubicacion').value)||0;
+  const gId   = parseInt(document.getElementById('traz-global').value)||0;
+  const depSel = document.getElementById('traz-deposito');
+  depSel.innerHTML = '<option value="">Todos los depósitos</option>';
+
+  if(!ubId) { renderTrazabilidad(); return; }
+
+  const subs = S.subSkus.filter(s => s.skuGlobalId === gId);
+  const bodegasConStock = new Set();
+  subs.forEach(s => Object.keys(s.stock||{}).forEach(b => bodegasConStock.add(b)));
+
+  ;(S.bodegasRaw||[])
+    .filter(b => b.ubicacion_id === ubId && bodegasConStock.has(b.nombre))
+    .forEach(b => {
+      depSel.innerHTML += `<option value="${b.nombre}">${b.nombre}</option>`;
+    });
+
+  renderTrazabilidad();
 }

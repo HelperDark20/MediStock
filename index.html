@@ -396,7 +396,7 @@
                 </div>
                 <div class="form-group">
                   <label>Nivel de acceso</label>
-                  <select id="u-nivel">
+                  <select id="u-nivel" onchange="toggleUbicacionField()">
                     <option value="1">Nivel 1 — Auditor</option>
                     <option value="2">Nivel 2 — Enfermero/a</option>
                     <option value="3">Nivel 3 — Supervisor</option>
@@ -408,6 +408,13 @@
                   <input type="text" id="u-pass" placeholder="Ej. NB2026*Carlos" style="font-family:var(--font-mono)">
                   <span class="hint">El usuario no puede cambiarla</span>
                 </div>
+                <div class="form-group fg-full" id="u-ubicacion-wrap" style="display:none">
+                  <label>Ubicación asignada <span style="font-weight:400;color:#aaa">(solo enfermeros)</span></label>
+                  <select id="u-ubicacion">
+                    <option value="">Sin asignación específica</option>
+                  </select>
+                  <span class="hint">El enfermero solo verá depósitos de esta sede</span>
+                </div>
               </div>
               <button class="btn-submit" onclick="crearUsuario()"><i class="ti ti-user-check"></i>Crear usuario</button>
             </div>
@@ -415,6 +422,45 @@
           <div>
             <div class="sec-header"><div class="sec-title">Usuarios registrados</div></div>
             <div id="users-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL EDITAR USUARIO -->
+      <div class="modal-overlay" id="modal-edit-user">
+        <div class="modal-sheet" style="max-width:480px">
+          <div class="modal-handle"></div>
+          <div class="modal-title">Editar usuario</div>
+          <div class="modal-sub" id="modal-edit-user-sub"></div>
+          <input type="hidden" id="edit-u-id">
+          <div class="form-grid" style="margin-bottom:12px">
+            <div class="form-group fg-full">
+              <label>Nombre completo</label>
+              <input type="text" id="edit-u-nombre" placeholder="Nombre completo">
+            </div>
+            <div class="form-group">
+              <label>Nivel de acceso</label>
+              <select id="edit-u-nivel" onchange="toggleEditUbicacionField()">
+                <option value="1">Nivel 1 — Auditor</option>
+                <option value="2">Nivel 2 — Enfermero/a</option>
+                <option value="3">Nivel 3 — Supervisor</option>
+                <option value="4">Nivel 4 — Administrador</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Nueva contraseña <span style="font-weight:400;color:#aaa">(opcional)</span></label>
+              <input type="text" id="edit-u-pass" placeholder="Dejar vacío para no cambiar" style="font-family:var(--font-mono)">
+            </div>
+            <div class="form-group fg-full" id="edit-u-ubicacion-wrap" style="display:none">
+              <label>Ubicación asignada</label>
+              <select id="edit-u-ubicacion">
+                <option value="">Sin asignación específica</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal('modal-edit-user')">Cancelar</button>
+            <button class="btn-confirm" onclick="guardarEdicionUsuario()">Guardar cambios</button>
           </div>
         </div>
       </div>
@@ -511,6 +557,18 @@
                 <label>Sub-SKU <span style="font-weight:400;color:#aaa">(opcional)</span></label>
                 <select id="traz-sub" onchange="renderTrazabilidad()">
                   <option value="">Todos los Sub-SKUs</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Ubicación <span style="font-weight:400;color:#aaa">(opcional)</span></label>
+                <select id="traz-ubicacion" onchange="updateTrazDepositos()">
+                  <option value="">Todas las ubicaciones</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Depósito <span style="font-weight:400;color:#aaa">(opcional)</span></label>
+                <select id="traz-deposito" onchange="renderTrazabilidad()">
+                  <option value="">Todos los depósitos</option>
                 </select>
               </div>
             </div>
