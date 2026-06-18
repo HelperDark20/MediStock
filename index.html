@@ -253,9 +253,23 @@
                   <input type="text" id="reg-invima" placeholder="Ej. 2021M006528R4">
                 </div>
                 <!-- Fecha caducidad (si activado) -->
-                <div class="form-group" id="reg-caducidad-wrap" style="display:none">
-                  <label>Fecha caducidad</label>
-                  <input type="date" id="reg-caducidad">
+                <div class="form-group fg-full" id="reg-caducidad-wrap" style="display:none">
+                  <label>Fecha de caducidad</label>
+                  <div style="display:flex;gap:8px">
+                    <select id="reg-cad-dia" style="flex:1">
+                      <option value="">Día</option>
+                      ${Array.from({length:31},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}">${i+1}</option>`).join('')}
+                    </select>
+                    <select id="reg-cad-mes" style="flex:2">
+                      <option value="">Mes</option>
+                      ${['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].map((m,i)=>`<option value="${String(i+1).padStart(2,'0')}">${m}</option>`).join('')}
+                    </select>
+                    <select id="reg-cad-año" style="flex:1.5">
+                      <option value="">Año</option>
+                      ${Array.from({length:15},(_,i)=>`<option value="${2024+i}">${2024+i}</option>`).join('')}
+                    </select>
+                  </div>
+                  <input type="hidden" id="reg-caducidad">
                 </div>
                 <!-- Precio viene del SKU Global, solo lectura -->
                 <div class="form-group" id="reg-precio-wrap" style="display:none">
@@ -367,7 +381,21 @@
                 </div>
                 <div class="form-group">
                   <label>Fecha de nacimiento</label>
-                  <input type="date" id="u-nacimiento">
+                  <div style="display:flex;gap:8px">
+                    <select id="u-nac-dia" style="flex:1">
+                      <option value="">Día</option>
+                      ${Array.from({length:31},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}">${i+1}</option>`).join('')}
+                    </select>
+                    <select id="u-nac-mes" style="flex:2">
+                      <option value="">Mes</option>
+                      ${['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].map((m,i)=>`<option value="${String(i+1).padStart(2,'0')}">${m}</option>`).join('')}
+                    </select>
+                    <select id="u-nac-año" style="flex:1.5">
+                      <option value="">Año</option>
+                      ${Array.from({length:80},(_,i)=>`<option value="${2010-i}">${2010-i}</option>`).join('')}
+                    </select>
+                  </div>
+                  <input type="hidden" id="u-nacimiento">
                 </div>
                 <div class="form-group">
                   <label>Género</label>

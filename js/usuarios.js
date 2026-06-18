@@ -1,9 +1,12 @@
 async function crearUsuario(){
-  const nombre = document.getElementById('u-nombre').value.trim();
-  const cedula = document.getElementById('u-cedula').value.trim();
-  const nivel = parseInt(document.getElementById('u-nivel').value);
-  const genero = document.getElementById('u-genero').value;
-  const fecha_nacimiento = document.getElementById('u-nacimiento').value;
+  const nombre   = document.getElementById('u-nombre').value.trim();
+  const cedula   = document.getElementById('u-cedula').value.trim();
+  const nivel    = parseInt(document.getElementById('u-nivel').value);
+  const genero   = document.getElementById('u-genero').value;
+  const dia      = document.getElementById('u-nac-dia').value;
+  const mes      = document.getElementById('u-nac-mes').value;
+  const año      = document.getElementById('u-nac-año').value;
+  const fecha_nacimiento = (dia && mes && año) ? `${año}-${mes}-${dia}` : null;
   const password = document.getElementById('u-pass').value.trim();
   if(!nombre||!cedula||!password){
     toast('Completa nombre, cédula y contraseña','error');
@@ -11,7 +14,10 @@ async function crearUsuario(){
   }
   try {
     await Usuarios.create({ nombre, cedula, nivel, genero, fecha_nacimiento, password });
-    ['u-nombre','u-cedula','u-nacimiento','u-pass'].forEach(id=>{
+    ['u-nombre','u-cedula','u-pass'].forEach(id=>{
+      document.getElementById(id).value='';
+    });
+    ['u-nac-dia','u-nac-mes','u-nac-año'].forEach(id=>{
       document.getElementById(id).value='';
     });
     S.usuarios = await Usuarios.getAll();

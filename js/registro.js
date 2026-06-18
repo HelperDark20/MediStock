@@ -259,7 +259,10 @@ async function registrarEntrada(){
   const lote   = tieneLote      ? document.getElementById('reg-lote').value.trim() : '';
   const manual = document.getElementById('reg-subsku-manual').value.trim();
   const invima = campos.includes('invima')    ? document.getElementById('reg-invima').value.trim() : '';
-  const cad    = campos.includes('caducidad') ? document.getElementById('reg-caducidad').value : '';
+  const dia  = document.getElementById('reg-cad-dia').value;
+  const mes  = document.getElementById('reg-cad-mes').value;
+  const año  = document.getElementById('reg-cad-año').value;
+  const cad  = (campos.includes('caducidad') && dia && mes && año) ? `${año}-${mes}-${dia}` : '';
   const precio = parseFloat(document.getElementById('reg-precio')?.value)||0;
   const cant   = parseInt(document.getElementById('reg-cantidad').value)||0;
   const unidad = document.getElementById('reg-unidad').value.trim();
@@ -297,7 +300,9 @@ async function registrarEntrada(){
 
     // Limpiar formulario
     regAcClear();
-    ['reg-lote','reg-invima','reg-caducidad','reg-cantidad','reg-unidad','reg-subsku-manual']
+    ['reg-lote','reg-invima','reg-cantidad','reg-unidad','reg-subsku-manual']
+      .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    ['reg-cad-dia','reg-cad-mes','reg-cad-año']
       .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
     document.getElementById('reg-unidad-hint').style.display = 'none';
 
