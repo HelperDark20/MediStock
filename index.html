@@ -206,7 +206,8 @@
                   <i class="ti ti-search ac-icon"></i>
                   <input type="text" class="ac-input" id="reg-ac-input"
                     placeholder="Escribe nombre o código del SKU…"
-                    autocomplete="off"
+                    autocomplete="new-password"
+                    name="reg-busqueda-sku"
                     oninput="regAcFilter()"
                     onfocus="regAcOpen()"
                     onkeydown="regAcKey(event)">
@@ -506,11 +507,12 @@
             <div class="form-grid">
               <div class="form-group">
                 <label>SKU Global</label>
-                <div class="ac-wrap" id="traz-ac-wrap">
+                <div class="ac-wrap" id="traz-ac-wrap" style="width:100%">
                   <i class="ti ti-search ac-icon"></i>
                   <input type="text" class="ac-input" id="traz-ac-input"
                     placeholder="Escribe nombre o código…"
-                    autocomplete="off"
+                    autocomplete="new-password"
+                    name="traz-busqueda-sku"
                     oninput="trazAcFilter()"
                     onkeydown="trazAcKey(event)">
                   <button class="ac-clear" id="traz-ac-clear" onclick="trazAcClear()"><i class="ti ti-x"></i></button>
