@@ -28,14 +28,6 @@ function confirmDeleteUser(id){
   document.getElementById('modal-confirm').classList.add('open');
 }
 
-function confirmDeleteBodega(nombre){
-  _delType='bodega'; _delId=nombre;
-  document.getElementById('modal-title').textContent='Eliminar ubicación';
-  document.getElementById('modal-sub').textContent=`¿Eliminar la ubicación "${nombre}"?`;
-  document.getElementById('modal-ok-btn').onclick = doDelete;
-  document.getElementById('modal-confirm').classList.add('open');
-}
-
 async function doDelete(){
   try {
     if(_delType==='sub'){
@@ -45,10 +37,6 @@ async function doDelete(){
       await SKUs.deleteGlobal(_delId);
     } else if(_delType==='user'){
       await Usuarios.delete(_delId);
-    } else if(_delType==='bodega'){
-      const todasBodegas = await Bodegas.getAll();
-      const bodega = todasBodegas.find(b=>b.nombre===_delId);
-      if(bodega) await Bodegas.delete(bodega.id);
     }
     closeModal('modal-confirm');
     await loadState();
