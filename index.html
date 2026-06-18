@@ -506,12 +506,20 @@
             <div class="form-grid">
               <div class="form-group">
                 <label>SKU Global</label>
-                <select id="traz-global" onchange="updateTrazSubs()">
-                  <option value="">Seleccionar SKU Global…</option>
-                </select>
+                <div class="ac-wrap" id="traz-ac-wrap">
+                  <i class="ti ti-search ac-icon"></i>
+                  <input type="text" class="ac-input" id="traz-ac-input"
+                    placeholder="Escribe nombre o código…"
+                    autocomplete="off"
+                    oninput="trazAcFilter()"
+                    onkeydown="trazAcKey(event)">
+                  <button class="ac-clear" id="traz-ac-clear" onclick="trazAcClear()"><i class="ti ti-x"></i></button>
+                  <div class="ac-dropdown" id="traz-ac-drop"></div>
+                </div>
+                <input type="hidden" id="traz-global">
               </div>
               <div class="form-group">
-                <label>Sub-SKU (opcional)</label>
+                <label>Sub-SKU <span style="font-weight:400;color:#aaa">(opcional)</span></label>
                 <select id="traz-sub" onchange="renderTrazabilidad()">
                   <option value="">Todos los Sub-SKUs</option>
                 </select>

@@ -1,3 +1,94 @@
+// ── AUTOCOMPLETE SKU GLOBAL EN TRAZABILIDAD ──
+let _trazAcFocusIdx = -1;
+
+function trazAcFilter(){
+  const q    = (document.getElementById('traz-ac-input').value||'').toLowerCase().trim();
+  const drop = document.getElementById('traz-ac-drop');
+  const clear = document.getElementById('traz-ac-clear');
+  clear.classList.toggle('show', q.length > 0);
+  _trazAcFocusIdx = -1;
+
+  // Solo mostrar sugerencias si hay texto escrito
+  if(!q){ drop.classList.remove('open'); drop.innerHTML=''; return; }
+
+  const results = S.skusGlobales.filter(g =>
+    g.nombre.toLowerCase().includes(q) ||
+    g.codigo.toLowerCase().includes(q)
+  ).slice(0, 10);
+
+  if(!results.length){
+    drop.innerHTML='<div class="ac-no-results"><i class="ti ti-search" style="display:block;font-size:22px;margin-bottom:6px;opacity:.3"></i>Sin resultados</div>';
+    drop.classList.add('open');
+    return;
+  }
+
+  const hilite = str => str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>');
+
+  drop.innerHTML = results.map((g, idx) => `
+    <div class="ac-item" data-id="${g.id}"
+      onmousedown="trazAcSelect(${g.id})"
+      onmouseover="_trazAcFocusIdx=${idx};document.querySelectorAll('#traz-ac-drop .ac-item').forEach((el,i)=>el.classList.toggle('focused',i===${idx}))">
+      <div class="ac-item-icon"><i class="ti ti-tag"></i></div>
+      <div class="ac-item-body">
+        <div class="ac-item-name">${hilite(g.nombre)}</div>
+        <div class="ac-item-meta">
+          <span class="sku-code" style="font-size:9px">${hilite(g.codigo)}</span>
+          <span style="font-size:9px;color:#aaa">${g.familia||''}</span>
+        </div>
+      </div>
+    </div>`).join('');
+  drop.classList.add('open');
+}
+
+function trazAcKey(e){
+  const drop  = document.getElementById('traz-ac-drop');
+  const items = drop.querySelectorAll('.ac-item');
+  if(!items.length) return;
+  if(e.key==='ArrowDown'){
+    e.preventDefault();
+    _trazAcFocusIdx = Math.min(_trazAcFocusIdx+1, items.length-1);
+    items.forEach((el,i)=>el.classList.toggle('focused',i===_trazAcFocusIdx));
+    items[_trazAcFocusIdx]?.scrollIntoView({block:'nearest'});
+  } else if(e.key==='ArrowUp'){
+    e.preventDefault();
+    _trazAcFocusIdx = Math.max(_trazAcFocusIdx-1, 0);
+    items.forEach((el,i)=>el.classList.toggle('focused',i===_trazAcFocusIdx));
+    items[_trazAcFocusIdx]?.scrollIntoView({block:'nearest'});
+  } else if(e.key==='Enter' && _trazAcFocusIdx>=0){
+    e.preventDefault();
+    trazAcSelect(parseInt(items[_trazAcFocusIdx].dataset.id));
+  } else if(e.key==='Escape'){
+    drop.classList.remove('open');
+  }
+}
+
+function trazAcSelect(id){
+  const skuG = S.skusGlobales.find(g => g.id === parseInt(id));
+  if(!skuG) return;
+  document.getElementById('traz-ac-input').value = `${skuG.codigo} — ${skuG.nombre}`;
+  document.getElementById('traz-global').value   = skuG.id;
+  document.getElementById('traz-ac-clear').classList.add('show');
+  document.getElementById('traz-ac-drop').classList.remove('open');
+  updateTrazSubs();
+}
+
+function trazAcClear(){
+  document.getElementById('traz-ac-input').value = '';
+  document.getElementById('traz-global').value   = '';
+  document.getElementById('traz-ac-clear').classList.remove('show');
+  document.getElementById('traz-ac-drop').classList.remove('open');
+  document.getElementById('traz-sub').innerHTML  = '<option value="">Todos los Sub-SKUs</option>';
+  document.getElementById('traz-result').innerHTML =
+    '<div class="empty-state"><i class="ti ti-timeline"></i><p>Selecciona un SKU para ver su trazabilidad completa</p></div>';
+  document.getElementById('traz-ac-input').focus();
+}
+
+document.addEventListener('click', e=>{
+  const wrap = document.getElementById('traz-ac-wrap');
+  if(wrap && !wrap.contains(e.target)) document.getElementById('traz-ac-drop').classList.remove('open');
+});
+
+// ── ACTUALIZAR SUB-SKUs ──
 async function updateTrazSubs(){
   const gId = parseInt(document.getElementById('traz-global').value)||0;
   const sel = document.getElementById('traz-sub');
@@ -21,6 +112,7 @@ async function updateTrazSubs(){
   await renderTrazabilidad();
 }
 
+// ── RENDER TRAZABILIDAD ──
 async function renderTrazabilidad(){
   const gId = parseInt(document.getElementById('traz-global').value)||0;
   const sId = parseInt(document.getElementById('traz-sub').value)||0;
@@ -51,8 +143,8 @@ async function renderTrazabilidad(){
               <div style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--blue)">${skuG?.codigo}</div>
               <div style="font-size:15px;font-weight:600;margin-top:4px">${skuG?.nombre}</div>
               <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
-                <span class="fam ${skuG?.familia}">${FAMILIAS[skuG?.familia]||''}</span>
-                <span style="font-size:11px;color:#888">${skuG?.subgrupo}</span>
+                <span style="font-size:11px;font-weight:600;color:var(--ink)">${skuG?.familia||''}</span>
+                <span style="font-size:11px;color:#888">${skuG?.subgrupo||''}</span>
               </div>
             </div>
             <div style="text-align:right">

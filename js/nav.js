@@ -34,7 +34,7 @@ function populateSelects(){
     el.innerHTML = prefix + opts;
   });
   const skuOpts = S.skusGlobales.map(s=>`<option value="${s.id}">${s.codigo} — ${s.nombre}</option>`).join('');
-  ['reg-sku-global','traz-global'].forEach(id=>{
+  ['reg-sku-global'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.innerHTML = '<option value="">Seleccionar…</option>' + skuOpts;
   });
