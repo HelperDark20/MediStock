@@ -694,3 +694,10 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 .deposito-icon i{font-size:13px}
 .deposito-info{flex:1}
 .deposito-name{font-size:12px;font-weight:600;color:var(--ink);font-family:var(--font-mono)}
+
+/* Permitir que dropdowns de autocomplete salgan del card */
+#view-trazabilidad .card,
+#view-registro .card,
+#view-movimientos .card {
+  overflow: visible;
+}
