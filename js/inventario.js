@@ -15,7 +15,11 @@ function renderInv(){
     if(q&&!s.nombre.toLowerCase().includes(q)&&!s.subSku.toLowerCase().includes(q)&&!(skuG?.codigo||'').toLowerCase().includes(q)&&!s.lote?.toLowerCase().includes(q)&&!s.proveedor?.toLowerCase().includes(q)) return;
     const stockEntries = ub ? [[ub, s.stock?.[ub]||0]] : Object.entries(s.stock||{});
     stockEntries.forEach(([ubicacion, cantidad])=>{
-      if(!ub&&cantidad===0) return;
+      // Sin filtro: ocultar cantidad 0. Con filtro: igual, salvo que showAgotados esté activo
+      if(cantidad === 0 && !showAgotados) return;
+      // Si agotado y no showAgotados ya se filtró arriba, pero si tiene stock 0 en esa bodega específica
+      // solo mostrar si el item ya tuvo stock ahí (existe la entrada en stock) y showAgotados activo
+      if(cantidad === 0 && !s.stock?.hasOwnProperty(ubicacion)) return;
       rows.push({s,skuG,st,ubicacion,cantidad});
     });
   });
