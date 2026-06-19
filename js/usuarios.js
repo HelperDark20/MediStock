@@ -52,10 +52,13 @@ async function crearUsuario(){
   const cedula   = document.getElementById('u-cedula').value.trim();
   const nivel    = parseInt(document.getElementById('u-nivel').value);
   const genero   = document.getElementById('u-genero').value;
-  const dia      = document.getElementById('u-nac-dia').value;
-  const mes      = document.getElementById('u-nac-mes').value;
-  const año      = document.getElementById('u-nac-año').value;
-  const fecha_nacimiento = (dia && mes && año) ? `${año}-${mes}-${dia}` : null;
+  // DESPUÉS
+  const nacTxt = document.getElementById('u-nacimiento-txt').value.trim();
+  let fecha_nacimiento = null;
+  if(nacTxt && nacTxt.length === 10) {
+    const [d, m, y] = nacTxt.split('/');
+    if(d && m && y) fecha_nacimiento = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+  }
   const password     = document.getElementById('u-pass').value.trim();
   const ubicacion_id = nivel === 2
     ? (parseInt(document.getElementById('u-ubicacion').value)||null)
@@ -68,7 +71,7 @@ async function crearUsuario(){
   try {
     await Usuarios.create({ nombre, cedula, nivel, genero, fecha_nacimiento, password, ubicacion_id });
     ['u-nombre','u-cedula','u-pass'].forEach(id => document.getElementById(id).value='');
-    ['u-nac-dia','u-nac-mes','u-nac-año'].forEach(id => document.getElementById(id).value='');
+    document.getElementById('u-nacimiento-txt').value = '';
     document.getElementById('u-ubicacion-wrap').style.display = 'none';
     S.usuarios = await Usuarios.getAll();
     renderUsuarios();

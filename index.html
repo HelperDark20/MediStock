@@ -367,13 +367,11 @@
                   <label>Número de cédula</label>
                   <input type="text" id="u-cedula" placeholder="Ej. 1006166884" style="font-family:var(--font-mono)">
                 </div>
+                <!-- DESPUÉS -->
                 <div class="form-group">
                   <label>Fecha de nacimiento</label>
-                  <div style="display:flex;gap:8px">
-                    <select id="u-nac-dia" style="flex:1"></select>
-                    <select id="u-nac-mes" style="flex:2"></select>
-                    <select id="u-nac-año" style="flex:1.5"></select>
-                  </div>
+                  <input type="text" id="u-nacimiento-txt" placeholder="DD/MM/AAAA" maxlength="10" oninput="formatFecha(this)">
+                  <span class="hint">Formato: día/mes/año — Ej. 15/03/1990</span>
                 </div>
                 <div class="form-group">
                   <label>Género</label>
@@ -411,7 +409,7 @@
           </div>
           <div>
             <div class="sec-header"><div class="sec-title">Usuarios registrados</div></div>
-            <div id="users-list"></div>
+            <div id="users-list"></div>   
           </div>
         </div>
       </div>
