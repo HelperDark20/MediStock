@@ -1,3 +1,10 @@
+// Devuelve la fecha calendario (YYYY-MM-DD) según la hora de Colombia (UTC-5, sin horario de verano).
+// Se usa para cortes de "día" consistentes sin importar la zona horaria del navegador/servidor.
+function fechaColombia(fecha){
+  const d = fecha ? new Date(fecha) : new Date();
+  return d.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+}
+
 function getSem(caducidad){
   if(!caducidad) return 'V';
   const diff = (new Date(caducidad)-new Date())/864e5;

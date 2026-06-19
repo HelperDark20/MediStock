@@ -7,6 +7,9 @@ function initEnfermeroPanel(user){
   document.getElementById('enf-nombre').textContent = user.nombre||'Enfermero/a';
   document.getElementById('enfermero-panel').classList.add('active');
 
+  // Guardar el ID del usuario logueado: cada enfermero solo debe ver SUS propios consumos
+  window._enfUserId = user.id;
+
   // Filtrar bodegas según ubicación asignada
   const ubicacionId = user.ubicacion_id || null;
   let bodegasFiltradas = S.bodegasRaw || [];
@@ -171,9 +174,11 @@ async function enfRegistrarConsumo(){
 }
 
 function renderEnfHistorial(){
-  const hoy = new Date().toISOString().split('T')[0];
+  const hoyCO = fechaColombia();
   const consumosHoy = S.movimientos.filter(m=>
-    m.tipo==='consumo' && m.created_at?.startsWith(hoy)
+    m.tipo==='consumo' &&
+    m.usuario_id === window._enfUserId &&
+    m.created_at && fechaColombia(m.created_at) === hoyCO
   );
 
   const el = document.getElementById('enf-history-list');
@@ -192,7 +197,7 @@ function renderEnfHistorial(){
         <div class="enf-history-name">${m.nombre||m.sku_global_codigo||'—'}</div>
         <div class="enf-history-meta">
           ${m.origen_nombre||'—'} ·
-          ${new Date(m.created_at).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})}
+          ${new Date(m.created_at).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'})}
           ${m.cedula_paciente?` · Pac: ${m.cedula_paciente}`:''}
         </div>
       </div>
