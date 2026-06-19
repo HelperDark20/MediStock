@@ -630,10 +630,22 @@
       <!-- COLUMNA IZQUIERDA: Búsqueda + Formulario -->
       <div class="enf-form-panel">
 
-        <!-- Buscador -->
-        <div class="enf-search-box">
+        <!-- PASO 1: Seleccionar bodega -->
+        <div class="enf-search-box" style="margin-bottom:12px">
           <div class="enf-search-title">
-            <i class="ti ti-search"></i>Buscar medicamento
+            <i class="ti ti-building-warehouse"></i>Paso 1 — Selecciona la bodega
+          </div>
+          <div class="enf-field" style="margin-bottom:0">
+            <select id="enf-origen" onchange="enfOnBodegaChange()">
+              <option value="">Seleccionar bodega…</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- PASO 2: Buscar medicamento (bloqueado hasta seleccionar bodega) -->
+        <div class="enf-search-box" id="enf-busqueda-wrap" style="opacity:.4;pointer-events:none">
+          <div class="enf-search-title">
+            <i class="ti ti-search"></i>Paso 2 — Buscar medicamento
           </div>
           <div class="ac-wrap">
             <i class="ti ti-search ac-icon"></i>
@@ -665,10 +677,6 @@
         <div class="enf-form-box">
           <div class="enf-form-title">
             <i class="ti ti-minus-circle"></i>Registrar consumo
-          </div>
-          <div class="enf-field">
-            <label>Bodega origen</label>
-            <select id="enf-origen"></select>
           </div>
           <div class="enf-field">
             <label>Cantidad</label>

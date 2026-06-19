@@ -7,24 +7,49 @@ function initEnfermeroPanel(user){
   document.getElementById('enf-nombre').textContent = user.nombre||'Enfermero/a';
   document.getElementById('enfermero-panel').classList.add('active');
 
-  // Filtrar bodegas según ubicación asignada al usuario
+  // Filtrar bodegas según ubicación asignada
   const ubicacionId = user.ubicacion_id || null;
   let bodegasFiltradas = S.bodegasRaw || [];
   if(ubicacionId){
     bodegasFiltradas = bodegasFiltradas.filter(b => b.ubicacion_id === ubicacionId);
   }
 
+  // Poblar select de bodega (paso 1)
   const sel = document.getElementById('enf-origen');
-  sel.innerHTML = bodegasFiltradas.map(b=>`<option value="${b.nombre}">${b.nombre}</option>`).join('');
+  sel.innerHTML = '<option value="">Seleccionar bodega…</option>' +
+    bodegasFiltradas.map(b=>`<option value="${b.nombre}">${b.nombre}</option>`).join('');
 
-  // Guardar lista de bodegas permitidas para filtrar el autocomplete
+  // Guardar bodegas permitidas para filtrar autocomplete
   window._enfBodegasPermitidas = new Set(bodegasFiltradas.map(b => b.nombre));
 
   renderEnfHistorial();
 }
 
+// Al cambiar de bodega: habilitar buscador y limpiar selección anterior
+function enfOnBodegaChange(){
+  const bodega = document.getElementById('enf-origen').value;
+  const busquedaWrap = document.getElementById('enf-busqueda-wrap');
+  const medCard = document.getElementById('enf-med-card');
+
+  // Limpiar medicamento seleccionado
+  acClear('enf');
+  medCard.classList.remove('show');
+
+  if(bodega){
+    busquedaWrap.style.opacity = '1';
+    busquedaWrap.style.pointerEvents = 'auto';
+    document.getElementById('enf-ac-input').focus();
+  } else {
+    busquedaWrap.style.opacity = '.4';
+    busquedaWrap.style.pointerEvents = 'none';
+  }
+}
+
 function enfOnMedSelect(sub){
   if(!sub) return;
+
+  const bodegaSeleccionada = document.getElementById('enf-origen').value;
+
   const card = document.getElementById('enf-med-card');
   card.classList.add('show');
   document.getElementById('enf-med-name').textContent = sub.nombre;
@@ -32,39 +57,86 @@ function enfOnMedSelect(sub){
   document.getElementById('enf-med-sub').textContent =
     `${skuG?.codigo||''} · ${sub.subSku} · Cad: ${fmtDate(sub.caducidad)}`;
 
-  // Filtrar por bodegas permitidas de la ubicación asignada
-  const permitidas = window._enfBodegasPermitidas;
-  const bodegasConStock = Object.entries(sub.stock||{})
-    .filter(([bodega, v]) => v > 0 && (!permitidas || permitidas.has(bodega)));
-
+  // Mostrar stock solo de la bodega seleccionada
   const stockEl = document.getElementById('enf-med-stock');
-  if(!bodegasConStock.length){
-    stockEl.innerHTML = '<span style="font-size:12px;color:var(--red)">Sin stock disponible en tu ubicación</span>';
+  const cantEnBodega = sub.stock?.[bodegaSeleccionada] || 0;
+
+  if(cantEnBodega <= 0){
+    stockEl.innerHTML = `<span style="font-size:12px;color:var(--red)">Sin stock en ${bodegaSeleccionada}</span>`;
   } else {
     const sem = getSem(sub.caducidad);
-    stockEl.innerHTML = bodegasConStock.map(([bodega, cant])=>
-      `<div class="enf-stock-chip">
+    stockEl.innerHTML = `
+      <div class="enf-stock-chip">
         <i class="ti ti-building-warehouse" style="font-size:12px"></i>
-        ${bodega}: <strong>${cant}</strong> ${sub.unidad}
-      </div>`
-    ).join('') + `<span class="enf-sem ${sem}" style="margin-left:4px">${semLabel(sem)}</span>`;
+        ${bodegaSeleccionada}: <strong>${cantEnBodega}</strong> ${sub.unidad}
+      </div>
+      <span class="enf-sem ${sem}" style="margin-left:4px">${semLabel(sem)}</span>`;
+  }
+}
+
+// Filtro del autocomplete: solo muestra items con stock > 0 en la bodega seleccionada
+// Se sobreescribe acFilter para 'enf' con esta lógica
+const _originalAcFilter = acFilter;
+function acFilter(ns){
+  if(ns !== 'enf'){ _originalAcFilter(ns); return; }
+
+  const q    = (document.getElementById('enf-ac-input').value||'').toLowerCase().trim();
+  const drop = document.getElementById('enf-ac-drop');
+  const clear = document.getElementById('enf-ac-clear');
+  clear.classList.toggle('show', q.length > 0);
+  AC['enf'].focusIdx = -1;
+
+  if(!q){ drop.classList.remove('open'); drop.innerHTML=''; return; }
+
+  const bodega = document.getElementById('enf-origen').value;
+
+  // Filtrar sub-SKUs que tengan stock > 0 en la bodega seleccionada
+  const results = S.subSkus.filter(s => {
+    if(bodega && (s.stock?.[bodega]||0) <= 0) return false;
+    return s.nombre.toLowerCase().includes(q) ||
+           s.subSku.toLowerCase().includes(q) ||
+           (s.lote||'').toLowerCase().includes(q) ||
+           (s.proveedor||'').toLowerCase().includes(q);
+  }).slice(0, 10);
+
+  if(!results.length){
+    drop.innerHTML='<div class="ac-no-results"><i class="ti ti-search" style="display:block;font-size:22px;margin-bottom:6px;opacity:.3"></i>Sin resultados en esta bodega</div>';
+    drop.classList.add('open');
+    return;
   }
 
-  const sel = document.getElementById('enf-origen');
-  sel.innerHTML = bodegasConStock.length
-    ? bodegasConStock.map(([b])=>`<option value="${b}">${b}</option>`).join('')
-    : '<option value="">Sin stock</option>';
+  const hilite = str => str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>');
+
+  drop.innerHTML = results.map((s, idx) => {
+    const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
+    const cantBodega = bodega ? (s.stock?.[bodega]||0) : getTotalStock(s);
+    return `<div class="ac-item" data-id="${s.id}"
+      onmousedown="acSelect('enf',${s.id})"
+      onmouseover="acHover('enf',${idx})">
+      <div class="ac-item-icon"><i class="ti ti-pill"></i></div>
+      <div class="ac-item-body">
+        <div class="ac-item-name">${hilite(s.nombre)}</div>
+        <div class="ac-item-meta">
+          <span class="sku-code" style="font-size:9px">${skuG?.codigo||''}</span>
+          <span>${hilite(s.subSku)}</span>
+          ${s.lote&&s.lote!=='—'?`<span>Lote: ${hilite(s.lote)}</span>`:''}
+        </div>
+      </div>
+      <div class="ac-item-stock">${cantBodega} ${s.unidad}</div>
+    </div>`;
+  }).join('');
+  drop.classList.add('open');
 }
 
 async function enfRegistrarConsumo(){
-  const id = parseInt(document.getElementById('enf-sku').value)||0;
-  const cant = parseInt(document.getElementById('enf-cantidad').value)||0;
-  const origen = document.getElementById('enf-origen').value;
-  const paciente = document.getElementById('enf-paciente').value.trim();
+  const id      = parseInt(document.getElementById('enf-sku').value)||0;
+  const cant    = parseInt(document.getElementById('enf-cantidad').value)||0;
+  const origen  = document.getElementById('enf-origen').value;
+  const paciente= document.getElementById('enf-paciente').value.trim();
 
-  if(!id){ toastError('Selecciona un medicamento'); return; }
-  if(cant<=0){ toastError('Ingresa una cantidad válida'); return; }
-  if(!origen){ toastError('Selecciona una bodega'); return; }
+  if(!origen)  { toastError('Selecciona una bodega primero'); return; }
+  if(!id)      { toastError('Selecciona un medicamento'); return; }
+  if(cant<=0)  { toastError('Ingresa una cantidad válida'); return; }
 
   const btn = document.getElementById('enf-submit-btn');
   btn.disabled = true;
@@ -81,13 +153,11 @@ async function enfRegistrarConsumo(){
       cedula_paciente: paciente||null
     });
 
-    // Limpiar formulario
     document.getElementById('enf-cantidad').value = '';
     document.getElementById('enf-paciente').value = '';
     acClear('enf');
     document.getElementById('enf-med-card').classList.remove('show');
 
-    // Recargar datos y historial
     await loadState();
     renderEnfHistorial();
     toast('✓ Consumo registrado','success');
@@ -103,8 +173,7 @@ async function enfRegistrarConsumo(){
 function renderEnfHistorial(){
   const hoy = new Date().toISOString().split('T')[0];
   const consumosHoy = S.movimientos.filter(m=>
-    m.tipo==='consumo' &&
-    m.created_at?.startsWith(hoy)
+    m.tipo==='consumo' && m.created_at?.startsWith(hoy)
   );
 
   const el = document.getElementById('enf-history-list');
@@ -122,7 +191,7 @@ function renderEnfHistorial(){
       <div class="enf-history-info">
         <div class="enf-history-name">${m.nombre||m.sku_global_codigo||'—'}</div>
         <div class="enf-history-meta">
-          ${m.origen_nombre||'—'} · 
+          ${m.origen_nombre||'—'} ·
           ${new Date(m.created_at).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})}
           ${m.cedula_paciente?` · Pac: ${m.cedula_paciente}`:''}
         </div>
