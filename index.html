@@ -370,18 +370,9 @@
                 <div class="form-group">
                   <label>Fecha de nacimiento</label>
                   <div style="display:flex;gap:8px">
-                    <select id="u-nac-dia" style="flex:1">
-                      <option value="">Día</option>
-                      ${Array.from({length:31},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}">${i+1}</option>`).join('')}
-                    </select>
-                    <select id="u-nac-mes" style="flex:2">
-                      <option value="">Mes</option>
-                      ${['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].map((m,i)=>`<option value="${String(i+1).padStart(2,'0')}">${m}</option>`).join('')}
-                    </select>
-                    <select id="u-nac-año" style="flex:1.5">
-                      <option value="">Año</option>
-                      ${Array.from({length:80},(_,i)=>`<option value="${2010-i}">${2010-i}</option>`).join('')}
-                    </select>
+                    <select id="u-nac-dia" style="flex:1"></select>
+                    <select id="u-nac-mes" style="flex:2"></select>
+                    <select id="u-nac-año" style="flex:1.5"></select>
                   </div>
                   <input type="hidden" id="u-nacimiento">
                 </div>
