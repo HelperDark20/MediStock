@@ -28,16 +28,28 @@ router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
     return res.status(400).json({ error: 'Faltan campos obligatorios' });
   }
   try {
-    const existe = await pool.query('SELECT id FROM usuarios WHERE cedula = $1', [cedula]);
-    if (existe.rows.length > 0) {
+    const existe = await pool.query('SELECT id, activo FROM usuarios WHERE cedula = $1', [cedula]);
+    if (existe.rows.length > 0 && existe.rows[0].activo) {
       return res.status(400).json({ error: 'Esta cédula ya está registrada' });
     }
     const password_hash = await bcrypt.hash(password, 10);
-    const result = await pool.query(
-      `INSERT INTO usuarios (nombre, cedula, nivel, genero, fecha_nacimiento, password_hash, ubicacion_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, nombre, cedula, nivel, genero, ubicacion_id`,
-      [nombre, cedula, nivel, genero, fecha_nacimiento, password_hash, ubicacion_id || null]
-    );
+    let result;
+    if (existe.rows.length > 0 && !existe.rows[0].activo) {
+      // Reactivar usuario eliminado con los nuevos datos
+      result = await pool.query(
+        `UPDATE usuarios SET nombre=$1, nivel=$2, genero=$3, fecha_nacimiento=$4,
+        password_hash=$5, ubicacion_id=$6, activo=true
+        WHERE cedula=$7
+        RETURNING id, nombre, cedula, nivel, genero, ubicacion_id`,
+        [nombre, nivel, genero, fecha_nacimiento, password_hash, ubicacion_id || null, cedula]
+      );
+    } else {
+      result = await pool.query(
+        `INSERT INTO usuarios (nombre, cedula, nivel, genero, fecha_nacimiento, password_hash, ubicacion_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, nombre, cedula, nivel, genero, ubicacion_id`,
+        [nombre, cedula, nivel, genero, fecha_nacimiento, password_hash, ubicacion_id || null]
+      );
+    }
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -74,7 +86,7 @@ router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
 // DELETE /api/usuarios/:id — nivel 4
 router.delete('/:id', verificarToken, verificarNivel(4), async (req, res) => {
   try {
-    await pool.query('UPDATE usuarios SET activo = false WHERE id = $1', [req.params.id]);
+    await pool.query('DELETE FROM usuarios WHERE id = $1', [req.params.id]);
     res.json({ mensaje: 'Usuario desactivado' });
   } catch (err) {
     console.error(err);
