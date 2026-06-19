@@ -27,11 +27,10 @@ function buildNav(){
 
 function populateSelects(){
   const opts = S.bodegas.map(b=>`<option value="${b}">${b}</option>`).join('');
-  ['inv-ubicacion','mov-origen','mov-destino','reg-ubicacion'].forEach(id=>{
+  ['mov-origen','mov-destino','reg-ubicacion'].forEach(id=>{
     const el = document.getElementById(id);
     if(!el) return;
-    const prefix = id==='inv-ubicacion'?'<option value="">Todas las ubicaciones</option>':'';
-    el.innerHTML = prefix + opts;
+    el.innerHTML = opts;
   });
   const skuOpts = S.skusGlobales.map(s=>`<option value="${s.id}">${s.codigo} — ${s.nombre}</option>`).join('');
   ['reg-sku-global'].forEach(id=>{

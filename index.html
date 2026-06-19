@@ -96,9 +96,22 @@
               <i class="ti ti-search si"></i>
               <input type="text" class="search-input" placeholder="Buscar SKU, nombre, lote, proveedor…" id="inv-search" oninput="renderInv()">
             </div>
-            <select id="inv-ubicacion" onchange="renderInv()" style="min-width:130px">
-              <option value="">Todas las ubicaciones</option>
-            </select>
+            <div class="ac-wrap" id="inv-ub-wrap" style="width:170px;flex-shrink:0">
+              <i class="ti ti-search ac-icon"></i>
+              <input type="text" class="ac-input" id="inv-ub-input" placeholder="Ubicación…" autocomplete="off"
+                oninput="invUbFilter()" onfocus="invUbOpen()" onkeydown="invUbKey(event)">
+              <button class="ac-clear" id="inv-ub-clear" onclick="invUbClear()"><i class="ti ti-x"></i></button>
+              <div class="ac-dropdown" id="inv-ub-drop"></div>
+            </div>
+            <input type="hidden" id="inv-ubicacion">
+            <div class="ac-wrap" id="inv-subsku-wrap" style="width:200px;flex-shrink:0">
+              <i class="ti ti-search ac-icon"></i>
+              <input type="text" class="ac-input" id="inv-subsku-input" placeholder="Sub-SKU…" autocomplete="off"
+                oninput="invSubFilter()" onfocus="invSubOpen()" onkeydown="invSubKey(event)">
+              <button class="ac-clear" id="inv-subsku-clear" onclick="invSubClear()"><i class="ti ti-x"></i></button>
+              <div class="ac-dropdown" id="inv-subsku-drop"></div>
+            </div>
+            <input type="hidden" id="inv-subsku-id">
             <select id="inv-sem" onchange="renderInv()">
               <option value="">Semáforo</option>
               <option value="V">✓ Vigente</option>

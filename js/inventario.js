@@ -1,12 +1,14 @@
 function renderInv(){
   const q=(document.getElementById('inv-search').value||'').toLowerCase();
   const ub=document.getElementById('inv-ubicacion').value;
+  const subSkuId=parseInt(document.getElementById('inv-subsku-id')?.value)||0;
   const sem=document.getElementById('inv-sem').value;
   const fam=document.getElementById('inv-familia').value;
   const showAgotados=document.getElementById('inv-agotados')?.checked;
 
   let rows = [];
   S.subSkus.forEach(s=>{
+    if(subSkuId && s.id!==subSkuId) return;
     if(s.agotado&&!showAgotados) return;
     const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
     const st = getSem(s.caducidad);
@@ -53,3 +55,195 @@ function renderInv(){
       </td>
     </tr>`).join('');
 }
+
+// ══════════════════════════════════════════
+// AUTOCOMPLETE: FILTRO DE UBICACIÓN (Inventario)
+// ══════════════════════════════════════════
+let _invUbFocusIdx = -1;
+
+function invUbFilter(){
+  const q = (document.getElementById('inv-ub-input').value||'').toLowerCase().trim();
+  const drop = document.getElementById('inv-ub-drop');
+  const clear = document.getElementById('inv-ub-clear');
+  clear.classList.toggle('show', q.length > 0);
+  _invUbFocusIdx = -1;
+
+  const results = (S.bodegas||[]).filter(b => !q || b.toLowerCase().includes(q));
+
+  if(!results.length){
+    drop.innerHTML = '<div class="ac-no-results"><i class="ti ti-map-pin-off" style="display:block;font-size:22px;margin-bottom:6px;opacity:.3"></i>Sin ubicaciones</div>';
+    drop.classList.add('open');
+    return;
+  }
+
+  const hilite = str => q ? str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>') : str;
+
+  drop.innerHTML = results.map((b, idx) => `
+    <div class="ac-item" data-val="${b}"
+      onmousedown="invUbSelect('${b.replace(/'/g,"\\'")}')"
+      onmouseover="invUbHover(${idx})">
+      <div class="ac-item-icon"><i class="ti ti-map-pin"></i></div>
+      <div class="ac-item-body"><div class="ac-item-name">${hilite(b)}</div></div>
+    </div>`).join('');
+  drop.classList.add('open');
+}
+
+function invUbOpen(){
+  invUbFilter();
+}
+
+function invUbHover(idx){
+  _invUbFocusIdx = idx;
+  document.querySelectorAll('#inv-ub-drop .ac-item').forEach((el,i)=>el.classList.toggle('focused', i===idx));
+}
+
+function invUbKey(e){
+  const drop = document.getElementById('inv-ub-drop');
+  const items = drop.querySelectorAll('.ac-item');
+  if(!items.length) return;
+  if(e.key==='ArrowDown'){
+    e.preventDefault();
+    _invUbFocusIdx = Math.min(_invUbFocusIdx+1, items.length-1);
+    items.forEach((el,i)=>el.classList.toggle('focused', i===_invUbFocusIdx));
+    items[_invUbFocusIdx]?.scrollIntoView({block:'nearest'});
+  } else if(e.key==='ArrowUp'){
+    e.preventDefault();
+    _invUbFocusIdx = Math.max(_invUbFocusIdx-1, 0);
+    items.forEach((el,i)=>el.classList.toggle('focused', i===_invUbFocusIdx));
+    items[_invUbFocusIdx]?.scrollIntoView({block:'nearest'});
+  } else if(e.key==='Enter' && _invUbFocusIdx>=0){
+    e.preventDefault();
+    invUbSelect(items[_invUbFocusIdx].dataset.val);
+  } else if(e.key==='Escape'){
+    drop.classList.remove('open');
+  }
+}
+
+function invUbSelect(nombre){
+  document.getElementById('inv-ub-input').value = nombre;
+  document.getElementById('inv-ubicacion').value = nombre;
+  document.getElementById('inv-ub-clear').classList.add('show');
+  document.getElementById('inv-ub-drop').classList.remove('open');
+  // El sub-SKU seleccionado puede ya no pertenecer a esta ubicación: se limpia
+  invSubClear(false);
+  renderInv();
+}
+
+function invUbClear(){
+  document.getElementById('inv-ub-input').value = '';
+  document.getElementById('inv-ubicacion').value = '';
+  document.getElementById('inv-ub-clear').classList.remove('show');
+  document.getElementById('inv-ub-drop').classList.remove('open');
+  invSubClear(false);
+  renderInv();
+}
+
+// ══════════════════════════════════════════
+// AUTOCOMPLETE: FILTRO DE SUB-SKU (Inventario)
+// Sugiere solo sub-SKUs existentes en la ubicación seleccionada
+// ══════════════════════════════════════════
+let _invSubFocusIdx = -1;
+
+function invSubFilter(){
+  const q = (document.getElementById('inv-subsku-input').value||'').toLowerCase().trim();
+  const drop = document.getElementById('inv-subsku-drop');
+  const clear = document.getElementById('inv-subsku-clear');
+  clear.classList.toggle('show', q.length > 0);
+  _invSubFocusIdx = -1;
+
+  const ub = document.getElementById('inv-ubicacion').value;
+
+  let pool = S.subSkus || [];
+  if(ub){
+    pool = pool.filter(s => s.stock && Object.prototype.hasOwnProperty.call(s.stock, ub));
+  }
+
+  const results = pool.filter(s =>
+    !q ||
+    s.subSku.toLowerCase().includes(q) ||
+    s.nombre.toLowerCase().includes(q)
+  ).slice(0, 10);
+
+  if(!results.length){
+    drop.innerHTML = `<div class="ac-no-results"><i class="ti ti-search" style="display:block;font-size:22px;margin-bottom:6px;opacity:.3"></i>Sin resultados${ub?` en ${ub}`:''}</div>`;
+    drop.classList.add('open');
+    return;
+  }
+
+  const hilite = str => q ? str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>') : str;
+
+  drop.innerHTML = results.map((s, idx) => {
+    const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
+    const cant = ub ? (s.stock?.[ub]||0) : getTotalStock(s);
+    return `<div class="ac-item" data-id="${s.id}"
+      onmousedown="invSubSelect(${s.id})"
+      onmouseover="invSubHover(${idx})">
+      <div class="ac-item-icon"><i class="ti ti-pill"></i></div>
+      <div class="ac-item-body">
+        <div class="ac-item-name">${hilite(s.subSku)}</div>
+        <div class="ac-item-meta">
+          ${skuG?`<span class="sku-code" style="font-size:9px">${skuG.codigo}</span>`:''}
+          <span>${hilite(s.nombre)}</span>
+        </div>
+      </div>
+      <div class="ac-item-stock">${cant} ${s.unidad}</div>
+    </div>`;
+  }).join('');
+  drop.classList.add('open');
+}
+
+function invSubOpen(){
+  invSubFilter();
+}
+
+function invSubHover(idx){
+  _invSubFocusIdx = idx;
+  document.querySelectorAll('#inv-subsku-drop .ac-item').forEach((el,i)=>el.classList.toggle('focused', i===idx));
+}
+
+function invSubKey(e){
+  const drop = document.getElementById('inv-subsku-drop');
+  const items = drop.querySelectorAll('.ac-item');
+  if(!items.length) return;
+  if(e.key==='ArrowDown'){
+    e.preventDefault();
+    _invSubFocusIdx = Math.min(_invSubFocusIdx+1, items.length-1);
+    items.forEach((el,i)=>el.classList.toggle('focused', i===_invSubFocusIdx));
+    items[_invSubFocusIdx]?.scrollIntoView({block:'nearest'});
+  } else if(e.key==='ArrowUp'){
+    e.preventDefault();
+    _invSubFocusIdx = Math.max(_invSubFocusIdx-1, 0);
+    items.forEach((el,i)=>el.classList.toggle('focused', i===_invSubFocusIdx));
+    items[_invSubFocusIdx]?.scrollIntoView({block:'nearest'});
+  } else if(e.key==='Enter' && _invSubFocusIdx>=0){
+    e.preventDefault();
+    invSubSelect(parseInt(items[_invSubFocusIdx].dataset.id));
+  } else if(e.key==='Escape'){
+    drop.classList.remove('open');
+  }
+}
+
+function invSubSelect(id){
+  const sub = S.subSkus.find(s=>s.id===parseInt(id));
+  if(!sub) return;
+  document.getElementById('inv-subsku-input').value = sub.subSku;
+  document.getElementById('inv-subsku-id').value = sub.id;
+  document.getElementById('inv-subsku-clear').classList.add('show');
+  document.getElementById('inv-subsku-drop').classList.remove('open');
+  renderInv();
+}
+
+function invSubClear(rerender = true){
+  document.getElementById('inv-subsku-input').value = '';
+  document.getElementById('inv-subsku-id').value = '';
+  document.getElementById('inv-subsku-clear').classList.remove('show');
+  document.getElementById('inv-subsku-drop').classList.remove('open');
+  if(rerender) renderInv();
+}
+
+document.addEventListener('click', e=>{
+  const ubWrap = document.getElementById('inv-ub-wrap');
+  if(ubWrap && !ubWrap.contains(e.target)) document.getElementById('inv-ub-drop')?.classList.remove('open');
+  const subWrap = document.getElementById('inv-subsku-wrap');
+  if(subWrap && !subWrap.contains(e.target)) document.getElementById('inv-subsku-drop')?.classList.remove('open');
+});

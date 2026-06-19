@@ -701,3 +701,6 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 #view-movimientos .card {
   overflow: visible;
 }
+#view-inventario .table-wrap {
+  overflow: visible;
+}
