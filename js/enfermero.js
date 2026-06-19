@@ -177,7 +177,7 @@ function renderEnfHistorial(){
   const hoyCO = fechaColombia();
   const consumosHoy = S.movimientos.filter(m=>
     m.tipo==='consumo' &&
-    m.usuario_id === window._enfUserId &&
+    String(m.usuario_id) === String(window._enfUserId) &&
     m.created_at && fechaColombia(m.created_at) === hoyCO
   );
 
