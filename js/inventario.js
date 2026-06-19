@@ -1,10 +1,16 @@
 function renderInv(){
   const q=(document.getElementById('inv-search').value||'').toLowerCase();
-  const ub=document.getElementById('inv-ubicacion').value;
+  const deposito=document.getElementById('inv-ubicacion').value; // bodega exacta seleccionada
+  const sedeId=parseInt(document.getElementById('inv-sede-id')?.value)||0; // ubicación (sede) seleccionada
   const subSkuId=parseInt(document.getElementById('inv-subsku-id')?.value)||0;
   const sem=document.getElementById('inv-sem').value;
   const fam=document.getElementById('inv-familia').value;
   const showAgotados=document.getElementById('inv-agotados')?.checked;
+
+  // Bodegas (depósitos) que pertenecen a la sede seleccionada, si aplica
+  const bodegasDeSede = sedeId
+    ? new Set((S.bodegasRaw||[]).filter(b=>b.ubicacion_id===sedeId).map(b=>b.nombre))
+    : null;
 
   let rows = [];
   S.subSkus.forEach(s=>{
@@ -15,7 +21,18 @@ function renderInv(){
     if(sem&&st!==sem) return;
     if(fam&&skuG?.familia!==fam) return;
     if(q&&!s.nombre.toLowerCase().includes(q)&&!s.subSku.toLowerCase().includes(q)&&!(skuG?.codigo||'').toLowerCase().includes(q)&&!s.lote?.toLowerCase().includes(q)&&!s.proveedor?.toLowerCase().includes(q)) return;
-    const stockEntries = ub ? [[ub, s.stock?.[ub]||0]] : Object.entries(s.stock||{});
+
+    let stockEntries;
+    if(deposito){
+      // Depósito específico seleccionado
+      stockEntries = [[deposito, s.stock?.[deposito]||0]];
+    } else if(bodegasDeSede){
+      // Solo sede seleccionada: mostrar todos sus depósitos
+      stockEntries = Object.entries(s.stock||{}).filter(([bodega])=>bodegasDeSede.has(bodega));
+    } else {
+      stockEntries = Object.entries(s.stock||{});
+    }
+
     stockEntries.forEach(([ubicacion, cantidad])=>{
       // Sin filtro: ocultar cantidad 0. Con filtro: igual, salvo que showAgotados esté activo
       if(cantidad === 0 && !showAgotados) return;
@@ -57,18 +74,19 @@ function renderInv(){
 }
 
 // ══════════════════════════════════════════
-// AUTOCOMPLETE: FILTRO DE UBICACIÓN (Inventario)
+// AUTOCOMPLETE: FILTRO DE UBICACIÓN / SEDE (Inventario)
+// Primer nivel: ubicaciones (sedes) — ej. CAÑAVERALEJO, PALMASECA
 // ══════════════════════════════════════════
-let _invUbFocusIdx = -1;
+let _invSedeFocusIdx = -1;
 
-function invUbFilter(){
-  const q = (document.getElementById('inv-ub-input').value||'').toLowerCase().trim();
-  const drop = document.getElementById('inv-ub-drop');
-  const clear = document.getElementById('inv-ub-clear');
+function invSedeFilter(){
+  const q = (document.getElementById('inv-sede-input').value||'').toLowerCase().trim();
+  const drop = document.getElementById('inv-sede-drop');
+  const clear = document.getElementById('inv-sede-clear');
   clear.classList.toggle('show', q.length > 0);
-  _invUbFocusIdx = -1;
+  _invSedeFocusIdx = -1;
 
-  const results = (S.bodegas||[]).filter(b => !q || b.toLowerCase().includes(q));
+  const results = (S.ubicaciones||[]).filter(u => !q || u.nombre.toLowerCase().includes(q));
 
   if(!results.length){
     drop.innerHTML = '<div class="ac-no-results"><i class="ti ti-map-pin-off" style="display:block;font-size:22px;margin-bottom:6px;opacity:.3"></i>Sin ubicaciones</div>';
@@ -78,69 +96,179 @@ function invUbFilter(){
 
   const hilite = str => q ? str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>') : str;
 
-  drop.innerHTML = results.map((b, idx) => `
-    <div class="ac-item" data-val="${b}"
-      onmousedown="invUbSelect('${b.replace(/'/g,"\\'")}')"
-      onmouseover="invUbHover(${idx})">
+  drop.innerHTML = results.map((u, idx) => {
+    const totalDepositos = (S.bodegasRaw||[]).filter(b=>b.ubicacion_id===u.id).length;
+    return `<div class="ac-item" data-id="${u.id}" data-nombre="${u.nombre}"
+      onmousedown="invSedeSelect(${u.id},'${u.nombre.replace(/'/g,"\\'")}')"
+      onmouseover="invSedeHover(${idx})">
       <div class="ac-item-icon"><i class="ti ti-map-pin"></i></div>
-      <div class="ac-item-body"><div class="ac-item-name">${hilite(b)}</div></div>
-    </div>`).join('');
+      <div class="ac-item-body">
+        <div class="ac-item-name">${hilite(u.nombre)}</div>
+        <div class="ac-item-meta">${totalDepositos} depósito${totalDepositos!==1?'s':''}</div>
+      </div>
+    </div>`;
+  }).join('');
   drop.classList.add('open');
 }
 
-function invUbOpen(){
-  invUbFilter();
+function invSedeOpen(){
+  invSedeFilter();
 }
 
-function invUbHover(idx){
-  _invUbFocusIdx = idx;
-  document.querySelectorAll('#inv-ub-drop .ac-item').forEach((el,i)=>el.classList.toggle('focused', i===idx));
+function invSedeHover(idx){
+  _invSedeFocusIdx = idx;
+  document.querySelectorAll('#inv-sede-drop .ac-item').forEach((el,i)=>el.classList.toggle('focused', i===idx));
 }
 
-function invUbKey(e){
-  const drop = document.getElementById('inv-ub-drop');
+function invSedeKey(e){
+  const drop = document.getElementById('inv-sede-drop');
   const items = drop.querySelectorAll('.ac-item');
   if(!items.length) return;
   if(e.key==='ArrowDown'){
     e.preventDefault();
-    _invUbFocusIdx = Math.min(_invUbFocusIdx+1, items.length-1);
-    items.forEach((el,i)=>el.classList.toggle('focused', i===_invUbFocusIdx));
-    items[_invUbFocusIdx]?.scrollIntoView({block:'nearest'});
+    _invSedeFocusIdx = Math.min(_invSedeFocusIdx+1, items.length-1);
+    items.forEach((el,i)=>el.classList.toggle('focused', i===_invSedeFocusIdx));
+    items[_invSedeFocusIdx]?.scrollIntoView({block:'nearest'});
   } else if(e.key==='ArrowUp'){
     e.preventDefault();
-    _invUbFocusIdx = Math.max(_invUbFocusIdx-1, 0);
-    items.forEach((el,i)=>el.classList.toggle('focused', i===_invUbFocusIdx));
-    items[_invUbFocusIdx]?.scrollIntoView({block:'nearest'});
-  } else if(e.key==='Enter' && _invUbFocusIdx>=0){
+    _invSedeFocusIdx = Math.max(_invSedeFocusIdx-1, 0);
+    items.forEach((el,i)=>el.classList.toggle('focused', i===_invSedeFocusIdx));
+    items[_invSedeFocusIdx]?.scrollIntoView({block:'nearest'});
+  } else if(e.key==='Enter' && _invSedeFocusIdx>=0){
     e.preventDefault();
-    invUbSelect(items[_invUbFocusIdx].dataset.val);
+    const item = items[_invSedeFocusIdx];
+    invSedeSelect(parseInt(item.dataset.id), item.dataset.nombre);
   } else if(e.key==='Escape'){
     drop.classList.remove('open');
   }
 }
 
-function invUbSelect(nombre){
-  document.getElementById('inv-ub-input').value = nombre;
-  document.getElementById('inv-ubicacion').value = nombre;
-  document.getElementById('inv-ub-clear').classList.add('show');
-  document.getElementById('inv-ub-drop').classList.remove('open');
-  // El sub-SKU seleccionado puede ya no pertenecer a esta ubicación: se limpia
+function invSedeSelect(id, nombre){
+  document.getElementById('inv-sede-input').value = nombre;
+  document.getElementById('inv-sede-id').value = id;
+  document.getElementById('inv-sede-clear').classList.add('show');
+  document.getElementById('inv-sede-drop').classList.remove('open');
+  // El depósito y sub-SKU seleccionados ya no aplican necesariamente: se limpian
+  invDepositoClear(false);
   invSubClear(false);
   renderInv();
 }
 
-function invUbClear(){
-  document.getElementById('inv-ub-input').value = '';
-  document.getElementById('inv-ubicacion').value = '';
-  document.getElementById('inv-ub-clear').classList.remove('show');
-  document.getElementById('inv-ub-drop').classList.remove('open');
+function invSedeClear(){
+  document.getElementById('inv-sede-input').value = '';
+  document.getElementById('inv-sede-id').value = '';
+  document.getElementById('inv-sede-clear').classList.remove('show');
+  document.getElementById('inv-sede-drop').classList.remove('open');
+  invDepositoClear(false);
   invSubClear(false);
   renderInv();
 }
 
 // ══════════════════════════════════════════
+// AUTOCOMPLETE: FILTRO DE DEPÓSITO (Inventario)
+// Segundo nivel: solo muestra depósitos de la sede seleccionada (si hay una)
+// ══════════════════════════════════════════
+let _invDepositoFocusIdx = -1;
+
+function invDepositoFilter(){
+  const q = (document.getElementById('inv-deposito-input').value||'').toLowerCase().trim();
+  const drop = document.getElementById('inv-deposito-drop');
+  const clear = document.getElementById('inv-deposito-clear');
+  clear.classList.toggle('show', q.length > 0);
+  _invDepositoFocusIdx = -1;
+
+  const sedeId = parseInt(document.getElementById('inv-sede-id').value)||0;
+  let pool = S.bodegasRaw || [];
+  if(sedeId) pool = pool.filter(b => b.ubicacion_id === sedeId);
+
+  const results = pool.filter(b => !q || b.nombre.toLowerCase().includes(q));
+
+  if(!results.length){
+    const msg = sedeId ? `Sin depósitos en esta ubicación` : 'Sin depósitos';
+    drop.innerHTML = `<div class="ac-no-results"><i class="ti ti-building-warehouse" style="display:block;font-size:22px;margin-bottom:6px;opacity:.3"></i>${msg}</div>`;
+    drop.classList.add('open');
+    return;
+  }
+
+  const hilite = str => q ? str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>') : str;
+
+  drop.innerHTML = results.map((b, idx) => `
+    <div class="ac-item" data-nombre="${b.nombre}" data-sede-id="${b.ubicacion_id||''}" data-sede-nombre="${b.ubicacion_nombre||''}"
+      onmousedown="invDepositoSelect('${b.nombre.replace(/'/g,"\\'")}', ${b.ubicacion_id||'null'}, '${(b.ubicacion_nombre||'').replace(/'/g,"\\'")}')"
+      onmouseover="invDepositoHover(${idx})">
+      <div class="ac-item-icon"><i class="ti ti-building-warehouse"></i></div>
+      <div class="ac-item-body">
+        <div class="ac-item-name">${hilite(b.nombre)}</div>
+        ${!sedeId && b.ubicacion_nombre ? `<div class="ac-item-meta">${b.ubicacion_nombre}</div>` : ''}
+      </div>
+    </div>`).join('');
+  drop.classList.add('open');
+}
+
+function invDepositoOpen(){
+  invDepositoFilter();
+}
+
+function invDepositoHover(idx){
+  _invDepositoFocusIdx = idx;
+  document.querySelectorAll('#inv-deposito-drop .ac-item').forEach((el,i)=>el.classList.toggle('focused', i===idx));
+}
+
+function invDepositoKey(e){
+  const drop = document.getElementById('inv-deposito-drop');
+  const items = drop.querySelectorAll('.ac-item');
+  if(!items.length) return;
+  if(e.key==='ArrowDown'){
+    e.preventDefault();
+    _invDepositoFocusIdx = Math.min(_invDepositoFocusIdx+1, items.length-1);
+    items.forEach((el,i)=>el.classList.toggle('focused', i===_invDepositoFocusIdx));
+    items[_invDepositoFocusIdx]?.scrollIntoView({block:'nearest'});
+  } else if(e.key==='ArrowUp'){
+    e.preventDefault();
+    _invDepositoFocusIdx = Math.max(_invDepositoFocusIdx-1, 0);
+    items.forEach((el,i)=>el.classList.toggle('focused', i===_invDepositoFocusIdx));
+    items[_invDepositoFocusIdx]?.scrollIntoView({block:'nearest'});
+  } else if(e.key==='Enter' && _invDepositoFocusIdx>=0){
+    e.preventDefault();
+    const item = items[_invDepositoFocusIdx];
+    const sedeIdRaw = item.dataset.sedeId;
+    invDepositoSelect(item.dataset.nombre, sedeIdRaw?parseInt(sedeIdRaw):null, item.dataset.sedeNombre);
+  } else if(e.key==='Escape'){
+    drop.classList.remove('open');
+  }
+}
+
+function invDepositoSelect(nombre, sedeId, sedeNombre){
+  document.getElementById('inv-deposito-input').value = nombre;
+  document.getElementById('inv-ubicacion').value = nombre;
+  document.getElementById('inv-deposito-clear').classList.add('show');
+  document.getElementById('inv-deposito-drop').classList.remove('open');
+
+  // Sincronizar el campo de sede si aún no estaba seleccionada (o no coincidía)
+  if(sedeId){
+    document.getElementById('inv-sede-input').value = sedeNombre||'';
+    document.getElementById('inv-sede-id').value = sedeId;
+    document.getElementById('inv-sede-clear').classList.add('show');
+  }
+
+  invSubClear(false);
+  renderInv();
+}
+
+function invDepositoClear(rerender = true){
+  document.getElementById('inv-deposito-input').value = '';
+  document.getElementById('inv-ubicacion').value = '';
+  document.getElementById('inv-deposito-clear').classList.remove('show');
+  document.getElementById('inv-deposito-drop').classList.remove('open');
+  if(rerender){
+    invSubClear(false);
+    renderInv();
+  }
+}
+
+// ══════════════════════════════════════════
 // AUTOCOMPLETE: FILTRO DE SUB-SKU (Inventario)
-// Sugiere solo sub-SKUs existentes en la ubicación seleccionada
+// Sugiere solo sub-SKUs existentes en el depósito (o, en su defecto, la sede) seleccionada
 // ══════════════════════════════════════════
 let _invSubFocusIdx = -1;
 
@@ -151,11 +279,17 @@ function invSubFilter(){
   clear.classList.toggle('show', q.length > 0);
   _invSubFocusIdx = -1;
 
-  const ub = document.getElementById('inv-ubicacion').value;
+  const deposito = document.getElementById('inv-ubicacion').value;
+  const sedeId = parseInt(document.getElementById('inv-sede-id').value)||0;
+  const bodegasDeSede = sedeId
+    ? new Set((S.bodegasRaw||[]).filter(b=>b.ubicacion_id===sedeId).map(b=>b.nombre))
+    : null;
 
   let pool = S.subSkus || [];
-  if(ub){
-    pool = pool.filter(s => s.stock && Object.prototype.hasOwnProperty.call(s.stock, ub));
+  if(deposito){
+    pool = pool.filter(s => s.stock && Object.prototype.hasOwnProperty.call(s.stock, deposito));
+  } else if(bodegasDeSede){
+    pool = pool.filter(s => s.stock && Object.keys(s.stock).some(b => bodegasDeSede.has(b)));
   }
 
   const results = pool.filter(s =>
@@ -165,7 +299,8 @@ function invSubFilter(){
   ).slice(0, 10);
 
   if(!results.length){
-    drop.innerHTML = `<div class="ac-no-results"><i class="ti ti-search" style="display:block;font-size:22px;margin-bottom:6px;opacity:.3"></i>Sin resultados${ub?` en ${ub}`:''}</div>`;
+    const ctx = deposito ? ` en ${deposito}` : (sedeId ? ` en esta ubicación` : '');
+    drop.innerHTML = `<div class="ac-no-results"><i class="ti ti-search" style="display:block;font-size:22px;margin-bottom:6px;opacity:.3"></i>Sin resultados${ctx}</div>`;
     drop.classList.add('open');
     return;
   }
@@ -174,7 +309,10 @@ function invSubFilter(){
 
   drop.innerHTML = results.map((s, idx) => {
     const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
-    const cant = ub ? (s.stock?.[ub]||0) : getTotalStock(s);
+    let cant;
+    if(deposito) cant = s.stock?.[deposito]||0;
+    else if(bodegasDeSede) cant = Object.entries(s.stock||{}).filter(([b])=>bodegasDeSede.has(b)).reduce((a,[,v])=>a+v,0);
+    else cant = getTotalStock(s);
     return `<div class="ac-item" data-id="${s.id}"
       onmousedown="invSubSelect(${s.id})"
       onmouseover="invSubHover(${idx})">
@@ -242,8 +380,10 @@ function invSubClear(rerender = true){
 }
 
 document.addEventListener('click', e=>{
-  const ubWrap = document.getElementById('inv-ub-wrap');
-  if(ubWrap && !ubWrap.contains(e.target)) document.getElementById('inv-ub-drop')?.classList.remove('open');
+  const sedeWrap = document.getElementById('inv-sede-wrap');
+  if(sedeWrap && !sedeWrap.contains(e.target)) document.getElementById('inv-sede-drop')?.classList.remove('open');
+  const depositoWrap = document.getElementById('inv-deposito-wrap');
+  if(depositoWrap && !depositoWrap.contains(e.target)) document.getElementById('inv-deposito-drop')?.classList.remove('open');
   const subWrap = document.getElementById('inv-subsku-wrap');
   if(subWrap && !subWrap.contains(e.target)) document.getElementById('inv-subsku-drop')?.classList.remove('open');
 });

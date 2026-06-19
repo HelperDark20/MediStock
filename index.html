@@ -96,12 +96,20 @@
               <i class="ti ti-search si"></i>
               <input type="text" class="search-input" placeholder="Buscar SKU, nombre, lote, proveedor…" id="inv-search" oninput="renderInv()">
             </div>
-            <div class="ac-wrap" id="inv-ub-wrap" style="width:170px;flex-shrink:0">
+            <div class="ac-wrap" id="inv-sede-wrap" style="width:160px;flex-shrink:0">
               <i class="ti ti-search ac-icon"></i>
-              <input type="text" class="ac-input" id="inv-ub-input" placeholder="Ubicación…" autocomplete="off"
-                oninput="invUbFilter()" onfocus="invUbOpen()" onkeydown="invUbKey(event)">
-              <button class="ac-clear" id="inv-ub-clear" onclick="invUbClear()"><i class="ti ti-x"></i></button>
-              <div class="ac-dropdown" id="inv-ub-drop"></div>
+              <input type="text" class="ac-input" id="inv-sede-input" placeholder="Ubicación…" autocomplete="off"
+                oninput="invSedeFilter()" onfocus="invSedeOpen()" onkeydown="invSedeKey(event)">
+              <button class="ac-clear" id="inv-sede-clear" onclick="invSedeClear()"><i class="ti ti-x"></i></button>
+              <div class="ac-dropdown" id="inv-sede-drop"></div>
+            </div>
+            <input type="hidden" id="inv-sede-id">
+            <div class="ac-wrap" id="inv-deposito-wrap" style="width:170px;flex-shrink:0">
+              <i class="ti ti-search ac-icon"></i>
+              <input type="text" class="ac-input" id="inv-deposito-input" placeholder="Depósito…" autocomplete="off"
+                oninput="invDepositoFilter()" onfocus="invDepositoOpen()" onkeydown="invDepositoKey(event)">
+              <button class="ac-clear" id="inv-deposito-clear" onclick="invDepositoClear()"><i class="ti ti-x"></i></button>
+              <div class="ac-dropdown" id="inv-deposito-drop"></div>
             </div>
             <input type="hidden" id="inv-ubicacion">
             <div class="ac-wrap" id="inv-subsku-wrap" style="width:200px;flex-shrink:0">
