@@ -1,3 +1,26 @@
+function poblarSelectsFechaNac(){
+  ['u-nac-dia','edit-u-nac-dia'].forEach(id => {
+    const sel = document.getElementById(id);
+    if(!sel || sel.options.length > 1) return;
+    sel.innerHTML = '<option value="">Día</option>' +
+      Array.from({length:31},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}">${i+1}</option>`).join('');
+  });
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  ['u-nac-mes','edit-u-nac-mes'].forEach(id => {
+    const sel = document.getElementById(id);
+    if(!sel || sel.options.length > 1) return;
+    sel.innerHTML = '<option value="">Mes</option>' +
+      meses.map((m,i)=>`<option value="${String(i+1).padStart(2,'0')}">${m}</option>`).join('');
+  });
+  const añoActual = new Date().getFullYear();
+  ['u-nac-año','edit-u-nac-año'].forEach(id => {
+    const sel = document.getElementById(id);
+    if(!sel || sel.options.length > 1) return;
+    sel.innerHTML = '<option value="">Año</option>' +
+      Array.from({length:80},(_,i)=>`<option value="${añoActual-i}">${añoActual-i}</option>`).join('');
+  });
+}
+
 // Mostrar/ocultar campo de ubicación según nivel seleccionado
 function toggleUbicacionField(){
   const nivel = parseInt(document.getElementById('u-nivel').value);
@@ -24,6 +47,7 @@ function populateUsuarioUbicaciones(){
 }
 
 async function crearUsuario(){
+  poblarSelectsFechaNac();
   const nombre   = document.getElementById('u-nombre').value.trim();
   const cedula   = document.getElementById('u-cedula').value.trim();
   const nivel    = parseInt(document.getElementById('u-nivel').value);
