@@ -86,6 +86,33 @@
             </div>
           </div>
         </div>
+
+        <div class="grid-2" style="margin-top:6px">
+          <div>
+            <div class="sec-header"><div class="sec-title">Valor total del inventario</div></div>
+            <div class="card">
+              <div class="card-body">
+                <div id="dash-valor-total" style="font-family:var(--font-head);font-size:28px;font-weight:800;color:var(--ink);margin-bottom:14px">$0</div>
+                <div id="dash-valor-body"></div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="sec-header">
+              <div class="sec-title">Consumo mensual por ubicación</div>
+              <input type="month" id="dash-consumo-mes" onchange="dashConsumoMesChange()" style="font-size:12px;padding:6px 10px">
+            </div>
+            <div class="card">
+              <div class="card-body">
+                <div style="margin-bottom:14px">
+                  <span id="dash-consumo-total" style="font-family:var(--font-head);font-size:28px;font-weight:800;color:var(--ink)">0</span>
+                  <span style="font-size:13px;color:#888;font-weight:500;margin-left:4px">unidades consumidas</span>
+                </div>
+                <div id="dash-consumo-body"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- ═══ INVENTARIO ═══ -->
@@ -123,8 +150,9 @@
             <select id="inv-sem" onchange="renderInv()">
               <option value="">Semáforo</option>
               <option value="V">✓ Vigente</option>
-              <option value="A">⚠ Por vencer</option>
+              <option value="A">⚠ Alerta</option>
               <option value="R">● Crítico</option>
+              <option value="P">⛔ Por vencer</option>
               <option value="N">✕ Vencido</option>
             </select>
             <select id="inv-familia" onchange="renderInv()">
@@ -280,11 +308,12 @@
                   <input type="text" id="reg-caducidad" placeholder="DD/MM/AAAA" maxlength="10" oninput="formatFecha(this)">
                   <span class="hint">Formato: día/mes/año — Ej. 18/06/2026</span>
                 </div>
-                <!-- Precio viene del SKU Global, solo lectura -->
-                <div class="form-group" id="reg-precio-wrap" style="display:none">
-                  <label>Precio unitario (COP)</label>
-                  <input type="number" id="reg-precio" placeholder="Cargado del SKU Global" min="0" readonly style="opacity:.6;cursor:not-allowed">
-                  <span class="hint">Definido en el SKU Global</span>
+                <!-- Precio: campo FIJO de esta entrada/lote (no es un "campo activable" del SKU Global,
+                     porque el costo varía de un lote a otro) -->
+                <div class="form-group" id="reg-precio-wrap">
+                  <label>Precio unitario (COP) <span style="font-weight:400;color:#aaa">*obligatorio</span></label>
+                  <input type="number" id="reg-precio" placeholder="Ej. 5000" min="0">
+                  <span class="hint">Costo de esta entrada/lote — puede variar entre compras</span>
                 </div>
                 <!-- Cantidad -->
                 <div class="form-group">
@@ -339,11 +368,6 @@
                   <label>Subgrupo</label>
                   <input type="text" id="sku-subgrupo" placeholder="Ej. Analgésico, Antibiótico" oninput="checkSimilarSubgrupo()">
                   <div id="sku-subgrupo-hint" class="similar-hint" style="display:none"></div>
-                </div>
-                <div class="form-group fg-full">
-                  <label>Precio unitario (COP)</label>
-                  <input type="number" id="sku-precio" placeholder="Ej. 5000" min="0">
-                  <span class="hint">Obligatorio — precio base del ítem</span>
                 </div>
               </div>
               <div style="margin-bottom:14px">

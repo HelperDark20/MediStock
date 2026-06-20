@@ -98,12 +98,10 @@ async function crearSKUGlobal(){
   const codigo     = document.getElementById('sku-codigo').value.trim().toUpperCase();
   const familia    = document.getElementById('sku-familia').value.trim();
   const subgrupo   = document.getElementById('sku-subgrupo').value.trim();
-  const precio     = parseFloat(document.getElementById('sku-precio')?.value)||0;
 
   if(!nombre||!codigo){ toast('Completa nombre y código SKU','error'); return; }
   if(!familia){ toast('Ingresa la familia del SKU','error'); return; }
   if(!subgrupo){ toast('Ingresa el subgrupo del SKU','error'); return; }
-  if(!precio || precio <= 0){ toast('Ingresa el precio unitario','error'); return; }
 
   const similarFam = buscarSimilar(familia, getFamiliasExistentes());
   if(similarFam && similarFam !== familia){
@@ -118,8 +116,8 @@ async function crearSKUGlobal(){
 
   const campos = [...document.querySelectorAll('.campo-chip input:checked')].map(cb=>cb.value);
   try {
-    await SKUs.createGlobal({ codigo, nombre, familia, subgrupo, precio, campos });
-    ['sku-nombre','sku-codigo','sku-familia','sku-subgrupo','sku-precio'].forEach(id=>{
+    await SKUs.createGlobal({ codigo, nombre, familia, subgrupo, campos });
+    ['sku-nombre','sku-codigo','sku-familia','sku-subgrupo'].forEach(id=>{
       const el=document.getElementById(id); if(el) el.value='';
     });
     document.getElementById('sku-global-preview').textContent='---';

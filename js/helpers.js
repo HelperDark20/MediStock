@@ -5,17 +5,28 @@ function fechaColombia(fecha){
   return d.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
 }
 
+// Semáforo de caducidad:
+//  < 0 días          → N (Vencido)
+//  0–29 días         → P (Por vencer)
+//  30–90 días        → R (Crítico)
+//  91–180 días       → A (Alerta)
+//  > 180 días / s/f  → V (Vigente)
 function getSem(caducidad){
   if(!caducidad) return 'V';
   const diff = (new Date(caducidad)-new Date())/864e5;
   if(diff<0) return 'N';
-  if(diff<90) return 'R';
-  if(diff<180) return 'A';
+  if(diff<30) return 'P';
+  if(diff<=90) return 'R';
+  if(diff<=180) return 'A';
   return 'V';
 }
 
 function semLabel(s){
-  return {V:'Vigente',A:'Por vencer',R:'Crítico',N:'Vencido'}[s]||s;
+  return {V:'Vigente',A:'Alerta',R:'Crítico',P:'Por vencer',N:'Vencido'}[s]||s;
+}
+
+function fmtCOP(n){
+  return '$' + Math.round(Number(n)||0).toLocaleString('es-CO');
 }
 
 function fmtDate(d){

@@ -5,6 +5,8 @@
   --cream:#F4F2EE;--cream2:#EAE7DE;--cream3:#D8D4C8;
   --red:#C0392B;--red2:#E74C3C;--red-bg:#FDF0EF;
   --amber:#B7680A;--amber2:#E08C1A;--amber-bg:#FDF6EC;
+  --orange:#C2660B;--orange-bg:#FDF1E5;
+  --maroon:#7A1F1F;--maroon-bg:#F5E6E5;
   --green:#1A6B3C;--green-bg:#EDF7F1;
   --white:#FFFFFF;
   --font-head:'Syne',sans-serif;
@@ -144,8 +146,9 @@ tr:hover td{background:var(--cream)}
 .sem::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0}
 .sem.V{background:var(--green-bg);color:var(--green)}.sem.V::before{background:var(--green)}
 .sem.A{background:var(--amber-bg);color:var(--amber)}.sem.A::before{background:var(--amber)}
-.sem.R{background:var(--red-bg);color:var(--red)}.sem.R::before{background:var(--red2)}
-.sem.N{background:#F0F0EE;color:#888}.sem.N::before{background:#aaa}
+.sem.R{background:var(--orange-bg);color:var(--orange)}.sem.R::before{background:var(--orange)}
+.sem.P{background:var(--red-bg);color:var(--red2)}.sem.P::before{background:var(--red2)}
+.sem.N{background:var(--maroon-bg);color:var(--maroon)}.sem.N::before{background:var(--maroon)}
 .fam{font-size:10px;font-weight:600;padding:2px 8px;border-radius:8px;font-family:var(--font-mono)}
 .fam.MED{background:#EEF3FB;color:#1A4B8C}
 .fam.INS,.fam.INP{background:var(--blue-bg);color:var(--blue)}
@@ -658,8 +661,9 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 }
 .enf-sem.V{ background:var(--green-bg); color:var(--green); }
 .enf-sem.A{ background:var(--amber-bg); color:var(--amber); }
-.enf-sem.R{ background:var(--red-bg); color:var(--red); }
-.enf-sem.N{ background:#F0F0EE; color:#888; }
+.enf-sem.R{ background:var(--orange-bg); color:var(--orange); }
+.enf-sem.P{ background:var(--red-bg); color:var(--red2); }
+.enf-sem.N{ background:var(--maroon-bg); color:var(--maroon); }
 
 /* Fix espacios vacíos en vistas */
 #view-trazabilidad,
@@ -704,3 +708,12 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 #view-inventario .table-wrap {
   overflow: visible;
 }
+
+/* ── DASHBOARD: VALOR DE INVENTARIO / CONSUMO MENSUAL ── */
+.valor-row{display:flex;align-items:center;justify-content:space-between;padding:10px 6px;border-bottom:1px solid var(--cream2);font-size:13px}
+.valor-row:last-child{border-bottom:none}
+.valor-row.clickable{cursor:pointer;transition:background .12s;border-radius:var(--r-sm)}
+.valor-row.clickable:hover{background:var(--cream)}
+.valor-back{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--blue);cursor:pointer;margin-bottom:10px;font-weight:600}
+.valor-back:hover{text-decoration:underline}
+.valor-ub-title{font-family:var(--font-head);font-size:14px;font-weight:700;color:var(--ink);margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--cream3)}

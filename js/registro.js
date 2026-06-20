@@ -126,12 +126,13 @@ function regAcClear(){
   document.getElementById('reg-sku-info').style.display = 'none';
   document.getElementById('reg-subsku-preview').textContent = '—';
   document.getElementById('reg-subsku-hint').textContent = 'Selecciona un SKU Global para continuar';
-  // Ocultar todos los campos
+  // Ocultar campos dependientes del SKU (el precio es fijo y permanece siempre visible)
   ['reg-proveedor-wrap','reg-lote-wrap','reg-invima-wrap','reg-caducidad-wrap',
-   'reg-precio-wrap','reg-subsku-manual-wrap'].forEach(id=>{
+   'reg-subsku-manual-wrap'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.style.display = 'none';
   });
+  document.getElementById('reg-precio').value = '';
   document.getElementById('reg-ac-input').focus();
 }
 
@@ -154,10 +155,9 @@ function updateRegSKU(skuG){
     <span style="font-size:12px;font-weight:600;color:var(--ink)">${skuG.familia||''}</span>
     <span style="font-size:12px;color:#888;margin-left:6px">${skuG.subgrupo||''}</span>`;
 
-  // Precio desde SKU Global (solo lectura)
-  const precioEl = document.getElementById('reg-precio');
-  if(precioEl){ precioEl.value = skuG.precio || ''; }
-  document.getElementById('reg-precio-wrap').style.display = skuG.precio ? '' : 'none';
+  // El precio es un campo FIJO de cada entrada/lote (no se toma del SKU Global,
+  // ya que el costo puede variar entre compras). Se limpia para forzar su digitación.
+  document.getElementById('reg-precio').value = '';
 
   // Campos activados
   const campos = Array.isArray(skuG.campos) ? skuG.campos : JSON.parse(skuG.campos||'[]');
@@ -274,6 +274,7 @@ async function registrarEntrada(){
   if(cant <= 0)  { toastError('Ingresa una cantidad válida'); return; }
   if(!unidad)    { toastError('Ingresa la unidad'); return; }
   if(!ubicacion) { toastError('Selecciona una ubicación'); return; }
+  if(!precio || precio <= 0) { toastError('Ingresa el precio unitario de esta entrada'); return; }
 
   // Verificar similar de unidad antes de guardar
   const similarUnidad = buscarSimilar(unidad, getUnidadesExistentes());

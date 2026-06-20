@@ -77,6 +77,9 @@ router.post('/sub', verificarToken, verificarNivel(3), async (req, res) => {
   if (!sku_global_id || !unidad) {
     return res.status(400).json({ error: 'Faltan campos obligatorios' });
   }
+  if (precio === undefined || precio === null || isNaN(precio) || Number(precio) <= 0) {
+    return res.status(400).json({ error: 'El precio unitario es obligatorio y debe ser mayor a 0' });
+  }
   const abrevProv = (str) => {
     if (!str) return null;
     const words = str.trim().split(/\s+/).filter(Boolean);

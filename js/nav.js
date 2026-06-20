@@ -16,7 +16,7 @@ function buildNav(){
     btn.className = 'nav-item';
     btn.innerHTML = `<i class="ti ${n.icon}"></i>${n.label}`;
     if(n.id==='inventario'){
-      const alerts = S.subSkus.filter(s=>['N','R'].includes(getSem(s.caducidad))&&!s.agotado).length;
+      const alerts = S.subSkus.filter(s=>['N','P','R'].includes(getSem(s.caducidad))&&!s.agotado).length;
       if(alerts>0) btn.innerHTML += `<span class="nav-badge">${alerts}</span>`;
     }
     btn.dataset.navId = n.id;

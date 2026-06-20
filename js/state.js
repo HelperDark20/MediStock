@@ -44,6 +44,7 @@ async function loadState(){
           invima: row.invima,
           caducidad: row.caducidad,
           unidad: row.unidad,
+          precio: Number(row.precio)||0,
           agotado: false,
           stock: {}
         };
