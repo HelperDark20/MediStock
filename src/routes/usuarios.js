@@ -4,6 +4,28 @@ const pool = require('../config/db');
 const bcrypt = require('bcryptjs');
 const { verificarToken, verificarNivel } = require('../middlewares/auth');
 
+// GET /api/usuarios/me — cualquier nivel autenticado
+// Usado por el frontend para verificar el token al restaurar sesión
+router.get('/me', verificarToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT u.id, u.nombre, u.cedula, u.nivel, u.genero, u.ubicacion_id,
+              ub.nombre AS ubicacion_nombre
+       FROM usuarios u
+       LEFT JOIN ubicaciones ub ON u.ubicacion_id = ub.id
+       WHERE u.id = $1 AND u.activo = true`,
+      [req.usuario.id]
+    );
+    if (!result.rows.length) {
+      return res.status(401).json({ error: 'Usuario no encontrado o inactivo' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
 // GET /api/usuarios — nivel 4
 router.get('/', verificarToken, verificarNivel(4), async (req, res) => {
   try {
@@ -35,7 +57,7 @@ router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
     const password_hash = await bcrypt.hash(password, 10);
     let result;
     if (existe.rows.length > 0 && !existe.rows[0].activo) {
-      // Reactivar usuario eliminado con los nuevos datos
+      // Reactivar usuario desactivado con los nuevos datos
       result = await pool.query(
         `UPDATE usuarios SET nombre=$1, nivel=$2, genero=$3, fecha_nacimiento=$4,
         password_hash=$5, ubicacion_id=$6, activo=true
@@ -72,7 +94,8 @@ router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
         genero       = COALESCE($3, genero),
         ubicacion_id = $4,
         password_hash = CASE WHEN $5::text IS NOT NULL THEN $5::text ELSE password_hash END
-       WHERE id = $6 RETURNING id, nombre, cedula, nivel, genero, ubicacion_id`,
+       WHERE id = $6 AND activo = true
+       RETURNING id, nombre, cedula, nivel, genero, ubicacion_id`,
       [nombre || null, nivel || null, genero || null, ubicacion_id || null, password_hash, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -84,9 +107,20 @@ router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
 });
 
 // DELETE /api/usuarios/:id — nivel 4
+// SOFT DELETE: marca activo=false para preservar el historial de movimientos
 router.delete('/:id', verificarToken, verificarNivel(4), async (req, res) => {
   try {
-    await pool.query('DELETE FROM usuarios WHERE id = $1', [req.params.id]);
+    // Evitar que un admin se elimine a sí mismo
+    if (parseInt(req.params.id) === req.usuario.id) {
+      return res.status(400).json({ error: 'No puedes desactivar tu propio usuario' });
+    }
+    const result = await pool.query(
+      'UPDATE usuarios SET activo = false WHERE id = $1 AND activo = true RETURNING id',
+      [req.params.id]
+    );
+    if (!result.rows.length) {
+      return res.status(404).json({ error: 'Usuario no encontrado o ya desactivado' });
+    }
     res.json({ mensaje: 'Usuario desactivado' });
   } catch (err) {
     console.error(err);

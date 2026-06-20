@@ -11,13 +11,21 @@ function fechaColombia(fecha){
 //  30–90 días        → R (Crítico)
 //  91–180 días       → A (Alerta)
 //  > 180 días / s/f  → V (Vigente)
+//
+// Fix #10: se compara YYYY-MM-DD vs YYYY-MM-DD en la misma zona horaria (Colombia),
+// evitando el desfase de hasta 5h que ocurría al mezclar new Date(YYYY-MM-DD) [UTC]
+// con new Date() [hora local del navegador].
 function getSem(caducidad){
   if(!caducidad) return 'V';
-  const diff = (new Date(caducidad)-new Date())/864e5;
-  if(diff<0) return 'N';
-  if(diff<30) return 'P';
-  if(diff<=90) return 'R';
-  if(diff<=180) return 'A';
+  // Obtener fecha actual en Colombia como medianoche UTC (para comparación consistente)
+  const hoyCO = new Date(fechaColombia() + 'T00:00:00');
+  // La caducidad viene como YYYY-MM-DD desde PostgreSQL → también se trata como medianoche
+  const cad   = new Date(caducidad.split('T')[0] + 'T00:00:00');
+  const diff  = (cad - hoyCO) / 864e5;
+  if(diff < 0)   return 'N';
+  if(diff < 30)  return 'P';
+  if(diff <= 90) return 'R';
+  if(diff <= 180) return 'A';
   return 'V';
 }
 
@@ -65,6 +73,17 @@ function getStockEnUbicacion(sub, ub){
   return sub.stock?.[ub]||0;
 }
 
+// ── SANITIZACIÓN XSS — Fix #11 ──
+// Escapar caracteres HTML antes de insertar datos del servidor en innerHTML.
+// Usar en cualquier template literal que incluya nombres, códigos, etc. del backend.
+// Ejemplo: `<div>${escHtml(s.nombre)}</div>`
+function escHtml(str){
+  return String(str == null ? '—' : str).replace(
+    /[&<>"']/g,
+    c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])
+  );
+}
+
 function toast(msg, type='', duracion=2400){
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -96,6 +115,6 @@ function showLoading(show){
     }
     el.style.display = 'flex';
   } else {
-    if(el) el.remove(); // ← eliminar del DOM completamente, no solo ocultar
+    if(el) el.remove();
   }
 }

@@ -39,8 +39,16 @@ function populateSelects(){
   });
 }
 
+// ── Fix #6: helper interno que verifica el nivel REAL antes de renderizar ──
+// goTo() ya bloquea la navegación, pero las funciones render* podían ser
+// llamadas directamente desde la consola del navegador si alguien manipulaba
+// currentRole. Este helper centraliza la verificación.
+function _nivelPermite(viewId){
+  return NIVELES[currentRole]?.nav.includes(viewId) ?? false;
+}
+
 function goTo(viewId){
-  if(!NIVELES[currentRole].nav.includes(viewId)){
+  if(!_nivelPermite(viewId)){
     toast('Sin permiso','error');
     return;
   }

@@ -126,7 +126,6 @@ function regAcClear(){
   document.getElementById('reg-sku-info').style.display = 'none';
   document.getElementById('reg-subsku-preview').textContent = '—';
   document.getElementById('reg-subsku-hint').textContent = 'Selecciona un SKU Global para continuar';
-  // Ocultar campos dependientes del SKU (el precio es fijo y permanece siempre visible)
   ['reg-proveedor-wrap','reg-lote-wrap','reg-invima-wrap','reg-caducidad-wrap',
    'reg-subsku-manual-wrap'].forEach(id=>{
     const el = document.getElementById(id);
@@ -147,7 +146,6 @@ document.addEventListener('click', e=>{
 function updateRegSKU(skuG){
   if(!skuG) return;
 
-  // Mostrar info
   const info = document.getElementById('reg-sku-info');
   info.style.display = 'block';
   document.getElementById('reg-sku-nombre').textContent = skuG.nombre;
@@ -155,11 +153,8 @@ function updateRegSKU(skuG){
     <span style="font-size:12px;font-weight:600;color:var(--ink)">${skuG.familia||''}</span>
     <span style="font-size:12px;color:#888;margin-left:6px">${skuG.subgrupo||''}</span>`;
 
-  // El precio es un campo FIJO de cada entrada/lote (no se toma del SKU Global,
-  // ya que el costo puede variar entre compras). Se limpia para forzar su digitación.
   document.getElementById('reg-precio').value = '';
 
-  // Campos activados
   const campos = Array.isArray(skuG.campos) ? skuG.campos : JSON.parse(skuG.campos||'[]');
 
   const tieneProveedor = campos.includes('proveedor');
@@ -169,11 +164,8 @@ function updateRegSKU(skuG){
   document.getElementById('reg-lote-wrap').style.display      = tieneLote      ? '' : 'none';
   document.getElementById('reg-invima-wrap').style.display    = campos.includes('invima')    ? '' : 'none';
   document.getElementById('reg-caducidad-wrap').style.display = campos.includes('caducidad') ? '' : 'none';
-
-  // Campo manual adicional: siempre visible como complemento opcional
   document.getElementById('reg-subsku-manual-wrap').style.display = '';
 
-  // Hint del sub-SKU según campos activos
   let hintParts = [];
   if(tieneProveedor) hintParts.push('Proveedor (4 letras)');
   if(tieneLote)      hintParts.push('Lote');
@@ -205,7 +197,6 @@ function updateSubSKU(){
   if(tieneLote && lote)      partes.push(lote.toUpperCase());
   if(manual)                 partes.push(manual.toUpperCase());
 
-  // Si no hay nada, mostrar placeholder
   document.getElementById('reg-subsku-preview').textContent = partes.length
     ? partes.join('-')
     : (tieneProveedor ? 'PROV' : '') + (tieneLote ? '-LOTE' : '') || 'ID-MANUAL';
@@ -245,7 +236,10 @@ function usarUnidadExistente(nombre){
 }
 
 // ══════════════════════════════════════════
-// REGISTRAR ENTRADA
+// REGISTRAR ENTRADA — Fix #8
+// Antes: 3 llamadas separadas (createSub → getAll bodegas → entrada)
+// Ahora: 1 sola llamada a /entrada-completa que ejecuta todo en una
+//        transacción PostgreSQL, eliminando la race condition.
 // ══════════════════════════════════════════
 async function registrarEntrada(){
   const skuG = _regSkuSeleccionado;
@@ -260,20 +254,22 @@ async function registrarEntrada(){
   const manual = document.getElementById('reg-subsku-manual').value.trim();
   const invima = campos.includes('invima')    ? document.getElementById('reg-invima').value.trim() : '';
   const cadRaw = campos.includes('caducidad') ? document.getElementById('reg-caducidad').value.trim() : '';
+
   // Convertir DD/MM/YYYY → YYYY-MM-DD para PostgreSQL
   let cad = '';
   if(cadRaw && cadRaw.includes('/')){
     const [d, m, y] = cadRaw.split('/');
     if(d && m && y) cad = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
   }
-  const precio = parseFloat(document.getElementById('reg-precio')?.value)||0;
-  const cant   = parseInt(document.getElementById('reg-cantidad').value)||0;
-  const unidad = document.getElementById('reg-unidad').value.trim();
-  const ubicacion = document.getElementById('reg-ubicacion').value;
 
-  if(cant <= 0)  { toastError('Ingresa una cantidad válida'); return; }
-  if(!unidad)    { toastError('Ingresa la unidad'); return; }
-  if(!ubicacion) { toastError('Selecciona una ubicación'); return; }
+  const precio  = parseFloat(document.getElementById('reg-precio')?.value)||0;
+  const cant    = parseInt(document.getElementById('reg-cantidad').value)||0;
+  const unidad  = document.getElementById('reg-unidad').value.trim();
+  const ubicacionNombre = document.getElementById('reg-ubicacion').value;
+
+  if(cant <= 0)         { toastError('Ingresa una cantidad válida'); return; }
+  if(!unidad)           { toastError('Ingresa la unidad'); return; }
+  if(!ubicacionNombre)  { toastError('Selecciona una ubicación'); return; }
   if(!precio || precio <= 0) { toastError('Ingresa el precio unitario de esta entrada'); return; }
 
   // Verificar similar de unidad antes de guardar
@@ -283,30 +279,30 @@ async function registrarEntrada(){
     return;
   }
 
+  // Resolver ID de bodega destino
+  const bodegaObj = (S.bodegasRaw||[]).find(b => b.nombre === ubicacionNombre);
+  if(!bodegaObj){ toastError('Bodega de destino no encontrada'); return; }
+
   try {
-    const subData = await SKUs.createSub({
-      sku_global_id: skuG.id,
-      proveedor: prov,
-      lote, invima,
-      caducidad: cad,
-      unidad, precio,
-      sub_sku_manual: manual
-    });
-
-    const todasBodegas = await Bodegas.getAll();
-    const bodegaId = todasBodegas.find(b => b.nombre === ubicacion)?.id;
-
-    await Movimientos.entrada({
-      sub_sku_id: subData.id,
-      bodega_destino_id: bodegaId,
+    // Fix #8: una sola llamada atómica al servidor
+    await Movimientos.entradaCompleta({
+      // Sub-SKU
+      sku_global_id:  skuG.id,
+      proveedor:      prov,
+      lote,
+      invima,
+      caducidad:      cad,
+      unidad,
+      precio,
+      sub_sku_manual: manual,
+      // Entrada
+      bodega_destino_id: bodegaObj.id,
       cantidad: cant
     });
 
     // Limpiar formulario
     regAcClear();
     ['reg-lote','reg-invima','reg-cantidad','reg-unidad','reg-subsku-manual']
-      .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-    ['reg-cad-dia','reg-cad-mes','reg-cad-año']
       .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
     document.getElementById('reg-unidad-hint').style.display = 'none';
 

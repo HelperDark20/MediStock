@@ -1,13 +1,12 @@
 function renderInv(){
   const q=(document.getElementById('inv-search').value||'').toLowerCase();
-  const deposito=document.getElementById('inv-ubicacion').value; // bodega exacta seleccionada
-  const sedeId=parseInt(document.getElementById('inv-sede-id')?.value)||0; // ubicación (sede) seleccionada
+  const deposito=document.getElementById('inv-ubicacion').value;
+  const sedeId=parseInt(document.getElementById('inv-sede-id')?.value)||0;
   const subSkuId=parseInt(document.getElementById('inv-subsku-id')?.value)||0;
   const sem=document.getElementById('inv-sem').value;
   const fam=document.getElementById('inv-familia').value;
   const showAgotados=document.getElementById('inv-agotados')?.checked;
 
-  // Bodegas (depósitos) que pertenecen a la sede seleccionada, si aplica
   const bodegasDeSede = sedeId
     ? new Set((S.bodegasRaw||[]).filter(b=>b.ubicacion_id===sedeId).map(b=>b.nombre))
     : null;
@@ -24,20 +23,15 @@ function renderInv(){
 
     let stockEntries;
     if(deposito){
-      // Depósito específico seleccionado
       stockEntries = [[deposito, s.stock?.[deposito]||0]];
     } else if(bodegasDeSede){
-      // Solo sede seleccionada: mostrar todos sus depósitos
       stockEntries = Object.entries(s.stock||{}).filter(([bodega])=>bodegasDeSede.has(bodega));
     } else {
       stockEntries = Object.entries(s.stock||{});
     }
 
     stockEntries.forEach(([ubicacion, cantidad])=>{
-      // Sin filtro: ocultar cantidad 0. Con filtro: igual, salvo que showAgotados esté activo
       if(cantidad === 0 && !showAgotados) return;
-      // Si agotado y no showAgotados ya se filtró arriba, pero si tiene stock 0 en esa bodega específica
-      // solo mostrar si el item ya tuvo stock ahí (existe la entrada en stock) y showAgotados activo
       if(cantidad === 0 && !s.stock?.hasOwnProperty(ubicacion)) return;
       rows.push({s,skuG,st,ubicacion,cantidad});
     });
@@ -49,24 +43,25 @@ function renderInv(){
     el.innerHTML='<tr><td colspan="8"><div class="empty-state"><i class="ti ti-search"></i><p>Sin resultados</p></div></td></tr>';
     return;
   }
+  // Fix #11: escHtml() en codigo, nombre, subSku, ubicacion, unidad
   el.innerHTML = rows.map(({s,skuG,st,ubicacion,cantidad})=>`
     <tr style="${s.agotado?'opacity:.5;':''}">
-      <td><span class="sku-code">${skuG?.codigo||'—'}</span></td>
+      <td><span class="sku-code">${escHtml(skuG?.codigo||'—')}</span></td>
       <td>
-        <div style="font-weight:500;font-size:13px">${s.nombre}</div>
+        <div style="font-weight:500;font-size:13px">${escHtml(s.nombre)}</div>
         <div style="display:flex;gap:4px;margin-top:3px;flex-wrap:wrap">
           <span class="fam ${skuG?.familia||''}">${FAMILIAS[skuG?.familia]||''}</span>
           ${s.agotado?'<span style="font-size:9px;padding:2px 6px;border-radius:6px;background:#F0F0EE;color:#888;font-family:var(--font-mono);font-weight:700">AGOTADO</span>':''}
         </div>
       </td>
-      <td><span class="sub-sku">${s.subSku}</span></td>
-      <td><span class="ubic">${ubicacion}</span></td>
-      <td style="font-family:var(--font-mono);font-weight:700">${cantidad}<span style="font-size:10px;color:#aaa;font-weight:400;margin-left:3px">${s.unidad}</span></td>
+      <td><span class="sub-sku">${escHtml(s.subSku)}</span></td>
+      <td><span class="ubic">${escHtml(ubicacion)}</span></td>
+      <td style="font-family:var(--font-mono);font-weight:700">${cantidad}<span style="font-size:10px;color:#aaa;font-weight:400;margin-left:3px">${escHtml(s.unidad)}</span></td>
       <td style="font-size:12px;font-family:var(--font-mono)">${fmtDate(s.caducidad)}</td>
       <td>${s.agotado?'<span class="sem N">Agotado</span>':`<span class="sem ${st}">${semLabel(st)}</span>`}</td>
       <td>
         <div class="act-btn-group">
-          ${canAct?`<button class="act-btn primary" onclick="quickMov(${s.id},'${ubicacion}')" title="Movimiento"><i class="ti ti-transfer"></i></button>`:''}
+          ${canAct?`<button class="act-btn primary" onclick="quickMov(${s.id},'${escHtml(ubicacion)}')" title="Movimiento"><i class="ti ti-transfer"></i></button>`:''}
           ${currentRole>=4?`<button class="act-btn danger" onclick="confirmDelete(${s.id})" title="Eliminar"><i class="ti ti-trash"></i></button>`:''}
         </div>
       </td>
@@ -74,8 +69,7 @@ function renderInv(){
 }
 
 // ══════════════════════════════════════════
-// AUTOCOMPLETE: FILTRO DE UBICACIÓN / SEDE (Inventario)
-// Primer nivel: ubicaciones (sedes) — ej. CAÑAVERALEJO, PALMASECA
+// AUTOCOMPLETE: FILTRO DE UBICACIÓN / SEDE
 // ══════════════════════════════════════════
 let _invSedeFocusIdx = -1;
 
@@ -94,12 +88,12 @@ function invSedeFilter(){
     return;
   }
 
-  const hilite = str => q ? str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>') : str;
+  const hilite = str => q ? str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>') : escHtml(str);
 
   drop.innerHTML = results.map((u, idx) => {
     const totalDepositos = (S.bodegasRaw||[]).filter(b=>b.ubicacion_id===u.id).length;
-    return `<div class="ac-item" data-id="${u.id}" data-nombre="${u.nombre}"
-      onmousedown="invSedeSelect(${u.id},'${u.nombre.replace(/'/g,"\\'")}')"
+    return `<div class="ac-item" data-id="${u.id}" data-nombre="${escHtml(u.nombre)}"
+      onmousedown="invSedeSelect(${u.id},'${escHtml(u.nombre).replace(/'/g,"\\'")}')"
       onmouseover="invSedeHover(${idx})">
       <div class="ac-item-icon"><i class="ti ti-map-pin"></i></div>
       <div class="ac-item-body">
@@ -111,9 +105,7 @@ function invSedeFilter(){
   drop.classList.add('open');
 }
 
-function invSedeOpen(){
-  invSedeFilter();
-}
+function invSedeOpen(){ invSedeFilter(); }
 
 function invSedeHover(idx){
   _invSedeFocusIdx = idx;
@@ -148,7 +140,6 @@ function invSedeSelect(id, nombre){
   document.getElementById('inv-sede-id').value = id;
   document.getElementById('inv-sede-clear').classList.add('show');
   document.getElementById('inv-sede-drop').classList.remove('open');
-  // El depósito y sub-SKU seleccionados ya no aplican necesariamente: se limpian
   invDepositoClear(false);
   invSubClear(false);
   renderInv();
@@ -165,8 +156,7 @@ function invSedeClear(){
 }
 
 // ══════════════════════════════════════════
-// AUTOCOMPLETE: FILTRO DE DEPÓSITO (Inventario)
-// Segundo nivel: solo muestra depósitos de la sede seleccionada (si hay una)
+// AUTOCOMPLETE: FILTRO DE DEPÓSITO
 // ══════════════════════════════════════════
 let _invDepositoFocusIdx = -1;
 
@@ -184,30 +174,28 @@ function invDepositoFilter(){
   const results = pool.filter(b => !q || b.nombre.toLowerCase().includes(q));
 
   if(!results.length){
-    const msg = sedeId ? `Sin depósitos en esta ubicación` : 'Sin depósitos';
+    const msg = sedeId ? 'Sin depósitos en esta ubicación' : 'Sin depósitos';
     drop.innerHTML = `<div class="ac-no-results"><i class="ti ti-building-warehouse" style="display:block;font-size:22px;margin-bottom:6px;opacity:.3"></i>${msg}</div>`;
     drop.classList.add('open');
     return;
   }
 
-  const hilite = str => q ? str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>') : str;
+  const hilite = str => q ? str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>') : escHtml(str);
 
   drop.innerHTML = results.map((b, idx) => `
-    <div class="ac-item" data-nombre="${b.nombre}" data-sede-id="${b.ubicacion_id||''}" data-sede-nombre="${b.ubicacion_nombre||''}"
-      onmousedown="invDepositoSelect('${b.nombre.replace(/'/g,"\\'")}', ${b.ubicacion_id||'null'}, '${(b.ubicacion_nombre||'').replace(/'/g,"\\'")}')"
+    <div class="ac-item" data-nombre="${escHtml(b.nombre)}" data-sede-id="${b.ubicacion_id||''}" data-sede-nombre="${escHtml(b.ubicacion_nombre||'')}"
+      onmousedown="invDepositoSelect('${escHtml(b.nombre).replace(/'/g,"\\'")}', ${b.ubicacion_id||'null'}, '${escHtml(b.ubicacion_nombre||'').replace(/'/g,"\\'")}')"
       onmouseover="invDepositoHover(${idx})">
       <div class="ac-item-icon"><i class="ti ti-building-warehouse"></i></div>
       <div class="ac-item-body">
         <div class="ac-item-name">${hilite(b.nombre)}</div>
-        ${!sedeId && b.ubicacion_nombre ? `<div class="ac-item-meta">${b.ubicacion_nombre}</div>` : ''}
+        ${!sedeId && b.ubicacion_nombre ? `<div class="ac-item-meta">${escHtml(b.ubicacion_nombre)}</div>` : ''}
       </div>
     </div>`).join('');
   drop.classList.add('open');
 }
 
-function invDepositoOpen(){
-  invDepositoFilter();
-}
+function invDepositoOpen(){ invDepositoFilter(); }
 
 function invDepositoHover(idx){
   _invDepositoFocusIdx = idx;
@@ -243,14 +231,11 @@ function invDepositoSelect(nombre, sedeId, sedeNombre){
   document.getElementById('inv-ubicacion').value = nombre;
   document.getElementById('inv-deposito-clear').classList.add('show');
   document.getElementById('inv-deposito-drop').classList.remove('open');
-
-  // Sincronizar el campo de sede si aún no estaba seleccionada (o no coincidía)
   if(sedeId){
     document.getElementById('inv-sede-input').value = sedeNombre||'';
     document.getElementById('inv-sede-id').value = sedeId;
     document.getElementById('inv-sede-clear').classList.add('show');
   }
-
   invSubClear(false);
   renderInv();
 }
@@ -260,15 +245,11 @@ function invDepositoClear(rerender = true){
   document.getElementById('inv-ubicacion').value = '';
   document.getElementById('inv-deposito-clear').classList.remove('show');
   document.getElementById('inv-deposito-drop').classList.remove('open');
-  if(rerender){
-    invSubClear(false);
-    renderInv();
-  }
+  if(rerender){ invSubClear(false); renderInv(); }
 }
 
 // ══════════════════════════════════════════
-// AUTOCOMPLETE: FILTRO DE SUB-SKU (Inventario)
-// Sugiere solo sub-SKUs existentes en el depósito (o, en su defecto, la sede) seleccionada
+// AUTOCOMPLETE: FILTRO DE SUB-SKU
 // ══════════════════════════════════════════
 let _invSubFocusIdx = -1;
 
@@ -293,19 +274,17 @@ function invSubFilter(){
   }
 
   const results = pool.filter(s =>
-    !q ||
-    s.subSku.toLowerCase().includes(q) ||
-    s.nombre.toLowerCase().includes(q)
+    !q || s.subSku.toLowerCase().includes(q) || s.nombre.toLowerCase().includes(q)
   ).slice(0, 10);
 
   if(!results.length){
-    const ctx = deposito ? ` en ${deposito}` : (sedeId ? ` en esta ubicación` : '');
-    drop.innerHTML = `<div class="ac-no-results"><i class="ti ti-search" style="display:block;font-size:22px;margin-bottom:6px;opacity:.3"></i>Sin resultados${ctx}</div>`;
+    const ctx = deposito ? ` en ${deposito}` : (sedeId ? ' en esta ubicación' : '');
+    drop.innerHTML = `<div class="ac-no-results"><i class="ti ti-search" style="display:block;font-size:22px;margin-bottom:6px;opacity:.3"></i>Sin resultados${escHtml(ctx)}</div>`;
     drop.classList.add('open');
     return;
   }
 
-  const hilite = str => q ? str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>') : str;
+  const hilite = str => q ? str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>') : escHtml(str);
 
   drop.innerHTML = results.map((s, idx) => {
     const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
@@ -320,19 +299,17 @@ function invSubFilter(){
       <div class="ac-item-body">
         <div class="ac-item-name">${hilite(s.subSku)}</div>
         <div class="ac-item-meta">
-          ${skuG?`<span class="sku-code" style="font-size:9px">${skuG.codigo}</span>`:''}
+          ${skuG?`<span class="sku-code" style="font-size:9px">${escHtml(skuG.codigo)}</span>`:''}
           <span>${hilite(s.nombre)}</span>
         </div>
       </div>
-      <div class="ac-item-stock">${cant} ${s.unidad}</div>
+      <div class="ac-item-stock">${cant} ${escHtml(s.unidad)}</div>
     </div>`;
   }).join('');
   drop.classList.add('open');
 }
 
-function invSubOpen(){
-  invSubFilter();
-}
+function invSubOpen(){ invSubFilter(); }
 
 function invSubHover(idx){
   _invSubFocusIdx = idx;

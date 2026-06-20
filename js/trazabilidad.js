@@ -8,7 +8,6 @@ function trazAcFilter(){
   clear.classList.toggle('show', q.length > 0);
   _trazAcFocusIdx = -1;
 
-  // Solo mostrar sugerencias si hay texto escrito
   if(!q){ drop.classList.remove('open'); drop.innerHTML=''; return; }
 
   const results = S.skusGlobales.filter(g =>
@@ -30,10 +29,10 @@ function trazAcFilter(){
       onmouseover="_trazAcFocusIdx=${idx};document.querySelectorAll('#traz-ac-drop .ac-item').forEach((el,i)=>el.classList.toggle('focused',i===${idx}))">
       <div class="ac-item-icon"><i class="ti ti-tag"></i></div>
       <div class="ac-item-body">
-        <div class="ac-item-name">${hilite(g.nombre)}</div>
+        <div class="ac-item-name">${hilite(escHtml(g.nombre))}</div>
         <div class="ac-item-meta">
-          <span class="sku-code" style="font-size:9px">${hilite(g.codigo)}</span>
-          <span style="font-size:9px;color:#aaa">${g.familia||''}</span>
+          <span class="sku-code" style="font-size:9px">${hilite(escHtml(g.codigo))}</span>
+          <span style="font-size:9px;color:#aaa">${escHtml(g.familia||'')}</span>
         </div>
       </div>
     </div>`).join('');
@@ -94,7 +93,6 @@ async function updateTrazSubs(){
   const sel = document.getElementById('traz-sub');
   sel.innerHTML='<option value="">Todos los Sub-SKUs</option>';
 
-  // Resetear filtros de ubicación y depósito
   document.getElementById('traz-ubicacion').innerHTML = '<option value="">Todas las ubicaciones</option>';
   document.getElementById('traz-deposito').innerHTML  = '<option value="">Todos los depósitos</option>';
 
@@ -104,12 +102,12 @@ async function updateTrazSubs(){
     const totalStock = getTotalStock(s);
     const ubicaciones = Object.entries(s.stock||{})
       .filter(([,v])=>v>0)
-      .map(([bodega, cant])=>`${bodega}: ${cant}`)
+      .map(([bodega, cant])=>`${escHtml(bodega)}: ${cant}`)
       .join(' · ');
     const o = document.createElement('option');
     o.value = s.id;
     o.textContent = totalStock > 0
-      ? `${s.subSku} — ${ubicaciones}`
+      ? `${s.subSku} — ${Object.entries(s.stock||{}).filter(([,v])=>v>0).map(([b,c])=>`${b}: ${c}`).join(' · ')}`
       : `${s.subSku} — Sin stock`;
     sel.appendChild(o);
   });
@@ -143,16 +141,17 @@ async function renderTrazabilidad(){
       traslado:'ti-transfer', consumo:'ti-minus-circle', destruccion:'ti-trash'
     };
 
+    // Fix #11: escHtml en todos los campos de texto del servidor
     result.innerHTML=`
       <div class="card" style="margin-bottom:16px">
         <div class="card-body">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
             <div>
-              <div style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--blue)">${skuG?.codigo}</div>
-              <div style="font-size:15px;font-weight:600;margin-top:4px">${skuG?.nombre}</div>
+              <div style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--blue)">${escHtml(skuG?.codigo)}</div>
+              <div style="font-size:15px;font-weight:600;margin-top:4px">${escHtml(skuG?.nombre)}</div>
               <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
-                <span style="font-size:11px;font-weight:600;color:var(--ink)">${skuG?.familia||''}</span>
-                <span style="font-size:11px;color:#888">${skuG?.subgrupo||''}</span>
+                <span style="font-size:11px;font-weight:600;color:var(--ink)">${escHtml(skuG?.familia||'')}</span>
+                <span style="font-size:11px;color:#888">${escHtml(skuG?.subgrupo||'')}</span>
               </div>
             </div>
             <div style="text-align:right">
@@ -160,7 +159,7 @@ async function renderTrazabilidad(){
                 Sub-SKUs activos: ${subs.filter(s=>!s.agotado).length}
               </div>
               <div style="font-size:12px;font-weight:700;margin-top:4px">
-                Stock total: ${subs.reduce((a,s)=>a+getTotalStock(s),0)} ${subs[0]?.unidad||''}
+                Stock total: ${subs.reduce((a,s)=>a+getTotalStock(s),0)} ${escHtml(subs[0]?.unidad||'')}
               </div>
             </div>
           </div>
@@ -180,7 +179,7 @@ async function renderTrazabilidad(){
                    <div class="tl-header">
                      <div class="tl-tipo ${m.tipo}">
                        <i class="ti ${tipoIcon[m.tipo]||'ti-arrow-right'}" style="margin-right:4px"></i>
-                       ${m.tipo.toUpperCase()}
+                       ${escHtml(m.tipo.toUpperCase())}
                      </div>
                      <div class="tl-fecha">
                        ${new Date(m.created_at).toLocaleString('es-CO',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}
@@ -188,16 +187,16 @@ async function renderTrazabilidad(){
                    </div>
                    <div class="tl-desc">
                      ${m.tipo==='compra'
-                       ?`Entrada de <strong>${m.cantidad}</strong> unidades → <strong>${m.destino_nombre||'—'}</strong>`
+                       ?`Entrada de <strong>${m.cantidad}</strong> unidades → <strong>${escHtml(m.destino_nombre||'—')}</strong>`
                        :m.tipo==='consumo'
-                       ?`Consumo de <strong>${m.cantidad}</strong> unidades desde <strong>${m.origen_nombre||'—'}</strong>`
+                       ?`Consumo de <strong>${m.cantidad}</strong> unidades desde <strong>${escHtml(m.origen_nombre||'—')}</strong>`
                        :m.tipo==='traslado'
-                       ?`Traslado de <strong>${m.cantidad}</strong> unidades de <strong>${m.origen_nombre||'—'}</strong> a <strong>${m.destino_nombre||'—'}</strong>`
-                       :`Baja de <strong>${m.cantidad}</strong> unidades desde <strong>${m.origen_nombre||'—'}</strong>${m.motivo?' · Motivo: '+m.motivo:''}`}
+                       ?`Traslado de <strong>${m.cantidad}</strong> unidades de <strong>${escHtml(m.origen_nombre||'—')}</strong> a <strong>${escHtml(m.destino_nombre||'—')}</strong>`
+                       :`Baja de <strong>${m.cantidad}</strong> unidades desde <strong>${escHtml(m.origen_nombre||'—')}</strong>${m.motivo?' · Motivo: '+escHtml(m.motivo):''}`}
                    </div>
                    <div class="tl-user">
                      <div class="tl-user-dot n${nivel}"></div>
-                     <strong>${m.usuario_nombre||'—'}</strong>
+                     <strong>${escHtml(m.usuario_nombre||'—')}</strong>
                      <span class="nivel-badge n${nivel}" style="font-size:9px">
                        ${NIVELES[nivel]?.label||''}
                      </span>
@@ -214,24 +213,18 @@ async function renderTrazabilidad(){
 }
 
 // ── FILTROS UBICACIÓN Y DEPÓSITO EN TRAZABILIDAD ──
-
 function updateTrazFiltros(){
   const gId = parseInt(document.getElementById('traz-global').value)||0;
-
-  // Llenar ubicaciones que tienen existencia de este SKU
   const ubSel = document.getElementById('traz-ubicacion');
   const depSel = document.getElementById('traz-deposito');
   ubSel.innerHTML  = '<option value="">Todas las ubicaciones</option>';
   depSel.innerHTML = '<option value="">Todos los depósitos</option>';
-
   if(!gId) return;
 
-  // Obtener bodegas donde este SKU tiene o tuvo stock
   const subs = S.subSkus.filter(s => s.skuGlobalId === gId);
   const bodegasConStock = new Set();
   subs.forEach(s => Object.keys(s.stock||{}).forEach(b => bodegasConStock.add(b)));
 
-  // Ubicaciones únicas de esas bodegas
   const ubicacionesVistas = new Set();
   ;(S.bodegasRaw||[]).forEach(b => {
     if(bodegasConStock.has(b.nombre) && b.ubicacion_nombre){
@@ -240,7 +233,7 @@ function updateTrazFiltros(){
   });
 
   [...ubicacionesVistas].map(s=>JSON.parse(s)).forEach(u => {
-    ubSel.innerHTML += `<option value="${u.id}">${u.nombre}</option>`;
+    ubSel.innerHTML += `<option value="${u.id}">${escHtml(u.nombre)}</option>`;
   });
 }
 
@@ -250,7 +243,7 @@ function updateTrazDepositos(){
   const depSel = document.getElementById('traz-deposito');
   depSel.innerHTML = '<option value="">Todos los depósitos</option>';
 
-  if(!ubId) { renderTrazabilidad(); return; }
+  if(!ubId){ renderTrazabilidad(); return; }
 
   const subs = S.subSkus.filter(s => s.skuGlobalId === gId);
   const bodegasConStock = new Set();
@@ -259,7 +252,7 @@ function updateTrazDepositos(){
   ;(S.bodegasRaw||[])
     .filter(b => b.ubicacion_id === ubId && bodegasConStock.has(b.nombre))
     .forEach(b => {
-      depSel.innerHTML += `<option value="${b.nombre}">${b.nombre}</option>`;
+      depSel.innerHTML += `<option value="${escHtml(b.nombre)}">${escHtml(b.nombre)}</option>`;
     });
 
   renderTrazabilidad();

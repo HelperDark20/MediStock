@@ -32,7 +32,7 @@ router.post('/globales', verificarToken, verificarNivel(4), async (req, res) => 
     const result = await pool.query(
       `INSERT INTO skus_globales (codigo, nombre, familia, subgrupo, precio, campos)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [codigo, nombre, familia, subgrupo, precio||0, JSON.stringify(campos || [])]
+      [codigo, nombre, familia, subgrupo, precio || 0, JSON.stringify(campos || [])]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -72,6 +72,8 @@ router.get('/sub', verificarToken, async (req, res) => {
 });
 
 // POST /api/skus/sub — nivel 3 y 4
+// Se mantiene para usos directos, pero el flujo de Registro de entradas
+// ahora usa /api/movimientos/entrada-completa (Fix #8).
 router.post('/sub', verificarToken, verificarNivel(3), async (req, res) => {
   const { sku_global_id, proveedor, lote, invima, caducidad, unidad, precio, sub_sku_manual } = req.body;
   if (!sku_global_id || !unidad) {
@@ -83,16 +85,15 @@ router.post('/sub', verificarToken, verificarNivel(3), async (req, res) => {
   const abrevProv = (str) => {
     if (!str) return null;
     const words = str.trim().split(/\s+/).filter(Boolean);
-    if (words.length === 1) return str.replace(/[^a-zA-Z0-9]/g,'').substring(0,4).toUpperCase();
-    return words.map(w => w[0]?.toUpperCase() || '').join('').substring(0,4).padEnd(4,'X');
+    if (words.length === 1) return str.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase();
+    return words.map(w => w[0]?.toUpperCase() || '').join('').substring(0, 4).padEnd(4, 'X');
   };
 
-  // Construir sub_sku dinámicamente según lo que venga
   let partes = [];
-  if (proveedor) partes.push(abrevProv(proveedor));
-  if (lote)      partes.push(lote.toUpperCase());
+  if (proveedor)      partes.push(abrevProv(proveedor));
+  if (lote)           partes.push(lote.toUpperCase());
   if (sub_sku_manual) partes.push(sub_sku_manual.toUpperCase());
-  if (!partes.length) partes.push('GEN'); // fallback si nada activo
+  if (!partes.length) partes.push('GEN');
 
   const sub_sku = partes.join('-');
 
@@ -107,7 +108,7 @@ router.post('/sub', verificarToken, verificarNivel(3), async (req, res) => {
     const result = await pool.query(
       `INSERT INTO sub_skus (sku_global_id, sub_sku, proveedor, lote, invima, caducidad, unidad, precio)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [sku_global_id, sub_sku, proveedor||null, lote||null, invima||null, caducidad||null, unidad, precio||0]
+      [sku_global_id, sub_sku, proveedor || null, lote || null, invima || null, caducidad || null, unidad, precio || 0]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -117,30 +118,45 @@ router.post('/sub', verificarToken, verificarNivel(3), async (req, res) => {
 });
 
 // GET /api/skus/stock
+// Fix #5: el SELECT original tenía st.sub_sku_id y s.id as sub_sku_id con el mismo
+// alias, lo que hacía que pg devolviera la segunda columna y perdiera la primera
+// (que podía ser NULL en LEFT JOIN sin stock). Se renombra st.sub_sku_id a
+// stock_sub_sku_id para que ambas columnas sean distinguibles.
+// Fix #7: se agrega s.invima al SELECT para que el frontend pueda mostrarlo.
 router.get('/stock', verificarToken, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT st.sub_sku_id,
-              COALESCE(st.bodega_id, NULL) as bodega_id,
-              COALESCE(st.cantidad, 0) as cantidad,
-              s.id as sub_sku_id,
+      `SELECT
+              -- Fix #5: alias renombrado para evitar colisión con s.id
+              st.sub_sku_id AS stock_sub_sku_id,
+              COALESCE(st.bodega_id, NULL) AS bodega_id,
+              COALESCE(st.cantidad, 0)     AS cantidad,
+
+              -- Datos del sub-SKU
+              s.id          AS sub_sku_id,
               s.sku_global_id,
               s.sub_sku,
               s.proveedor,
               s.lote,
+              s.invima,
               s.caducidad,
               s.unidad,
               s.precio,
               s.serial,
-              g.codigo as sku_global,
+
+              -- Datos del SKU Global
+              g.codigo      AS sku_global,
               g.nombre,
               g.familia,
               g.subgrupo,
-              b.nombre as bodega_nombre
+
+              -- Nombre de la bodega (puede ser NULL si no hay stock)
+              b.nombre      AS bodega_nombre
+
        FROM sub_skus s
        JOIN skus_globales g ON s.sku_global_id = g.id
-       LEFT JOIN stock st ON st.sub_sku_id = s.id
-       LEFT JOIN bodegas b ON st.bodega_id = b.id AND b.activo = true
+       LEFT JOIN stock st   ON st.sub_sku_id = s.id
+       LEFT JOIN bodegas b  ON st.bodega_id = b.id AND b.activo = true
        WHERE s.activo = true
        ORDER BY g.codigo, b.nombre`
     );
