@@ -11,7 +11,7 @@ router.get('/', verificarToken, async (req, res) => {
       SELECT m.*,
             g.codigo as sku_global_codigo,
             s.sub_sku,
-            s.nombre as nombre,
+            g.nombre as nombre,
             s.unidad,
             bo.nombre as origen_nombre,
             bd.nombre as destino_nombre,
