@@ -4,27 +4,48 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 
-const authRoutes       = require('./routes/auth');
-const skusRoutes       = require('./routes/skus');
+const authRoutes        = require('./routes/auth');
+const skusRoutes        = require('./routes/skus');
 const movimientosRoutes = require('./routes/movimientos');
-const usuariosRoutes   = require('./routes/usuarios');
-const bodegasRoutes    = require('./routes/bodegas');
+const usuariosRoutes    = require('./routes/usuarios');
+const bodegasRoutes     = require('./routes/bodegas');
 const ubicacionesRoutes = require('./routes/ubicaciones');
 
 const app = express();
 app.set('trust proxy', 1);
 
-// Seguridad
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
+      // Fix CSP: se agregan cdnjs.cloudflare.com y cdn.jsdelivr.net a scriptSrc
+      // para permitir Chart.js y cualquier otro script de CDN que use el frontend.
+      scriptSrc: [
+        "'self'",
+        "'unsafe-inline'",
+        "https://cdnjs.cloudflare.com",
+        "https://cdn.jsdelivr.net"
+      ],
       scriptSrcAttr: ["'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"],
+      styleSrc: [
+        "'self'",
+        "'unsafe-inline'",
+        "https://fonts.googleapis.com",
+        "https://cdn.jsdelivr.net",
+        "https://cdnjs.cloudflare.com"
+      ],
+      fontSrc: [
+        "'self'",
+        "https://fonts.gstatic.com",
+        "https://cdn.jsdelivr.net",
+        "https://cdnjs.cloudflare.com"
+      ],
       imgSrc: ["'self'", "data:", "blob:"],
-      connectSrc: ["'self'", "https://cdn.jsdelivr.net"]
+      connectSrc: [
+        "'self'",
+        "https://cdn.jsdelivr.net",
+        "https://cdnjs.cloudflare.com"
+      ]
     }
   }
 }));
@@ -41,22 +62,15 @@ const loginLimiter = rateLimit({
 });
 
 // ── Fix #9: Rate limit API por IP ──
-// Se aumenta de 300 a 600 req/15min para evitar bloquear clínicas
-// donde múltiples enfermeros comparten la misma IP pública (NAT/proxy).
 const apiLimiterByIp = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 600,
   standardHeaders: true,
   legacyHeaders: false,
-  // Si el límite por IP se alcanza, aún puede pasar el límite por usuario
   skipSuccessfulRequests: false,
 });
 
 // ── Fix #9: Rate limit API por usuario autenticado ──
-// Complementa el límite por IP: cada usuario tiene su propia cuota de
-// 200 req/15min independientemente de cuántos usuarios compartan IP.
-// Si el token es inválido o ausente, se omite este limitador y solo
-// aplica el de IP (el endpoint de auth lo rechazará de todas formas).
 const apiLimiterByUser = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
@@ -66,20 +80,16 @@ const apiLimiterByUser = rateLimit({
     try {
       const authHeader = req.headers['authorization'];
       const token = authHeader && authHeader.split(' ')[1];
-      if (!token) return null; // sin token → no aplica este limitador
-      // Solo decodificamos (sin verificar firma) para obtener el ID.
-      // La verificación real ocurre en verificarToken; aquí solo necesitamos
-      // una clave de agrupación estable por usuario.
+      if (!token) return null;
       const payload = JSON.parse(
         Buffer.from(token.split('.')[1], 'base64').toString('utf8')
       );
       return payload.id ? `user_${payload.id}` : null;
     } catch {
-      return null; // token malformado → no aplica este limitador
+      return null;
     }
   },
   skip: (req) => {
-    // Si keyGenerator devuelve null, skip = true → no limitar
     try {
       const authHeader = req.headers['authorization'];
       const token = authHeader && authHeader.split(' ')[1];
