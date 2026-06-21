@@ -708,7 +708,7 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 #view-inventario .table-wrap {
   overflow: visible;
 }
-
+  
 /* ── DASHBOARD: VALOR DE INVENTARIO / CONSUMO MENSUAL ── */
 .valor-row{display:flex;align-items:center;justify-content:space-between;padding:10px 6px;border-bottom:1px solid var(--cream2);font-size:13px}
 .valor-row:last-child{border-bottom:none}

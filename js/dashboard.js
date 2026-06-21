@@ -157,7 +157,7 @@ function renderValorInventario(){
 
   const entries = Object.entries(porUbicacion).sort((a,b)=>b[1].valor-a[1].valor);
   if(!entries.length){
-    _destroyChart('_chartValor');
+    if(_chartValor){ _chartValor.destroy(); _chartValor=null; }
     document.getElementById('dash-valor-body').innerHTML =
       `<div class="empty-state" style="padding:24px 0"><i class="ti ti-coin"></i><p>Sin inventario valorado todavía</p></div>`;
     return;
@@ -175,7 +175,7 @@ function renderValorInventario(){
       ${escHtml(u.nombre)}: ${fmtCOP(u.valor)} (${Math.round(u.valor/totalVal*100)}%)
     </div>`).join('');
 
-  _destroyChart('_chartValor');
+  if(_chartValor){ _chartValor.destroy(); _chartValor=null; }
   const ctx = document.getElementById('dash-valor-chart').getContext('2d');
 
   if(_dashModoValor === 'dona'){
@@ -260,7 +260,7 @@ function renderConsumoMensual(){
   }
 
   if(!chartEntries.length){
-    _destroyChart('_chartConsumo');
+    if(_chartConsumo){ _chartConsumo.destroy(); _chartConsumo=null; }
     document.getElementById('dash-consumo-chart-wrap').innerHTML =
       `<div class="empty-state" style="padding:24px 0"><i class="ti ti-chart-bar"></i><p>Sin consumos este mes</p></div>`;
     return;
@@ -276,7 +276,7 @@ function renderConsumoMensual(){
   const data   = chartEntries.map(([,u])=>u.total);
   const colors = chartEntries.map((_,i)=>SEDE_COLS[i % SEDE_COLS.length]);
 
-  _destroyChart('_chartConsumo');
+  if(_chartConsumo){ _chartConsumo.destroy(); _chartConsumo=null; }
   const ctx = document.getElementById('dash-consumo-chart').getContext('2d');
   _chartConsumo = new Chart(ctx, {
     type: 'bar',
@@ -324,8 +324,4 @@ function _fmtM(n){
   if(n>=1e9) return '$'+(n/1e9).toFixed(1)+'B';
   if(n>=1e6) return '$'+Math.round(n/1e6)+'M';
   return '$'+Math.round(n).toLocaleString('es-CO');
-}
-
-function _destroyChart(name){
-  if(window[name]){ window[name].destroy(); window[name]=null; }
 }
