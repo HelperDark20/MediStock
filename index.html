@@ -70,51 +70,70 @@
 
       <!-- ═══ DASHBOARD ═══ -->
       <div class="view" id="view-dashboard">
+
+        <!-- Stat cards -->
         <div class="grid-4" id="dash-stats"></div>
+
+        <!-- Valor + Consumo -->
+        <div class="grid-2" style="margin-bottom:16px">
+
+          <!-- VALOR TOTAL DEL INVENTARIO -->
+          <div class="card">
+            <div class="card-header" style="justify-content:space-between">
+              <div style="display:flex;align-items:center;gap:8px">
+                <i class="ti ti-coin card-title"></i>
+                <span class="card-title">Valor total del inventario</span>
+              </div>
+              <div style="display:flex;gap:4px">
+                <button class="dash-valor-btn active" data-modo="dona" onclick="dashValorToggle('dona')">Distribución</button>
+                <button class="dash-valor-btn" data-modo="barra" onclick="dashValorToggle('barra')">Por sede</button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div id="dash-valor-total" style="font-family:var(--font-head);font-size:28px;font-weight:800;color:var(--ink);margin-bottom:2px">$0</div>
+              <div style="font-size:11px;color:#999;margin-bottom:14px">valorado al costo de compra</div>
+              <div style="position:relative;width:100%;height:220px">
+                <canvas id="dash-valor-chart" role="img" aria-label="Distribución del valor del inventario por sede"></canvas>
+              </div>
+              <div id="dash-valor-legend" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px"></div>
+            </div>
+          </div>
+
+          <!-- CONSUMO MENSUAL -->
+          <div class="card">
+            <div class="card-header" style="justify-content:space-between">
+              <div style="display:flex;align-items:center;gap:8px">
+                <i class="ti ti-chart-bar card-title"></i>
+                <span class="card-title">Consumo mensual por ubicación</span>
+              </div>
+              <input type="month" id="dash-consumo-mes" onchange="dashConsumoMesChange()" style="font-size:12px;padding:5px 10px">
+            </div>
+            <div class="card-body">
+              <div style="margin-bottom:12px">
+                <span id="dash-consumo-total" style="font-family:var(--font-head);font-size:28px;font-weight:800;color:var(--ink)">0</span>
+                <span style="font-size:13px;color:#888;font-weight:500;margin-left:4px">unidades consumidas</span>
+              </div>
+              <div id="dash-consumo-chips" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px"></div>
+              <div id="dash-consumo-chart-wrap" style="position:relative;width:100%;height:180px">
+                <canvas id="dash-consumo-chart" role="img" aria-label="Consumo mensual de unidades por ubicación"></canvas>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ALERTAS DE VENCIMIENTO -->
         <div class="grid-2">
           <div>
-            <div class="sec-header"><div class="sec-title">Alertas de vencimiento</div><div class="sec-link" onclick="goTo('inventario')">Ver inventario →</div></div>
+            <div class="sec-header">
+              <div class="sec-title">Alertas de vencimiento</div>
+              <div class="sec-link" onclick="goTo('inventario')">Ver inventario →</div>
+            </div>
             <div id="dash-alerts"></div>
           </div>
-          <div>
-            <div class="sec-header"><div class="sec-title">Últimos movimientos</div><div class="sec-link" onclick="goTo('trazabilidad')">Ver trazabilidad →</div></div>
-            <div class="table-wrap">
-              <table>
-                <thead><tr><th>SKU Global</th><th>Sub-SKU</th><th>Tipo</th><th>Usuario</th></tr></thead>
-                <tbody id="dash-movimientos"></tbody>
-              </table>
-            </div>
-          </div>
         </div>
 
-        <div class="grid-2" style="margin-top:6px">
-          <div>
-            <div class="sec-header"><div class="sec-title">Valor total del inventario</div></div>
-            <div class="card">
-              <div class="card-body">
-                <div id="dash-valor-total" style="font-family:var(--font-head);font-size:28px;font-weight:800;color:var(--ink);margin-bottom:14px">$0</div>
-                <div id="dash-valor-body"></div>
-              </div>
-            </div>
-          </div>
-          <div>
-            <div class="sec-header">
-              <div class="sec-title">Consumo mensual por ubicación</div>
-              <input type="month" id="dash-consumo-mes" onchange="dashConsumoMesChange()" style="font-size:12px;padding:6px 10px">
-            </div>
-            <div class="card">
-              <div class="card-body">
-                <div style="margin-bottom:14px">
-                  <span id="dash-consumo-total" style="font-family:var(--font-head);font-size:28px;font-weight:800;color:var(--ink)">0</span>
-                  <span style="font-size:13px;color:#888;font-weight:500;margin-left:4px">unidades consumidas</span>
-                </div>
-                <div id="dash-consumo-body"></div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
-
       <!-- ═══ INVENTARIO ═══ -->
       <div class="view" id="view-inventario">
         <div class="table-wrap">
@@ -630,6 +649,9 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- Agregar esta línea en index.html ANTES de <script src="api.js"></script> -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
 <!-- API -->
 <script src="api.js"></script>
