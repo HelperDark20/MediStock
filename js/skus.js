@@ -1,164 +1,192 @@
-const express = require('express');
-const router = express.Router();
-const pool = require('../config/db');
-const { verificarToken, verificarNivel } = require('../middlewares/auth');
+// ── PREVIEW SKU GLOBAL ──
+function updateGlobalSKU(){
+  const nombre = (document.getElementById('sku-nombre').value||'').trim();
+  const preview = document.getElementById('sku-global-preview');
+  if(!nombre){ preview.textContent = '---'; return; }
 
-// GET /api/skus/globales
-router.get('/globales', verificarToken, async (req, res) => {
-  try {
-    const result = await pool.query(
-      'SELECT * FROM skus_globales WHERE activo = true ORDER BY codigo'
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error del servidor' });
+  // Auto-sugerir código: sigla de máx 3 palabras + guion + primeros dígitos
+  const words = nombre.toUpperCase().split(/\s+/).filter(Boolean);
+  let codigo = '';
+  if(words.length === 1){
+    codigo = words[0].replace(/[^A-Z0-9]/g,'').substring(0, 6);
+  } else {
+    // Tomar iniciales + números relevantes del nombre
+    const siglas = words.slice(0, 3).map(w => w.replace(/[^A-Z0-9]/g,'')[0]||'').join('');
+    const numeros = nombre.match(/\d+/g);
+    codigo = siglas + (numeros ? '-' + numeros.join('') : '');
+  }
+
+  preview.textContent = codigo;
+
+  // Solo auto-rellenar si el campo está vacío o fue auto-generado antes
+  const codigoInput = document.getElementById('sku-codigo');
+  if(!codigoInput._manualEdit){
+    codigoInput.value = codigo;
+  }
+}
+
+// Marcar edición manual para no sobreescribir lo que el usuario escribió
+document.addEventListener('DOMContentLoaded', () => {
+  const codigoInput = document.getElementById('sku-codigo');
+  if(codigoInput){
+    codigoInput.addEventListener('input', () => { codigoInput._manualEdit = true; });
   }
 });
 
-// POST /api/skus/globales — nivel 4
-router.post('/globales', verificarToken, verificarNivel(4), async (req, res) => {
-  const { codigo, nombre, familia, subgrupo, precio, campos } = req.body;
-  if (!codigo || !nombre || !familia || !subgrupo) {
-    return res.status(400).json({ error: 'Faltan campos obligatorios' });
-  }
-  try {
-    const existe = await pool.query(
-      'SELECT id FROM skus_globales WHERE codigo = $1', [codigo]
-    );
-    if (existe.rows.length > 0) {
-      return res.status(400).json({ error: 'Este SKU ya existe' });
-    }
-    const result = await pool.query(
-      `INSERT INTO skus_globales (codigo, nombre, familia, subgrupo, precio, campos)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [codigo, nombre, familia, subgrupo, precio||0, JSON.stringify(campos || [])]
-    );
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    console.error('ERROR POST /skus/globales:', err.message, err.detail);
-    res.status(500).json({ error: err.message });
-  }
-});
+// ── CAMPOS ACTIVABLES ──
+function toggleCampo(label){
+  const cb = label.querySelector('input[type=checkbox]');
+  cb.checked = !cb.checked;
+  label.classList.toggle('active', cb.checked);
+}
 
-// DELETE /api/skus/globales/:id — nivel 4
-router.delete('/globales/:id', verificarToken, verificarNivel(4), async (req, res) => {
-  try {
-    await pool.query('UPDATE skus_globales SET activo = false WHERE id = $1', [req.params.id]);
-    await pool.query('UPDATE sub_skus SET activo = false WHERE sku_global_id = $1', [req.params.id]);
-    res.json({ mensaje: 'SKU Global desactivado' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error del servidor' });
-  }
-});
+function getCamposSeleccionados(){
+  return Array.from(document.querySelectorAll('.campos-toggle input[type=checkbox]'))
+    .filter(cb => cb.checked)
+    .map(cb => cb.value);
+}
 
-// GET /api/skus/sub
-router.get('/sub', verificarToken, async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT s.*, g.codigo as sku_global, g.nombre as nombre_global,
-              g.familia, g.subgrupo
-       FROM sub_skus s
-       JOIN skus_globales g ON s.sku_global_id = g.id
-       WHERE s.activo = true
-       ORDER BY g.codigo, s.sub_sku`
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error del servidor' });
-  }
-});
+// ── CREAR SKU GLOBAL ──
+async function crearSKUGlobal(){
+  const nombre   = (document.getElementById('sku-nombre').value||'').trim();
+  const codigo   = (document.getElementById('sku-codigo').value||'').trim().toUpperCase();
+  const familia  = (document.getElementById('sku-familia').value||'').trim();
+  const subgrupo = (document.getElementById('sku-subgrupo').value||'').trim();
+  const campos   = getCamposSeleccionados();
 
-// POST /api/skus/sub — nivel 3 y 4
-router.post('/sub', verificarToken, verificarNivel(3), async (req, res) => {
-  const { sku_global_id, proveedor, lote, invima, caducidad, unidad, precio, sub_sku_manual } = req.body;
-  if (!sku_global_id || !unidad) {
-    return res.status(400).json({ error: 'Faltan campos obligatorios' });
-  }
-  if (precio === undefined || precio === null || isNaN(precio) || Number(precio) <= 0) {
-    return res.status(400).json({ error: 'El precio unitario es obligatorio y debe ser mayor a 0' });
-  }
-  const abrevProv = (str) => {
-    if (!str) return null;
-    const words = str.trim().split(/\s+/).filter(Boolean);
-    if (words.length === 1) return str.replace(/[^a-zA-Z0-9]/g,'').substring(0,4).toUpperCase();
-    return words.map(w => w[0]?.toUpperCase() || '').join('').substring(0,4).padEnd(4,'X');
-  };
-
-  let partes = [];
-  if (proveedor)       partes.push(abrevProv(proveedor));
-  if (lote)            partes.push(lote.toUpperCase());
-  if (sub_sku_manual)  partes.push(sub_sku_manual.toUpperCase());
-  if (!partes.length) partes.push('GEN-' + Date.now().toString(36).toUpperCase().slice(-4));
-
-  const sub_sku = partes.join('-');
+  if(!nombre)  { toast('Ingresa el nombre del ítem','error'); return; }
+  if(!codigo)  { toast('Ingresa el código SKU','error'); return; }
+  if(!familia) { toast('Ingresa la familia','error'); return; }
+  if(!subgrupo){ toast('Ingresa el subgrupo','error'); return; }
 
   try {
-    const existe = await pool.query(
-      'SELECT * FROM sub_skus WHERE sub_sku = $1 AND sku_global_id = $2 AND activo = true',
-      [sub_sku, sku_global_id]
-    );
-    if (existe.rows.length > 0) {
-      return res.json({ ...existe.rows[0], ya_existe: true });
-    }
-    const result = await pool.query(
-      `INSERT INTO sub_skus (sku_global_id, sub_sku, proveedor, lote, invima, caducidad, unidad, precio)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [sku_global_id, sub_sku, proveedor||null, lote||null, invima||null, caducidad||null, unidad, precio||0]
-    );
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error del servidor' });
+    await SKUs.createGlobal({ codigo, nombre, familia, subgrupo, campos });
+    document.getElementById('sku-nombre').value  = '';
+    document.getElementById('sku-codigo').value  = '';
+    document.getElementById('sku-familia').value = '';
+    document.getElementById('sku-subgrupo').value = '';
+    document.getElementById('sku-global-preview').textContent = '---';
+    const codigoInput = document.getElementById('sku-codigo');
+    if(codigoInput) codigoInput._manualEdit = false;
+    // Resetear chips a estado por defecto (todos activos)
+    document.querySelectorAll('.campos-toggle .campo-chip').forEach(label => {
+      const cb = label.querySelector('input[type=checkbox]');
+      cb.checked = true;
+      label.classList.add('active');
+    });
+    await loadState();
+    renderSKUs();
+    toast(`✓ SKU ${codigo} creado`, 'success');
+  } catch(err){
+    toast(err.message, 'error');
   }
-});
+}
 
-// GET /api/skus/stock — FIX: alias sub_sku_id único, sin duplicado con st.sub_sku_id
-router.get('/stock', verificarToken, async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT
-              s.id             AS sub_sku_id,
-              s.sku_global_id,
-              s.sub_sku,
-              s.proveedor,
-              s.lote,
-              s.invima,
-              s.caducidad,
-              s.unidad,
-              s.precio,
-              s.serial,
-              g.codigo         AS sku_global,
-              g.nombre,
-              g.familia,
-              g.subgrupo,
-              b.nombre         AS bodega_nombre,
-              COALESCE(st.cantidad, 0) AS cantidad
-       FROM sub_skus s
-       JOIN skus_globales g  ON s.sku_global_id = g.id
-       LEFT JOIN stock st    ON st.sub_sku_id = s.id
-       LEFT JOIN bodegas b   ON st.bodega_id = b.id AND b.activo = true
-       WHERE s.activo = true
-       ORDER BY g.codigo, b.nombre`
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error del servidor' });
+// ── RENDER LISTA DE SKUs ──
+function renderSKUs(){
+  const q   = (document.getElementById('sku-search').value||'').toLowerCase();
+  const el  = document.getElementById('sku-body');
+
+  const rows = S.skusGlobales.filter(g =>
+    !q ||
+    g.nombre.toLowerCase().includes(q) ||
+    g.codigo.toLowerCase().includes(q) ||
+    (g.familia||'').toLowerCase().includes(q)
+  );
+
+  if(!rows.length){
+    el.innerHTML = '<tr><td colspan="5"><div class="empty-state"><i class="ti ti-tag"></i><p>Sin SKUs registrados</p></div></td></tr>';
+    return;
   }
-});
 
-// DELETE /api/skus/sub/:id — nivel 4
-router.delete('/sub/:id', verificarToken, verificarNivel(4), async (req, res) => {
-  try {
-    await pool.query('UPDATE sub_skus SET activo = false WHERE id = $1', [req.params.id]);
-    res.json({ mensaje: 'Sub-SKU desactivado' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error del servidor' });
+  el.innerHTML = rows.map(g => {
+    const campos = Array.isArray(g.campos) ? g.campos : JSON.parse(g.campos||'[]');
+    const camposBadges = campos.map(c => `<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:var(--cream2);color:#666;font-family:var(--font-mono)">${c}</span>`).join(' ');
+    const subsCount = S.subSkus.filter(s => s.skuGlobalId === g.id).length;
+    return `<tr>
+      <td><span class="sku-code">${g.codigo}</span></td>
+      <td>
+        <div style="font-weight:500;font-size:13px">${g.nombre}</div>
+        <div style="font-size:11px;color:#aaa;margin-top:2px">${subsCount} sub-SKU${subsCount!==1?'s':''}</div>
+      </td>
+      <td><span class="fam ${g.familia}">${g.familia||'—'}</span></td>
+      <td style="display:flex;gap:3px;flex-wrap:wrap;align-items:center">${camposBadges||'—'}</td>
+      <td>
+        ${currentRole===4?`<button class="act-btn danger" onclick="confirmDeleteSKU(${g.id})" title="Eliminar"><i class="ti ti-trash"></i></button>`:''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── SUGERENCIA DE FAMILIA / SUBGRUPO ──
+function buscarSimilar(val, lista){
+  if(!val || !lista.length) return null;
+  const v = val.toLowerCase();
+  // Coincidencia exacta (case-insensitive)
+  const exacto = lista.find(x => x.toLowerCase() === v);
+  if(exacto && exacto !== val) return exacto;
+  // Coincidencia parcial (uno contiene al otro)
+  const parcial = lista.find(x => x.toLowerCase().includes(v) || v.includes(x.toLowerCase()));
+  if(parcial && parcial !== val) return parcial;
+  return null;
+}
+
+function getFamiliasExistentes(){
+  return [...new Set(S.skusGlobales.map(g => g.familia).filter(Boolean))];
+}
+
+function getSubgruposExistentes(){
+  return [...new Set(S.skusGlobales.map(g => g.subgrupo).filter(Boolean))];
+}
+
+function checkSimilarFamilia(){
+  const input   = document.getElementById('sku-familia');
+  const hint    = document.getElementById('sku-familia-hint');
+  const val     = input.value.trim();
+  if(!val){ hint.style.display='none'; return; }
+
+  const similar = buscarSimilar(val, getFamiliasExistentes());
+  if(similar && similar !== val){
+    hint.className = 'similar-hint warning';
+    hint.style.display = 'block';
+    hint.innerHTML = `
+      <i class="ti ti-alert-triangle" style="margin-right:4px"></i>
+      Ya existe: <strong>${similar}</strong><br>
+      <button class="hint-use-btn" onclick="usarFamiliaExistente('${similar.replace(/'/g,"\\'")}')">
+        <i class="ti ti-check"></i> Usar "${similar}"
+      </button>`;
+  } else {
+    hint.style.display = 'none';
   }
-});
+}
 
-module.exports = router;
+function checkSimilarSubgrupo(){
+  const input   = document.getElementById('sku-subgrupo');
+  const hint    = document.getElementById('sku-subgrupo-hint');
+  const val     = input.value.trim();
+  if(!val){ hint.style.display='none'; return; }
+
+  const similar = buscarSimilar(val, getSubgruposExistentes());
+  if(similar && similar !== val){
+    hint.className = 'similar-hint warning';
+    hint.style.display = 'block';
+    hint.innerHTML = `
+      <i class="ti ti-alert-triangle" style="margin-right:4px"></i>
+      Ya existe: <strong>${similar}</strong><br>
+      <button class="hint-use-btn" onclick="usarSubgrupoExistente('${similar.replace(/'/g,"\\'")}')">
+        <i class="ti ti-check"></i> Usar "${similar}"
+      </button>`;
+  } else {
+    hint.style.display = 'none';
+  }
+}
+
+function usarFamiliaExistente(nombre){
+  document.getElementById('sku-familia').value = nombre;
+  document.getElementById('sku-familia-hint').style.display = 'none';
+}
+
+function usarSubgrupoExistente(nombre){
+  document.getElementById('sku-subgrupo').value = nombre;
+  document.getElementById('sku-subgrupo-hint').style.display = 'none';
+}
