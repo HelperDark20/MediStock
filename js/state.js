@@ -22,17 +22,19 @@ async function loadState(){
     ]);
 
     S.bodegas = bodegas.map(b => b.nombre);
-    S.bodegasRaw = bodegas; // objetos completos con ubicacion_id
+    S.bodegasRaw = bodegas;
     S.ubicaciones = ubicaciones;
     S.skusGlobales = globales;
     S.stock = stock;
     S.movimientos = movs;
 
     // Construir subSkus desde stock
-    // Incluye filas con cantidad 0 y sub-SKUs sin stock registrado (LEFT JOIN)
     const subMap = {};
     stock.forEach(row => {
+      // FIX: ignorar filas con sub_sku_id null (LEFT JOIN sin stock)
       const sid = row.sub_sku_id;
+      if(!sid) return;
+
       if(!subMap[sid]){
         subMap[sid] = {
           id: sid,
@@ -49,13 +51,13 @@ async function loadState(){
           stock: {}
         };
       }
-      // Solo agregar la bodega si existe (LEFT JOIN puede traer null)
+      // Solo agregar bodega si existe (LEFT JOIN puede traer null)
       if(row.bodega_nombre){
         subMap[sid].stock[row.bodega_nombre] = row.cantidad || 0;
       }
     });
 
-    // Marcar agotado si el stock total es 0 en todas las ubicaciones
+    // Marcar agotado si stock total es 0 en todas las ubicaciones
     S.subSkus = Object.values(subMap).map(s => ({
       ...s,
       agotado: Object.values(s.stock).reduce((a, v) => a + v, 0) === 0
