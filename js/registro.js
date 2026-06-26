@@ -236,10 +236,7 @@ function usarUnidadExistente(nombre){
 }
 
 // ══════════════════════════════════════════
-// REGISTRAR ENTRADA — Fix #8
-// Antes: 3 llamadas separadas (createSub → getAll bodegas → entrada)
-// Ahora: 1 sola llamada a /entrada-completa que ejecuta todo en una
-//        transacción PostgreSQL, eliminando la race condition.
+// REGISTRAR ENTRADA
 // ══════════════════════════════════════════
 async function registrarEntrada(){
   const skuG = _regSkuSeleccionado;
@@ -262,14 +259,14 @@ async function registrarEntrada(){
     if(d && m && y) cad = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
   }
 
-  const precio  = parseFloat(document.getElementById('reg-precio')?.value)||0;
-  const cant    = parseInt(document.getElementById('reg-cantidad').value)||0;
-  const unidad  = document.getElementById('reg-unidad').value.trim();
-  const ubicacionNombre = document.getElementById('reg-ubicacion').value;
+  const precio   = parseFloat(document.getElementById('reg-precio')?.value)||0;
+  const cant     = parseInt(document.getElementById('reg-cantidad').value)||0;
+  const unidad   = document.getElementById('reg-unidad').value.trim();
+  const ubicacion = document.getElementById('reg-ubicacion').value;
 
-  if(cant <= 0)         { toastError('Ingresa una cantidad válida'); return; }
-  if(!unidad)           { toastError('Ingresa la unidad'); return; }
-  if(!ubicacionNombre)  { toastError('Selecciona una ubicación'); return; }
+  if(cant <= 0)  { toastError('Ingresa una cantidad válida'); return; }
+  if(!unidad)    { toastError('Ingresa la unidad'); return; }
+  if(!ubicacion) { toastError('Selecciona una ubicación'); return; }
   if(!precio || precio <= 0) { toastError('Ingresa el precio unitario de esta entrada'); return; }
 
   // Verificar similar de unidad antes de guardar
@@ -279,30 +276,36 @@ async function registrarEntrada(){
     return;
   }
 
-  // Resolver ID de bodega destino
-  const bodegaObj = (S.bodegasRaw||[]).find(b => b.nombre === ubicacionNombre);
-  if(!bodegaObj){ toastError('Bodega de destino no encontrada'); return; }
-
   try {
-    // Fix #8: una sola llamada atómica al servidor
-    await Movimientos.entradaCompleta({
-      // Sub-SKU
-      sku_global_id:  skuG.id,
-      proveedor:      prov,
-      lote,
-      invima,
-      caducidad:      cad,
-      unidad,
-      precio,
-      sub_sku_manual: manual,
-      // Entrada
-      bodega_destino_id: bodegaObj.id,
+    const subData = await SKUs.createSub({
+      sku_global_id: skuG.id,
+      proveedor: prov,
+      lote, invima,
+      caducidad: cad,
+      unidad, precio,
+      sub_sku_manual: manual
+    });
+
+    const todasBodegas = await Bodegas.getAll();
+    const bodegaId = todasBodegas.find(b => b.nombre === ubicacion)?.id;
+
+    // FIX: validar que se encontró la bodega antes de registrar la entrada
+    if(!bodegaId){
+      toastError('Bodega destino no encontrada — recarga la página');
+      return;
+    }
+
+    await Movimientos.entrada({
+      sub_sku_id: subData.id,
+      bodega_destino_id: bodegaId,
       cantidad: cant
     });
 
     // Limpiar formulario
     regAcClear();
     ['reg-lote','reg-invima','reg-cantidad','reg-unidad','reg-subsku-manual']
+      .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    ['reg-cad-dia','reg-cad-mes','reg-cad-año']
       .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
     document.getElementById('reg-unidad-hint').style.display = 'none';
 
