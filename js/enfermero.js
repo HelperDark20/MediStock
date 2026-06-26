@@ -7,34 +7,28 @@ function initEnfermeroPanel(user){
   document.getElementById('enf-nombre').textContent = user.nombre||'Enfermero/a';
   document.getElementById('enfermero-panel').classList.add('active');
 
-  // Guardar el ID del usuario logueado: cada enfermero solo debe ver SUS propios consumos
   window._enfUserId = user.id;
 
-  // Filtrar bodegas según ubicación asignada
   const ubicacionId = user.ubicacion_id || null;
   let bodegasFiltradas = S.bodegasRaw || [];
   if(ubicacionId){
     bodegasFiltradas = bodegasFiltradas.filter(b => b.ubicacion_id === ubicacionId);
   }
 
-  // Poblar select de bodega (paso 1)
   const sel = document.getElementById('enf-origen');
   sel.innerHTML = '<option value="">Seleccionar bodega…</option>' +
     bodegasFiltradas.map(b=>`<option value="${b.nombre}">${b.nombre}</option>`).join('');
 
-  // Guardar bodegas permitidas para filtrar autocomplete
   window._enfBodegasPermitidas = new Set(bodegasFiltradas.map(b => b.nombre));
 
   renderEnfHistorial();
 }
 
-// Al cambiar de bodega: habilitar buscador y limpiar selección anterior
 function enfOnBodegaChange(){
   const bodega = document.getElementById('enf-origen').value;
   const busquedaWrap = document.getElementById('enf-busqueda-wrap');
   const medCard = document.getElementById('enf-med-card');
 
-  // Limpiar medicamento seleccionado
   acClear('enf');
   medCard.classList.remove('show');
 
@@ -60,7 +54,6 @@ function enfOnMedSelect(sub){
   document.getElementById('enf-med-sub').textContent =
     `${skuG?.codigo||''} · ${sub.subSku} · Cad: ${fmtDate(sub.caducidad)}`;
 
-  // Mostrar stock solo de la bodega seleccionada
   const stockEl = document.getElementById('enf-med-stock');
   const cantEnBodega = sub.stock?.[bodegaSeleccionada] || 0;
 
@@ -75,60 +68,6 @@ function enfOnMedSelect(sub){
       </div>
       <span class="enf-sem ${sem}" style="margin-left:4px">${semLabel(sem)}</span>`;
   }
-}
-
-// Filtro del autocomplete: solo muestra items con stock > 0 en la bodega seleccionada
-// Se sobreescribe acFilter para 'enf' con esta lógica
-const _originalAcFilter = acFilter;
-function acFilter(ns){
-  if(ns !== 'enf'){ _originalAcFilter(ns); return; }
-
-  const q    = (document.getElementById('enf-ac-input').value||'').toLowerCase().trim();
-  const drop = document.getElementById('enf-ac-drop');
-  const clear = document.getElementById('enf-ac-clear');
-  clear.classList.toggle('show', q.length > 0);
-  AC['enf'].focusIdx = -1;
-
-  if(!q){ drop.classList.remove('open'); drop.innerHTML=''; return; }
-
-  const bodega = document.getElementById('enf-origen').value;
-
-  // Filtrar sub-SKUs que tengan stock > 0 en la bodega seleccionada
-  const results = S.subSkus.filter(s => {
-    if(bodega && (s.stock?.[bodega]||0) <= 0) return false;
-    return s.nombre.toLowerCase().includes(q) ||
-           s.subSku.toLowerCase().includes(q) ||
-           (s.lote||'').toLowerCase().includes(q) ||
-           (s.proveedor||'').toLowerCase().includes(q);
-  }).slice(0, 10);
-
-  if(!results.length){
-    drop.innerHTML='<div class="ac-no-results"><i class="ti ti-search" style="display:block;font-size:22px;margin-bottom:6px;opacity:.3"></i>Sin resultados en esta bodega</div>';
-    drop.classList.add('open');
-    return;
-  }
-
-  const hilite = str => str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>');
-
-  drop.innerHTML = results.map((s, idx) => {
-    const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
-    const cantBodega = bodega ? (s.stock?.[bodega]||0) : getTotalStock(s);
-    return `<div class="ac-item" data-id="${s.id}"
-      onmousedown="acSelect('enf',${s.id})"
-      onmouseover="acHover('enf',${idx})">
-      <div class="ac-item-icon"><i class="ti ti-pill"></i></div>
-      <div class="ac-item-body">
-        <div class="ac-item-name">${hilite(s.nombre)}</div>
-        <div class="ac-item-meta">
-          <span class="sku-code" style="font-size:9px">${skuG?.codigo||''}</span>
-          <span>${hilite(s.subSku)}</span>
-          ${s.lote&&s.lote!=='—'?`<span>Lote: ${hilite(s.lote)}</span>`:''}
-        </div>
-      </div>
-      <div class="ac-item-stock">${cantBodega} ${s.unidad}</div>
-    </div>`;
-  }).join('');
-  drop.classList.add('open');
 }
 
 async function enfRegistrarConsumo(){
@@ -148,6 +87,11 @@ async function enfRegistrarConsumo(){
   try {
     const todasBodegas = await Bodegas.getAll();
     const origenId = todasBodegas.find(b=>b.nombre===origen)?.id;
+
+    if(!origenId){
+      toastError('Bodega no encontrada — recarga la página');
+      return;
+    }
 
     await Movimientos.consumo({
       sub_sku_id: id,

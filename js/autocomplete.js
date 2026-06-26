@@ -1,6 +1,12 @@
 const AC = { mov:{ selectedId:null, focusIdx:-1 } };
 
 function acFilter(ns){
+  // Namespace 'enf' tiene lógica especial — filtrar solo por bodega seleccionada
+  if(ns === 'enf'){
+    _acFilterEnf();
+    return;
+  }
+
   const q = (document.getElementById(`${ns}-ac-input`).value||'').toLowerCase().trim();
   const drop = document.getElementById(`${ns}-ac-drop`);
   const clear = document.getElementById(`${ns}-ac-clear`);
@@ -44,14 +50,77 @@ function acFilter(ns){
   drop.classList.add('open');
 }
 
+// Lógica especial del autocomplete para el panel Enfermero
+// Separada aquí para evitar cualquier riesgo de recursión
+function _acFilterEnf(){
+  const q    = (document.getElementById('enf-ac-input').value||'').toLowerCase().trim();
+  const drop = document.getElementById('enf-ac-drop');
+  const clear = document.getElementById('enf-ac-clear');
+  clear.classList.toggle('show', q.length > 0);
+  AC['enf'].focusIdx = -1;
+
+  if(!q){ drop.classList.remove('open'); drop.innerHTML=''; return; }
+
+  const bodega = document.getElementById('enf-origen').value;
+
+  const results = S.subSkus.filter(s => {
+    if(bodega && (s.stock?.[bodega]||0) <= 0) return false;
+    return s.nombre.toLowerCase().includes(q) ||
+           s.subSku.toLowerCase().includes(q) ||
+           (s.lote||'').toLowerCase().includes(q) ||
+           (s.proveedor||'').toLowerCase().includes(q);
+  }).slice(0, 10);
+
+  if(!results.length){
+    drop.innerHTML='<div class="ac-no-results"><i class="ti ti-search" style="display:block;font-size:22px;margin-bottom:6px;opacity:.3"></i>Sin resultados en esta bodega</div>';
+    drop.classList.add('open');
+    return;
+  }
+
+  const hilite = str => str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>');
+
+  drop.innerHTML = results.map((s, idx) => {
+    const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
+    const cantBodega = bodega ? (s.stock?.[bodega]||0) : getTotalStock(s);
+    return `<div class="ac-item" data-id="${s.id}"
+      onmousedown="acSelect('enf',${s.id})"
+      onmouseover="acHover('enf',${idx})">
+      <div class="ac-item-icon"><i class="ti ti-pill"></i></div>
+      <div class="ac-item-body">
+        <div class="ac-item-name">${hilite(s.nombre)}</div>
+        <div class="ac-item-meta">
+          <span class="sku-code" style="font-size:9px">${skuG?.codigo||''}</span>
+          <span>${hilite(s.subSku)}</span>
+          ${s.lote&&s.lote!=='—'?`<span>Lote: ${hilite(s.lote)}</span>`:''}
+        </div>
+      </div>
+      <div class="ac-item-stock">${cantBodega} ${s.unidad}</div>
+    </div>`;
+  }).join('');
+  drop.classList.add('open');
+}
+
 function acOpen(ns){
   const q = document.getElementById(`${ns}-ac-input`).value||'';
   if(q){ acFilter(ns); return; }
   const drop = document.getElementById(`${ns}-ac-drop`);
-  const all = S.subSkus.filter(s=>!s.agotado).slice(0,8);
-  drop.innerHTML = all.map((s,idx)=>{
+
+  // Para 'enf': filtrar solo items con stock en la bodega seleccionada
+  let pool;
+  if(ns === 'enf'){
+    const bodega = document.getElementById('enf-origen').value;
+    pool = S.subSkus.filter(s => !bodega || (s.stock?.[bodega]||0) > 0).slice(0,8);
+  } else {
+    pool = S.subSkus.filter(s=>!s.agotado).slice(0,8);
+  }
+
+  drop.innerHTML = pool.map((s,idx)=>{
     const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
-    const ubicaciones = Object.entries(s.stock||{}).filter(([,v])=>v>0).map(([k])=>k).join(', ');
+    const bodega = ns==='enf' ? document.getElementById('enf-origen').value : null;
+    const stock = bodega ? (s.stock?.[bodega]||0) : getTotalStock(s);
+    const ubicaciones = ns!=='enf'
+      ? Object.entries(s.stock||{}).filter(([,v])=>v>0).map(([k])=>k).join(', ')
+      : '';
     return`<div class="ac-item" data-id="${s.id}" onmousedown="acSelect('${ns}',${s.id})" onmouseover="acHover('${ns}',${idx})">
       <div class="ac-item-icon"><i class="ti ti-pill"></i></div>
       <div class="ac-item-body">
@@ -59,10 +128,10 @@ function acOpen(ns){
         <div class="ac-item-meta">
           <span class="sku-code" style="font-size:9px">${skuG?.codigo||''}</span>
           <span>${s.subSku}</span>
-          <span style="background:var(--cream2);color:#666;padding:1px 6px;border-radius:4px;font-size:9px">${ubicaciones}</span>
+          ${ubicaciones?`<span style="background:var(--cream2);color:#666;padding:1px 6px;border-radius:4px;font-size:9px">${ubicaciones}</span>`:''}
         </div>
       </div>
-      <div class="ac-item-stock">${getTotalStock(s)} ${s.unidad}</div>
+      <div class="ac-item-stock">${stock} ${s.unidad}</div>
     </div>`;
   }).join('')+(S.subSkus.length>8?`<div class="ac-no-results" style="padding:8px;font-size:11px">Escribe para filtrar más resultados</div>`:'');
   drop.classList.add('open');
