@@ -13,8 +13,6 @@ async function doLogin(){
 
   try {
     const data = await Auth.login(cedula, pass);
-    // El nivel viene del servidor tras autenticación real —
-    // nunca se toma de un payload JWT decodificado localmente
     currentRole = data.usuario.nivel;
     document.getElementById('login-screen').classList.add('out');
     setTimeout(async ()=>{
@@ -66,58 +64,38 @@ async function setupApp(user){
   goTo('dashboard');
 }
 
-// ══════════════════════════════════════════
-// RESTAURACIÓN DE SESIÓN — Fix crítico #1
-// ══════════════════════════════════════════
-// En lugar de decodificar el JWT con atob() (lo que permite que
-// cualquier persona con acceso al navegador forje un payload y
-// obtenga la UI de un nivel superior), ahora se llama al endpoint
-// /api/usuarios/me para que el SERVIDOR valide la firma del token
-// y devuelva el nivel real del usuario.
+// FIX: checkSession usa GET /api/auth/me para validar el token server-side
+// en vez de decodificar el JWT localmente con atob() sin verificar firma
 (async function checkSession(){
   const token = localStorage.getItem('nb_token');
   if(!token) return;
 
-  // Comprobación rápida del formato antes de hacer la petición
-  const parts = token.split('.');
-  if(parts.length !== 3){
-    localStorage.removeItem('nb_token');
-    return;
-  }
-
-  // Verificar expiración local (sin confiar en el nivel del payload)
-  // Esto evita llamadas al servidor con tokens claramente expirados,
-  // pero NO sustituye la validación de firma del backend.
   try {
-    const payload = JSON.parse(atob(parts[1]));
-    const ahora = Math.floor(Date.now() / 1000);
-    if(!payload.exp || payload.exp < ahora){
+    const res = await fetch('/api/auth/me', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if(!res.ok){
+      // Token inválido o expirado — limpiar y mostrar login
       localStorage.removeItem('nb_token');
       return;
     }
-  } catch(e){
-    localStorage.removeItem('nb_token');
-    return;
-  }
 
-  // ✅ Validación real: el servidor verifica la firma y devuelve el usuario
-  try {
-    const usuario = await request('GET', '/api/usuarios/me');
+    const data = await res.json();
+    const user = data.usuario;
 
-    // Seguridad: nivel debe ser un entero entre 1 y 4
-    const nivel = parseInt(usuario.nivel);
-    if(!nivel || nivel < 1 || nivel > 4){
-      throw new Error('Nivel de usuario inválido');
+    if(!user || !user.nivel || !user.id){
+      localStorage.removeItem('nb_token');
+      return;
     }
 
-    currentRole = nivel;
+    currentRole = user.nivel;
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app').classList.add('visible');
-    await setupApp(usuario);
+    await setupApp(user);
+
   } catch(e){
-    // Token inválido, expirado o usuario desactivado → limpiar sesión
-    console.warn('Sesión inválida:', e.message);
+    console.error('Error checkSession:', e);
     localStorage.removeItem('nb_token');
-    // No mostrar error al usuario — simplemente queda en la pantalla de login
   }
 })();

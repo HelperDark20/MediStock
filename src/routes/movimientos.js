@@ -4,8 +4,12 @@ const pool = require('../config/db');
 const { verificarToken, verificarNivel } = require('../middlewares/auth');
 
 // GET /api/movimientos — todos los niveles
+// FIX: paginación con LIMIT por defecto de 500
 router.get('/', verificarToken, async (req, res) => {
-  const { sku_global, sub_sku_id, limit, bodega } = req.query;
+  const { sku_global, sub_sku_id, bodega } = req.query;
+  // Si viene limit explícito se respeta; si no, máximo 500
+  const limit = req.query.limit ? parseInt(req.query.limit) : 500;
+
   try {
     let query = `
       SELECT m.*,
@@ -41,11 +45,8 @@ router.get('/', verificarToken, async (req, res) => {
     }
 
     query += ' ORDER BY m.created_at DESC';
-
-    if (limit) {
-      params.push(parseInt(limit));
-      query += ` LIMIT $${params.length}`;
-    }
+    params.push(limit);
+    query += ` LIMIT $${params.length}`;
 
     const result = await pool.query(query, params);
     res.json(result.rows);

@@ -32,7 +32,9 @@ function renderInv(){
 
     stockEntries.forEach(([ubicacion, cantidad])=>{
       if(cantidad === 0 && !showAgotados) return;
-      if(cantidad === 0 && !s.stock?.hasOwnProperty(ubicacion)) return;
+      // FIX: usar Object.prototype.hasOwnProperty.call en vez de optional chaining
+      // para evitar que s.stock=null devuelva !undefined=true y oculte ítems agotados
+      if(cantidad === 0 && !(s.stock && Object.prototype.hasOwnProperty.call(s.stock, ubicacion))) return;
       rows.push({s,skuG,st,ubicacion,cantidad});
     });
   });
@@ -43,25 +45,24 @@ function renderInv(){
     el.innerHTML='<tr><td colspan="8"><div class="empty-state"><i class="ti ti-search"></i><p>Sin resultados</p></div></td></tr>';
     return;
   }
-  // Fix #11: escHtml() en codigo, nombre, subSku, ubicacion, unidad
   el.innerHTML = rows.map(({s,skuG,st,ubicacion,cantidad})=>`
     <tr style="${s.agotado?'opacity:.5;':''}">
-      <td><span class="sku-code">${escHtml(skuG?.codigo||'—')}</span></td>
+      <td><span class="sku-code">${skuG?.codigo||'—'}</span></td>
       <td>
-        <div style="font-weight:500;font-size:13px">${escHtml(s.nombre)}</div>
+        <div style="font-weight:500;font-size:13px">${s.nombre}</div>
         <div style="display:flex;gap:4px;margin-top:3px;flex-wrap:wrap">
           <span class="fam ${skuG?.familia||''}">${FAMILIAS[skuG?.familia]||''}</span>
           ${s.agotado?'<span style="font-size:9px;padding:2px 6px;border-radius:6px;background:#F0F0EE;color:#888;font-family:var(--font-mono);font-weight:700">AGOTADO</span>':''}
         </div>
       </td>
-      <td><span class="sub-sku">${escHtml(s.subSku)}</span></td>
-      <td><span class="ubic">${escHtml(ubicacion)}</span></td>
-      <td style="font-family:var(--font-mono);font-weight:700">${cantidad}<span style="font-size:10px;color:#aaa;font-weight:400;margin-left:3px">${escHtml(s.unidad)}</span></td>
+      <td><span class="sub-sku">${s.subSku}</span></td>
+      <td><span class="ubic">${ubicacion}</span></td>
+      <td style="font-family:var(--font-mono);font-weight:700">${cantidad}<span style="font-size:10px;color:#aaa;font-weight:400;margin-left:3px">${s.unidad}</span></td>
       <td style="font-size:12px;font-family:var(--font-mono)">${fmtDate(s.caducidad)}</td>
       <td>${s.agotado?'<span class="sem N">Agotado</span>':`<span class="sem ${st}">${semLabel(st)}</span>`}</td>
       <td>
         <div class="act-btn-group">
-          ${canAct?`<button class="act-btn primary" onclick="quickMov(${s.id},'${escHtml(ubicacion)}')" title="Movimiento"><i class="ti ti-transfer"></i></button>`:''}
+          ${canAct?`<button class="act-btn primary" onclick="quickMov(${s.id},'${ubicacion}')" title="Movimiento"><i class="ti ti-transfer"></i></button>`:''}
           ${currentRole>=4?`<button class="act-btn danger" onclick="confirmDelete(${s.id})" title="Eliminar"><i class="ti ti-trash"></i></button>`:''}
         </div>
       </td>
@@ -88,12 +89,12 @@ function invSedeFilter(){
     return;
   }
 
-  const hilite = str => q ? str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>') : escHtml(str);
+  const hilite = str => q ? str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>') : str;
 
   drop.innerHTML = results.map((u, idx) => {
     const totalDepositos = (S.bodegasRaw||[]).filter(b=>b.ubicacion_id===u.id).length;
-    return `<div class="ac-item" data-id="${u.id}" data-nombre="${escHtml(u.nombre)}"
-      onmousedown="invSedeSelect(${u.id},'${escHtml(u.nombre).replace(/'/g,"\\'")}')"
+    return `<div class="ac-item" data-id="${u.id}" data-nombre="${u.nombre}"
+      onmousedown="invSedeSelect(${u.id},'${u.nombre.replace(/'/g,"\\'")}')"
       onmouseover="invSedeHover(${idx})">
       <div class="ac-item-icon"><i class="ti ti-map-pin"></i></div>
       <div class="ac-item-body">
@@ -174,22 +175,22 @@ function invDepositoFilter(){
   const results = pool.filter(b => !q || b.nombre.toLowerCase().includes(q));
 
   if(!results.length){
-    const msg = sedeId ? 'Sin depósitos en esta ubicación' : 'Sin depósitos';
+    const msg = sedeId ? `Sin depósitos en esta ubicación` : 'Sin depósitos';
     drop.innerHTML = `<div class="ac-no-results"><i class="ti ti-building-warehouse" style="display:block;font-size:22px;margin-bottom:6px;opacity:.3"></i>${msg}</div>`;
     drop.classList.add('open');
     return;
   }
 
-  const hilite = str => q ? str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>') : escHtml(str);
+  const hilite = str => q ? str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>') : str;
 
   drop.innerHTML = results.map((b, idx) => `
-    <div class="ac-item" data-nombre="${escHtml(b.nombre)}" data-sede-id="${b.ubicacion_id||''}" data-sede-nombre="${escHtml(b.ubicacion_nombre||'')}"
-      onmousedown="invDepositoSelect('${escHtml(b.nombre).replace(/'/g,"\\'")}', ${b.ubicacion_id||'null'}, '${escHtml(b.ubicacion_nombre||'').replace(/'/g,"\\'")}')"
+    <div class="ac-item" data-nombre="${b.nombre}" data-sede-id="${b.ubicacion_id||''}" data-sede-nombre="${b.ubicacion_nombre||''}"
+      onmousedown="invDepositoSelect('${b.nombre.replace(/'/g,"\\'")}', ${b.ubicacion_id||'null'}, '${(b.ubicacion_nombre||'').replace(/'/g,"\\'")}')"
       onmouseover="invDepositoHover(${idx})">
       <div class="ac-item-icon"><i class="ti ti-building-warehouse"></i></div>
       <div class="ac-item-body">
         <div class="ac-item-name">${hilite(b.nombre)}</div>
-        ${!sedeId && b.ubicacion_nombre ? `<div class="ac-item-meta">${escHtml(b.ubicacion_nombre)}</div>` : ''}
+        ${!sedeId && b.ubicacion_nombre ? `<div class="ac-item-meta">${b.ubicacion_nombre}</div>` : ''}
       </div>
     </div>`).join('');
   drop.classList.add('open');
@@ -278,13 +279,13 @@ function invSubFilter(){
   ).slice(0, 10);
 
   if(!results.length){
-    const ctx = deposito ? ` en ${deposito}` : (sedeId ? ' en esta ubicación' : '');
-    drop.innerHTML = `<div class="ac-no-results"><i class="ti ti-search" style="display:block;font-size:22px;margin-bottom:6px;opacity:.3"></i>Sin resultados${escHtml(ctx)}</div>`;
+    const ctx = deposito ? ` en ${deposito}` : (sedeId ? ` en esta ubicación` : '');
+    drop.innerHTML = `<div class="ac-no-results"><i class="ti ti-search" style="display:block;font-size:22px;margin-bottom:6px;opacity:.3"></i>Sin resultados${ctx}</div>`;
     drop.classList.add('open');
     return;
   }
 
-  const hilite = str => q ? str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>') : escHtml(str);
+  const hilite = str => q ? str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>') : str;
 
   drop.innerHTML = results.map((s, idx) => {
     const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
@@ -299,11 +300,11 @@ function invSubFilter(){
       <div class="ac-item-body">
         <div class="ac-item-name">${hilite(s.subSku)}</div>
         <div class="ac-item-meta">
-          ${skuG?`<span class="sku-code" style="font-size:9px">${escHtml(skuG.codigo)}</span>`:''}
+          ${skuG?`<span class="sku-code" style="font-size:9px">${skuG.codigo}</span>`:''}
           <span>${hilite(s.nombre)}</span>
         </div>
       </div>
-      <div class="ac-item-stock">${cant} ${escHtml(s.unidad)}</div>
+      <div class="ac-item-stock">${cant} ${s.unidad}</div>
     </div>`;
   }).join('');
   drop.classList.add('open');
