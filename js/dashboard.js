@@ -194,3 +194,14 @@ function renderConsumoMensual(){
 function dashConsumoSeleccionar(id){ _dashConsumoUbicacion = id; renderConsumoMensual(); }
 function dashConsumoVolver(){ _dashConsumoUbicacion = null; renderConsumoMensual(); }
 function dashConsumoMesChange(){ _dashConsumoUbicacion = null; renderConsumoMensual(); }
+// ── TOGGLE VISTA VALOR: dona / barra ──
+// El HTML tiene botones que llaman dashValorToggle('dona') y dashValorToggle('barra')
+// La implementación actual usa listas en lugar de Chart.js, así que el toggle
+// solo actualiza el estado visual de los botones (la lista es la misma en ambos modos)
+function dashValorToggle(modo){
+  document.querySelectorAll('.dash-valor-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.modo === modo);
+  });
+  // Re-renderizar (la vista de lista se mantiene igual; se puede extender con Chart.js)
+  renderValorInventario();
+}
