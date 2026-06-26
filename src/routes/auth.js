@@ -83,7 +83,17 @@ router.get('/me', async (req, res) => {
       return res.status(401).json({ error: 'Usuario no encontrado o inactivo' });
     }
 
-    res.json({ usuario: result.rows[0] });
+    const u = result.rows[0];
+    res.json({
+      usuario: {
+        id: u.id,
+        nombre: u.nombre,
+        cedula: u.cedula,
+        nivel: u.nivel,
+        genero: u.genero,
+        ubicacion_id: u.ubicacion_id || null
+      }
+    });
   } catch (err) {
     return res.status(403).json({ error: 'Token inválido o expirado' });
   }

@@ -20,9 +20,11 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       // Fix CSP: se agregan cdnjs.cloudflare.com y cdn.jsdelivr.net a scriptSrc
       // para permitir Chart.js y cualquier otro script de CDN que use el frontend.
+      // 'unsafe-inline' eliminado de scriptSrc — protege scripts externos.
+      // scriptSrcAttr mantiene 'unsafe-inline' porque el HTML usa onclick= inline.
+      // Para eliminarlo completamente habría que migrar todos los handlers a JS.
       scriptSrc: [
         "'self'",
-        "'unsafe-inline'",
         "https://cdnjs.cloudflare.com",
         "https://cdn.jsdelivr.net"
       ],

@@ -91,7 +91,7 @@ router.post('/sub', verificarToken, verificarNivel(3), async (req, res) => {
   if (proveedor)       partes.push(abrevProv(proveedor));
   if (lote)            partes.push(lote.toUpperCase());
   if (sub_sku_manual)  partes.push(sub_sku_manual.toUpperCase());
-  if (!partes.length)  partes.push('GEN');
+  if (!partes.length)  partes.push('GEN-' + Date.now().toString(36).toUpperCase().slice(-4));
 
   const sub_sku = partes.join('-');
 

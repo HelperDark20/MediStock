@@ -54,7 +54,7 @@ function updateMovInfo(){
     ${bodegasConStock.length>1?`<br><span style="font-size:11px;color:#888">También disponible en: ${bodegasConStock.filter(b=>b!==origen).join(', ')}</span>`:''}
   `;
 
-  origenSel.addEventListener('change', ()=>{
+  origenSel.onchange = ()=>{
     const nuevoOrigen = origenSel.value;
     const nuevoStk = sub.stock?.[nuevoOrigen]||0;
     document.getElementById('mov-stock-info').innerHTML=`
@@ -62,7 +62,7 @@ function updateMovInfo(){
       Stock en <strong>${nuevoOrigen}</strong>:
       <strong style="color:var(--blue)">${nuevoStk}</strong> ${sub.unidad}
     `;
-  });
+  };
 }
 
 async function registrarMovimiento(){
