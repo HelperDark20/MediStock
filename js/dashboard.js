@@ -11,6 +11,10 @@ const DASH_COLORS = [
 
 // ── RENDER PRINCIPAL ──
 function renderDash(){
+  // Guard: si el elemento no existe la vista no está activa, salir sin error
+  const statsEl = document.getElementById('dash-stats');
+  if(!statsEl) return;
+
   const subs      = S.subSkus;
   const totalSKUs = S.skusGlobales.length;
   const totalUnits = subs.reduce((a,s)=>a+getTotalStock(s),0);
@@ -20,7 +24,7 @@ function renderDash(){
   const warns     = subs.filter(s=>['P','R','A'].includes(getSem(s.caducidad)) && !s.agotado);
 
   // ── Stat cards ──
-  document.getElementById('dash-stats').innerHTML=`
+  statsEl.innerHTML=`
     <div class="stat-card"><div class="stat-card-accent blue"></div><div class="stat-icon blue"><i class="ti ti-tag"></i></div><div class="stat-label">SKUs Globales</div><div class="stat-val blue">${totalSKUs}</div><div class="stat-sub">medicamentos registrados</div></div>
     <div class="stat-card"><div class="stat-card-accent green"></div><div class="stat-icon green"><i class="ti ti-package"></i></div><div class="stat-label">Unidades totales</div><div class="stat-val">${totalUnits.toLocaleString('es-CO')}</div><div class="stat-sub">todas las ubicaciones</div></div>
     <div class="stat-card"><div class="stat-card-accent amber"></div><div class="stat-icon amber"><i class="ti ti-alert-triangle"></i></div><div class="stat-label">Alertas</div><div class="stat-val amber">${warns.length}</div><div class="stat-sub">próximos 180 días</div></div>
@@ -37,21 +41,23 @@ function renderDash(){
   ].filter(x=>!seen.has(x.s.id)&&seen.add(x.s.id)).slice(0,5);
 
   const al = document.getElementById('dash-alerts');
-  if(!alertItems.length){
-    al.innerHTML='<div class="alert-strip ok"><i class="ti ti-circle-check"></i><div class="alert-text"><div class="alert-name">Sin alertas activas</div><div class="alert-meta">Todos los medicamentos están vigentes</div></div></div>';
-  } else {
-    al.innerHTML = alertItems.map(({s,t})=>{
-      const diff = s.caducidad ? Math.round((new Date(s.caducidad+' 00:00:00')-new Date())/864e5) : null;
-      const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
-      return `<div class="alert-strip ${t}">
-        <i class="ti ti-alert-triangle"></i>
-        <div class="alert-text">
-          <div class="alert-name">${escHtml(s.nombre)}</div>
-          <div class="alert-meta">${skuG?.codigo||''} · ${s.subSku} · ${getTotalStock(s)} ${s.unidad} · ${semLabel(getSem(s.caducidad))}</div>
-        </div>
-        <div class="alert-days">${diff!==null?(diff<0?'Vencido':diff+'d'):''}</div>
-      </div>`;
-    }).join('');
+  if(al){
+    if(!alertItems.length){
+      al.innerHTML='<div class="alert-strip ok"><i class="ti ti-circle-check"></i><div class="alert-text"><div class="alert-name">Sin alertas activas</div><div class="alert-meta">Todos los medicamentos están vigentes</div></div></div>';
+    } else {
+      al.innerHTML = alertItems.map(({s,t})=>{
+        const diff = s.caducidad ? Math.round((new Date(s.caducidad+' 00:00:00')-new Date())/864e5) : null;
+        const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
+        return `<div class="alert-strip ${t}">
+          <i class="ti ti-alert-triangle"></i>
+          <div class="alert-text">
+            <div class="alert-name">${escHtml(s.nombre)}</div>
+            <div class="alert-meta">${skuG?.codigo||''} · ${s.subSku} · ${getTotalStock(s)} ${s.unidad} · ${semLabel(getSem(s.caducidad))}</div>
+          </div>
+          <div class="alert-days">${diff!==null?(diff<0?'Vencido':diff+'d'):''}</div>
+        </div>`;
+      }).join('');
+    }
   }
 
   // ── Gráficos ──
@@ -83,11 +89,12 @@ function calcValorInventario(){
 }
 
 function renderValorChart(){
-  const { total, porUbicacion } = calcValorInventario();
-  document.getElementById('dash-valor-total').textContent = fmtCOP(total);
+  const totalEl = document.getElementById('dash-valor-total');
+  const canvas  = document.getElementById('dash-valor-chart');
+  if(!totalEl || !canvas) return;
 
-  const canvas = document.getElementById('dash-valor-chart');
-  if(!canvas) return;
+  const { total, porUbicacion } = calcValorInventario();
+  totalEl.textContent = fmtCOP(total);
 
   const entries  = Object.entries(porUbicacion).sort((a,b)=>b[1].valor-a[1].valor);
   const labels   = entries.map(([,u])=>u.nombre);
@@ -180,7 +187,9 @@ function calcConsumoMensual(mesYYYYMM){
 
 function renderConsumoChart(){
   const mesInput = document.getElementById('dash-consumo-mes');
-  if(!mesInput) return;
+  const canvas   = document.getElementById('dash-consumo-chart');
+  if(!mesInput || !canvas) return;
+
   if(!mesInput.value) mesInput.value = fechaColombia().slice(0,7);
   const mes = mesInput.value;
 
@@ -188,27 +197,24 @@ function renderConsumoChart(){
   const totalEl = document.getElementById('dash-consumo-total');
   if(totalEl) totalEl.textContent = totalGeneral.toLocaleString('es-CO');
 
-  // Chips de ubicación (filtro visual — decorativo por ahora)
+  // Chips de ubicación
   const chips = document.getElementById('dash-consumo-chips');
-  if(chips){
-    const entries = Object.entries(porUbicacion).sort((a,b)=>b[1].total-a[1].total);
-    chips.innerHTML = entries.map(([,u])=>`
-      <span class="dash-chip active">${escHtml(u.nombre)}: ${u.total.toLocaleString('es-CO')} u.</span>
-    `).join('');
-  }
-
-  const canvas = document.getElementById('dash-consumo-chart');
-  if(!canvas) return;
 
   const entries = Object.entries(porUbicacion).sort((a,b)=>b[1].total-a[1].total);
   const labels  = entries.map(([,u])=>u.nombre);
   const valores = entries.map(([,u])=>u.total);
   const colores = labels.map((_,i)=>DASH_COLORS[i % DASH_COLORS.length]);
 
+  if(chips){
+    chips.innerHTML = labels.length
+      ? entries.map(([,u])=>`
+          <span class="dash-chip active">${escHtml(u.nombre)}: ${u.total.toLocaleString('es-CO')} u.</span>
+        `).join('')
+      : '<span style="font-size:12px;color:#aaa">Sin consumos este mes</span>';
+  }
+
   if(!labels.length){
     canvas.style.display = 'none';
-    // Limpiar chips también
-    if(chips) chips.innerHTML = '<span style="font-size:12px;color:#aaa">Sin consumos este mes</span>';
     if(_consumoChart){ _consumoChart.destroy(); _consumoChart = null; }
     return;
   }
