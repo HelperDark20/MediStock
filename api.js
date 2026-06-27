@@ -8,7 +8,6 @@ function removeToken(){ localStorage.removeItem('nb_token'); }
 // ── HEADERS ──
 function authHeaders(){
   const token = localStorage.getItem('nb_token');
-  if(!token) console.warn('No hay token en localStorage');
   return {
     'Content-Type': 'application/json',
     'Authorization': token ? `Bearer ${token}` : ''
@@ -18,7 +17,6 @@ function authHeaders(){
 // ── REQUEST BASE ──
 async function request(method, path, body = null){
   const token = localStorage.getItem('nb_token');
-  console.log(`${method} ${path} - Token: ${token ? 'OK' : 'MISSING'}`);
   const opts = {
     method,
     headers: {
@@ -80,10 +78,7 @@ const Movimientos = {
     const query = new URLSearchParams(params).toString();
     return request('GET', `/api/movimientos${query ? '?' + query : ''}`);
   },
-  // Fix #8: nuevo método que unifica creación de sub-SKU + entrada en una
-  // sola transacción atómica en el servidor, eliminando la race condition.
   entradaCompleta: (data) => request('POST', '/api/movimientos/entrada-completa', data),
-  // Se mantiene para compatibilidad con flujos que ya tienen el sub_sku_id
   entrada: (data) => request('POST', '/api/movimientos/entrada', data),
   consumo: (data) => request('POST', '/api/movimientos/consumo', data),
   traslado: (data) => request('POST', '/api/movimientos/traslado', data),

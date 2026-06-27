@@ -7,7 +7,8 @@ const { verificarToken, verificarNivel } = require('../middlewares/auth');
 router.get('/globales', verificarToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM skus_globales WHERE activo = true ORDER BY codigo'
+      // FIX: columnas explícitas en lugar de SELECT * para no exponer futuras columnas sensibles
+      'SELECT id, codigo, nombre, familia, subgrupo, campos, precio FROM skus_globales WHERE activo = true ORDER BY codigo'
     );
     res.json(result.rows);
   } catch (err) {
@@ -36,8 +37,9 @@ router.post('/globales', verificarToken, verificarNivel(4), async (req, res) => 
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
+    // FIX SEGURIDAD: no exponer err.message de la BD al cliente
     console.error('ERROR POST /skus/globales:', err.message, err.detail);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error al crear el SKU. Intenta de nuevo.' });
   }
 });
 
@@ -115,7 +117,7 @@ router.post('/sub', verificarToken, verificarNivel(3), async (req, res) => {
   }
 });
 
-// GET /api/skus/stock — FIX: alias sub_sku_id único, sin duplicado con st.sub_sku_id
+// GET /api/skus/stock
 router.get('/stock', verificarToken, async (req, res) => {
   try {
     const result = await pool.query(

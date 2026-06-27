@@ -150,8 +150,8 @@ function updateRegSKU(skuG){
   info.style.display = 'block';
   document.getElementById('reg-sku-nombre').textContent = skuG.nombre;
   document.getElementById('reg-sku-familia').innerHTML = `
-    <span style="font-size:12px;font-weight:600;color:var(--ink)">${skuG.familia||''}</span>
-    <span style="font-size:12px;color:#888;margin-left:6px">${skuG.subgrupo||''}</span>`;
+    <span style="font-size:12px;font-weight:600;color:var(--ink)">${escHtml(skuG.familia||'')}</span>
+    <span style="font-size:12px;color:#888;margin-left:6px">${escHtml(skuG.subgrupo||'')}</span>`;
 
   document.getElementById('reg-precio').value = '';
 

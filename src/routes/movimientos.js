@@ -4,11 +4,11 @@ const pool = require('../config/db');
 const { verificarToken, verificarNivel } = require('../middlewares/auth');
 
 // GET /api/movimientos — todos los niveles
-// FIX: paginación con LIMIT por defecto de 500
 router.get('/', verificarToken, async (req, res) => {
   const { sku_global, sub_sku_id, bodega } = req.query;
-  // Si viene limit explícito se respeta; si no, máximo 500
-  const limit = req.query.limit ? parseInt(req.query.limit) : 500;
+  // FIX SEGURIDAD: cap máximo de 1000 para evitar DoS por limit arbitrario
+  const requestedLimit = parseInt(req.query.limit) || 500;
+  const limit = Math.min(requestedLimit, 1000);
 
   try {
     let query = `
@@ -95,6 +95,11 @@ router.post('/consumo', verificarToken, verificarNivel(2), async (req, res) => {
   if (!sub_sku_id || !bodega_origen_id || !cantidad || cantidad <= 0) {
     return res.status(400).json({ error: 'Faltan campos obligatorios' });
   }
+  // FIX: sanitizar cedula_paciente — solo dígitos
+  const cedulaPacienteVal = cedula_paciente
+    ? String(cedula_paciente).replace(/\D/g, '') || null
+    : null;
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -110,7 +115,7 @@ router.post('/consumo', verificarToken, verificarNivel(2), async (req, res) => {
       `INSERT INTO movimientos
          (sub_sku_id, tipo, bodega_origen_id, cantidad, usuario_id, usuario_nombre, cedula_paciente)
        VALUES ($1, 'consumo', $2, $3, $4, $5, $6)`,
-      [sub_sku_id, bodega_origen_id, cantidad, req.usuario.id, req.usuario.nombre, cedula_paciente || null]
+      [sub_sku_id, bodega_origen_id, cantidad, req.usuario.id, req.usuario.nombre, cedulaPacienteVal]
     );
     await client.query(
       'UPDATE stock SET cantidad = cantidad - $1 WHERE sub_sku_id = $2 AND bodega_id = $3',

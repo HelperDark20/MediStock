@@ -48,19 +48,19 @@ function updateMovInfo(){
   const origen = origenSel.value;
   const stk = origen ? (sub.stock?.[origen]||0) : 0;
   document.getElementById('mov-stock-info').innerHTML=`
-    <strong>${sub.nombre}</strong> · ${sub.subSku}<br>
-    Stock en <strong>${origen}</strong>:
-    <strong style="color:var(--blue)">${stk}</strong> ${sub.unidad}
-    ${bodegasConStock.length>1?`<br><span style="font-size:11px;color:#888">También disponible en: ${bodegasConStock.filter(b=>b!==origen).join(', ')}</span>`:''}
+    <strong>${escHtml(sub.nombre)}</strong> · ${escHtml(sub.subSku)}<br>
+    Stock en <strong>${escHtml(origen)}</strong>:
+    <strong style="color:var(--blue)">${stk}</strong> ${escHtml(sub.unidad)}
+    ${bodegasConStock.length>1?`<br><span style="font-size:11px;color:#888">También disponible en: ${bodegasConStock.filter(b=>b!==origen).map(b=>escHtml(b)).join(', ')}</span>`:''}
   `;
 
   origenSel.onchange = ()=>{
     const nuevoOrigen = origenSel.value;
     const nuevoStk = sub.stock?.[nuevoOrigen]||0;
     document.getElementById('mov-stock-info').innerHTML=`
-      <strong>${sub.nombre}</strong> · ${sub.subSku}<br>
-      Stock en <strong>${nuevoOrigen}</strong>:
-      <strong style="color:var(--blue)">${nuevoStk}</strong> ${sub.unidad}
+      <strong>${escHtml(sub.nombre)}</strong> · ${escHtml(sub.subSku)}<br>
+      Stock en <strong>${escHtml(nuevoOrigen)}</strong>:
+      <strong style="color:var(--blue)">${nuevoStk}</strong> ${escHtml(sub.unidad)}
     `;
   };
 }
@@ -124,13 +124,13 @@ function renderMovBody(){
       <td style="font-size:11px;font-family:var(--font-mono);color:#888">
         ${new Date(m.created_at).toLocaleString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
       </td>
-      <td><span class="sku-code">${m.sku_global_codigo||'—'}</span></td>
-      <td><span class="sub-sku" style="font-size:9px">${(m.sub_sku||'').split('-').slice(0,2).join('-')}</span></td>
-      <td><span class="mov-tipo ${m.tipo}">${m.tipo}</span></td>
-      <td style="font-size:12px;color:#666">${m.origen_nombre||'—'} → ${m.destino_nombre||'—'}</td>
+      <td><span class="sku-code">${escHtml(m.sku_global_codigo||'—')}</span></td>
+      <td><span class="sub-sku" style="font-size:9px">${escHtml((m.sub_sku||'').split('-').slice(0,2).join('-'))}</span></td>
+      <td><span class="mov-tipo ${m.tipo}">${escHtml(m.tipo)}</span></td>
+      <td style="font-size:12px;color:#666">${escHtml(m.origen_nombre||'—')} → ${escHtml(m.destino_nombre||'—')}</td>
       <td style="font-family:var(--font-mono);font-weight:600">${m.cantidad}</td>
       <td style="font-size:12px">
-        <div style="font-weight:500">${m.usuario_nombre||'—'}</div>
+        <div style="font-weight:500">${escHtml(m.usuario_nombre||'—')}</div>
       </td>
       <td>
         <span class="nivel-badge n${m.usuario_nivel||0}" style="font-size:9px">

@@ -4,8 +4,9 @@ const pool = require('../config/db');
 const bcrypt = require('bcryptjs');
 const { verificarToken, verificarNivel } = require('../middlewares/auth');
 
+const NIVELES_VALIDOS = [1, 2, 3, 4];
+
 // GET /api/usuarios/me — cualquier nivel autenticado
-// Usado por el frontend para verificar el token al restaurar sesión
 router.get('/me', verificarToken, async (req, res) => {
   try {
     const result = await pool.query(
@@ -49,6 +50,10 @@ router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
   if (!nombre || !cedula || !nivel || !password) {
     return res.status(400).json({ error: 'Faltan campos obligatorios' });
   }
+  // FIX SEGURIDAD: validar que nivel esté en rango permitido
+  if (!NIVELES_VALIDOS.includes(parseInt(nivel))) {
+    return res.status(400).json({ error: 'Nivel inválido. Debe ser 1, 2, 3 o 4' });
+  }
   try {
     const existe = await pool.query('SELECT id, activo FROM usuarios WHERE cedula = $1', [cedula]);
     if (existe.rows.length > 0 && existe.rows[0].activo) {
@@ -57,19 +62,18 @@ router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
     const password_hash = await bcrypt.hash(password, 10);
     let result;
     if (existe.rows.length > 0 && !existe.rows[0].activo) {
-      // Reactivar usuario desactivado con los nuevos datos
       result = await pool.query(
         `UPDATE usuarios SET nombre=$1, nivel=$2, genero=$3, fecha_nacimiento=$4,
         password_hash=$5, ubicacion_id=$6, activo=true
         WHERE cedula=$7
         RETURNING id, nombre, cedula, nivel, genero, ubicacion_id`,
-        [nombre, nivel, genero, fecha_nacimiento, password_hash, ubicacion_id || null, cedula]
+        [nombre, parseInt(nivel), genero, fecha_nacimiento, password_hash, ubicacion_id || null, cedula]
       );
     } else {
       result = await pool.query(
         `INSERT INTO usuarios (nombre, cedula, nivel, genero, fecha_nacimiento, password_hash, ubicacion_id)
         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, nombre, cedula, nivel, genero, ubicacion_id`,
-        [nombre, cedula, nivel, genero, fecha_nacimiento, password_hash, ubicacion_id || null]
+        [nombre, cedula, parseInt(nivel), genero, fecha_nacimiento, password_hash, ubicacion_id || null]
       );
     }
     res.status(201).json(result.rows[0]);
@@ -79,9 +83,13 @@ router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
   }
 });
 
-// PUT /api/usuarios/:id — nivel 4 (editar datos)
+// PUT /api/usuarios/:id — nivel 4
 router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
   const { nombre, nivel, genero, password, ubicacion_id } = req.body;
+  // FIX SEGURIDAD: validar nivel si se está cambiando
+  if (nivel !== undefined && !NIVELES_VALIDOS.includes(parseInt(nivel))) {
+    return res.status(400).json({ error: 'Nivel inválido. Debe ser 1, 2, 3 o 4' });
+  }
   try {
     let password_hash = null;
     if (password) {
@@ -96,7 +104,7 @@ router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
         password_hash = CASE WHEN $5::text IS NOT NULL THEN $5::text ELSE password_hash END
        WHERE id = $6 AND activo = true
        RETURNING id, nombre, cedula, nivel, genero, ubicacion_id`,
-      [nombre || null, nivel || null, genero || null, ubicacion_id || null, password_hash, req.params.id]
+      [nombre || null, nivel ? parseInt(nivel) : null, genero || null, ubicacion_id || null, password_hash, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
     res.json(result.rows[0]);
@@ -106,11 +114,9 @@ router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
   }
 });
 
-// DELETE /api/usuarios/:id — nivel 4
-// SOFT DELETE: marca activo=false para preservar el historial de movimientos
+// DELETE /api/usuarios/:id — nivel 4 (soft delete)
 router.delete('/:id', verificarToken, verificarNivel(4), async (req, res) => {
   try {
-    // Evitar que un admin se elimine a sí mismo
     if (parseInt(req.params.id) === req.usuario.id) {
       return res.status(400).json({ error: 'No puedes desactivar tu propio usuario' });
     }
