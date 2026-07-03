@@ -774,3 +774,35 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 .stat-delta.green{ color:var(--green); }
 .stat-delta.red{ color:var(--red2); cursor:pointer; }
 .stat-delta i{ font-size:13px; }
+
+/* ══════════════════════════════════════════
+   REPORTES — filtros, encabezado de impresión
+   y hoja @media print para exportar a PDF
+   desde el navegador (Ctrl/Cmd+P → Guardar como PDF)
+   ══════════════════════════════════════════ */
+.print-only{ display:none; }
+
+#rep-print-header h2{
+  font-size:18px;
+  font-weight:800;
+  color:var(--ink);
+  margin-bottom:4px;
+}
+
+@media print{
+  body *{ visibility:hidden; }
+  #view-reportes, #view-reportes *{ visibility:visible; }
+  #view-reportes{
+    position:absolute;
+    left:0;
+    top:0;
+    width:100%;
+    padding:20px;
+  }
+  .no-print{ display:none !important; }
+  .print-only{ display:block !important; margin-bottom:16px; }
+  .stat-card{ break-inside:avoid; border:1px solid #ccc; }
+  .table-wrap{ border:1px solid #ccc; box-shadow:none; }
+  table{ font-size:11px; }
+  tr{ break-inside:avoid; }
+}

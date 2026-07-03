@@ -584,6 +584,62 @@
         <div id="bodegas-list"></div>
       </div>
 
+      <!-- ═══ REPORTES (Admin) ═══ -->
+      <div class="view" id="view-reportes">
+
+        <div class="card no-print" style="margin-bottom:16px">
+          <div class="card-header"><i class="ti ti-filter card-title"></i><span class="card-title">Filtros del reporte</span></div>
+          <div class="card-body">
+            <div class="form-grid cols3">
+              <div class="form-group">
+                <label>Mes</label>
+                <input type="month" id="rep-mes" onchange="actualizarReporte()">
+              </div>
+              <div class="form-group">
+                <label>Ubicación</label>
+                <select id="rep-ubicacion" onchange="repUbicacionChange()">
+                  <option value="">Todas las ubicaciones</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Depósito</label>
+                <select id="rep-deposito" onchange="actualizarReporte()">
+                  <option value="">Todos los depósitos</option>
+                </select>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+              <button class="tb-btn primary" onclick="repExportExcel()"><i class="ti ti-file-spreadsheet"></i>Exportar Excel</button>
+              <button class="tb-btn" onclick="repExportPDF()"><i class="ti ti-file-type-pdf"></i>Exportar PDF</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="rep-print-header" class="print-only">
+          <h2 style="font-family:var(--font-head)">Nova Bridge — Reporte de consumos y gastos</h2>
+          <p id="rep-print-sub" style="font-size:12px;color:#666"></p>
+        </div>
+
+        <div class="grid-4" id="rep-stats" style="margin-bottom:16px"></div>
+
+        <div class="sec-header"><div class="sec-title">Consumos y gastos por ubicación / depósito</div></div>
+        <div class="table-wrap" style="margin-bottom:20px">
+          <table>
+            <thead><tr><th>Ubicación / Depósito</th><th>Unidades consumidas</th><th>Valor (COP)</th><th>% del total</th></tr></thead>
+            <tbody id="rep-body"></tbody>
+          </table>
+        </div>
+
+        <div class="sec-header"><div class="sec-title">Top ítems más consumidos</div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>SKU</th><th>Ítem</th><th>Unidades</th><th>Valor (COP)</th></tr></thead>
+            <tbody id="rep-top-body"></tbody>
+          </table>
+        </div>
+
+      </div>
+
       <!-- ═══ TRAZABILIDAD ═══ -->
       <div class="view" id="view-trazabilidad">
         <div class="card" style="margin-bottom:18px;overflow:visible">
@@ -652,6 +708,8 @@
 
 <!-- Agregar esta línea en index.html ANTES de <script src="api.js"></script> -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<!-- SheetJS — usado por js/reportes.js para exportar a Excel (.xlsx) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <!-- API -->
 <script src="api.js"></script>
@@ -669,6 +727,7 @@
 <script src="js/skus.js"></script>
 <script src="js/usuarios.js"></script>
 <script src="js/bodegas.js"></script>
+<script src="js/reportes.js"></script>
 <script src="js/trazabilidad.js"></script>
 <script src="js/deletes.js"></script>
 <script src="js/main.js"></script>
