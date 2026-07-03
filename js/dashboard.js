@@ -46,7 +46,7 @@ function renderDash(){
       al.innerHTML='<div class="alert-strip ok"><i class="ti ti-circle-check"></i><div class="alert-text"><div class="alert-name">Sin alertas activas</div><div class="alert-meta">Todos los medicamentos están vigentes</div></div></div>';
     } else {
       al.innerHTML = alertItems.map(({s,t})=>{
-        const diff = s.caducidad ? Math.round((new Date(s.caducidad+' 00:00:00')-new Date())/864e5) : null;
+        const diff = s.caducidad ? Math.round((new Date(s.caducidad.split('T')[0]+'T00:00:00') - new Date(fechaColombia()+'T00:00:00')) / 864e5) : null;
         const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
         return `<div class="alert-strip ${t}">
           <i class="ti ti-alert-triangle"></i>
