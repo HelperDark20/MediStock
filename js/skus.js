@@ -1,20 +1,19 @@
 // ── PREVIEW SKU GLOBAL ──
+// Regla del código: 3 primeras letras (alfanuméricas) de cada una de las
+// primeras 3 palabras del nombre, unidas por guion.
+// Ej: "ACETAMINOFEN 500MG TAB" → ACE-500-TAB
 function updateGlobalSKU(){
   const nombre = (document.getElementById('sku-nombre').value||'').trim();
   const preview = document.getElementById('sku-global-preview');
   if(!nombre){ preview.textContent = '---'; return; }
 
   const words = nombre.toUpperCase().split(/\s+/).filter(Boolean);
-  let codigo = '';
-  if(words.length === 1){
-    codigo = words[0].replace(/[^A-Z0-9]/g,'').substring(0, 6);
-  } else {
-    const siglas = words.slice(0, 3).map(w => w.replace(/[^A-Z0-9]/g,'')[0]||'').join('');
-    const numeros = nombre.match(/\d+/g);
-    codigo = siglas + (numeros ? '-' + numeros.join('') : '');
-  }
+  const codigo = words.slice(0, 3)
+    .map(w => w.replace(/[^A-Z0-9]/g,'').substring(0, 3))
+    .filter(Boolean)
+    .join('-');
 
-  preview.textContent = codigo;
+  preview.textContent = codigo || '---';
 
   const codigoInput = document.getElementById('sku-codigo');
   if(codigoInput && !codigoInput._manualEdit){
