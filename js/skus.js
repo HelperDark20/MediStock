@@ -3,8 +3,12 @@
 // nombre completo (ya no solo las primeras 3), unidas por guion.
 // Se usa el nombre completo para reducir colisiones entre ítems que solo
 // se diferencian por texto al final (tallas, números, presentación, etc).
-// Ej: "ACETAMINOFEN 500MG TAB" → ACE-500-TAB
-// Ej: "CANULA DE GUEDEL # 3"   → CAN-DE-GUE-3   (antes colisionaba con # 0, #1, #5)
+// Excepción: si la palabra es un número decimal (ej. "2.0", "6.0"),
+// se conserva completo sin truncar ni quitarle el punto, para no perder
+// la talla/calibre (ej. suturas 2.0 vs 3.0 vs 6.0).
+// Ej: "ACETAMINOFEN 500MG TAB"                → ACE-500-TAB
+// Ej: "CANULA DE GUEDEL # 3"                  → CAN-DE-GUE-3   (antes colisionaba con # 0, #1, #5)
+// Ej: "SUTURA QUIRURGICA NO READSORBIBLE 2.0" → SUT-QUI-NO-REA-2.0
 function updateGlobalSKU(){
   const nombre = (document.getElementById('sku-nombre').value||'').trim();
   const preview = document.getElementById('sku-global-preview');
@@ -12,7 +16,12 @@ function updateGlobalSKU(){
 
   const words = nombre.toUpperCase().split(/\s+/).filter(Boolean);
   const codigo = words
-    .map(w => w.replace(/[^A-Z0-9]/g,'').substring(0, 3))
+    .map(w => {
+      const clean = w.replace(/[^A-Z0-9.]/g, '');
+      // Número decimal (ej. "2.0") → se conserva completo, sin truncar
+      if(/^\d+\.\d+$/.test(clean)) return clean;
+      return clean.replace(/\./g, '').substring(0, 3);
+    })
     .filter(Boolean)
     .join('-');
 
