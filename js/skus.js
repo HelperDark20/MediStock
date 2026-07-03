@@ -1,14 +1,17 @@
 // ── PREVIEW SKU GLOBAL ──
-// Regla del código: 3 primeras letras (alfanuméricas) de cada una de las
-// primeras 3 palabras del nombre, unidas por guion.
+// Regla del código: 3 primeras letras (alfanuméricas) de CADA palabra del
+// nombre completo (ya no solo las primeras 3), unidas por guion.
+// Se usa el nombre completo para reducir colisiones entre ítems que solo
+// se diferencian por texto al final (tallas, números, presentación, etc).
 // Ej: "ACETAMINOFEN 500MG TAB" → ACE-500-TAB
+// Ej: "CANULA DE GUEDEL # 3"   → CAN-DE-GUE-3   (antes colisionaba con # 0, #1, #5)
 function updateGlobalSKU(){
   const nombre = (document.getElementById('sku-nombre').value||'').trim();
   const preview = document.getElementById('sku-global-preview');
   if(!nombre){ preview.textContent = '---'; return; }
 
   const words = nombre.toUpperCase().split(/\s+/).filter(Boolean);
-  const codigo = words.slice(0, 3)
+  const codigo = words
     .map(w => w.replace(/[^A-Z0-9]/g,'').substring(0, 3))
     .filter(Boolean)
     .join('-');
