@@ -1,3 +1,17 @@
+/* ── FUENTE DE MARCA: METHANERSE (original, reemplaza la aproximación con Syne) ──
+   Nota: esta versión "Free Trial" no incluye tildes ni ñ/Ñ. El navegador hace
+   fallback de glifo por carácter, así que dejamos Syne como respaldo en la
+   pila de fuentes — cualquier palabra con tilde/ñ cae automáticamente a Syne
+   sin romper el layout. Si más adelante compran la licencia completa con el
+   set de caracteres en español, basta con reemplazar el archivo .ttf. */
+@font-face{
+  font-family:'Methanerse';
+  src:url('../fonts/METHANERSE_Free_Trial.ttf') format('truetype');
+  font-weight:400 800;
+  font-style:normal;
+  font-display:swap;
+}
+
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
   --blue:#2196D3;--blue2:#4DB8F0;--blue3:#90D8F7;--blue-bg:#E3F4FC;--blue-pale:#EBF6FD;
@@ -9,7 +23,7 @@
   --maroon:#7A1F1F;--maroon-bg:#F5E6E5;
   --green:#1A6B3C;--green-bg:#EDF7F1;
   --white:#FFFFFF;
-  --font-head:'Syne',sans-serif;
+  --font-head:'Methanerse','Syne',sans-serif;
   --font-body:'Instrument Sans',sans-serif;
   --font-mono:'JetBrains Mono',monospace;
   --r-sm:6px;--r-md:10px;--r-lg:16px;--r-xl:24px;
