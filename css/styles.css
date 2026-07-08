@@ -72,7 +72,7 @@ input,select,textarea{font-family:var(--font-body)}
 .sb-nav{flex:1;padding:10px 8px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
 .sb-nav::-webkit-scrollbar{display:none}
 .sb-section{font-size:9px;font-weight:700;color:rgba(255,255,255,.2);text-transform:uppercase;letter-spacing:.1em;padding:10px 8px 4px;font-family:var(--font-mono)}
-.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--r-md);color:rgba(255,255,255,.5);font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;width:100%;text-align:left;transition:all .15s;position:relative;font-family:var(--font-brand)}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--r-md);color:rgba(255,255,255,.5);font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;width:100%;text-align:left;transition:all .15s;position:relative}
 .nav-item i{font-size:17px;flex-shrink:0}
 .nav-item:hover{color:#fff;background:rgba(255,255,255,.07)}
 .nav-item.active{color:#fff;background:rgba(33,150,211,.18)}
