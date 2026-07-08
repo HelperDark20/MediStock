@@ -385,7 +385,7 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
   object-fit:contain;
 }
 .enf-header-title{
-  font-family:var(--font-head);
+  font-family:var(--font-brand);
   font-size:15px;
   font-weight:700;
   color:#fff;
