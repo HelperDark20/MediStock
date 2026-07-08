@@ -1,18 +1,12 @@
-/* ── FUENTE DE MARCA: METHANERSE (original, reemplaza la aproximación con Syne) ──
-   Nota: esta versión "Free Trial" no incluye tildes ni ñ/Ñ. El navegador hace
-   fallback de glifo por carácter, así que dejamos Syne como respaldo en la
-   pila de fuentes — cualquier palabra con tilde/ñ cae automáticamente a Syne
-   sin romper el layout. Si más adelante compran la licencia completa con el
-   set de caracteres en español, basta con reemplazar el archivo .ttf. */
-@font-face{
-  font-family:'Methanerse';
-  src:url('../fonts/METHANERSE_Free_Trial.ttf') format('truetype');
-  font-weight:400 800;
-  font-style:normal;
-  font-display:swap;
+/* Agregar ANTES de :root, o justo después de la línea "*{...}" */
+@font-face {
+  font-family: 'Methanerse';
+  src: url('../fonts/METHANERSE_Free_Trial.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
 }
 
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
   --blue:#2196D3;--blue2:#4DB8F0;--blue3:#90D8F7;--blue-bg:#E3F4FC;--blue-pale:#EBF6FD;
   --ink:#0A1628;--ink2:#1A2B45;--ink3:#2D4060;
@@ -24,7 +18,7 @@
   --green:#1A6B3C;--green-bg:#EDF7F1;
   --white:#FFFFFF;
   --font-head:'Methanerse','Syne',sans-serif;
-  --font-body:'Methanerse','Instrument Sans',sans-serif;
+  --font-body:'Instrument Sans',sans-serif;
   --font-mono:'JetBrains Mono',monospace;
   --r-sm:6px;--r-md:10px;--r-lg:16px;--r-xl:24px;
   --sh1:0 1px 3px rgba(0,0,0,.08);
