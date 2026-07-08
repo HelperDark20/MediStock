@@ -1,7 +1,8 @@
 
 @font-face{
   font-family:'Methanerse';
-  src:url('../fonts/METHANERSE_Free_Trial.ttf') format('truetype');
+  src:url('../fonts/METHANERSE_Free_Trial.woff2') format('woff2'),
+      url('../fonts/METHANERSE_Free_Trial.woff') format('woff');
   font-weight:400 800;
   font-style:normal;
   font-display:swap;
