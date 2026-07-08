@@ -20,7 +20,9 @@
   --green:#1A6B3C;--green-bg:#EDF7F1;
   --white:#FFFFFF;
   --font-mono:'JetBrains Mono',monospace;
-  --font-brand:'Methanerse',sans-serif; /* SOLO Methanerse, sin fallback — uso puntual en marca/nav/títulos */
+  --font-head:'Syne',sans-serif;
+  --font-body:'Instrument Sans',sans-serif;
+  --font-brand:'Methanerse','Syne',sans-serif;
   --r-sm:6px;--r-md:10px;--r-lg:16px;--r-xl:24px;
   --sh1:0 1px 3px rgba(0,0,0,.08);
   --sh2:0 4px 16px rgba(0,0,0,.1);
@@ -65,8 +67,8 @@ input,select,textarea{font-family:var(--font-body)}
 .sb-user{padding:12px 16px;border-bottom:1px solid rgba(33,150,211,.12);display:flex;align-items:center;gap:10px}
 .sb-avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;font-family:var(--font-mono)}
 .sb-avatar.n1{background:#6B3FA0}.sb-avatar.n2{background:#1A5C8C}.sb-avatar.n3{background:#0D7FC2}.sb-avatar.n4{background:#0A5C3A}
-.sb-user-info strong{display:block;font-size:12px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;font-family:var(--font-brand)}
-.sb-user-info span{font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-brand)}
+.sb-user-info strong{display:block;font-size:12px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px}
+.sb-user-info span{font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono)}
 .sb-nav{flex:1;padding:10px 8px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
 .sb-nav::-webkit-scrollbar{display:none}
 .sb-section{font-size:9px;font-weight:700;color:rgba(255,255,255,.2);text-transform:uppercase;letter-spacing:.1em;padding:10px 8px 4px;font-family:var(--font-mono)}
