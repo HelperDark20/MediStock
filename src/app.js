@@ -10,6 +10,7 @@ const movimientosRoutes = require('./routes/movimientos');
 const usuariosRoutes    = require('./routes/usuarios');
 const bodegasRoutes     = require('./routes/bodegas');
 const ubicacionesRoutes = require('./routes/ubicaciones');
+const eventosRoutes     = require('./routes/eventos');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -115,6 +116,7 @@ app.use('/api/movimientos',  apiLimiterByIp, apiLimiterByUser, movimientosRoutes
 app.use('/api/usuarios',     apiLimiterByIp, apiLimiterByUser, usuariosRoutes);
 app.use('/api/bodegas',      apiLimiterByIp, apiLimiterByUser, bodegasRoutes);
 app.use('/api/ubicaciones',  apiLimiterByIp, apiLimiterByUser, ubicacionesRoutes);
+app.use('/api/eventos',      apiLimiterByIp, apiLimiterByUser, eventosRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

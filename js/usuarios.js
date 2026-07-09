@@ -21,30 +21,10 @@ function poblarSelectsFechaNac(){
   });
 }
 
-// Mostrar/ocultar campo de ubicación según nivel seleccionado
-function toggleUbicacionField(){
-  const nivel = parseInt(document.getElementById('u-nivel').value);
-  const wrap  = document.getElementById('u-ubicacion-wrap');
-  if(wrap) wrap.style.display = nivel === 2 ? '' : 'none';
-}
-
-function toggleEditUbicacionField(){
-  const nivel = parseInt(document.getElementById('edit-u-nivel').value);
-  const wrap  = document.getElementById('edit-u-ubicacion-wrap');
-  if(wrap) wrap.style.display = nivel === 2 ? '' : 'none';
-}
-
-// Poblar select de ubicaciones en el form de crear usuario
-function populateUsuarioUbicaciones(){
-  ['u-ubicacion','edit-u-ubicacion'].forEach(id => {
-    const sel = document.getElementById(id);
-    if(!sel) return;
-    const current = sel.value;
-    sel.innerHTML = '<option value="">Sin asignación específica</option>' +
-      S.ubicaciones.map(u=>`<option value="${u.id}">${u.nombre}</option>`).join('');
-    if(current) sel.value = current;
-  });
-}
+// NOTA: la ubicación de los enfermeros (Nivel 2) ya NO se asigna aquí.
+// Ahora se asigna de forma temporal desde el módulo "Eventos", donde el
+// administrador define ubicación + depósitos habilitados + enfermeros
+// para la duración del evento.
 
 async function crearUsuario(){
   poblarSelectsFechaNac();
@@ -52,27 +32,22 @@ async function crearUsuario(){
   const cedula   = document.getElementById('u-cedula').value.trim();
   const nivel    = parseInt(document.getElementById('u-nivel').value);
   const genero   = document.getElementById('u-genero').value;
-  // DESPUÉS
   const nacTxt = document.getElementById('u-nacimiento-txt').value.trim();
   let fecha_nacimiento = null;
   if(nacTxt && nacTxt.length === 10) {
     const [d, m, y] = nacTxt.split('/');
     if(d && m && y) fecha_nacimiento = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
   }
-  const password     = document.getElementById('u-pass').value.trim();
-  const ubicacion_id = nivel === 2
-    ? (parseInt(document.getElementById('u-ubicacion').value)||null)
-    : null;
+  const password = document.getElementById('u-pass').value.trim();
 
   if(!nombre||!cedula||!password){
     toast('Completa nombre, cédula y contraseña','error');
     return;
   }
   try {
-    await Usuarios.create({ nombre, cedula, nivel, genero, fecha_nacimiento, password, ubicacion_id });
+    await Usuarios.create({ nombre, cedula, nivel, genero, fecha_nacimiento, password, ubicacion_id: null });
     ['u-nombre','u-cedula','u-pass'].forEach(id => document.getElementById(id).value='');
     document.getElementById('u-nacimiento-txt').value = '';
-    document.getElementById('u-ubicacion-wrap').style.display = 'none';
     S.usuarios = await Usuarios.getAll();
     renderUsuarios();
     toast('✓ Usuario creado','success');
@@ -92,14 +67,6 @@ function abrirEdicionUsuario(id){
   document.getElementById('edit-u-pass').value   = '';
   document.getElementById('modal-edit-user-sub').textContent = `CC: ${u.cedula}`;
 
-  // Poblar ubicaciones y seleccionar la asignada
-  populateUsuarioUbicaciones();
-  const editUbSel = document.getElementById('edit-u-ubicacion');
-  editUbSel.value = u.ubicacion_id || '';
-
-  // Mostrar campo ubicación si es enfermero
-  toggleEditUbicacionField();
-
   document.getElementById('modal-edit-user').classList.add('open');
 }
 
@@ -108,13 +75,10 @@ async function guardarEdicionUsuario(){
   const nombre   = document.getElementById('edit-u-nombre').value.trim();
   const nivel    = parseInt(document.getElementById('edit-u-nivel').value);
   const password = document.getElementById('edit-u-pass').value.trim();
-  const ubicacion_id = nivel === 2
-    ? (parseInt(document.getElementById('edit-u-ubicacion').value)||null)
-    : null;
 
   if(!nombre){ toast('El nombre no puede estar vacío','error'); return; }
   try {
-    await Usuarios.update(id, { nombre, nivel, password: password||null, ubicacion_id });
+    await Usuarios.update(id, { nombre, nivel, password: password||null, ubicacion_id: null });
     closeModal('modal-edit-user');
     S.usuarios = await Usuarios.getAll();
     renderUsuarios();
@@ -125,7 +89,6 @@ async function guardarEdicionUsuario(){
 }
 
 function renderUsuarios(){
-  populateUsuarioUbicaciones();
   const el = document.getElementById('users-list');
   if(!S.usuarios.length){
     el.innerHTML='<div class="empty-state"><i class="ti ti-users"></i><p>Sin usuarios registrados</p></div>';
@@ -138,7 +101,7 @@ function renderUsuarios(){
       </div>
       <div class="user-info">
         <div class="user-name">${u.nombre}</div>
-        <div class="user-cedula">CC: ${u.cedula} · ${u.genero||'—'}${u.ubicacion_nombre ? ` · <span style="color:var(--blue);font-weight:600">${u.ubicacion_nombre}</span>` : ''}</div>
+        <div class="user-cedula">CC: ${u.cedula} · ${u.genero||'—'}</div>
       </div>
       <span class="nivel-badge n${u.nivel}">N${u.nivel} · ${NIVELES[u.nivel]?.label}</span>
       ${currentRole===4?`

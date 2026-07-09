@@ -5,6 +5,7 @@ function renderAll(){
   renderSKUs();
   renderUsuarios();
   renderBodegas();
+  renderEventos();
 }
 
 document.querySelectorAll('.modal-overlay').forEach(el=>

@@ -22,7 +22,7 @@ const NIVELES = {
   1:{label:'Auditor',cls:'n1',nav:['dashboard','inventario','trazabilidad']},
   2:{label:'Enfermero/a',cls:'n2',nav:['dashboard','inventario','movimientos','trazabilidad']},
   3:{label:'Supervisor',cls:'n3',nav:['dashboard','inventario','movimientos','registro','trazabilidad']},
-  4:{label:'Administrador',cls:'n4',nav:['dashboard','inventario','movimientos','registro','sku','usuarios','bodegas','reportes','trazabilidad']}
+  4:{label:'Administrador',cls:'n4',nav:['dashboard','inventario','movimientos','registro','sku','usuarios','bodegas','eventos','reportes','trazabilidad']}
 };
 
 const NAV_CONFIG = [
@@ -33,6 +33,7 @@ const NAV_CONFIG = [
   {id:'sku',icon:'ti-tag',label:'SKUs Globales',section:'ADMINISTRACIÓN'},
   {id:'usuarios',icon:'ti-users',label:'Usuarios',section:''},
   {id:'bodegas',icon:'ti-building-warehouse',label:'Ubicaciones',section:''},
+  {id:'eventos',icon:'ti-calendar-event',label:'Eventos',section:''},
   {id:'reportes',icon:'ti-report-analytics',label:'Reportes',section:''},
   {id:'trazabilidad',icon:'ti-timeline',label:'Trazabilidad',section:''},
 ];

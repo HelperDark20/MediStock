@@ -37,10 +37,9 @@ input,select,textarea{font-family:var(--font-body)}
 #login-screen.out{opacity:0;transform:scale(1.04);pointer-events:none}
 .login-bg{position:absolute;inset:0;background:radial-gradient(ellipse at 20% 50%,#0A2A45 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,#061828 0%,transparent 50%),var(--ink)}
 .login-card{position:relative;z-index:1;width:100%;max-width:420px;padding:0 24px}
-.login-logo{display:flex;align-items:center;gap:14px;margin-bottom:44px}
-.login-logo img{width:56px;height:56px;object-fit:contain}
-.login-logo-text{font-family:var(--font-brand);font-size:30px;font-weight:800;color:#fff;letter-spacing:.22em}
-.login-logo-sub{font-size:11px;color:rgba(255,255,255,.4);margin-top:3px;font-family:var(--font-brand);letter-spacing:.06em}
+.login-logo{margin-bottom:44px}
+.login-logo-text{font-family:var(--font-brand);font-size:34px;font-weight:800;color:#fff;letter-spacing:.28em}
+.login-logo-sub{font-size:12px;color:rgba(255,255,255,.45);margin-top:8px;font-family:var(--font-brand);letter-spacing:.1em;text-transform:uppercase}
 .login-title{font-family:var(--font-head);font-size:22px;font-weight:700;color:#fff;margin-bottom:6px}
 .login-sub{font-size:13px;color:rgba(255,255,255,.5);margin-bottom:28px}
 .login-form{display:flex;flex-direction:column;gap:12px;margin-bottom:20px}
@@ -64,6 +63,7 @@ input,select,textarea{font-family:var(--font-body)}
 .sb-logo{display:flex;align-items:center;gap:10px}
 .sb-logo img{width:30px;height:30px;object-fit:contain}
 .sb-logo-text{font-family:var(--font-brand);font-size:16px;font-weight:800;color:#fff;letter-spacing:.18em}
+.sb-logo-wms{font-family:var(--font-brand);font-size:10px;font-weight:700;color:var(--blue2);letter-spacing:.35em;margin-top:5px}
 .sb-user{padding:12px 16px;border-bottom:1px solid rgba(33,150,211,.12);display:flex;align-items:center;gap:10px}
 .sb-avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;font-family:var(--font-mono)}
 .sb-avatar.n1{background:#6B3FA0}.sb-avatar.n2{background:#1A5C8C}.sb-avatar.n3{background:#0D7FC2}.sb-avatar.n4{background:#0A5C3A}
@@ -817,3 +817,71 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
   table{ font-size:11px; }
   tr{ break-inside:avoid; }
 }
+
+/* ══════════════════════════════════════════
+   EVENTOS — grid, badges de estado y checklist
+   de depósitos en el modal de creación
+   ══════════════════════════════════════════ */
+.evt-badge{
+  font-size:10px;
+  font-weight:700;
+  padding:3px 9px;
+  border-radius:10px;
+  font-family:var(--font-mono);
+  white-space:nowrap;
+  flex-shrink:0;
+}
+.evt-badge.creado{ background:var(--blue-bg); color:var(--blue); }
+.evt-badge.en_curso{ background:var(--green-bg); color:var(--green); }
+.evt-badge.finalizado{ background:#F0F0EE; color:#888; }
+
+.evt-checklist{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  max-height:180px;
+  overflow-y:auto;
+  border:1px solid var(--cream3);
+  border-radius:var(--r-md);
+  padding:8px 10px;
+}
+.evt-check-item{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:13px;
+  color:var(--ink);
+  cursor:pointer;
+  padding:3px 0;
+}
+.evt-check-item input{ accent-color:var(--blue); }
+
+/* ══════════════════════════════════════════
+   PANEL ENFERMERO — banner de herramienta
+   y datos del evento activo
+   ══════════════════════════════════════════ */
+.enf-tool-banner{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  background:var(--blue-pale);
+  border:1px solid #C0DEF0;
+  border-radius:var(--r-md);
+  padding:10px 14px;
+  font-size:12px;
+  color:var(--ink2);
+  margin-bottom:16px;
+  line-height:1.4;
+}
+.enf-tool-banner i{ font-size:16px; color:var(--blue); flex-shrink:0; }
+
+.enf-evento-info{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:12px;
+  color:#666;
+  margin-bottom:14px;
+  font-family:var(--font-mono);
+}
+.enf-evento-info i{ color:var(--blue); }

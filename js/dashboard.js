@@ -63,6 +63,35 @@ function renderDash(){
   // ── Gráficos ──
   renderValorChart();
   renderConsumoChart();
+
+  // ── Eventos en curso ──
+  renderDashEventos();
+}
+
+// ══════════════════════════════════════════
+// EVENTOS EN CURSO — panel junto a Alertas
+// ══════════════════════════════════════════
+function renderDashEventos(){
+  const el = document.getElementById('dash-eventos');
+  if(!el) return;
+
+  const enCurso = (S.eventos||[]).filter(e=>e.estado==='en_curso');
+
+  if(!enCurso.length){
+    el.innerHTML = '<div class="alert-strip ok"><i class="ti ti-calendar-off"></i><div class="alert-text"><div class="alert-name">Sin eventos en curso</div><div class="alert-meta">No hay eventos activos en este momento</div></div></div>';
+    return;
+  }
+
+  el.innerHTML = enCurso.map(e=>{
+    const personal = (e.personal||[]).map(p=>escHtml(p.nombre)).join(', ') || 'Sin personal asignado';
+    return `<div class="alert-strip A">
+      <i class="ti ti-calendar-event"></i>
+      <div class="alert-text">
+        <div class="alert-name">${escHtml(e.nombre)}</div>
+        <div class="alert-meta">${escHtml(e.ubicacion_nombre||'—')} · ${personal}</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ══════════════════════════════════════════

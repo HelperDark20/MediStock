@@ -92,3 +92,13 @@ const Usuarios = {
   update: (id, data) => request('PUT', `/api/usuarios/${id}`, data),
   delete: (id) => request('DELETE', `/api/usuarios/${id}`)
 };
+
+// ── EVENTOS ──
+const Eventos = {
+  getAll: () => request('GET', '/api/eventos'),
+  getActivo: () => request('GET', '/api/eventos/activo'),
+  create: (data) => request('POST', '/api/eventos', data),
+  iniciar: (id) => request('POST', `/api/eventos/${id}/iniciar`),
+  finalizar: (id) => request('POST', `/api/eventos/${id}/finalizar`),
+  delete: (id) => request('DELETE', `/api/eventos/${id}`)
+};

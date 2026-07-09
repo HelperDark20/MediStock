@@ -19,6 +19,10 @@ function buildNav(){
       const alerts = S.subSkus.filter(s=>['N','P','R'].includes(getSem(s.caducidad))&&!s.agotado).length;
       if(alerts>0) btn.innerHTML += `<span class="nav-badge">${alerts}</span>`;
     }
+    if(n.id==='eventos'){
+      const enCurso = (S.eventos||[]).filter(e=>e.estado==='en_curso').length;
+      if(enCurso>0) btn.innerHTML += `<span class="nav-badge">${enCurso}</span>`;
+    }
     btn.dataset.navId = n.id;
     btn.onclick = ()=>goTo(n.id);
     sb.appendChild(btn);
@@ -60,7 +64,7 @@ function goTo(viewId){
     dashboard:'Dashboard', inventario:'Inventario',
     movimientos:'Movimientos', registro:'Registro de entradas',
     sku:'SKUs Globales', usuarios:'Usuarios',
-    bodegas:'Ubicaciones y Bodegas', reportes:'Reportes',
+    bodegas:'Ubicaciones y Bodegas', eventos:'Eventos', reportes:'Reportes',
     trazabilidad:'Trazabilidad'
   };
   document.getElementById('page-title').textContent = titles[viewId]||viewId;
@@ -72,11 +76,14 @@ function goTo(viewId){
   if(viewId==='sku'&&currentRole===4){
     ta.innerHTML=`<button class="tb-btn primary" onclick="document.getElementById('sku-nombre').focus()"><i class="ti ti-plus"></i>Crear SKU</button>`;
   }
+  if(viewId==='eventos'&&currentRole===4){
+    ta.innerHTML=`<button class="tb-btn primary" onclick="abrirCrearEvento()"><i class="ti ti-plus"></i>Crear evento</button>`;
+  }
   const renders = {
     dashboard:renderDash, inventario:renderInv,
     movimientos:renderMovimientos, registro:renderRegistro,
     sku:renderSKUs, usuarios:renderUsuarios,
-    bodegas:renderBodegas, reportes:renderReportes
+    bodegas:renderBodegas, eventos:renderEventos, reportes:renderReportes
   };
   renders[viewId]?.();
 }

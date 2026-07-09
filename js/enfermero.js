@@ -1,7 +1,12 @@
 // ── PANEL ENFERMERO ──
+// NUEVA LÓGICA: la bodega/depósito que puede usar el enfermero ya NO
+// depende de un ubicacion_id fijo asignado en su usuario. Depende del
+// EVENTO activo ("en_curso") al que esté asignado en este momento.
+// Si no tiene ningún evento en curso, queda en estado neutro y no
+// puede registrar consumos hasta que el administrador lo asigne a uno.
 AC['enf'] = { selectedId: null, focusIdx: -1 };
 
-function initEnfermeroPanel(user){
+async function initEnfermeroPanel(user){
   const av = document.getElementById('enf-avatar');
   av.textContent = (user.nombre||'EN').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
   document.getElementById('enf-nombre').textContent = user.nombre||'Enfermero/a';
@@ -9,17 +14,40 @@ function initEnfermeroPanel(user){
 
   window._enfUserId = user.id;
 
-  const ubicacionId = user.ubicacion_id || null;
-  let bodegasFiltradas = S.bodegasRaw || [];
-  if(ubicacionId){
-    bodegasFiltradas = bodegasFiltradas.filter(b => b.ubicacion_id === ubicacionId);
+  let activo = null;
+  try {
+    activo = await Eventos.getActivo();
+  } catch(err){
+    console.error('Error obteniendo evento activo:', err);
   }
+  window._enfEventoActivo = activo;
+
+  const sinEvento = document.getElementById('enf-sin-evento');
+  const gridWrap  = document.getElementById('enf-grid-wrap');
+
+  if(!activo){
+    if(sinEvento) sinEvento.style.display = 'block';
+    if(gridWrap)  gridWrap.style.display = 'none';
+    return;
+  }
+
+  if(sinEvento) sinEvento.style.display = 'none';
+  if(gridWrap)  gridWrap.style.display = '';
+
+  const bodegasFiltradas = (S.bodegasRaw||[]).filter(b =>
+    (activo.bodegas||[]).some(eb => eb.id === b.id)
+  );
 
   const sel = document.getElementById('enf-origen');
   sel.innerHTML = '<option value="">Seleccionar bodega…</option>' +
     bodegasFiltradas.map(b=>`<option value="${b.nombre}">${b.nombre}</option>`).join('');
 
   window._enfBodegasPermitidas = new Set(bodegasFiltradas.map(b => b.nombre));
+
+  const evtInfo = document.getElementById('enf-evento-info');
+  if(evtInfo){
+    evtInfo.innerHTML = `<i class="ti ti-calendar-event"></i> Evento activo: <strong>${escHtml(activo.nombre)}</strong> · ${escHtml(activo.ubicacion_nombre||'')}`;
+  }
 
   renderEnfHistorial();
 }
@@ -76,6 +104,7 @@ async function enfRegistrarConsumo(){
   const origen  = document.getElementById('enf-origen').value;
   const paciente= document.getElementById('enf-paciente').value.trim();
 
+  if(!window._enfEventoActivo){ toastError('No tienes un evento activo asignado'); return; }
   if(!origen)  { toastError('Selecciona una bodega primero'); return; }
   if(!id)      { toastError('Selecciona un medicamento'); return; }
   if(cant<=0)  { toastError('Ingresa una cantidad válida'); return; }

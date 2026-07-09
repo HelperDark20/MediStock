@@ -17,11 +17,8 @@
   <div class="login-bg"></div>
   <div class="login-card">
     <div class="login-logo">
-      <img src="logo.png" alt="Nova Bridge">
-      <div>
-        <div class="login-logo-text">N O V A</div>
-        <div class="login-logo-sub">BRIDGE · Sistema de Inventario</div>
-      </div>
+      <div class="login-logo-text">N O V A</div>
+      <div class="login-logo-sub">Warehouse Management System</div>
     </div>
     <div class="login-title">Iniciar sesión</div>
     <div class="login-sub">Ingresa tu cédula y contraseña asignada</div>
@@ -44,9 +41,9 @@
   <div class="sidebar">
     <div class="sb-header">
       <div class="sb-logo">
-        <img src="logo.png" alt="NB" style="width:28px;height:28px;object-fit:contain">
         <div class="sb-logo-text">N O V A</div>
       </div>
+      <div class="sb-logo-wms">WMS</div>
     </div>
     <div class="sb-user">
       <div class="sb-avatar" id="sb-avatar">AU</div>
@@ -122,7 +119,7 @@
 
         </div>
 
-        <!-- ALERTAS DE VENCIMIENTO -->
+        <!-- ALERTAS DE VENCIMIENTO + EVENTOS EN CURSO -->
         <div class="grid-2">
           <div>
             <div class="sec-header">
@@ -130,6 +127,13 @@
               <div class="sec-link" onclick="goTo('inventario')">Ver inventario →</div>
             </div>
             <div id="dash-alerts"></div>
+          </div>
+          <div>
+            <div class="sec-header">
+              <div class="sec-title">Eventos en curso</div>
+              <div class="sec-link" onclick="goTo('eventos')">Ver eventos →</div>
+            </div>
+            <div id="dash-eventos"></div>
           </div>
         </div>
 
@@ -448,24 +452,17 @@
                 </div>
                 <div class="form-group">
                   <label>Nivel de acceso</label>
-                  <select id="u-nivel" onchange="toggleUbicacionField()">
+                  <select id="u-nivel">
                     <option value="1">Nivel 1 — Auditor</option>
                     <option value="2">Nivel 2 — Enfermero/a</option>
                     <option value="3">Nivel 3 — Supervisor</option>
                     <option value="4">Nivel 4 — Administrador</option>
                   </select>
                 </div>
-                <div class="form-group">
+                <div class="form-group fg-full">
                   <label>Contraseña asignada</label>
                   <input type="text" id="u-pass" placeholder="Ej. NB2026*Carlos" style="font-family:var(--font-mono)">
-                  <span class="hint">El usuario no puede cambiarla</span>
-                </div>
-                <div class="form-group fg-full" id="u-ubicacion-wrap" style="display:none">
-                  <label>Ubicación asignada <span style="font-weight:400;color:#aaa">(solo enfermeros)</span></label>
-                  <select id="u-ubicacion">
-                    <option value="">Sin asignación específica</option>
-                  </select>
-                  <span class="hint">El enfermero solo verá depósitos de esta sede</span>
+                  <span class="hint">El usuario no puede cambiarla · Si el nivel es Enfermero/a, la asignación de ubicación y depósitos se hace desde el módulo Eventos</span>
                 </div>
               </div>
               <button class="btn-submit" onclick="crearUsuario()"><i class="ti ti-user-check"></i>Crear usuario</button>
@@ -492,22 +489,16 @@
             </div>
             <div class="form-group">
               <label>Nivel de acceso</label>
-              <select id="edit-u-nivel" onchange="toggleEditUbicacionField()">
+              <select id="edit-u-nivel">
                 <option value="1">Nivel 1 — Auditor</option>
                 <option value="2">Nivel 2 — Enfermero/a</option>
                 <option value="3">Nivel 3 — Supervisor</option>
                 <option value="4">Nivel 4 — Administrador</option>
               </select>
             </div>
-            <div class="form-group">
+            <div class="form-group fg-full">
               <label>Nueva contraseña <span style="font-weight:400;color:#aaa">(opcional)</span></label>
               <input type="text" id="edit-u-pass" placeholder="Dejar vacío para no cambiar" style="font-family:var(--font-mono)">
-            </div>
-            <div class="form-group fg-full" id="edit-u-ubicacion-wrap" style="display:none">
-              <label>Ubicación asignada</label>
-              <select id="edit-u-ubicacion">
-                <option value="">Sin asignación específica</option>
-              </select>
             </div>
           </div>
           <div class="modal-actions">
@@ -582,6 +573,14 @@
         <!-- Fila 2: Lista agrupada por ubicación -->
         <div class="sec-header"><div class="sec-title">Ubicaciones y depósitos registrados</div></div>
         <div id="bodegas-list"></div>
+      </div>
+
+      <!-- ═══ EVENTOS (Admin) ═══ -->
+      <div class="view" id="view-eventos">
+        <div class="sec-header">
+          <div class="sec-title">Eventos activos y programados</div>
+        </div>
+        <div class="grid-3" id="eventos-grid"></div>
       </div>
 
       <!-- ═══ REPORTES (Admin) ═══ -->
@@ -704,6 +703,59 @@
   </div>
 </div>
 
+<!-- MODAL CREAR EVENTO -->
+<div class="modal-overlay" id="modal-crear-evento">
+  <div class="modal-sheet" style="max-width:560px">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Crear evento</div>
+    <div class="modal-sub">El enfermero solo podrá usar los depósitos que selecciones aquí, y únicamente mientras el evento esté en curso.</div>
+
+    <div class="form-grid" style="margin-bottom:14px">
+      <div class="form-group fg-full">
+        <label>Nombre del evento</label>
+        <input type="text" id="evt-nombre" placeholder="Ej. Maratón CAT 2026">
+      </div>
+      <div class="form-group">
+        <label>Fecha de inicio</label>
+        <input type="date" id="evt-fecha-inicio">
+      </div>
+      <div class="form-group">
+        <label>Fecha de finalización</label>
+        <input type="date" id="evt-fecha-fin">
+      </div>
+      <div class="form-group fg-full">
+        <label>Ubicación del evento</label>
+        <select id="evt-ubicacion" onchange="evtUbicacionChange()">
+          <option value="">Seleccionar ubicación…</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono);margin-bottom:8px">Depósitos habilitados</div>
+      <div id="evt-bodegas-list" class="evt-checklist">
+        <div style="font-size:12px;color:#aaa;padding:8px 0">Selecciona una ubicación primero</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:6px">
+      <div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono);margin-bottom:8px">Enfermeros asignados</div>
+      <div class="ac-wrap" id="evt-enf-wrap">
+        <i class="ti ti-search ac-icon"></i>
+        <input type="text" class="ac-input" id="evt-enf-input" placeholder="Buscar enfermero por nombre…" autocomplete="off"
+          oninput="evtEnfFilter()" onfocus="evtEnfFilter()">
+        <div class="ac-dropdown" id="evt-enf-drop"></div>
+      </div>
+      <div id="evt-enf-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-crear-evento')">Cancelar</button>
+      <button class="btn-confirm" onclick="crearEvento()">Crear evento</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- Agregar esta línea en index.html ANTES de <script src="api.js"></script> -->
@@ -727,6 +779,7 @@
 <script src="js/skus.js"></script>
 <script src="js/usuarios.js"></script>
 <script src="js/bodegas.js"></script>
+<script src="js/eventos.js"></script>
 <script src="js/reportes.js"></script>
 <script src="js/trazabilidad.js"></script>
 <script src="js/deletes.js"></script>
@@ -751,89 +804,104 @@
   </div>
 
   <div class="enf-body">
-    <div class="enf-grid">
+    <div class="enf-tool-banner">
+      <i class="ti ti-clipboard-list"></i>
+      <span>Herramienta oficial de registro de consumos — cada movimiento queda asociado a tu usuario. Úsala solo para registrar consumos reales de pacientes.</span>
+    </div>
 
-      <!-- COLUMNA IZQUIERDA: Búsqueda + Formulario -->
-      <div class="enf-form-panel">
-
-        <!-- PASO 1: Seleccionar bodega -->
-        <div class="enf-search-box" style="margin-bottom:12px">
-          <div class="enf-search-title">
-            <i class="ti ti-building-warehouse"></i>Paso 1 — Selecciona la bodega
-          </div>
-          <div class="enf-field" style="margin-bottom:0">
-            <select id="enf-origen" onchange="enfOnBodegaChange()">
-              <option value="">Seleccionar bodega…</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- PASO 2: Buscar medicamento (bloqueado hasta seleccionar bodega) -->
-        <div class="enf-search-box" id="enf-busqueda-wrap" style="opacity:.4;pointer-events:none">
-          <div class="enf-search-title">
-            <i class="ti ti-search"></i>Paso 2 — Buscar medicamento
-          </div>
-          <div class="ac-wrap">
-            <i class="ti ti-search ac-icon"></i>
-            <input type="text" class="ac-input" id="enf-ac-input"
-              placeholder="Nombre, SKU, lote..."
-              autocomplete="off"
-              oninput="acFilter('enf')"
-              onkeydown="acKey(event,'enf')">
-            <button class="ac-clear" id="enf-ac-clear" onclick="acClear('enf')">
-              <i class="ti ti-x"></i>
-            </button>
-            <div class="ac-dropdown" id="enf-ac-drop"></div>
-          </div>
-          <div class="ac-selected-pill" id="enf-ac-pill">
-            <span class="ac-selected-pill-text" id="enf-ac-pill-text"></span>
-            <button onclick="acClear('enf')"><i class="ti ti-x"></i></button>
-          </div>
-          <input type="hidden" id="enf-sku">
-        </div>
-
-        <!-- Card medicamento seleccionado -->
-        <div class="enf-med-card" id="enf-med-card">
-          <div class="enf-med-name" id="enf-med-name">—</div>
-          <div class="enf-med-sub" id="enf-med-sub">—</div>
-          <div class="enf-med-stock" id="enf-med-stock"></div>
-        </div>
-
-        <!-- Formulario consumo -->
-        <div class="enf-form-box">
-          <div class="enf-form-title">
-            <i class="ti ti-minus-circle"></i>Registrar consumo
-          </div>
-          <div class="enf-field">
-            <label>Cantidad</label>
-            <input type="number" id="enf-cantidad" placeholder="0" min="1" inputmode="numeric" pattern="[0-9]*">
-          </div>
-          <div class="enf-field">
-            <label>Cédula del paciente</label>
-            <input type="number" id="enf-paciente" placeholder="Ej. 1006166884" inputmode="numeric" pattern="[0-9]*">
-          </div>
-          <button class="enf-submit" onclick="enfRegistrarConsumo()" id="enf-submit-btn">
-            <i class="ti ti-check"></i>Registrar consumo
-          </button>
-        </div>
-
+    <div id="enf-sin-evento" style="display:none">
+      <div class="empty-state">
+        <i class="ti ti-calendar-off"></i>
+        <p>No tienes un evento activo asignado.<br>Contacta al administrador para que te asigne a un evento.</p>
       </div>
+    </div>
 
-      <!-- COLUMNA DERECHA: Historial -->
-      <div class="enf-history-panel">
-        <div class="enf-history-box">
-          <div class="enf-history-header">
-            <i class="ti ti-history"></i>Mis consumos de hoy
+    <div id="enf-grid-wrap">
+      <div id="enf-evento-info" class="enf-evento-info"></div>
+      <div class="enf-grid">
+
+        <!-- COLUMNA IZQUIERDA: Búsqueda + Formulario -->
+        <div class="enf-form-panel">
+
+          <!-- PASO 1: Seleccionar bodega -->
+          <div class="enf-search-box" style="margin-bottom:12px">
+            <div class="enf-search-title">
+              <i class="ti ti-building-warehouse"></i>Paso 1 — Selecciona la bodega
+            </div>
+            <div class="enf-field" style="margin-bottom:0">
+              <select id="enf-origen" onchange="enfOnBodegaChange()">
+                <option value="">Seleccionar bodega…</option>
+              </select>
+            </div>
           </div>
-          <div id="enf-history-list">
-            <div class="enf-empty">
-              <i class="ti ti-clipboard"></i>
-              <p>Sin consumos registrados hoy</p>
+
+          <!-- PASO 2: Buscar medicamento (bloqueado hasta seleccionar bodega) -->
+          <div class="enf-search-box" id="enf-busqueda-wrap" style="opacity:.4;pointer-events:none">
+            <div class="enf-search-title">
+              <i class="ti ti-search"></i>Paso 2 — Buscar medicamento
+            </div>
+            <div class="ac-wrap">
+              <i class="ti ti-search ac-icon"></i>
+              <input type="text" class="ac-input" id="enf-ac-input"
+                placeholder="Nombre, SKU, lote..."
+                autocomplete="off"
+                oninput="acFilter('enf')"
+                onkeydown="acKey(event,'enf')">
+              <button class="ac-clear" id="enf-ac-clear" onclick="acClear('enf')">
+                <i class="ti ti-x"></i>
+              </button>
+              <div class="ac-dropdown" id="enf-ac-drop"></div>
+            </div>
+            <div class="ac-selected-pill" id="enf-ac-pill">
+              <span class="ac-selected-pill-text" id="enf-ac-pill-text"></span>
+              <button onclick="acClear('enf')"><i class="ti ti-x"></i></button>
+            </div>
+            <input type="hidden" id="enf-sku">
+          </div>
+
+          <!-- Card medicamento seleccionado -->
+          <div class="enf-med-card" id="enf-med-card">
+            <div class="enf-med-name" id="enf-med-name">—</div>
+            <div class="enf-med-sub" id="enf-med-sub">—</div>
+            <div class="enf-med-stock" id="enf-med-stock"></div>
+          </div>
+
+          <!-- Formulario consumo -->
+          <div class="enf-form-box">
+            <div class="enf-form-title">
+              <i class="ti ti-minus-circle"></i>Registrar consumo
+            </div>
+            <div class="enf-field">
+              <label>Cantidad</label>
+              <input type="number" id="enf-cantidad" placeholder="0" min="1" inputmode="numeric" pattern="[0-9]*">
+            </div>
+            <div class="enf-field">
+              <label>Cédula del paciente</label>
+              <input type="number" id="enf-paciente" placeholder="Ej. 1006166884" inputmode="numeric" pattern="[0-9]*">
+            </div>
+            <button class="enf-submit" onclick="enfRegistrarConsumo()" id="enf-submit-btn">
+              <i class="ti ti-check"></i>Registrar consumo
+            </button>
+          </div>
+
+        </div>
+
+        <!-- COLUMNA DERECHA: Historial -->
+        <div class="enf-history-panel">
+          <div class="enf-history-box">
+            <div class="enf-history-header">
+              <i class="ti ti-history"></i>Mis consumos de hoy
+            </div>
+            <div id="enf-history-list">
+              <div class="enf-empty">
+                <i class="ti ti-clipboard"></i>
+                <p>Sin consumos registrados hoy</p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
+      </div>
     </div>
   </div>
 </div>
