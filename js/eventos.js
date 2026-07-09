@@ -1,16 +1,19 @@
 // ══════════════════════════════════════════
-// EVENTOS — asignación temporal de enfermeros a depósitos
+// EVENTOS — asignación temporal de depósitos POR ENFERMERO
 //
-// Reemplaza la lógica anterior de "ubicación fija asignada al usuario".
-// Ahora el Administrador crea un Evento (nombre, fechas, ubicación,
-// depósitos habilitados y enfermeros asignados). Mientras el evento
-// esté "en_curso", esos enfermeros solo pueden operar sobre los
-// depósitos del evento. Al finalizar, vuelven a estado neutro (sin
-// depósitos habilitados) hasta que se les asigne un nuevo evento.
+// Dentro de un mismo evento, cada enfermero puede tener un subconjunto
+// distinto de depósitos (ej: enfermero A usa BTQ-I 13 AC, enfermero B
+// usa MEC-A 4 MED). El flujo es:
+//   1. El admin elige la ubicación → se carga el pool de depósitos
+//      disponibles en esa sede.
+//   2. El admin busca y agrega enfermeros uno por uno.
+//   3. Por cada enfermero agregado aparece su propio checklist de
+//      depósitos (tomado del pool), y el admin marca solo los que
+//      ese enfermero puede usar.
 // ══════════════════════════════════════════
 
-let _evtBodegasSeleccionadas = new Set();
-let _evtEnfermerosSeleccionados = new Map(); // id -> nombre
+let _evtDepositosDisponibles = []; // bodegas de la ubicación seleccionada
+let _evtEnfermeros = new Map();    // usuarioId -> { nombre, bodegas: Set(bodegaId) }
 
 // ── RENDER GRID DE EVENTOS ──
 function renderEventos(){
@@ -26,7 +29,14 @@ function renderEventos(){
   }
 
   el.innerHTML = S.eventos.map(e => {
-    const personal = (e.personal||[]).map(p=>escHtml(p.nombre)).join(', ') || 'Sin personal asignado';
+    const personalHTML = (e.personal||[]).map(p => {
+      const deps = (p.bodegas||[]).map(b=>escHtml(b.nombre)).join(', ') || 'sin depósitos';
+      return `<div class="evt-personal-row">
+        <i class="ti ti-user" style="font-size:12px;color:#888"></i>
+        <span><strong>${escHtml(p.nombre)}</strong> — ${deps}</span>
+      </div>`;
+    }).join('') || '<div class="evt-personal-row" style="color:#aaa">Sin personal asignado</div>';
+
     const estadoBadge = {
       creado:     '<span class="evt-badge creado">Programado</span>',
       en_curso:   '<span class="evt-badge en_curso">● En curso</span>',
@@ -49,9 +59,7 @@ function renderEventos(){
         <div style="font-size:12px;color:#888;margin-bottom:10px">
           <i class="ti ti-map-pin" style="margin-right:3px"></i>${escHtml(e.ubicacion_nombre||'—')}
         </div>
-        <div style="font-size:12px;color:#666;margin-bottom:6px;line-height:1.5">
-          <i class="ti ti-users" style="margin-right:3px"></i>${personal}
-        </div>
+        <div style="margin-bottom:8px">${personalHTML}</div>
         <div style="font-size:11px;color:#aaa;font-family:var(--font-mono)">
           <i class="ti ti-calendar" style="margin-right:3px"></i>
           ${fmtDate(e.fecha_inicio)} → ${fmtDate(e.fecha_fin)}
@@ -69,50 +77,46 @@ function abrirCrearEvento(){
   document.getElementById('evt-fecha-fin').value = '';
   document.getElementById('evt-ubicacion').innerHTML = '<option value="">Seleccionar ubicación…</option>' +
     S.ubicaciones.map(u=>`<option value="${u.id}">${escHtml(u.nombre)}</option>`).join('');
-  document.getElementById('evt-bodegas-list').innerHTML = '<div style="font-size:12px;color:#aaa;padding:8px 0">Selecciona una ubicación primero</div>';
   document.getElementById('evt-enf-input').value = '';
-  document.getElementById('evt-enf-chips').innerHTML = '';
   document.getElementById('evt-enf-drop').classList.remove('open');
-  _evtBodegasSeleccionadas = new Set();
-  _evtEnfermerosSeleccionados = new Map();
+  _evtDepositosDisponibles = [];
+  _evtEnfermeros = new Map();
+  evtRenderEnfermeros();
   document.getElementById('modal-crear-evento').classList.add('open');
 }
 
-// ── DEPÓSITOS SEGÚN UBICACIÓN SELECCIONADA ──
+// ── AL CAMBIAR LA UBICACIÓN: cargar pool de depósitos disponibles ──
 function evtUbicacionChange(){
   const ubId = parseInt(document.getElementById('evt-ubicacion').value)||0;
-  const el = document.getElementById('evt-bodegas-list');
-  _evtBodegasSeleccionadas = new Set();
+  const habiaEnfermeros = _evtEnfermeros.size > 0;
 
-  if(!ubId){
-    el.innerHTML = '<div style="font-size:12px;color:#aaa;padding:8px 0">Selecciona una ubicación primero</div>';
-    return;
+  _evtDepositosDisponibles = ubId
+    ? (S.bodegasRaw||[]).filter(b=>b.ubicacion_id===ubId)
+    : [];
+
+  // Los depósitos ya no aplican si cambia la sede — se reinicia la selección
+  // de enfermeros para evitar dejar depósitos de otra ubicación asignados.
+  _evtEnfermeros = new Map();
+  evtRenderEnfermeros();
+
+  if(habiaEnfermeros){
+    toast('Se reinició la selección de enfermeros al cambiar la ubicación','error');
   }
-
-  const bodegas = (S.bodegasRaw||[]).filter(b=>b.ubicacion_id===ubId);
-  if(!bodegas.length){
-    el.innerHTML = '<div style="font-size:12px;color:#aaa;padding:8px 0">Esta ubicación no tiene depósitos registrados</div>';
-    return;
-  }
-
-  el.innerHTML = bodegas.map(b => `
-    <label class="evt-check-item">
-      <input type="checkbox" onchange="evtToggleBodega(${b.id}, this.checked)">
-      <span>${escHtml(b.nombre)}</span>
-    </label>`).join('');
-}
-
-function evtToggleBodega(id, checked){
-  if(checked) _evtBodegasSeleccionadas.add(id);
-  else _evtBodegasSeleccionadas.delete(id);
 }
 
 // ── AUTOCOMPLETE DE ENFERMEROS ──
 function evtEnfFilter(){
-  const q = (document.getElementById('evt-enf-input').value||'').toLowerCase().trim();
+  const ubId = parseInt(document.getElementById('evt-ubicacion').value)||0;
   const drop = document.getElementById('evt-enf-drop');
 
-  const pool = (S.usuarios||[]).filter(u => u.nivel === 2 && !_evtEnfermerosSeleccionados.has(u.id));
+  if(!ubId){
+    drop.innerHTML = '<div class="ac-no-results">Selecciona primero la ubicación del evento</div>';
+    drop.classList.add('open');
+    return;
+  }
+
+  const q = (document.getElementById('evt-enf-input').value||'').toLowerCase().trim();
+  const pool = (S.usuarios||[]).filter(u => u.nivel === 2 && !_evtEnfermeros.has(u.id));
   const results = pool.filter(u => !q || u.nombre.toLowerCase().includes(q)).slice(0, 8);
 
   if(!results.length){
@@ -133,24 +137,58 @@ function evtEnfFilter(){
 }
 
 function evtEnfSelect(id, nombre){
-  _evtEnfermerosSeleccionados.set(id, nombre);
+  if(!_evtDepositosDisponibles.length){
+    toastError('Selecciona primero la ubicación del evento');
+    return;
+  }
+  _evtEnfermeros.set(id, { nombre, bodegas: new Set() });
   document.getElementById('evt-enf-input').value = '';
   document.getElementById('evt-enf-drop').classList.remove('open');
-  evtRenderChips();
-}
-
-function evtRenderChips(){
-  const el = document.getElementById('evt-enf-chips');
-  el.innerHTML = [..._evtEnfermerosSeleccionados.entries()].map(([id, nombre]) => `
-    <span class="dash-chip active" style="cursor:default">
-      ${escHtml(nombre)}
-      <i class="ti ti-x" style="margin-left:6px;cursor:pointer" onclick="evtEnfRemove(${id})"></i>
-    </span>`).join('');
+  evtRenderEnfermeros();
 }
 
 function evtEnfRemove(id){
-  _evtEnfermerosSeleccionados.delete(id);
-  evtRenderChips();
+  _evtEnfermeros.delete(id);
+  evtRenderEnfermeros();
+}
+
+function evtToggleBodegaEnf(usuarioId, bodegaId, checked){
+  const data = _evtEnfermeros.get(usuarioId);
+  if(!data) return;
+  if(checked) data.bodegas.add(bodegaId);
+  else data.bodegas.delete(bodegaId);
+}
+
+// ── RENDER: una tarjeta por enfermero con SU checklist de depósitos ──
+function evtRenderEnfermeros(){
+  const el = document.getElementById('evt-enfermeros-list');
+  if(!el) return;
+
+  if(!_evtDepositosDisponibles.length){
+    el.innerHTML = '<div style="font-size:12px;color:#aaa;padding:8px 0">Selecciona la ubicación del evento para poder agregar enfermeros</div>';
+    return;
+  }
+
+  if(!_evtEnfermeros.size){
+    el.innerHTML = '<div style="font-size:12px;color:#aaa;padding:8px 0">Aún no has agregado enfermeros a este evento</div>';
+    return;
+  }
+
+  el.innerHTML = [..._evtEnfermeros.entries()].map(([usuarioId, data]) => `
+    <div class="evt-enf-card">
+      <div class="evt-enf-card-header">
+        <span><i class="ti ti-stethoscope" style="margin-right:6px;color:var(--blue)"></i>${escHtml(data.nombre)}</span>
+        <i class="ti ti-x" style="cursor:pointer;color:#aaa" onclick="evtEnfRemove(${usuarioId})"></i>
+      </div>
+      <div class="evt-checklist">
+        ${_evtDepositosDisponibles.map(b => `
+          <label class="evt-check-item">
+            <input type="checkbox" ${data.bodegas.has(b.id)?'checked':''}
+              onchange="evtToggleBodegaEnf(${usuarioId}, ${b.id}, this.checked)">
+            <span>${escHtml(b.nombre)}</span>
+          </label>`).join('')}
+      </div>
+    </div>`).join('');
 }
 
 document.addEventListener('click', e=>{
@@ -164,18 +202,24 @@ async function crearEvento(){
   const fechaInicio  = document.getElementById('evt-fecha-inicio').value;
   const fechaFin     = document.getElementById('evt-fecha-fin').value;
   const ubicacion_id = parseInt(document.getElementById('evt-ubicacion').value)||0;
-  const usuario_ids  = [..._evtEnfermerosSeleccionados.keys()];
-  const bodega_ids   = [..._evtBodegasSeleccionadas];
 
   if(!nombre){ toastError('Ingresa el nombre del evento'); return; }
   if(!fechaInicio || !fechaFin){ toastError('Ingresa las fechas del evento'); return; }
   if(fechaFin < fechaInicio){ toastError('La fecha de finalización no puede ser anterior a la de inicio'); return; }
   if(!ubicacion_id){ toastError('Selecciona la ubicación del evento'); return; }
-  if(!bodega_ids.length){ toastError('Selecciona al menos un depósito'); return; }
-  if(!usuario_ids.length){ toastError('Selecciona al menos un enfermero'); return; }
+  if(!_evtEnfermeros.size){ toastError('Agrega al menos un enfermero'); return; }
+
+  const asignaciones = [];
+  for(const [usuario_id, data] of _evtEnfermeros.entries()){
+    if(!data.bodegas.size){
+      toastError(`Selecciona al menos un depósito para ${data.nombre}`);
+      return;
+    }
+    asignaciones.push({ usuario_id, bodega_ids: [...data.bodegas] });
+  }
 
   try {
-    await Eventos.create({ nombre, fecha_inicio: fechaInicio, fecha_fin: fechaFin, ubicacion_id, usuario_ids, bodega_ids });
+    await Eventos.create({ nombre, fecha_inicio: fechaInicio, fecha_fin: fechaFin, ubicacion_id, asignaciones });
     closeModal('modal-crear-evento');
     S.eventos = await Eventos.getAll();
     renderEventos();
@@ -199,7 +243,7 @@ async function iniciarEvento(id){
 
 function confirmFinalizarEvento(id, nombre){
   document.getElementById('modal-title').textContent = 'Finalizar evento';
-  document.getElementById('modal-sub').textContent = `¿Finalizar el evento "${nombre}"? Los enfermeros asignados perderán acceso a los depósitos de este evento de inmediato.`;
+  document.getElementById('modal-sub').textContent = `¿Finalizar el evento "${nombre}"? Los enfermeros asignados perderán acceso a sus depósitos de este evento de inmediato.`;
   document.getElementById('modal-ok-btn').onclick = async ()=>{
     try {
       await Eventos.finalizar(id);

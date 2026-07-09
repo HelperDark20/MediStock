@@ -705,10 +705,10 @@
 
 <!-- MODAL CREAR EVENTO -->
 <div class="modal-overlay" id="modal-crear-evento">
-  <div class="modal-sheet" style="max-width:560px">
+  <div class="modal-sheet" style="max-width:600px">
     <div class="modal-handle"></div>
     <div class="modal-title">Crear evento</div>
-    <div class="modal-sub">El enfermero solo podrá usar los depósitos que selecciones aquí, y únicamente mientras el evento esté en curso.</div>
+    <div class="modal-sub">Cada enfermero puede tener depósitos distintos dentro del mismo evento. Primero elige la ubicación, luego agrega enfermeros y marca los depósitos que le corresponden a cada uno.</div>
 
     <div class="form-grid" style="margin-bottom:14px">
       <div class="form-group fg-full">
@@ -731,22 +731,19 @@
       </div>
     </div>
 
-    <div style="margin-bottom:14px">
-      <div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono);margin-bottom:8px">Depósitos habilitados</div>
-      <div id="evt-bodegas-list" class="evt-checklist">
-        <div style="font-size:12px;color:#aaa;padding:8px 0">Selecciona una ubicación primero</div>
-      </div>
-    </div>
-
-    <div style="margin-bottom:6px">
-      <div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono);margin-bottom:8px">Enfermeros asignados</div>
+    <div style="margin-bottom:8px">
+      <div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono);margin-bottom:8px">Agregar enfermero</div>
       <div class="ac-wrap" id="evt-enf-wrap">
         <i class="ti ti-search ac-icon"></i>
         <input type="text" class="ac-input" id="evt-enf-input" placeholder="Buscar enfermero por nombre…" autocomplete="off"
           oninput="evtEnfFilter()" onfocus="evtEnfFilter()">
         <div class="ac-dropdown" id="evt-enf-drop"></div>
       </div>
-      <div id="evt-enf-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px"></div>
+    </div>
+
+    <div style="margin-bottom:6px">
+      <div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono);margin-bottom:8px">Enfermeros y sus depósitos</div>
+      <div id="evt-enfermeros-list"></div>
     </div>
 
     <div class="modal-actions">

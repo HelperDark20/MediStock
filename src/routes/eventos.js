@@ -4,7 +4,8 @@ const pool = require('../config/db');
 const { verificarToken, verificarNivel } = require('../middlewares/auth');
 
 // GET /api/eventos — cualquier nivel autenticado
-// (el dashboard muestra "eventos en curso" a todos los roles)
+// Devuelve cada evento con su "personal" = lista de enfermeros,
+// cada uno con SUS propios depósitos habilitados dentro del evento.
 router.get('/', verificarToken, async (req, res) => {
   try {
     const eventos = await pool.query(`
@@ -21,6 +22,7 @@ router.get('/', verificarToken, async (req, res) => {
 
     const ids = eventos.rows.map(e => e.id);
 
+    // Membresía de enfermeros por evento
     const usuarios = await pool.query(`
       SELECT eu.evento_id, us.id, us.nombre
       FROM evento_usuarios eu
@@ -28,18 +30,26 @@ router.get('/', verificarToken, async (req, res) => {
       WHERE eu.evento_id = ANY($1::int[])
     `, [ids]);
 
-    const bodegas = await pool.query(`
-      SELECT eb.evento_id, b.id, b.nombre
-      FROM evento_bodegas eb
-      JOIN bodegas b ON eb.bodega_id = b.id
-      WHERE eb.evento_id = ANY($1::int[])
+    // Depósitos específicos por (evento, enfermero)
+    const asignaciones = await pool.query(`
+      SELECT eub.evento_id, eub.usuario_id, b.id AS bodega_id, b.nombre AS bodega_nombre
+      FROM evento_usuario_bodegas eub
+      JOIN bodegas b ON eub.bodega_id = b.id
+      WHERE eub.evento_id = ANY($1::int[])
     `, [ids]);
 
-    const result = eventos.rows.map(e => ({
-      ...e,
-      personal: usuarios.rows.filter(u => u.evento_id === e.id).map(u => ({ id: u.id, nombre: u.nombre })),
-      bodegas: bodegas.rows.filter(b => b.evento_id === e.id).map(b => ({ id: b.id, nombre: b.nombre }))
-    }));
+    const result = eventos.rows.map(e => {
+      const personal = usuarios.rows
+        .filter(u => u.evento_id === e.id)
+        .map(u => ({
+          id: u.id,
+          nombre: u.nombre,
+          bodegas: asignaciones.rows
+            .filter(a => a.evento_id === e.id && a.usuario_id === u.id)
+            .map(a => ({ id: a.bodega_id, nombre: a.bodega_nombre }))
+        }));
+      return { ...e, personal };
+    });
 
     res.json(result);
   } catch (err) {
@@ -48,8 +58,8 @@ router.get('/', verificarToken, async (req, res) => {
   }
 });
 
-// GET /api/eventos/activo — evento en curso asignado al usuario autenticado
-// (usado por el panel de Enfermero para saber qué depósitos puede usar)
+// GET /api/eventos/activo — evento en curso asignado al usuario autenticado,
+// con SOLO los depósitos que le corresponden a él específicamente.
 router.get('/activo', verificarToken, async (req, res) => {
   try {
     const result = await pool.query(`
@@ -67,10 +77,10 @@ router.get('/activo', verificarToken, async (req, res) => {
     const evento = result.rows[0];
     const bodegas = await pool.query(`
       SELECT b.id, b.nombre
-      FROM evento_bodegas eb
-      JOIN bodegas b ON eb.bodega_id = b.id
-      WHERE eb.evento_id = $1 AND b.activo = true
-    `, [evento.id]);
+      FROM evento_usuario_bodegas eub
+      JOIN bodegas b ON eub.bodega_id = b.id
+      WHERE eub.evento_id = $1 AND eub.usuario_id = $2 AND b.activo = true
+    `, [evento.id, req.usuario.id]);
 
     res.json({ ...evento, bodegas: bodegas.rows });
   } catch (err) {
@@ -80,17 +90,21 @@ router.get('/activo', verificarToken, async (req, res) => {
 });
 
 // POST /api/eventos — nivel 4
+// body: { nombre, fecha_inicio, fecha_fin, ubicacion_id,
+//         asignaciones: [ { usuario_id, bodega_ids: [1,2,...] }, ... ] }
 router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
-  const { nombre, fecha_inicio, fecha_fin, ubicacion_id, usuario_ids, bodega_ids } = req.body;
+  const { nombre, fecha_inicio, fecha_fin, ubicacion_id, asignaciones } = req.body;
 
   if (!nombre || !fecha_inicio || !fecha_fin || !ubicacion_id) {
     return res.status(400).json({ error: 'Nombre, fechas y ubicación son obligatorios' });
   }
-  if (!Array.isArray(usuario_ids) || !usuario_ids.length) {
+  if (!Array.isArray(asignaciones) || !asignaciones.length) {
     return res.status(400).json({ error: 'Selecciona al menos un enfermero' });
   }
-  if (!Array.isArray(bodega_ids) || !bodega_ids.length) {
-    return res.status(400).json({ error: 'Selecciona al menos un depósito' });
+  for (const a of asignaciones) {
+    if (!a.usuario_id || !Array.isArray(a.bodega_ids) || !a.bodega_ids.length) {
+      return res.status(400).json({ error: 'Cada enfermero debe tener al menos un depósito asignado' });
+    }
   }
   if (new Date(fecha_fin) < new Date(fecha_inicio)) {
     return res.status(400).json({ error: 'La fecha de finalización no puede ser anterior a la de inicio' });
@@ -107,17 +121,17 @@ router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
     );
     const eventoId = evento.rows[0].id;
 
-    for (const uid of usuario_ids) {
+    for (const a of asignaciones) {
       await client.query(
         'INSERT INTO evento_usuarios (evento_id, usuario_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-        [eventoId, uid]
+        [eventoId, a.usuario_id]
       );
-    }
-    for (const bid of bodega_ids) {
-      await client.query(
-        'INSERT INTO evento_bodegas (evento_id, bodega_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-        [eventoId, bid]
-      );
+      for (const bid of a.bodega_ids) {
+        await client.query(
+          'INSERT INTO evento_usuario_bodegas (evento_id, usuario_id, bodega_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+          [eventoId, a.usuario_id, bid]
+        );
+      }
     }
 
     await client.query('COMMIT');
