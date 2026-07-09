@@ -96,8 +96,13 @@ const Usuarios = {
 // ── EVENTOS ──
 const Eventos = {
   getAll: () => request('GET', '/api/eventos'),
+  getOne: (id) => request('GET', `/api/eventos/${id}`),
   getActivo: () => request('GET', '/api/eventos/activo'),
   create: (data) => request('POST', '/api/eventos', data),
+  update: (id, data) => request('PUT', `/api/eventos/${id}`, data),
+  addEnfermero: (id, data) => request('POST', `/api/eventos/${id}/enfermeros`, data),
+  updateEnfermero: (id, usuarioId, data) => request('PUT', `/api/eventos/${id}/enfermeros/${usuarioId}`, data),
+  removeEnfermero: (id, usuarioId) => request('DELETE', `/api/eventos/${id}/enfermeros/${usuarioId}`),
   iniciar: (id) => request('POST', `/api/eventos/${id}/iniciar`),
   finalizar: (id) => request('POST', `/api/eventos/${id}/finalizar`),
   delete: (id) => request('DELETE', `/api/eventos/${id}`)

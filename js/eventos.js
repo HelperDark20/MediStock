@@ -1,19 +1,19 @@
 // ══════════════════════════════════════════
-// EVENTOS — asignación temporal de depósitos POR ENFERMERO
+// EVENTOS
 //
-// Dentro de un mismo evento, cada enfermero puede tener un subconjunto
-// distinto de depósitos (ej: enfermero A usa BTQ-I 13 AC, enfermero B
-// usa MEC-A 4 MED). El flujo es:
-//   1. El admin elige la ubicación → se carga el pool de depósitos
-//      disponibles en esa sede.
-//   2. El admin busca y agrega enfermeros uno por uno.
-//   3. Por cada enfermero agregado aparece su propio checklist de
-//      depósitos (tomado del pool), y el admin marca solo los que
-//      ese enfermero puede usar.
+// Flujo:
+//   1. Crear evento → solo nombre, fechas y ubicación (sin enfermeros).
+//   2. Click en la tarjeta del evento → abre el detalle, donde se edita
+//      el evento y se gestiona la lista de enfermeros asignados.
+//   3. Cada enfermero de la lista tiene botón para editar sus depósitos
+//      (abre una interfaz aparte con checklist + botón Guardar) y botón
+//      para eliminarlo del evento.
 // ══════════════════════════════════════════
 
-let _evtDepositosDisponibles = []; // bodegas de la ubicación seleccionada
-let _evtEnfermeros = new Map();    // usuarioId -> { nombre, bodegas: Set(bodegaId) }
+let _evtDetalleId = null;
+let _evtDetalleEvento = null;       // último evento cargado en el modal de detalle
+let _evtAsignarUsuarioId = null;
+let _evtAsignarSeleccion = new Set();
 
 // ── RENDER GRID DE EVENTOS ──
 function renderEventos(){
@@ -45,12 +45,12 @@ function renderEventos(){
 
     let accion = '';
     if(e.estado === 'creado' && currentRole === 4){
-      accion = `<button class="btn-submit" style="margin-top:12px" onclick="iniciarEvento(${e.id})"><i class="ti ti-player-play"></i>Iniciar evento</button>`;
+      accion = `<button class="btn-submit" style="margin-top:12px" onclick="event.stopPropagation();iniciarEvento(${e.id})"><i class="ti ti-player-play"></i>Iniciar evento</button>`;
     } else if(e.estado === 'en_curso' && currentRole === 4){
-      accion = `<button class="btn-submit" style="margin-top:12px;background:var(--red2)" onclick="confirmFinalizarEvento(${e.id},'${(e.nombre||'').replace(/'/g,"\\'")}')"><i class="ti ti-player-stop"></i>Finalizar evento</button>`;
+      accion = `<button class="btn-submit" style="margin-top:12px;background:var(--red2)" onclick="event.stopPropagation();confirmFinalizarEvento(${e.id},'${(e.nombre||'').replace(/'/g,"\\'")}')"><i class="ti ti-player-stop"></i>Finalizar evento</button>`;
     }
 
-    return `<div class="card evt-card" style="margin-bottom:0">
+    return `<div class="card evt-card" style="margin-bottom:0;cursor:pointer" onclick="abrirDetalleEvento(${e.id})">
       <div class="card-body">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
           <div style="font-family:var(--font-head);font-size:15px;font-weight:700;color:var(--ink)">${escHtml(e.nombre)}</div>
@@ -70,133 +70,16 @@ function renderEventos(){
   }).join('');
 }
 
-// ── ABRIR MODAL CREAR EVENTO ──
+// ── CREAR EVENTO (solo datos base) ──
 function abrirCrearEvento(){
   document.getElementById('evt-nombre').value = '';
   document.getElementById('evt-fecha-inicio').value = '';
   document.getElementById('evt-fecha-fin').value = '';
   document.getElementById('evt-ubicacion').innerHTML = '<option value="">Seleccionar ubicación…</option>' +
     S.ubicaciones.map(u=>`<option value="${u.id}">${escHtml(u.nombre)}</option>`).join('');
-  document.getElementById('evt-enf-input').value = '';
-  document.getElementById('evt-enf-drop').classList.remove('open');
-  _evtDepositosDisponibles = [];
-  _evtEnfermeros = new Map();
-  evtRenderEnfermeros();
   document.getElementById('modal-crear-evento').classList.add('open');
 }
 
-// ── AL CAMBIAR LA UBICACIÓN: cargar pool de depósitos disponibles ──
-function evtUbicacionChange(){
-  const ubId = parseInt(document.getElementById('evt-ubicacion').value)||0;
-  const habiaEnfermeros = _evtEnfermeros.size > 0;
-
-  _evtDepositosDisponibles = ubId
-    ? (S.bodegasRaw||[]).filter(b=>b.ubicacion_id===ubId)
-    : [];
-
-  // Los depósitos ya no aplican si cambia la sede — se reinicia la selección
-  // de enfermeros para evitar dejar depósitos de otra ubicación asignados.
-  _evtEnfermeros = new Map();
-  evtRenderEnfermeros();
-
-  if(habiaEnfermeros){
-    toast('Se reinició la selección de enfermeros al cambiar la ubicación','error');
-  }
-}
-
-// ── AUTOCOMPLETE DE ENFERMEROS ──
-function evtEnfFilter(){
-  const ubId = parseInt(document.getElementById('evt-ubicacion').value)||0;
-  const drop = document.getElementById('evt-enf-drop');
-
-  if(!ubId){
-    drop.innerHTML = '<div class="ac-no-results">Selecciona primero la ubicación del evento</div>';
-    drop.classList.add('open');
-    return;
-  }
-
-  const q = (document.getElementById('evt-enf-input').value||'').toLowerCase().trim();
-  const pool = (S.usuarios||[]).filter(u => u.nivel === 2 && !_evtEnfermeros.has(u.id));
-  const results = pool.filter(u => !q || u.nombre.toLowerCase().includes(q)).slice(0, 8);
-
-  if(!results.length){
-    drop.innerHTML = '<div class="ac-no-results">Sin enfermeros disponibles</div>';
-    drop.classList.add('open');
-    return;
-  }
-
-  drop.innerHTML = results.map(u => `
-    <div class="ac-item" onmousedown="evtEnfSelect(${u.id},'${(u.nombre||'').replace(/'/g,"\\'")}')">
-      <div class="ac-item-icon"><i class="ti ti-stethoscope"></i></div>
-      <div class="ac-item-body">
-        <div class="ac-item-name">${escHtml(u.nombre)}</div>
-        <div class="ac-item-meta">CC: ${escHtml(u.cedula||'')}</div>
-      </div>
-    </div>`).join('');
-  drop.classList.add('open');
-}
-
-function evtEnfSelect(id, nombre){
-  if(!_evtDepositosDisponibles.length){
-    toastError('Selecciona primero la ubicación del evento');
-    return;
-  }
-  _evtEnfermeros.set(id, { nombre, bodegas: new Set() });
-  document.getElementById('evt-enf-input').value = '';
-  document.getElementById('evt-enf-drop').classList.remove('open');
-  evtRenderEnfermeros();
-}
-
-function evtEnfRemove(id){
-  _evtEnfermeros.delete(id);
-  evtRenderEnfermeros();
-}
-
-function evtToggleBodegaEnf(usuarioId, bodegaId, checked){
-  const data = _evtEnfermeros.get(usuarioId);
-  if(!data) return;
-  if(checked) data.bodegas.add(bodegaId);
-  else data.bodegas.delete(bodegaId);
-}
-
-// ── RENDER: una tarjeta por enfermero con SU checklist de depósitos ──
-function evtRenderEnfermeros(){
-  const el = document.getElementById('evt-enfermeros-list');
-  if(!el) return;
-
-  if(!_evtDepositosDisponibles.length){
-    el.innerHTML = '<div style="font-size:12px;color:#aaa;padding:8px 0">Selecciona la ubicación del evento para poder agregar enfermeros</div>';
-    return;
-  }
-
-  if(!_evtEnfermeros.size){
-    el.innerHTML = '<div style="font-size:12px;color:#aaa;padding:8px 0">Aún no has agregado enfermeros a este evento</div>';
-    return;
-  }
-
-  el.innerHTML = [..._evtEnfermeros.entries()].map(([usuarioId, data]) => `
-    <div class="evt-enf-card">
-      <div class="evt-enf-card-header">
-        <span><i class="ti ti-stethoscope" style="margin-right:6px;color:var(--blue)"></i>${escHtml(data.nombre)}</span>
-        <i class="ti ti-x" style="cursor:pointer;color:#aaa" onclick="evtEnfRemove(${usuarioId})"></i>
-      </div>
-      <div class="evt-checklist">
-        ${_evtDepositosDisponibles.map(b => `
-          <label class="evt-check-item">
-            <input type="checkbox" ${data.bodegas.has(b.id)?'checked':''}
-              onchange="evtToggleBodegaEnf(${usuarioId}, ${b.id}, this.checked)">
-            <span>${escHtml(b.nombre)}</span>
-          </label>`).join('')}
-      </div>
-    </div>`).join('');
-}
-
-document.addEventListener('click', e=>{
-  const wrap = document.getElementById('evt-enf-wrap');
-  if(wrap && !wrap.contains(e.target)) document.getElementById('evt-enf-drop')?.classList.remove('open');
-});
-
-// ── CREAR EVENTO ──
 async function crearEvento(){
   const nombre       = document.getElementById('evt-nombre').value.trim();
   const fechaInicio  = document.getElementById('evt-fecha-inicio').value;
@@ -207,24 +90,207 @@ async function crearEvento(){
   if(!fechaInicio || !fechaFin){ toastError('Ingresa las fechas del evento'); return; }
   if(fechaFin < fechaInicio){ toastError('La fecha de finalización no puede ser anterior a la de inicio'); return; }
   if(!ubicacion_id){ toastError('Selecciona la ubicación del evento'); return; }
-  if(!_evtEnfermeros.size){ toastError('Agrega al menos un enfermero'); return; }
-
-  const asignaciones = [];
-  for(const [usuario_id, data] of _evtEnfermeros.entries()){
-    if(!data.bodegas.size){
-      toastError(`Selecciona al menos un depósito para ${data.nombre}`);
-      return;
-    }
-    asignaciones.push({ usuario_id, bodega_ids: [...data.bodegas] });
-  }
 
   try {
-    await Eventos.create({ nombre, fecha_inicio: fechaInicio, fecha_fin: fechaFin, ubicacion_id, asignaciones });
+    const nuevo = await Eventos.create({ nombre, fecha_inicio: fechaInicio, fecha_fin: fechaFin, ubicacion_id });
     closeModal('modal-crear-evento');
     S.eventos = await Eventos.getAll();
     renderEventos();
     buildNav();
-    toast('✓ Evento creado','success');
+    toast('✓ Evento creado — agrega los enfermeros','success');
+    abrirDetalleEvento(nuevo.id);
+  } catch(err){
+    toastError(err.message);
+  }
+}
+
+// ── DETALLE DE EVENTO (editar datos + gestionar enfermeros) ──
+async function abrirDetalleEvento(id){
+  if(currentRole !== 4) return;
+  try {
+    const evento = await Eventos.getOne(id);
+    _evtDetalleId = id;
+    _evtDetalleEvento = evento;
+
+    document.getElementById('evtdet-id').value = evento.id;
+    document.getElementById('evtdet-nombre').value = evento.nombre;
+    document.getElementById('evtdet-fecha-inicio').value = (evento.fecha_inicio||'').split('T')[0];
+    document.getElementById('evtdet-fecha-fin').value = (evento.fecha_fin||'').split('T')[0];
+    document.getElementById('evtdet-ubicacion').innerHTML = S.ubicaciones
+      .map(u=>`<option value="${u.id}" ${u.id===evento.ubicacion_id?'selected':''}>${escHtml(u.nombre)}</option>`).join('');
+    document.getElementById('evtdet-ubicacion-warn').style.display = 'none';
+
+    document.getElementById('evtdet-enf-input').value = '';
+    document.getElementById('evtdet-enf-drop').classList.remove('open');
+
+    evtDetRenderEnfermeros();
+    document.getElementById('modal-evento-detalle').classList.add('open');
+  } catch(err){
+    toastError(err.message);
+  }
+}
+
+function evtDetUbicacionChanged(){
+  const nuevaId = parseInt(document.getElementById('evtdet-ubicacion').value)||0;
+  const warn = document.getElementById('evtdet-ubicacion-warn');
+  const cambia = _evtDetalleEvento && nuevaId !== _evtDetalleEvento.ubicacion_id;
+  warn.style.display = (cambia && (_evtDetalleEvento.personal||[]).length) ? 'block' : 'none';
+}
+
+async function guardarDetalleEvento(){
+  const id = _evtDetalleId;
+  const nombre = document.getElementById('evtdet-nombre').value.trim();
+  const fechaInicio = document.getElementById('evtdet-fecha-inicio').value;
+  const fechaFin = document.getElementById('evtdet-fecha-fin').value;
+  const ubicacion_id = parseInt(document.getElementById('evtdet-ubicacion').value)||0;
+
+  if(!nombre){ toastError('Ingresa el nombre del evento'); return; }
+  if(!fechaInicio || !fechaFin){ toastError('Ingresa las fechas del evento'); return; }
+  if(fechaFin < fechaInicio){ toastError('La fecha de finalización no puede ser anterior a la de inicio'); return; }
+  if(!ubicacion_id){ toastError('Selecciona la ubicación del evento'); return; }
+
+  try {
+    const actualizado = await Eventos.update(id, { nombre, fecha_inicio: fechaInicio, fecha_fin: fechaFin, ubicacion_id });
+    S.eventos = await Eventos.getAll();
+    renderEventos();
+    toast(actualizado.bodegas_reiniciadas
+      ? '✓ Evento actualizado — se reiniciaron los depósitos por el cambio de ubicación'
+      : '✓ Evento actualizado', 'success');
+    await abrirDetalleEvento(id);
+  } catch(err){
+    toastError(err.message);
+  }
+}
+
+// ── LISTA DE ENFERMEROS DENTRO DEL DETALLE ──
+function evtDetRenderEnfermeros(){
+  const el = document.getElementById('evtdet-enfermeros-list');
+  if(!el) return;
+  const personal = _evtDetalleEvento?.personal || [];
+
+  if(!personal.length){
+    el.innerHTML = '<div style="font-size:12px;color:#aaa;padding:8px 0">Aún no has agregado enfermeros a este evento</div>';
+    return;
+  }
+
+  el.innerHTML = personal.map(p => {
+    const deps = (p.bodegas||[]).map(b=>escHtml(b.nombre)).join(', ') || '<span style="color:var(--red2)">Sin depósitos asignados</span>';
+    return `<div class="user-card" style="margin-bottom:8px">
+      <div class="user-avatar n2">${escHtml((p.nombre||'').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase())}</div>
+      <div class="user-info">
+        <div class="user-name">${escHtml(p.nombre)}</div>
+        <div class="user-cedula">${deps}</div>
+      </div>
+      <div class="act-btn-group">
+        <button class="act-btn primary" title="Editar depósitos" onclick="evtAbrirAsignarDepositos(${p.id},'${(p.nombre||'').replace(/'/g,"\\'")}')"><i class="ti ti-building-warehouse"></i></button>
+        <button class="act-btn danger" title="Quitar del evento" onclick="evtDetEnfRemove(${p.id},'${(p.nombre||'').replace(/'/g,"\\'")}')"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── AUTOCOMPLETE PARA AGREGAR ENFERMERO ──
+function evtDetEnfFilter(){
+  const drop = document.getElementById('evtdet-enf-drop');
+  const q = (document.getElementById('evtdet-enf-input').value||'').toLowerCase().trim();
+  const yaAsignados = new Set((_evtDetalleEvento?.personal||[]).map(p=>p.id));
+  const pool = (S.usuarios||[]).filter(u => u.nivel === 2 && !yaAsignados.has(u.id));
+  const results = pool.filter(u => !q || u.nombre.toLowerCase().includes(q)).slice(0, 8);
+
+  if(!results.length){
+    drop.innerHTML = '<div class="ac-no-results">Sin enfermeros disponibles</div>';
+    drop.classList.add('open');
+    return;
+  }
+
+  drop.innerHTML = results.map(u => `
+    <div class="ac-item" onmousedown="evtDetEnfSelect(${u.id},'${(u.nombre||'').replace(/'/g,"\\'")}')">
+      <div class="ac-item-icon"><i class="ti ti-stethoscope"></i></div>
+      <div class="ac-item-body">
+        <div class="ac-item-name">${escHtml(u.nombre)}</div>
+        <div class="ac-item-meta">CC: ${escHtml(u.cedula||'')}</div>
+      </div>
+    </div>`).join('');
+  drop.classList.add('open');
+}
+
+async function evtDetEnfSelect(usuarioId, nombre){
+  document.getElementById('evtdet-enf-input').value = '';
+  document.getElementById('evtdet-enf-drop').classList.remove('open');
+  try {
+    await Eventos.addEnfermero(_evtDetalleId, { usuario_id: usuarioId, bodega_ids: [] });
+    _evtDetalleEvento = await Eventos.getOne(_evtDetalleId);
+    evtDetRenderEnfermeros();
+    S.eventos = await Eventos.getAll();
+    renderEventos();
+    toast(`✓ ${nombre} agregado — asígnale sus depósitos`,'success');
+    evtAbrirAsignarDepositos(usuarioId, nombre);
+  } catch(err){
+    toastError(err.message);
+  }
+}
+
+function evtDetEnfRemove(usuarioId, nombre){
+  document.getElementById('modal-title').textContent = 'Quitar enfermero';
+  document.getElementById('modal-sub').textContent = `¿Quitar a "${nombre}" de este evento? Perderá acceso a sus depósitos de inmediato.`;
+  document.getElementById('modal-ok-btn').onclick = async ()=>{
+    try {
+      await Eventos.removeEnfermero(_evtDetalleId, usuarioId);
+      closeModal('modal-confirm');
+      _evtDetalleEvento = await Eventos.getOne(_evtDetalleId);
+      evtDetRenderEnfermeros();
+      S.eventos = await Eventos.getAll();
+      renderEventos();
+      buildNav();
+      toast('Enfermero removido del evento');
+    } catch(err){ toastError(err.message); closeModal('modal-confirm'); }
+  };
+  document.getElementById('modal-confirm').classList.add('open');
+}
+
+document.addEventListener('click', e=>{
+  const wrap = document.getElementById('evtdet-enf-wrap');
+  if(wrap && !wrap.contains(e.target)) document.getElementById('evtdet-enf-drop')?.classList.remove('open');
+});
+
+// ── ASIGNAR DEPÓSITOS A UN ENFERMERO (interfaz independiente) ──
+function evtAbrirAsignarDepositos(usuarioId, nombre){
+  _evtAsignarUsuarioId = usuarioId;
+  const persona = (_evtDetalleEvento?.personal||[]).find(p=>p.id===usuarioId);
+  _evtAsignarSeleccion = new Set((persona?.bodegas||[]).map(b=>b.id));
+
+  document.getElementById('evtasig-usuario-id').value = usuarioId;
+  document.getElementById('evtasig-sub').textContent = `Selecciona los depósitos que puede usar ${nombre} durante este evento.`;
+
+  const depositos = (S.bodegasRaw||[]).filter(b => b.ubicacion_id === _evtDetalleEvento.ubicacion_id);
+  const checklist = document.getElementById('evtasig-checklist');
+
+  checklist.innerHTML = depositos.length
+    ? depositos.map(b => `
+      <label class="evt-check-item">
+        <input type="checkbox" ${_evtAsignarSeleccion.has(b.id)?'checked':''}
+          onchange="evtToggleDeposito(${b.id}, this.checked)">
+        <span>${escHtml(b.nombre)}</span>
+      </label>`).join('')
+    : '<div style="font-size:12px;color:#aaa;padding:8px 0">Esta ubicación no tiene depósitos registrados</div>';
+
+  document.getElementById('modal-asignar-depositos').classList.add('open');
+}
+
+function evtToggleDeposito(bodegaId, checked){
+  if(checked) _evtAsignarSeleccion.add(bodegaId);
+  else _evtAsignarSeleccion.delete(bodegaId);
+}
+
+async function evtGuardarAsignacion(){
+  try {
+    await Eventos.updateEnfermero(_evtDetalleId, _evtAsignarUsuarioId, { bodega_ids: [..._evtAsignarSeleccion] });
+    closeModal('modal-asignar-depositos');
+    _evtDetalleEvento = await Eventos.getOne(_evtDetalleId);
+    evtDetRenderEnfermeros();
+    S.eventos = await Eventos.getAll();
+    renderEventos();
+    toast('✓ Depósitos actualizados','success');
   } catch(err){
     toastError(err.message);
   }

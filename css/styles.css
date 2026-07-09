@@ -916,3 +916,5 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
   font-family:var(--font-mono);
 }
 .enf-evento-info i{ color:var(--blue); }
+/* Los modales de confirmación deben quedar siempre por encima de otros modales anidados (ej. detalle de evento) */
+#modal-confirm{ z-index:600; }

@@ -705,10 +705,10 @@
 
 <!-- MODAL CREAR EVENTO -->
 <div class="modal-overlay" id="modal-crear-evento">
-  <div class="modal-sheet" style="max-width:600px">
+  <div class="modal-sheet" style="max-width:480px">
     <div class="modal-handle"></div>
     <div class="modal-title">Crear evento</div>
-    <div class="modal-sub">Cada enfermero puede tener depósitos distintos dentro del mismo evento. Primero elige la ubicación, luego agrega enfermeros y marca los depósitos que le corresponden a cada uno.</div>
+    <div class="modal-sub">Después de crear el evento podrás agregar enfermeros y asignarles sus depósitos.</div>
 
     <div class="form-grid" style="margin-bottom:14px">
       <div class="form-group fg-full">
@@ -725,30 +725,82 @@
       </div>
       <div class="form-group fg-full">
         <label>Ubicación del evento</label>
-        <select id="evt-ubicacion" onchange="evtUbicacionChange()">
+        <select id="evt-ubicacion">
           <option value="">Seleccionar ubicación…</option>
         </select>
       </div>
     </div>
 
-    <div style="margin-bottom:8px">
-      <div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono);margin-bottom:8px">Agregar enfermero</div>
-      <div class="ac-wrap" id="evt-enf-wrap">
-        <i class="ti ti-search ac-icon"></i>
-        <input type="text" class="ac-input" id="evt-enf-input" placeholder="Buscar enfermero por nombre…" autocomplete="off"
-          oninput="evtEnfFilter()" onfocus="evtEnfFilter()">
-        <div class="ac-dropdown" id="evt-enf-drop"></div>
-      </div>
-    </div>
-
-    <div style="margin-bottom:6px">
-      <div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono);margin-bottom:8px">Enfermeros y sus depósitos</div>
-      <div id="evt-enfermeros-list"></div>
-    </div>
-
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal('modal-crear-evento')">Cancelar</button>
       <button class="btn-confirm" onclick="crearEvento()">Crear evento</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALLE DE EVENTO -->
+<div class="modal-overlay" id="modal-evento-detalle">
+  <div class="modal-sheet" style="max-width:600px">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Detalle del evento</div>
+    <div class="modal-sub">Edita los datos del evento y gestiona los enfermeros asignados.</div>
+
+    <input type="hidden" id="evtdet-id">
+    <div class="form-grid" style="margin-bottom:14px">
+      <div class="form-group fg-full">
+        <label>Nombre del evento</label>
+        <input type="text" id="evtdet-nombre" placeholder="Ej. Maratón CAT 2026">
+      </div>
+      <div class="form-group">
+        <label>Fecha de inicio</label>
+        <input type="date" id="evtdet-fecha-inicio">
+      </div>
+      <div class="form-group">
+        <label>Fecha de finalización</label>
+        <input type="date" id="evtdet-fecha-fin">
+      </div>
+      <div class="form-group fg-full">
+        <label>Ubicación del evento</label>
+        <select id="evtdet-ubicacion" onchange="evtDetUbicacionChanged()">
+          <option value="">Seleccionar ubicación…</option>
+        </select>
+        <span class="hint" id="evtdet-ubicacion-warn" style="display:none;color:var(--amber)">
+          Si cambias la ubicación se reiniciarán los depósitos asignados a todos los enfermeros
+        </span>
+      </div>
+    </div>
+    <button class="btn-submit" style="margin-bottom:20px" onclick="guardarDetalleEvento()">
+      <i class="ti ti-device-floppy"></i>Guardar cambios del evento
+    </button>
+
+    <div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono);margin-bottom:8px">Agregar enfermero</div>
+    <div class="ac-wrap" id="evtdet-enf-wrap" style="margin-bottom:14px">
+      <i class="ti ti-search ac-icon"></i>
+      <input type="text" class="ac-input" id="evtdet-enf-input" placeholder="Buscar enfermero por nombre…" autocomplete="off"
+        oninput="evtDetEnfFilter()" onfocus="evtDetEnfFilter()">
+      <div class="ac-dropdown" id="evtdet-enf-drop"></div>
+    </div>
+
+    <div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono);margin-bottom:8px">Enfermeros asignados</div>
+    <div id="evtdet-enfermeros-list"></div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-evento-detalle')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ASIGNAR DEPÓSITOS A UN ENFERMERO -->
+<div class="modal-overlay" id="modal-asignar-depositos">
+  <div class="modal-sheet" style="max-width:440px">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Depósitos asignados</div>
+    <div class="modal-sub" id="evtasig-sub">Selecciona los depósitos que puede usar este enfermero durante el evento.</div>
+    <input type="hidden" id="evtasig-usuario-id">
+    <div class="evt-checklist" id="evtasig-checklist" style="max-height:260px"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-asignar-depositos')">Cancelar</button>
+      <button class="btn-confirm" onclick="evtGuardarAsignacion()">Guardar depósitos</button>
     </div>
   </div>
 </div>
