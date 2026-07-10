@@ -1,3 +1,7 @@
+// Filtro activo cuando se llega desde las tarjetas de Alertas/Vencidos
+// del dashboard. null = sin filtro especial (comportamiento normal).
+let _invAlertFilter = null; // null | 'alertas' | 'vencidos'
+
 function renderInv(){
   const q=(document.getElementById('inv-search').value||'').toLowerCase();
   const deposito=document.getElementById('inv-ubicacion').value;
@@ -14,17 +18,29 @@ function renderInv(){
   let rows = [];
   S.subSkus.forEach(s=>{
     if(subSkuId && s.id!==subSkuId) return;
-    // FIX: "Agotados" pasa a ser un filtro exclusivo — marcado, muestra
-    // SOLO los agotados; desmarcado, los oculta (antes solo dejaba de
-    // ocultarlos, mezclando agotados + activos en la misma vista).
+
+    // Filtro exclusivo de "Agotados": marcado, solo agotados; desmarcado, solo activos.
     if(showAgotados){
       if(!s.agotado) return;
     } else {
       if(s.agotado) return;
     }
+
     const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
     const st = getSem(s.caducidad);
-    if(sem&&st!==sem) return;
+
+    // Filtro especial llegando desde el dashboard (Alertas / Vencidos).
+    // Tiene prioridad sobre el select de semáforo normal.
+    if(_invAlertFilter==='alertas'){
+      if(s.agotado) return;
+      if(!['P','R','A'].includes(st)) return;
+    } else if(_invAlertFilter==='vencidos'){
+      if(s.agotado) return;
+      if(st!=='N') return;
+    } else if(sem && st!==sem){
+      return;
+    }
+
     if(fam&&skuG?.familia!==fam) return;
     if(q&&!s.nombre.toLowerCase().includes(q)&&!s.subSku.toLowerCase().includes(q)&&!(skuG?.codigo||'').toLowerCase().includes(q)&&!s.lote?.toLowerCase().includes(q)&&!s.proveedor?.toLowerCase().includes(q)) return;
 
@@ -39,12 +55,25 @@ function renderInv(){
 
     stockEntries.forEach(([ubicacion, cantidad])=>{
       if(cantidad === 0 && !showAgotados) return;
-      // FIX: usar Object.prototype.hasOwnProperty.call en vez de optional chaining
-      // para evitar que s.stock=null devuelva !undefined=true y oculte ítems agotados
       if(cantidad === 0 && !(s.stock && Object.prototype.hasOwnProperty.call(s.stock, ubicacion))) return;
       rows.push({s,skuG,st,ubicacion,cantidad});
     });
   });
+
+  // ── Banner de filtro activo (viene del dashboard) ──
+  const banner = document.getElementById('inv-alert-banner');
+  if(banner){
+    if(_invAlertFilter==='alertas'){
+      banner.className = 'alert-banner show amber';
+      banner.innerHTML = `<i class="ti ti-alert-triangle"></i><span style="flex:1">Mostrando ítems en alerta de vencimiento (próximos 180 días)</span><button class="act-btn" onclick="invClearAlertFilter()" title="Quitar filtro"><i class="ti ti-x"></i></button>`;
+    } else if(_invAlertFilter==='vencidos'){
+      banner.className = 'alert-banner show red';
+      banner.innerHTML = `<i class="ti ti-alert-circle"></i><span style="flex:1">Mostrando ítems vencidos — pendientes de destrucción</span><button class="act-btn" onclick="invClearAlertFilter()" title="Quitar filtro"><i class="ti ti-x"></i></button>`;
+    } else {
+      banner.className = 'alert-banner';
+      banner.innerHTML = '';
+    }
+  }
 
   const canAct = currentRole>=2;
   const el = document.getElementById('inv-body');
@@ -74,6 +103,27 @@ function renderInv(){
         </div>
       </td>
     </tr>`).join('');
+}
+
+// ── Activar / limpiar el filtro especial que llega desde el dashboard ──
+function invSetAlertFilter(tipo){
+  _invAlertFilter = tipo;
+  document.getElementById('inv-sem').value = '';
+  const ag = document.getElementById('inv-agotados');
+  if(ag) ag.checked = false;
+  renderInv();
+}
+
+function invClearAlertFilter(){
+  _invAlertFilter = null;
+  renderInv();
+}
+
+// Si el usuario toca manualmente el filtro de semáforo, el filtro especial
+// del dashboard deja de tener sentido — se limpia para evitar confusión.
+function invSemChanged(){
+  _invAlertFilter = null;
+  renderInv();
 }
 
 // ══════════════════════════════════════════

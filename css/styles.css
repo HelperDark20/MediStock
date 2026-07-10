@@ -928,3 +928,17 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
   font-family:var(--font-mono);
 }
 .enf-evento-info i{ color:var(--blue); }
+/* ══════════════════════════════════════════
+   INVENTARIO — banner de filtro activo
+   (llega desde las tarjetas Alertas/Vencidos
+   del dashboard) + tarjetas clickeables
+   ══════════════════════════════════════════ */
+.alert-banner{display:none;align-items:center;gap:10px;padding:12px 16px;border-radius:var(--r-md);margin-bottom:16px;font-size:13px;border:1px solid transparent}
+.alert-banner.show{display:flex}
+.alert-banner i:first-child{font-size:18px;flex-shrink:0}
+.alert-banner.amber{background:var(--amber-bg);border-color:#F0D898;color:var(--amber)}
+.alert-banner.red{background:var(--red-bg);border-color:#F5C0C0;color:var(--red)}
+.alert-banner .act-btn{flex-shrink:0}
+
+.stat-card-clickable{cursor:pointer;transition:box-shadow .15s,transform .15s}
+.stat-card-clickable:hover{box-shadow:var(--sh2);transform:translateY(-1px)}

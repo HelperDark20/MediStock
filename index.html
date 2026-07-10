@@ -140,6 +140,7 @@
       </div>
       <!-- ═══ INVENTARIO ═══ -->
       <div class="view" id="view-inventario">
+        <div id="inv-alert-banner" class="alert-banner"></div>
         <div class="table-wrap">
           <div class="table-toolbar">
             <div class="search-wrap">
@@ -170,7 +171,7 @@
               <div class="ac-dropdown" id="inv-subsku-drop"></div>
             </div>
             <input type="hidden" id="inv-subsku-id">
-            <select id="inv-sem" onchange="renderInv()">
+            <select id="inv-sem" onchange="invSemChanged()">
               <option value="">Semáforo</option>
               <option value="V">✓ Vigente</option>
               <option value="A">⚠ Alerta</option>

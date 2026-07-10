@@ -24,11 +24,12 @@ function renderDash(){
   const warns     = subs.filter(s=>['P','R','A'].includes(getSem(s.caducidad)) && !s.agotado);
 
   // ── Stat cards ──
+  // Alertas y Vencidos son clickeables: llevan al inventario ya filtrado.
   statsEl.innerHTML=`
-    <div class="stat-card"><div class="stat-card-accent blue"></div><div class="stat-icon blue"><i class="ti ti-tag"></i></div><div class="stat-label">SKUs Globales</div><div class="stat-val blue">${totalSKUs}</div><div class="stat-sub">medicamentos registrados</div></div>
+    <div class="stat-card"><div class="stat-card-accent blue"></div><div class="stat-icon blue"><i class="ti ti-tag"></i></div><div class="stat-label">SKUs Globales</div><div class="stat-val blue">${totalSKUs}</div><div class="stat-sub">items registrados</div></div>
     <div class="stat-card"><div class="stat-card-accent green"></div><div class="stat-icon green"><i class="ti ti-package"></i></div><div class="stat-label">Unidades totales</div><div class="stat-val">${totalUnits.toLocaleString('es-CO')}</div><div class="stat-sub">todas las ubicaciones</div></div>
-    <div class="stat-card"><div class="stat-card-accent amber"></div><div class="stat-icon amber"><i class="ti ti-alert-triangle"></i></div><div class="stat-label">Alertas</div><div class="stat-val amber">${warns.length}</div><div class="stat-sub">próximos 180 días</div></div>
-    <div class="stat-card"><div class="stat-card-accent red"></div><div class="stat-icon red"><i class="ti ti-alert-circle"></i></div><div class="stat-label">Vencidos</div><div class="stat-val red">${exps.length}</div><div class="stat-sub">requieren baja</div></div>
+    <div class="stat-card stat-card-clickable" onclick="dashGoInventarioFiltro('alertas')" title="Ver en inventario"><div class="stat-card-accent amber"></div><div class="stat-icon amber"><i class="ti ti-alert-triangle"></i></div><div class="stat-label">Alertas</div><div class="stat-val amber">${warns.length}</div><div class="stat-sub">próximos 180 días <i class="ti ti-arrow-right" style="font-size:11px;margin-left:2px;vertical-align:middle"></i></div></div>
+    <div class="stat-card stat-card-clickable" onclick="dashGoInventarioFiltro('vencidos')" title="Ver en inventario"><div class="stat-card-accent red"></div><div class="stat-icon red"><i class="ti ti-alert-circle"></i></div><div class="stat-label">Vencidos</div><div class="stat-val red">${exps.length}</div><div class="stat-sub">requieren baja <i class="ti ti-arrow-right" style="font-size:11px;margin-left:2px;vertical-align:middle"></i></div></div>
   `;
 
   // ── Alertas de vencimiento — TODOS los vencidos, desglosados por
@@ -295,4 +296,9 @@ function renderConsumoChart(){
 
 function dashConsumoMesChange(){
   renderConsumoChart();
+}
+// ── Ir al inventario con el filtro de Alertas/Vencidos ya aplicado ──
+function dashGoInventarioFiltro(tipo){
+  goTo('inventario');
+  invSetAlertFilter(tipo);
 }

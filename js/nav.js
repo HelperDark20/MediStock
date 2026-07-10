@@ -15,10 +15,10 @@ function buildNav(){
     const btn = document.createElement('button');
     btn.className = 'nav-item';
     btn.innerHTML = `<i class="ti ${n.icon}"></i>${n.label}`;
-    if(n.id==='inventario'){
-      const alerts = S.subSkus.filter(s=>['N','P','R'].includes(getSem(s.caducidad))&&!s.agotado).length;
-      if(alerts>0) btn.innerHTML += `<span class="nav-badge">${alerts}</span>`;
-    }
+    // FIX: se quitó el badge de "Inventario" (contaba alertas con un criterio
+    // distinto al del dashboard — resultaba visualmente inconsistente, ej.
+    // dashboard mostraba 48 alertas y el nav mostraba 39). El dashboard ya
+    // es la única fuente de verdad para ese conteo.
     if(n.id==='eventos'){
       const enCurso = (S.eventos||[]).filter(e=>e.estado==='en_curso').length;
       if(enCurso>0) btn.innerHTML += `<span class="nav-badge">${enCurso}</span>`;
@@ -43,10 +43,6 @@ function populateSelects(){
   });
 }
 
-// ── Fix #6: helper interno que verifica el nivel REAL antes de renderizar ──
-// goTo() ya bloquea la navegación, pero las funciones render* podían ser
-// llamadas directamente desde la consola del navegador si alguien manipulaba
-// currentRole. Este helper centraliza la verificación.
 function _nivelPermite(viewId){
   return NIVELES[currentRole]?.nav.includes(viewId) ?? false;
 }
