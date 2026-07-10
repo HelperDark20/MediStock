@@ -1,8 +1,23 @@
-// Filtro activo cuando se llega desde las tarjetas de Alertas/Vencidos
-// del dashboard. null = sin filtro especial (comportamiento normal).
 let _invAlertFilter = null; // null | 'alertas' | 'vencidos'
 
+// ── Filtro de Familia dinámico ──
+// Ya no es una lista fija de códigos — se arma con las familias que
+// realmente existen en tus SKUs, así que sirve para cualquier familia
+// (nueva o vieja) sin importar cómo se haya escrito.
+function populateInvFamilias(){
+  const sel = document.getElementById('inv-familia');
+  if(!sel) return;
+  const current = sel.value;
+  const familias = [...new Set((S.skusGlobales||[]).map(g=>g.familia).filter(Boolean))]
+    .sort((a,b)=>a.localeCompare(b));
+  sel.innerHTML = '<option value="">Familia</option>' +
+    familias.map(f=>`<option value="${escHtml(f)}">${escHtml(f)}</option>`).join('');
+  if(current && familias.includes(current)) sel.value = current;
+}
+
 function renderInv(){
+  populateInvFamilias();
+
   const q=(document.getElementById('inv-search').value||'').toLowerCase();
   const deposito=document.getElementById('inv-ubicacion').value;
   const sedeId=parseInt(document.getElementById('inv-sede-id')?.value)||0;
@@ -19,7 +34,6 @@ function renderInv(){
   S.subSkus.forEach(s=>{
     if(subSkuId && s.id!==subSkuId) return;
 
-    // Filtro exclusivo de "Agotados": marcado, solo agotados; desmarcado, solo activos.
     if(showAgotados){
       if(!s.agotado) return;
     } else {
@@ -29,8 +43,6 @@ function renderInv(){
     const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
     const st = getSem(s.caducidad);
 
-    // Filtro especial llegando desde el dashboard (Alertas / Vencidos).
-    // Tiene prioridad sobre el select de semáforo normal.
     if(_invAlertFilter==='alertas'){
       if(s.agotado) return;
       if(!['P','R','A'].includes(st)) return;
@@ -41,7 +53,7 @@ function renderInv(){
       return;
     }
 
-    if(fam&&skuG?.familia!==fam) return;
+    if(fam && skuG?.familia!==fam) return;
     if(q&&!s.nombre.toLowerCase().includes(q)&&!s.subSku.toLowerCase().includes(q)&&!(skuG?.codigo||'').toLowerCase().includes(q)&&!s.lote?.toLowerCase().includes(q)&&!s.proveedor?.toLowerCase().includes(q)) return;
 
     let stockEntries;
@@ -60,7 +72,6 @@ function renderInv(){
     });
   });
 
-  // ── Banner de filtro activo (viene del dashboard) ──
   const banner = document.getElementById('inv-alert-banner');
   if(banner){
     if(_invAlertFilter==='alertas'){
@@ -87,7 +98,7 @@ function renderInv(){
       <td>
         <div style="font-weight:500;font-size:13px">${s.nombre}</div>
         <div style="display:flex;gap:4px;margin-top:3px;flex-wrap:wrap">
-          <span class="fam ${skuG?.familia||''}">${FAMILIAS[skuG?.familia]||''}</span>
+          ${famBadge(skuG?.familia)}
           ${s.agotado?'<span style="font-size:9px;padding:2px 6px;border-radius:6px;background:#F0F0EE;color:#888;font-family:var(--font-mono);font-weight:700">AGOTADO</span>':''}
         </div>
       </td>
@@ -105,7 +116,6 @@ function renderInv(){
     </tr>`).join('');
 }
 
-// ── Activar / limpiar el filtro especial que llega desde el dashboard ──
 function invSetAlertFilter(tipo){
   _invAlertFilter = tipo;
   document.getElementById('inv-sem').value = '';
@@ -119,8 +129,6 @@ function invClearAlertFilter(){
   renderInv();
 }
 
-// Si el usuario toca manualmente el filtro de semáforo, el filtro especial
-// del dashboard deja de tener sentido — se limpia para evitar confusión.
 function invSemChanged(){
   _invAlertFilter = null;
   renderInv();

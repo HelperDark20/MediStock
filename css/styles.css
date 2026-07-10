@@ -942,3 +942,16 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 
 .stat-card-clickable{cursor:pointer;transition:box-shadow .15s,transform .15s}
 .stat-card-clickable:hover{box-shadow:var(--sh2);transform:translateY(-1px)}
+
+/* ══════════════════════════════════════════
+   BADGES DE FAMILIA — color por hash del texto
+   (familia es texto libre, ya no un código fijo)
+   ══════════════════════════════════════════ */
+.fam.c1{background:#EEF3FB;color:#1A4B8C}
+.fam.c2{background:var(--green-bg);color:var(--green)}
+.fam.c3{background:var(--amber-bg);color:var(--amber)}
+.fam.c4{background:#F5F0FB;color:#6B3FA0}
+.fam.c5{background:var(--red-bg);color:var(--red2)}
+.fam.c6{background:var(--orange-bg);color:var(--orange)}
+.fam.c7{background:var(--blue-bg);color:var(--blue)}
+.fam.c8{background:#F0F0EE;color:#666}

@@ -118,3 +118,23 @@ function showLoading(show){
     if(el) el.remove();
   }
 }
+
+// ── BADGES DE FAMILIA CON COLOR AUTOMÁTICO ──
+// Como "familia" es texto libre (para poder crear familias nuevas sin
+// tocar código), ya no podemos usar el texto como nombre de clase CSS
+// literal. En vez de eso, asignamos un color de una paleta fija según
+// un hash simple del texto — así cualquier familia (existente o nueva)
+// siempre se ve con un color consistente.
+const FAM_COLOR_CLASSES = ['c1','c2','c3','c4','c5','c6','c7','c8'];
+
+function famColorClass(str){
+  if(!str) return 'c8';
+  let hash = 0;
+  for(let i=0;i<str.length;i++){ hash = (hash*31 + str.charCodeAt(i)) >>> 0; }
+  return FAM_COLOR_CLASSES[hash % FAM_COLOR_CLASSES.length];
+}
+
+function famBadge(familia){
+  if(!familia) return '<span class="fam c8">—</span>';
+  return `<span class="fam ${famColorClass(familia)}">${escHtml(familia)}</span>`;
+}

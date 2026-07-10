@@ -53,16 +53,9 @@ async function crearSKUGlobal(){
 
   if(!nombre)  { toast('Ingresa el nombre del ítem','error'); return; }
   if(!codigo)  { toast('Ingresa el código SKU','error'); return; }
-  if(!familia) { toast('Selecciona la familia','error'); return; }
+  if(!familia) { toast('Ingresa la familia','error'); return; }
   if(!subgrupo){ toast('Ingresa el subgrupo','error'); return; }
   if(!unidad)  { toast('Ingresa la unidad de medida','error'); return; }
-
-  // Evitar duplicados de unidad por variaciones de escritura (Tabletas / tableta…)
-  const similarUnidad = buscarSimilar(unidad, getUnidadesExistentesGlobal());
-  if(similarUnidad && similarUnidad !== unidad){
-    toast(`La unidad "${unidad}" es similar a "${similarUnidad}" ya existente. Usa el botón "Usar" para unificar.`, 'error', 6000);
-    return;
-  }
 
   try {
     await SKUs.createGlobal({ codigo, nombre, familia, subgrupo, unidad, campos });
@@ -79,6 +72,7 @@ async function crearSKUGlobal(){
       cb.checked = true;
       label.classList.add('active');
     });
+    document.getElementById('sku-familia-hint').style.display  = 'none';
     document.getElementById('sku-subgrupo-hint').style.display = 'none';
     document.getElementById('sku-unidad-hint').style.display   = 'none';
     await loadState();
@@ -118,7 +112,7 @@ function renderSKUs(){
         <div style="font-weight:500;font-size:13px">${escHtml(g.nombre)}</div>
         <div style="font-size:11px;color:#aaa;margin-top:2px">${subsCount} sub-SKU${subsCount!==1?'s':''} · ${escHtml(g.unidad||'sin unidad')}</div>
       </td>
-      <td><span class="fam ${g.familia}">${FAMILIAS[g.familia]||escHtml(g.familia||'—')}</span></td>
+      <td>${famBadge(g.familia)}</td>
       <td style="display:flex;gap:3px;flex-wrap:wrap;align-items:center">${camposBadges||'—'}</td>
       <td>
         ${currentRole===4?`<button class="act-btn danger" onclick="confirmDeleteSKU(${g.id})" title="Eliminar"><i class="ti ti-trash"></i></button>`:''}
@@ -127,7 +121,7 @@ function renderSKUs(){
   }).join('');
 }
 
-// ── SUGERENCIA SIMILAR (subgrupo y unidad) ──
+// ── SUGERENCIA SIMILAR (familia, subgrupo, unidad) ──
 function buscarSimilar(val, lista){
   if(!val || !lista.length) return null;
   const v = val.toLowerCase();
@@ -138,12 +132,34 @@ function buscarSimilar(val, lista){
   return null;
 }
 
+function getFamiliasExistentes(){
+  return [...new Set(S.skusGlobales.map(g => g.familia).filter(Boolean))];
+}
+
 function getSubgruposExistentes(){
   return [...new Set(S.skusGlobales.map(g => g.subgrupo).filter(Boolean))];
 }
 
 function getUnidadesExistentesGlobal(){
   return [...new Set(S.skusGlobales.map(g => g.unidad).filter(Boolean))];
+}
+
+function checkSimilarFamilia(){
+  const input = document.getElementById('sku-familia');
+  const hint  = document.getElementById('sku-familia-hint');
+  const val   = input.value.trim();
+  if(!val){ hint.style.display='none'; return; }
+  const similar = buscarSimilar(val, getFamiliasExistentes());
+  if(similar && similar !== val){
+    hint.className = 'similar-hint warning';
+    hint.style.display = 'block';
+    hint.innerHTML = `<i class="ti ti-alert-triangle" style="margin-right:4px"></i>Ya existe: <strong>${escHtml(similar)}</strong><br>
+      <button class="hint-use-btn" onclick="usarFamiliaExistente('${similar.replace(/'/g,"\\'")}')">
+        <i class="ti ti-check"></i> Usar "${escHtml(similar)}"
+      </button>`;
+  } else {
+    hint.style.display = 'none';
+  }
 }
 
 function checkSimilarSubgrupo(){
@@ -180,6 +196,11 @@ function checkSimilarUnidadGlobal(){
   } else {
     hint.style.display = 'none';
   }
+}
+
+function usarFamiliaExistente(nombre){
+  document.getElementById('sku-familia').value = nombre;
+  document.getElementById('sku-familia-hint').style.display = 'none';
 }
 
 function usarSubgrupoExistente(nombre){
