@@ -299,9 +299,19 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 .ac-selected-pill button{border:none;background:none;cursor:pointer;color:#aaa;font-size:16px;padding:0;line-height:1}
 .ac-no-results{padding:20px;text-align:center;color:#aaa;font-size:13px}
 
-/* ── MODAL ── */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;align-items:flex-end;justify-content:center;backdrop-filter:blur(3px)}
+/* ── MODAL ──
+   Fix de rendimiento: antes .modal-overlay tenía backdrop-filter:blur(3px)
+   por defecto. Con el flujo nuevo de Eventos (detalle → asignar depósitos
+   → confirmar) es fácil terminar con 2-3 modales apilados, y cada capa de
+   blur obliga al navegador a recalcular el desenfoque de TODO lo que hay
+   detrás en cada repintado (cada tecla, cada hover). Eso es lo que
+   generaba la lentitud al editar un evento.
+   Ahora: sin blur por defecto, fondo semitransparente normal (barato).
+   Blur solo en #modal-confirm, que casi siempre es la última capa y ya
+   no se combina con otro blur debajo. */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;align-items:flex-end;justify-content:center}
 .modal-overlay.open{display:flex}
+#modal-confirm{backdrop-filter:blur(3px);z-index:600}
 .modal-sheet{background:var(--white);border-radius:var(--r-xl) var(--r-xl) 0 0;padding:0 22px 28px;width:100%;max-width:480px;animation:slideUp .2s ease;max-height:90vh;overflow-y:auto}
 .modal-sheet::-webkit-scrollbar{display:none}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
@@ -916,5 +926,3 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
   font-family:var(--font-mono);
 }
 .enf-evento-info i{ color:var(--blue); }
-/* Los modales de confirmación deben quedar siempre por encima de otros modales anidados (ej. detalle de evento) */
-#modal-confirm{ z-index:600; }
