@@ -31,32 +31,44 @@ function renderDash(){
     <div class="stat-card"><div class="stat-card-accent red"></div><div class="stat-icon red"><i class="ti ti-alert-circle"></i></div><div class="stat-label">Vencidos</div><div class="stat-val red">${exps.length}</div><div class="stat-sub">requieren baja</div></div>
   `;
 
-  // ── Alertas de vencimiento ──
-  const seen = new Set();
-  const alertItems = [
-    ...exps.map(s=>({s,t:'R'})),
-    ...porVencer.map(s=>({s,t:'R'})),
-    ...subs.filter(s=>getSem(s.caducidad)==='R'&&!s.agotado).map(s=>({s,t:'A'})),
-    ...subs.filter(s=>getSem(s.caducidad)==='A'&&!s.agotado).map(s=>({s,t:'A'})),
-  ].filter(x=>!seen.has(x.s.id)&&seen.add(x.s.id)).slice(0,5);
-
+  // ── Alertas de vencimiento — TODOS los vencidos, desglosados por
+  // ubicación y depósito para facilitar su localización y destrucción ──
   const al = document.getElementById('dash-alerts');
   if(al){
-    if(!alertItems.length){
-      al.innerHTML='<div class="alert-strip ok"><i class="ti ti-circle-check"></i><div class="alert-text"><div class="alert-name">Sin alertas activas</div><div class="alert-meta">Todos los medicamentos están vigentes</div></div></div>';
+    const filasVencidas = [];
+    exps.forEach(s=>{
+      Object.entries(s.stock||{}).forEach(([bodegaNombre, cantidad])=>{
+        if(!cantidad) return;
+        const bodega = (S.bodegasRaw||[]).find(b=>b.nombre===bodegaNombre);
+        filasVencidas.push({
+          s, bodegaNombre, cantidad,
+          ubicacionNombre: bodega?.ubicacion_nombre || 'Sin ubicación'
+        });
+      });
+    });
+
+    filasVencidas.sort((a,b)=>
+      a.ubicacionNombre.localeCompare(b.ubicacionNombre) ||
+      a.bodegaNombre.localeCompare(b.bodegaNombre) ||
+      a.s.nombre.localeCompare(b.s.nombre)
+    );
+
+    if(!filasVencidas.length){
+      al.innerHTML='<div class="alert-strip ok"><i class="ti ti-circle-check"></i><div class="alert-text"><div class="alert-name">Sin ítems vencidos</div><div class="alert-meta">No hay medicamentos vencidos pendientes de destrucción</div></div></div>';
     } else {
-      al.innerHTML = alertItems.map(({s,t})=>{
-        const diff = s.caducidad ? Math.round((new Date(s.caducidad.split('T')[0]+'T00:00:00') - new Date(fechaColombia()+'T00:00:00')) / 864e5) : null;
-        const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
-        return `<div class="alert-strip ${t}">
-          <i class="ti ti-alert-triangle"></i>
-          <div class="alert-text">
-            <div class="alert-name">${escHtml(s.nombre)}</div>
-            <div class="alert-meta">${skuG?.codigo||''} · ${s.subSku} · ${getTotalStock(s)} ${s.unidad} · ${semLabel(getSem(s.caducidad))}</div>
-          </div>
-          <div class="alert-days">${diff!==null?(diff<0?'Vencido':diff+'d'):''}</div>
-        </div>`;
-      }).join('');
+      al.innerHTML = `<div style="max-height:380px;overflow-y:auto;padding-right:2px">` +
+        filasVencidas.map(({s,bodegaNombre,ubicacionNombre,cantidad})=>{
+          const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
+          const diff = s.caducidad ? Math.round((new Date(s.caducidad.split('T')[0]+'T00:00:00') - new Date(fechaColombia()+'T00:00:00')) / 864e5) : null;
+          return `<div class="alert-strip R">
+            <i class="ti ti-alert-triangle"></i>
+            <div class="alert-text">
+              <div class="alert-name">${escHtml(s.nombre)}</div>
+              <div class="alert-meta">${escHtml(skuG?.codigo||'')} · ${escHtml(s.subSku)} · ${cantidad} ${escHtml(s.unidad)} · <strong>${escHtml(ubicacionNombre)} — ${escHtml(bodegaNombre)}</strong></div>
+            </div>
+            <div class="alert-days">${diff!==null?'Vencido hace '+Math.abs(diff)+'d':''}</div>
+          </div>`;
+        }).join('') + `</div>`;
     }
   }
 

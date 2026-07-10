@@ -126,6 +126,7 @@ function regAcClear(){
   document.getElementById('reg-sku-info').style.display = 'none';
   document.getElementById('reg-subsku-preview').textContent = '—';
   document.getElementById('reg-subsku-hint').textContent = 'Selecciona un SKU Global para continuar';
+  document.getElementById('reg-sku-unidad').innerHTML = '';
   ['reg-proveedor-wrap','reg-lote-wrap','reg-invima-wrap','reg-caducidad-wrap',
    'reg-subsku-manual-wrap'].forEach(id=>{
     const el = document.getElementById(id);
@@ -152,6 +153,11 @@ function updateRegSKU(skuG){
   document.getElementById('reg-sku-familia').innerHTML = `
     <span style="font-size:12px;font-weight:600;color:var(--ink)">${escHtml(skuG.familia||'')}</span>
     <span style="font-size:12px;color:#888;margin-left:6px">${escHtml(skuG.subgrupo||'')}</span>`;
+
+  // La unidad ya no se pide aquí — se muestra la que trae el SKU Global
+  document.getElementById('reg-sku-unidad').innerHTML = skuG.unidad
+    ? `<i class="ti ti-ruler-2" style="margin-right:4px"></i>Unidad: <strong>${escHtml(skuG.unidad)}</strong>`
+    : `<span style="color:var(--red2)"><i class="ti ti-alert-triangle" style="margin-right:4px"></i>Este SKU no tiene unidad definida — asígnasela en SKUs Globales</span>`;
 
   document.getElementById('reg-precio').value = '';
 
@@ -203,44 +209,12 @@ function updateSubSKU(){
 }
 
 // ══════════════════════════════════════════
-// SUGERENCIA DE UNIDAD (anti-duplicados)
-// ══════════════════════════════════════════
-function getUnidadesExistentes(){
-  return [...new Set(S.subSkus.map(s => s.unidad).filter(Boolean))];
-}
-
-function checkSimilarUnidad(){
-  const input = document.getElementById('reg-unidad');
-  const hint  = document.getElementById('reg-unidad-hint');
-  const val   = input.value.trim();
-  if(!val){ hint.style.display = 'none'; return; }
-
-  const similar = buscarSimilar(val, getUnidadesExistentes());
-  if(similar && similar !== val){
-    hint.className = 'similar-hint warning';
-    hint.style.display = 'block';
-    hint.innerHTML = `
-      <i class="ti ti-alert-triangle" style="margin-right:4px"></i>
-      Ya existe la unidad: <strong>${similar}</strong><br>
-      <button class="hint-use-btn" onclick="usarUnidadExistente('${similar.replace(/'/g,"\\'")}')">
-        <i class="ti ti-check"></i> Usar "${similar}"
-      </button>`;
-  } else {
-    hint.style.display = 'none';
-  }
-}
-
-function usarUnidadExistente(nombre){
-  document.getElementById('reg-unidad').value = nombre;
-  document.getElementById('reg-unidad-hint').style.display = 'none';
-}
-
-// ══════════════════════════════════════════
 // REGISTRAR ENTRADA
 // ══════════════════════════════════════════
 async function registrarEntrada(){
   const skuG = _regSkuSeleccionado;
   if(!skuG){ toastError('Selecciona un SKU Global'); return; }
+  if(!skuG.unidad){ toastError('Este SKU no tiene unidad de medida definida — asígnasela en SKUs Globales'); return; }
 
   const campos = Array.isArray(skuG.campos) ? skuG.campos : JSON.parse(skuG.campos||'[]');
   const tieneProveedor = campos.includes('proveedor');
@@ -252,7 +226,6 @@ async function registrarEntrada(){
   const invima = campos.includes('invima')    ? document.getElementById('reg-invima').value.trim() : '';
   const cadRaw = campos.includes('caducidad') ? document.getElementById('reg-caducidad').value.trim() : '';
 
-  // Convertir DD/MM/YYYY → YYYY-MM-DD para PostgreSQL
   let cad = '';
   if(cadRaw && cadRaw.includes('/')){
     const [d, m, y] = cadRaw.split('/');
@@ -261,20 +234,11 @@ async function registrarEntrada(){
 
   const precio   = parseFloat(document.getElementById('reg-precio')?.value)||0;
   const cant     = parseInt(document.getElementById('reg-cantidad').value)||0;
-  const unidad   = document.getElementById('reg-unidad').value.trim();
   const ubicacion = document.getElementById('reg-ubicacion').value;
 
   if(cant <= 0)  { toastError('Ingresa una cantidad válida'); return; }
-  if(!unidad)    { toastError('Ingresa la unidad'); return; }
   if(!ubicacion) { toastError('Selecciona una ubicación'); return; }
   if(!precio || precio <= 0) { toastError('Ingresa el precio unitario de esta entrada'); return; }
-
-  // Verificar similar de unidad antes de guardar
-  const similarUnidad = buscarSimilar(unidad, getUnidadesExistentes());
-  if(similarUnidad && similarUnidad !== unidad){
-    toastError(`La unidad "${unidad}" es similar a "${similarUnidad}" ya existente. Usa el botón "Usar" para unificar.`, 6000);
-    return;
-  }
 
   try {
     const subData = await SKUs.createSub({
@@ -282,14 +246,13 @@ async function registrarEntrada(){
       proveedor: prov,
       lote, invima,
       caducidad: cad,
-      unidad, precio,
+      precio,
       sub_sku_manual: manual
     });
 
     const todasBodegas = await Bodegas.getAll();
     const bodegaId = todasBodegas.find(b => b.nombre === ubicacion)?.id;
 
-    // FIX: validar que se encontró la bodega antes de registrar la entrada
     if(!bodegaId){
       toastError('Bodega destino no encontrada — recarga la página');
       return;
@@ -301,13 +264,11 @@ async function registrarEntrada(){
       cantidad: cant
     });
 
-    // Limpiar formulario
     regAcClear();
-    ['reg-lote','reg-invima','reg-cantidad','reg-unidad','reg-subsku-manual']
+    ['reg-lote','reg-invima','reg-cantidad','reg-subsku-manual']
       .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
     ['reg-cad-dia','reg-cad-mes','reg-cad-año']
       .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-    document.getElementById('reg-unidad-hint').style.display = 'none';
 
     await loadState();
     populateSelects();

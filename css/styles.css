@@ -385,20 +385,22 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 }
 .enf-header-logo{
   display:flex;
-  align-items:center;
-  gap:10px;
-}
-.enf-header-logo img{
-  width:28px;
-  height:28px;
-  object-fit:contain;
+  flex-direction:column;
+  gap:2px;
 }
 .enf-header-title{
   font-family:var(--font-brand);
   font-size:15px;
   font-weight:700;
   color:#fff;
-  letter-spacing:.1em;
+  letter-spacing:.18em;
+}
+.enf-header-wms{
+  font-family:var(--font-brand);
+  font-size:9px;
+  font-weight:700;
+  color:var(--blue2);
+  letter-spacing:.3em;
 }
 .enf-user{
   display:flex;

@@ -14,7 +14,14 @@ function renderInv(){
   let rows = [];
   S.subSkus.forEach(s=>{
     if(subSkuId && s.id!==subSkuId) return;
-    if(s.agotado&&!showAgotados) return;
+    // FIX: "Agotados" pasa a ser un filtro exclusivo — marcado, muestra
+    // SOLO los agotados; desmarcado, los oculta (antes solo dejaba de
+    // ocultarlos, mezclando agotados + activos en la misma vista).
+    if(showAgotados){
+      if(!s.agotado) return;
+    } else {
+      if(s.agotado) return;
+    }
     const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
     const st = getSem(s.caducidad);
     if(sem&&st!==sem) return;

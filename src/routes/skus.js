@@ -7,8 +7,7 @@ const { verificarToken, verificarNivel } = require('../middlewares/auth');
 router.get('/globales', verificarToken, async (req, res) => {
   try {
     const result = await pool.query(
-      // FIX: columnas explícitas en lugar de SELECT * para no exponer futuras columnas sensibles
-      'SELECT id, codigo, nombre, familia, subgrupo, campos, precio FROM skus_globales WHERE activo = true ORDER BY codigo'
+      'SELECT id, codigo, nombre, familia, subgrupo, campos, precio, unidad FROM skus_globales WHERE activo = true ORDER BY codigo'
     );
     res.json(result.rows);
   } catch (err) {
@@ -19,8 +18,8 @@ router.get('/globales', verificarToken, async (req, res) => {
 
 // POST /api/skus/globales — nivel 4
 router.post('/globales', verificarToken, verificarNivel(4), async (req, res) => {
-  const { codigo, nombre, familia, subgrupo, precio, campos } = req.body;
-  if (!codigo || !nombre || !familia || !subgrupo) {
+  const { codigo, nombre, familia, subgrupo, precio, campos, unidad } = req.body;
+  if (!codigo || !nombre || !familia || !subgrupo || !unidad) {
     return res.status(400).json({ error: 'Faltan campos obligatorios' });
   }
   try {
@@ -31,13 +30,12 @@ router.post('/globales', verificarToken, verificarNivel(4), async (req, res) => 
       return res.status(400).json({ error: 'Este SKU ya existe' });
     }
     const result = await pool.query(
-      `INSERT INTO skus_globales (codigo, nombre, familia, subgrupo, precio, campos)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [codigo, nombre, familia, subgrupo, precio||0, JSON.stringify(campos || [])]
+      `INSERT INTO skus_globales (codigo, nombre, familia, subgrupo, precio, campos, unidad)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [codigo, nombre, familia, subgrupo, precio || 0, JSON.stringify(campos || []), unidad.trim()]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    // FIX SEGURIDAD: no exponer err.message de la BD al cliente
     console.error('ERROR POST /skus/globales:', err.message, err.detail);
     res.status(500).json({ error: 'Error al crear el SKU. Intenta de nuevo.' });
   }
@@ -74,14 +72,36 @@ router.get('/sub', verificarToken, async (req, res) => {
 });
 
 // POST /api/skus/sub — nivel 3 y 4
+// FIX: la unidad de medida ya NO se recibe del cliente — se toma del
+// SKU Global, que es ahora la única fuente de verdad para ese dato.
 router.post('/sub', verificarToken, verificarNivel(3), async (req, res) => {
-  const { sku_global_id, proveedor, lote, invima, caducidad, unidad, precio, sub_sku_manual } = req.body;
-  if (!sku_global_id || !unidad) {
-    return res.status(400).json({ error: 'Faltan campos obligatorios' });
+  const { sku_global_id, proveedor, lote, invima, caducidad, precio, sub_sku_manual } = req.body;
+
+  if (!sku_global_id) {
+    return res.status(400).json({ error: 'Falta el SKU Global' });
   }
   if (precio === undefined || precio === null || isNaN(precio) || Number(precio) <= 0) {
     return res.status(400).json({ error: 'El precio unitario es obligatorio y debe ser mayor a 0' });
   }
+
+  let unidad;
+  try {
+    const skuGlobal = await pool.query(
+      'SELECT unidad FROM skus_globales WHERE id = $1 AND activo = true',
+      [sku_global_id]
+    );
+    if (!skuGlobal.rows.length) {
+      return res.status(404).json({ error: 'SKU Global no encontrado' });
+    }
+    unidad = skuGlobal.rows[0].unidad;
+    if (!unidad) {
+      return res.status(400).json({ error: 'Este SKU Global no tiene unidad de medida definida. Asígnasela primero en SKUs Globales.' });
+    }
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Error del servidor' });
+  }
+
   const abrevProv = (str) => {
     if (!str) return null;
     const words = str.trim().split(/\s+/).filter(Boolean);
