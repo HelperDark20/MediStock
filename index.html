@@ -686,7 +686,7 @@
     </div>
   </div>
 </div>
-
+<div id="mobile-bottom-nav" class="mobile-bottom-nav"></div>
 <!-- MODAL CONFIRMACIÓN -->
 <div class="modal-overlay" id="modal-confirm">
   <div class="modal-sheet">
@@ -796,12 +796,19 @@
     <input type="hidden" id="evtasig-usuario-id">
     <div class="evt-checklist" id="evtasig-checklist" style="max-height:260px"></div>
     <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeModal('modal-asignar-depositos')">Cancelar</button>
+      <button class="btn-cancel" onclick="evtCancelarAsignacion()">Cancelar</button>
       <button class="btn-confirm" onclick="evtGuardarAsignacion()">Guardar depósitos</button>
     </div>
   </div>
 </div>
-
+<!-- MODAL MÁS OPCIONES (nav móvil) -->
+<div class="modal-overlay" id="modal-mas-movil">
+  <div class="modal-sheet" style="max-width:420px">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Más opciones</div>
+    <div id="mnav-mas-list" class="mnav-mas-list"></div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <!-- Agregar esta línea en index.html ANTES de <script src="api.js"></script> -->
@@ -818,6 +825,7 @@
 <script src="js/state.js"></script>
 <script src="js/autocomplete.js"></script>
 <script src="js/nav.js"></script>
+<script src="js/mobile-nav.js"></script>
 <script src="js/dashboard.js"></script> 
 <script src="js/inventario.js"></script>
 <script src="js/movimientos.js"></script>

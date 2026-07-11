@@ -255,6 +255,7 @@ document.addEventListener('click', e=>{
 
 // ── ASIGNAR DEPÓSITOS A UN ENFERMERO (interfaz independiente) ──
 function evtAbrirAsignarDepositos(usuarioId, nombre){
+  document.getElementById('modal-evento-detalle').classList.remove('open');
   _evtAsignarUsuarioId = usuarioId;
   const persona = (_evtDetalleEvento?.personal||[]).find(p=>p.id===usuarioId);
   _evtAsignarSeleccion = new Set((persona?.bodegas||[]).map(b=>b.id));
@@ -290,10 +291,17 @@ async function evtGuardarAsignacion(){
     evtDetRenderEnfermeros();
     S.eventos = await Eventos.getAll();
     renderEventos();
+    document.getElementById('modal-evento-detalle').classList.add('open');
     toast('✓ Depósitos actualizados','success');
   } catch(err){
     toastError(err.message);
+    document.getElementById('modal-evento-detalle').classList.add('open');
   }
+}
+
+function evtCancelarAsignacion(){
+  closeModal('modal-asignar-depositos');
+  document.getElementById('modal-evento-detalle').classList.add('open');
 }
 
 // ── INICIAR / FINALIZAR ──

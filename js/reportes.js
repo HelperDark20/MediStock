@@ -166,25 +166,25 @@ function actualizarReporte(){
     let rows = '';
     entries.forEach(u=>{
       rows += `<tr style="background:var(--cream)">
-        <td style="font-weight:700">${escHtml(u.nombre)}</td>
-        <td style="font-family:var(--font-mono);font-weight:700">${u.unidades.toLocaleString('es-CO')}</td>
-        <td style="font-family:var(--font-mono);font-weight:700">${fmtCOP(u.valor)}</td>
-        <td style="font-family:var(--font-mono);font-weight:700">${totalValor?((u.valor/totalValor)*100).toFixed(1):'0.0'}%</td>
+        <td data-label="Ubicación" style="font-weight:700">${escHtml(u.nombre)}</td>
+        <td data-label="Unidades" style="font-family:var(--font-mono);font-weight:700">${u.unidades.toLocaleString('es-CO')}</td>
+        <td data-label="Valor" style="font-family:var(--font-mono);font-weight:700">${fmtCOP(u.valor)}</td>
+        <td data-label="%" style="font-family:var(--font-mono);font-weight:700">${totalValor?((u.valor/totalValor)*100).toFixed(1):'0.0'}%</td>
       </tr>`;
       Object.entries(u.depositos).sort((a,b)=>b[1].valor-a[1].valor).forEach(([depNombre, dep])=>{
         rows += `<tr>
-          <td style="padding-left:28px;color:#666">${escHtml(depNombre)}</td>
-          <td style="font-family:var(--font-mono)">${dep.unidades.toLocaleString('es-CO')}</td>
-          <td style="font-family:var(--font-mono)">${fmtCOP(dep.valor)}</td>
-          <td style="font-family:var(--font-mono);color:#888">${totalValor?((dep.valor/totalValor)*100).toFixed(1):'0.0'}%</td>
+          <td data-label="Depósito" style="padding-left:28px;color:#666">${escHtml(depNombre)}</td>
+          <td data-label="Unidades" style="font-family:var(--font-mono)">${dep.unidades.toLocaleString('es-CO')}</td>
+          <td data-label="Valor" style="font-family:var(--font-mono)">${fmtCOP(dep.valor)}</td>
+          <td data-label="%" style="font-family:var(--font-mono);color:#888">${totalValor?((dep.valor/totalValor)*100).toFixed(1):'0.0'}%</td>
         </tr>`;
       });
     });
     rows += `<tr style="border-top:2px solid var(--ink)">
-      <td style="font-weight:800">TOTAL</td>
-      <td style="font-family:var(--font-mono);font-weight:800">${totalUnidades.toLocaleString('es-CO')}</td>
-      <td style="font-family:var(--font-mono);font-weight:800">${fmtCOP(totalValor)}</td>
-      <td style="font-family:var(--font-mono);font-weight:800">100%</td>
+      <td data-label="Total">TOTAL</td>
+      <td data-label="Unidades" style="font-family:var(--font-mono);font-weight:800">${totalUnidades.toLocaleString('es-CO')}</td>
+      <td data-label="Valor" style="font-family:var(--font-mono);font-weight:800">${fmtCOP(totalValor)}</td>
+      <td data-label="%" style="font-family:var(--font-mono);font-weight:800">100%</td>
     </tr>`;
     body.innerHTML = rows;
   }
@@ -194,10 +194,10 @@ function actualizarReporte(){
     const top = _repTopItems(movs);
     topBody.innerHTML = top.length
       ? top.map(it=>`<tr>
-          <td><span class="sku-code">${escHtml(it.codigo)}</span></td>
-          <td>${escHtml(it.nombre)}</td>
-          <td style="font-family:var(--font-mono)">${it.unidades.toLocaleString('es-CO')}</td>
-          <td style="font-family:var(--font-mono)">${fmtCOP(it.valor)}</td>
+          <td data-label="SKU"><span class="sku-code">${escHtml(it.codigo)}</span></td>
+          <td data-label="Ítem">${escHtml(it.nombre)}</td>
+          <td data-label="Unidades" style="font-family:var(--font-mono)">${it.unidades.toLocaleString('es-CO')}</td>
+          <td data-label="Valor" style="font-family:var(--font-mono)">${fmtCOP(it.valor)}</td>
         </tr>`).join('')
       : '<tr><td colspan="4"><div class="empty-state"><i class="ti ti-pill"></i><p>Sin ítems en este período</p></div></td></tr>';
   }

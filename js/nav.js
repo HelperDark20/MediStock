@@ -27,6 +27,7 @@ function buildNav(){
     btn.onclick = ()=>goTo(n.id);
     sb.appendChild(btn);
   });
+  buildMobileNav();
 }
 
 function populateSelects(){
@@ -82,4 +83,5 @@ function goTo(viewId){
     bodegas:renderBodegas, eventos:renderEventos, reportes:renderReportes
   };
   renders[viewId]?.();
+  syncMobileNavActive();
 }

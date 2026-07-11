@@ -121,18 +121,18 @@ function renderMovBody(){
   }
   body.innerHTML = S.movimientos.map(m=>`
     <tr>
-      <td style="font-size:11px;font-family:var(--font-mono);color:#888">
+      <td data-label="Fecha" style="font-size:11px;font-family:var(--font-mono);color:#888">
         ${new Date(m.created_at).toLocaleString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
       </td>
-      <td><span class="sku-code">${escHtml(m.sku_global_codigo||'—')}</span></td>
-      <td><span class="sub-sku" style="font-size:9px">${escHtml((m.sub_sku||'').split('-').slice(0,2).join('-'))}</span></td>
-      <td><span class="mov-tipo ${m.tipo}">${escHtml(m.tipo)}</span></td>
-      <td style="font-size:12px;color:#666">${escHtml(m.origen_nombre||'—')} → ${escHtml(m.destino_nombre||'—')}</td>
-      <td style="font-family:var(--font-mono);font-weight:600">${m.cantidad}</td>
-      <td style="font-size:12px">
+      <td data-label="SKU global"><span class="sku-code">${escHtml(m.sku_global_codigo||'—')}</span></td>
+      <td data-label="Sub-SKU"><span class="sub-sku" style="font-size:9px">${escHtml((m.sub_sku||'').split('-').slice(0,2).join('-'))}</span></td>
+      <td data-label="Tipo"><span class="mov-tipo ${m.tipo}">${escHtml(m.tipo)}</span></td>
+      <td data-label="Origen → Destino" style="font-size:12px;color:#666">${escHtml(m.origen_nombre||'—')} → ${escHtml(m.destino_nombre||'—')}</td>
+      <td data-label="Cant." style="font-family:var(--font-mono);font-weight:600">${m.cantidad}</td>
+      <td data-label="Usuario" style="font-size:12px">
         <div style="font-weight:500">${escHtml(m.usuario_nombre||'—')}</div>
       </td>
-      <td>
+      <td data-label="Nivel">
         <span class="nivel-badge n${m.usuario_nivel||0}" style="font-size:9px">
           ${NIVELES[m.usuario_nivel||0]?.label||'—'}
         </span>

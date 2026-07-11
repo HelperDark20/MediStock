@@ -959,3 +959,73 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 .topbar-right-group{display:flex;align-items:center;gap:10px}
 .logout-btn{color:#888}
 .logout-btn:hover{background:var(--red-bg);border-color:var(--red2);color:var(--red2)}
+/* ══════════════════════════════════════════
+   MOBILE — nav inferior, tarjetas en vez de
+   tablas, y grids que faltaban por apilar.
+   ══════════════════════════════════════════ */
+
+.mobile-bottom-nav{display:none}
+
+@media(max-width:768px){
+
+  /* ── Nav inferior fijo ── */
+  .mobile-bottom-nav{
+    display:flex;position:fixed;left:0;right:0;bottom:0;z-index:700;
+    background:var(--ink);border-top:1px solid rgba(33,150,211,.15);
+    padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+  }
+  .mnav-item{
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;
+    background:none;border:none;color:rgba(255,255,255,.45);padding:6px 2px;
+    border-radius:var(--r-md);font-family:var(--font-body);cursor:pointer;
+  }
+  .mnav-item i{font-size:19px}
+  .mnav-item span{font-size:9px;font-weight:600}
+  .mnav-item.active{color:#fff;background:rgba(33,150,211,.18)}
+  .mnav-mas-list{display:flex;flex-direction:column;gap:4px}
+  .mnav-mas-item{
+    display:flex;align-items:center;gap:12px;padding:12px 14px;border:none;
+    background:var(--cream);border-radius:var(--r-md);font-size:14px;
+    font-weight:500;color:var(--ink);cursor:pointer;text-align:left;
+  }
+  .mnav-mas-item i{font-size:18px;color:var(--blue)}
+
+  /* Deja espacio para que el contenido no quede tapado por el nav */
+  .content{padding-bottom:78px}
+
+  /* ── Grids que el media query original no cubría ── */
+  .grid-2{grid-template-columns:1fr}
+  .grid-3{grid-template-columns:1fr}
+  .grid-4{grid-template-columns:1fr 1fr}
+  .form-grid.cols3{grid-template-columns:1fr}
+
+  /* ── Tablas → tarjetas (usa data-label de cada <td>) ── */
+  .table-wrap table thead{display:none}
+  .table-wrap table,
+  .table-wrap tbody,
+  .table-wrap tr,
+  .table-wrap td{display:block;width:100%}
+  .table-wrap tr{
+    background:var(--white);border:1px solid var(--cream3);
+    border-radius:var(--r-lg);margin:0 12px 10px;padding:10px 12px;
+  }
+  .table-wrap thead + tbody tr:first-child{margin-top:12px}
+  .table-wrap td{
+    border-bottom:1px solid var(--cream2);padding:7px 0;
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+  }
+  .table-wrap td:last-child{border-bottom:none}
+  .table-wrap td[data-label=""]{justify-content:flex-end;padding-top:10px}
+  .table-wrap td[data-label]::before{
+    content:attr(data-label);font-size:10px;font-weight:700;color:#999;
+    text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono);
+    flex-shrink:0;
+  }
+  .table-wrap td[data-label=""]::before{content:none}
+  .table-wrap .act-btn-group{justify-content:flex-end}
+  .table-toolbar{padding:12px}
+}
+
+@media(max-width:420px){
+  .grid-4{grid-template-columns:1fr}
+}

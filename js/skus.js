@@ -107,14 +107,14 @@ function renderSKUs(){
     ).join(' ');
     const subsCount = S.subSkus.filter(s => s.skuGlobalId === g.id).length;
     return `<tr>
-      <td><span class="sku-code">${escHtml(g.codigo)}</span></td>
-      <td>
+      <td data-label="SKU"><span class="sku-code">${escHtml(g.codigo)}</span></td>
+      <td data-label="Ítem">
         <div style="font-weight:500;font-size:13px">${escHtml(g.nombre)}</div>
         <div style="font-size:11px;color:#aaa;margin-top:2px">${subsCount} sub-SKU${subsCount!==1?'s':''} · ${escHtml(g.unidad||'sin unidad')}</div>
       </td>
-      <td>${famBadge(g.familia)}</td>
-      <td style="display:flex;gap:3px;flex-wrap:wrap;align-items:center">${camposBadges||'—'}</td>
-      <td>
+      <td data-label="Familia">${famBadge(g.familia)}</td>
+      <td data-label="Campos" style="display:flex;gap:3px;flex-wrap:wrap;align-items:center">${camposBadges||'—'}</td>
+      <td data-label="">
         ${currentRole===4?`<button class="act-btn danger" onclick="confirmDeleteSKU(${g.id})" title="Eliminar"><i class="ti ti-trash"></i></button>`:''}
       </td>
     </tr>`;
