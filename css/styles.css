@@ -955,3 +955,7 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 .fam.c6{background:var(--orange-bg);color:var(--orange)}
 .fam.c7{background:var(--blue-bg);color:var(--blue)}
 .fam.c8{background:#F0F0EE;color:#666}
+/* ── Grupo del topbar: acciones de la vista + botón de cerrar sesión ── */
+.topbar-right-group{display:flex;align-items:center;gap:10px}
+.logout-btn{color:#888}
+.logout-btn:hover{background:var(--red-bg);border-color:var(--red2);color:var(--red2)}

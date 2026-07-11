@@ -53,15 +53,17 @@
       </div>
     </div>
     <div class="sb-nav" id="sb-nav"></div>
-    <div class="sb-footer">
-      <button class="sb-footer-btn" onclick="doLogout()"><i class="ti ti-logout"></i>Cerrar sesión</button>
-    </div>
   </div>
 
   <div class="main">
     <div class="topbar">
       <div class="page-title" id="page-title">Dashboard</div>
-      <div class="topbar-right" id="topbar-actions"></div>
+      <div class="topbar-right-group">
+        <div class="topbar-right" id="topbar-actions"></div>
+        <button class="tb-btn logout-btn" onclick="doLogout()" title="Cerrar sesión">
+          <i class="ti ti-logout"></i>Cerrar sesión
+        </button>
+      </div>
     </div>
     <div class="content">
 
