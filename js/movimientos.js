@@ -1,3 +1,11 @@
+// Filtro activo del historial (llega desde el dashboard al tocar un
+// consumo). null = sin filtro, comportamiento normal.
+let _movFiltro = null; // { ubicacionNombre, mes:'YYYY-MM', mesLabel }
+
+function movClearFiltro(){
+  _movFiltro = null;
+  renderMovBody();
+}
 function renderMovimientos(){
   const canTraslado = currentRole>=3;
   const canDestruccion = currentRole>=3;
@@ -114,12 +122,38 @@ async function registrarMovimiento(){
 }
 
 function renderMovBody(){
-  const body = document.getElementById('mov-body');
-  if(!S.movimientos.length){
+  const body   = document.getElementById('mov-body');
+  const banner = document.getElementById('mov-alert-banner');
+
+  let movs = S.movimientos;
+
+  if(_movFiltro){
+    movs = movs.filter(m=>{
+      if(m.tipo!=='consumo') return false;
+      if(_movFiltro.mes && (!m.created_at || fechaColombia(m.created_at).slice(0,7)!==_movFiltro.mes)) return false;
+      if(_movFiltro.ubicacionNombre){
+        const bodega = (S.bodegasRaw||[]).find(b=>b.nombre===m.origen_nombre);
+        if(!bodega || bodega.ubicacion_nombre!==_movFiltro.ubicacionNombre) return false;
+      }
+      return true;
+    });
+  }
+
+  if(banner){
+    if(_movFiltro){
+      banner.className = 'alert-banner show amber';
+      banner.innerHTML = `<i class="ti ti-filter"></i><span style="flex:1">Mostrando consumos de <strong>${escHtml(_movFiltro.ubicacionNombre||'todas las ubicaciones')}</strong> — ${escHtml(_movFiltro.mesLabel||'')}</span><button class="act-btn" onclick="movClearFiltro()" title="Quitar filtro"><i class="ti ti-x"></i></button>`;
+    } else {
+      banner.className = 'alert-banner';
+      banner.innerHTML = '';
+    }
+  }
+
+  if(!movs.length){
     body.innerHTML='<tr><td colspan="8"><div class="empty-state"><i class="ti ti-history"></i><p>Sin movimientos registrados</p></div></td></tr>';
     return;
   }
-  body.innerHTML = S.movimientos.map(m=>`
+  body.innerHTML = movs.map(m=>`
     <tr>
       <td data-label="Fecha" style="font-size:11px;font-family:var(--font-mono);color:#888">
         ${new Date(m.created_at).toLocaleString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
@@ -138,13 +172,4 @@ function renderMovBody(){
         </span>
       </td>
     </tr>`).join('');
-}
-
-function quickMov(subId, ubicacion){
-  goTo('movimientos');
-  setTimeout(()=>{
-    acSelect('mov', subId);
-    document.getElementById('mov-origen').value = ubicacion;
-    updateMovInfo();
-  },100);
 }

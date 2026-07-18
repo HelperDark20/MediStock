@@ -108,9 +108,9 @@
               <input type="month" id="dash-consumo-mes" onchange="dashConsumoMesChange()" style="font-size:12px;padding:5px 10px">
             </div>
             <div class="card-body">
-              <div style="margin-bottom:12px">
+              <div style="margin-bottom:12px;cursor:pointer" onclick="dashGoConsumoHistorial(null)" title="Ver historial de consumos">
                 <span id="dash-consumo-total" style="font-family:var(--font-head);font-size:28px;font-weight:800;color:var(--ink)">0</span>
-                <span style="font-size:13px;color:#888;font-weight:500;margin-left:4px">unidades consumidas</span>
+                <span style="font-size:13px;color:#888;font-weight:500;margin-left:4px">unidades consumidas <i class="ti ti-arrow-right" style="font-size:11px;margin-left:2px;vertical-align:middle"></i></span>
               </div>
               <div id="dash-consumo-chips" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px"></div>
               <div id="dash-consumo-chart-wrap" style="position:relative;width:100%;height:180px">
@@ -197,6 +197,7 @@
 
       <!-- ═══ MOVIMIENTOS ═══ -->
       <div class="view" id="view-movimientos">
+        <div id="mov-alert-banner" class="alert-banner"></div>
         <div class="card" id="mov-card">
           <div class="card-header"><i class="ti ti-transfer card-title"></i><span class="card-title">Registrar movimiento</span></div>
           <div class="card-body">

@@ -250,7 +250,10 @@ function renderConsumoChart(){
   if(chips){
     chips.innerHTML = labels.length
       ? entries.map(([,u])=>`
-          <span class="dash-chip active">${escHtml(u.nombre)}: ${u.total.toLocaleString('es-CO')} u.</span>
+          <span class="dash-chip active" style="cursor:pointer" title="Ver historial de consumos"
+            onclick="dashGoConsumoHistorial('${u.nombre.replace(/'/g,"\\'")}')">
+            ${escHtml(u.nombre)}: ${u.total.toLocaleString('es-CO')} u.
+          </span>
         `).join('')
       : '<span style="font-size:12px;color:#aaa">Sin consumos este mes</span>';
   }
@@ -278,11 +281,18 @@ function renderConsumoChart(){
     options:{
       responsive: true,
       maintainAspectRatio: false,
+      onClick: (evt, elements) => {
+        if(!elements.length) return;
+        dashGoConsumoHistorial(labels[elements[0].index]);
+      },
+      onHover: (evt, elements) => {
+        evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+      },
       plugins:{
         legend:{ display:false },
         tooltip:{
           callbacks:{
-            label: ctx => ` ${ctx.raw.toLocaleString('es-CO')} unidades`
+            label: ctx => ` ${ctx.raw.toLocaleString('es-CO')} unidades — clic para ver historial`
           }
         }
       },
@@ -301,4 +311,13 @@ function dashConsumoMesChange(){
 function dashGoInventarioFiltro(tipo){
   goTo('inventario');
   invSetAlertFilter(tipo);
+}
+// ── Ir al historial de movimientos filtrado por consumo del mes/ubicación
+// seleccionados en el dashboard. ubicacionNombre=null → todas las ubicaciones ──
+function dashGoConsumoHistorial(ubicacionNombre){
+  const mesInput = document.getElementById('dash-consumo-mes');
+  const mes = mesInput?.value || fechaColombia().slice(0,7);
+  const mesLabel = new Date(mes+'-02').toLocaleDateString('es-CO',{month:'long',year:'numeric'});
+  _movFiltro = { ubicacionNombre, mes, mesLabel };
+  goTo('movimientos');
 }
