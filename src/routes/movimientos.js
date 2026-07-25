@@ -218,4 +218,109 @@ router.post('/destruccion', verificarToken, verificarNivel(3), async (req, res) 
   }
 });
 
+// POST /api/movimientos/:id/revertir — nivel 4 — revierte un movimiento y ajusta el stock
+router.post('/:id/revertir', verificarToken, verificarNivel(4), async (req, res) => {
+  const movId = parseInt(req.params.id);
+  if (!movId) return res.status(400).json({ error: 'Movimiento inválido' });
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const movResult = await client.query('SELECT * FROM movimientos WHERE id = $1 FOR UPDATE', [movId]);
+    if (!movResult.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Movimiento no encontrado' });
+    }
+    const mov = movResult.rows[0];
+
+    if (mov.revertido) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Este movimiento ya fue revertido' });
+    }
+    if (mov.tipo === 'reversion') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'No puedes revertir una reversión' });
+    }
+
+    let nuevoOrigenId = null, nuevoDestinoId = null;
+
+    if (mov.tipo === 'compra') {
+      const stockActual = await client.query(
+        'SELECT cantidad FROM stock WHERE sub_sku_id = $1 AND bodega_id = $2',
+        [mov.sub_sku_id, mov.bodega_destino_id]
+      );
+      const disponible = stockActual.rows[0]?.cantidad || 0;
+      if (disponible < mov.cantidad) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: `No se puede revertir: solo quedan ${disponible} unidades disponibles en ese depósito (parte del stock ya se movió o consumió)` });
+      }
+      await client.query(
+        'UPDATE stock SET cantidad = cantidad - $1 WHERE sub_sku_id = $2 AND bodega_id = $3',
+        [mov.cantidad, mov.sub_sku_id, mov.bodega_destino_id]
+      );
+      nuevoDestinoId = mov.bodega_destino_id;
+
+    } else if (mov.tipo === 'consumo' || mov.tipo === 'destruccion') {
+      await client.query(
+        `INSERT INTO stock (sub_sku_id, bodega_id, cantidad)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (sub_sku_id, bodega_id)
+         DO UPDATE SET cantidad = stock.cantidad + $3`,
+        [mov.sub_sku_id, mov.bodega_origen_id, mov.cantidad]
+      );
+      nuevoOrigenId = mov.bodega_origen_id;
+
+    } else if (mov.tipo === 'traslado') {
+      const stockDestino = await client.query(
+        'SELECT cantidad FROM stock WHERE sub_sku_id = $1 AND bodega_id = $2',
+        [mov.sub_sku_id, mov.bodega_destino_id]
+      );
+      const disponibleDestino = stockDestino.rows[0]?.cantidad || 0;
+      if (disponibleDestino < mov.cantidad) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: `No se puede revertir: solo quedan ${disponibleDestino} unidades disponibles en el depósito destino` });
+      }
+      await client.query(
+        'UPDATE stock SET cantidad = cantidad - $1 WHERE sub_sku_id = $2 AND bodega_id = $3',
+        [mov.cantidad, mov.sub_sku_id, mov.bodega_destino_id]
+      );
+      await client.query(
+        `INSERT INTO stock (sub_sku_id, bodega_id, cantidad)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (sub_sku_id, bodega_id)
+         DO UPDATE SET cantidad = stock.cantidad + $3`,
+        [mov.sub_sku_id, mov.bodega_origen_id, mov.cantidad]
+      );
+      nuevoOrigenId = mov.bodega_destino_id;
+      nuevoDestinoId = mov.bodega_origen_id;
+
+    } else {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Este tipo de movimiento no se puede revertir' });
+    }
+
+    await client.query(
+      `UPDATE movimientos SET revertido = true, revertido_at = NOW(), revertido_por = $1 WHERE id = $2`,
+      [req.usuario.id, movId]
+    );
+
+    await client.query(
+      `INSERT INTO movimientos
+         (sub_sku_id, tipo, bodega_origen_id, bodega_destino_id, cantidad, usuario_id, usuario_nombre, movimiento_original_id)
+       VALUES ($1, 'reversion', $2, $3, $4, $5, $6, $7)`,
+      [mov.sub_sku_id, nuevoOrigenId, nuevoDestinoId, mov.cantidad, req.usuario.id, req.usuario.nombre, movId]
+    );
+
+    await client.query('COMMIT');
+    res.json({ mensaje: 'Movimiento revertido correctamente' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor al revertir el movimiento' });
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = router;

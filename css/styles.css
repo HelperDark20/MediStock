@@ -1029,3 +1029,8 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 @media(max-width:420px){
   .grid-4{grid-template-columns:1fr}
 }
+.mov-row-clickable{cursor:pointer}
+.mov-row-clickable:hover td{background:var(--blue-pale)}
+.mov-tipo.reversion{background:#F5F0FB;color:#6B3FA0}
+.tl-dot.reversion{background:#6B3FA0}
+.tl-tipo.reversion{color:#6B3FA0}

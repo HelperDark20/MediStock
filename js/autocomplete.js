@@ -50,8 +50,6 @@ function acFilter(ns){
   drop.classList.add('open');
 }
 
-// Lógica especial del autocomplete para el panel Enfermero
-// Separada aquí para evitar cualquier riesgo de recursión
 function _acFilterEnf(){
   const q    = (document.getElementById('enf-ac-input').value||'').toLowerCase().trim();
   const drop = document.getElementById('enf-ac-drop');
@@ -63,12 +61,21 @@ function _acFilterEnf(){
 
   const bodega = document.getElementById('enf-origen').value;
 
-  const results = S.subSkus.filter(s => {
+  let results = S.subSkus.filter(s => {
     if(bodega && (s.stock?.[bodega]||0) <= 0) return false;
     return s.nombre.toLowerCase().includes(q) ||
            s.subSku.toLowerCase().includes(q) ||
            (s.lote||'').toLowerCase().includes(q) ||
            (s.proveedor||'').toLowerCase().includes(q);
+  });
+
+  // FEFO: si hay varios sub-SKUs del mismo SKU Global en la bodega,
+  // se muestra primero el que vence más pronto.
+  results = results.sort((a,b)=>{
+    if(!a.caducidad && !b.caducidad) return 0;
+    if(!a.caducidad) return 1;
+    if(!b.caducidad) return -1;
+    return new Date(a.caducidad) - new Date(b.caducidad);
   }).slice(0, 10);
 
   if(!results.length){
@@ -82,6 +89,7 @@ function _acFilterEnf(){
   drop.innerHTML = results.map((s, idx) => {
     const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
     const cantBodega = bodega ? (s.stock?.[bodega]||0) : getTotalStock(s);
+    const sem = getSem(s.caducidad);
     return `<div class="ac-item" data-id="${s.id}"
       onmousedown="acSelect('enf',${s.id})"
       onmouseover="acHover('enf',${idx})">
@@ -92,6 +100,7 @@ function _acFilterEnf(){
           <span class="sku-code" style="font-size:9px">${skuG?.codigo||''}</span>
           <span>${hilite(s.subSku)}</span>
           ${s.lote&&s.lote!=='—'?`<span>Lote: ${hilite(s.lote)}</span>`:''}
+          <span class="enf-sem ${sem}">Vence: ${fmtDate(s.caducidad)}</span>
         </div>
       </div>
       <div class="ac-item-stock">${cantBodega} ${s.unidad}</div>
@@ -109,7 +118,15 @@ function acOpen(ns){
   let pool;
   if(ns === 'enf'){
     const bodega = document.getElementById('enf-origen').value;
-    pool = S.subSkus.filter(s => !bodega || (s.stock?.[bodega]||0) > 0).slice(0,8);
+    pool = S.subSkus
+      .filter(s => !bodega || (s.stock?.[bodega]||0) > 0)
+      .sort((a,b)=>{
+        if(!a.caducidad && !b.caducidad) return 0;
+        if(!a.caducidad) return 1;
+        if(!b.caducidad) return -1;
+        return new Date(a.caducidad) - new Date(b.caducidad);
+      })
+      .slice(0,8);
   } else {
     pool = S.subSkus.filter(s=>!s.agotado).slice(0,8);
   }
@@ -121,6 +138,7 @@ function acOpen(ns){
     const ubicaciones = ns!=='enf'
       ? Object.entries(s.stock||{}).filter(([,v])=>v>0).map(([k])=>k).join(', ')
       : '';
+    const semEnf = ns==='enf' ? getSem(s.caducidad) : null;
     return`<div class="ac-item" data-id="${s.id}" onmousedown="acSelect('${ns}',${s.id})" onmouseover="acHover('${ns}',${idx})">
       <div class="ac-item-icon"><i class="ti ti-pill"></i></div>
       <div class="ac-item-body">
@@ -129,6 +147,7 @@ function acOpen(ns){
           <span class="sku-code" style="font-size:9px">${skuG?.codigo||''}</span>
           <span>${s.subSku}</span>
           ${ubicaciones?`<span style="background:var(--cream2);color:#666;padding:1px 6px;border-radius:4px;font-size:9px">${ubicaciones}</span>`:''}
+          ${semEnf?`<span class="enf-sem ${semEnf}">Vence: ${fmtDate(s.caducidad)}</span>`:''}
         </div>
       </div>
       <div class="ac-item-stock">${stock} ${s.unidad}</div>

@@ -138,7 +138,8 @@ async function renderTrazabilidad(){
     const subs = S.subSkus.filter(s=>s.skuGlobalId===gId&&(!sId||s.id===sId));
     const tipoIcon = {
       compra:'ti-shopping-cart', asignacion:'ti-arrow-right',
-      traslado:'ti-transfer', consumo:'ti-minus-circle', destruccion:'ti-trash'
+      traslado:'ti-transfer', consumo:'ti-minus-circle', destruccion:'ti-trash',
+      reversion:'ti-arrow-back-up'
     };
 
     // Fix #11: escHtml en todos los campos de texto del servidor
@@ -192,6 +193,8 @@ async function renderTrazabilidad(){
                        ?`Consumo de <strong>${m.cantidad}</strong> unidades desde <strong>${escHtml(m.origen_nombre||'—')}</strong>`
                        :m.tipo==='traslado'
                        ?`Traslado de <strong>${m.cantidad}</strong> unidades de <strong>${escHtml(m.origen_nombre||'—')}</strong> a <strong>${escHtml(m.destino_nombre||'—')}</strong>`
+                       :m.tipo==='reversion'
+                       ?`Reversión de <strong>${m.cantidad}</strong> unidades — anula el movimiento #${m.movimiento_original_id||'—'}`
                        :`Baja de <strong>${m.cantidad}</strong> unidades desde <strong>${escHtml(m.origen_nombre||'—')}</strong>${m.motivo?' · Motivo: '+escHtml(m.motivo):''}`}
                    </div>
                    <div class="tl-user">

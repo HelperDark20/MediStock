@@ -82,7 +82,8 @@ const Movimientos = {
   entrada: (data) => request('POST', '/api/movimientos/entrada', data),
   consumo: (data) => request('POST', '/api/movimientos/consumo', data),
   traslado: (data) => request('POST', '/api/movimientos/traslado', data),
-  destruccion: (data) => request('POST', '/api/movimientos/destruccion', data)
+  destruccion: (data) => request('POST', '/api/movimientos/destruccion', data),
+  revertir: (id) => request('POST', `/api/movimientos/${id}/revertir`)
 };
 
 // ── USUARIOS ──

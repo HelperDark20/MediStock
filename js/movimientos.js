@@ -153,14 +153,21 @@ function renderMovBody(){
     body.innerHTML='<tr><td colspan="8"><div class="empty-state"><i class="ti ti-history"></i><p>Sin movimientos registrados</p></div></td></tr>';
     return;
   }
-  body.innerHTML = movs.map(m=>`
-    <tr>
+
+  body.innerHTML = movs.map(m=>{
+    const puedeRevertir = currentRole===4 && !m.revertido && m.tipo!=='reversion';
+    return `
+    <tr ${m.revertido?'style="opacity:.55"':''} ${puedeRevertir?`class="mov-row-clickable" onclick="confirmRevertirMovimiento(${m.id})" title="Clic para revertir este movimiento"`:''}>
       <td data-label="Fecha" style="font-size:11px;font-family:var(--font-mono);color:#888">
         ${new Date(m.created_at).toLocaleString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
       </td>
       <td data-label="SKU global"><span class="sku-code">${escHtml(m.sku_global_codigo||'—')}</span></td>
       <td data-label="Sub-SKU"><span class="sub-sku" style="font-size:9px">${escHtml((m.sub_sku||'').split('-').slice(0,2).join('-'))}</span></td>
-      <td data-label="Tipo"><span class="mov-tipo ${m.tipo}">${escHtml(m.tipo)}</span></td>
+      <td data-label="Tipo">
+        <span class="mov-tipo ${m.tipo}">${m.tipo==='reversion'?'Reversión':escHtml(m.tipo)}</span>
+        ${m.revertido?'<span class="mov-tipo" style="background:#F0F0EE;color:#888;margin-left:4px">Revertido</span>':''}
+        ${m.movimiento_original_id?`<div style="font-size:10px;color:#aaa;margin-top:2px">de mov. #${m.movimiento_original_id}</div>`:''}
+      </td>
       <td data-label="Origen → Destino" style="font-size:12px;color:#666">${escHtml(m.origen_nombre||'—')} → ${escHtml(m.destino_nombre||'—')}</td>
       <td data-label="Cant." style="font-family:var(--font-mono);font-weight:600">${m.cantidad}</td>
       <td data-label="Usuario" style="font-size:12px">
@@ -171,5 +178,60 @@ function renderMovBody(){
           ${NIVELES[m.usuario_nivel||0]?.label||'—'}
         </span>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
+}
+
+// ── REVERTIR MOVIMIENTO (solo Administrador) ──
+function confirmRevertirMovimiento(id){
+  const m = S.movimientos.find(x=>x.id===id);
+  if(!m) return;
+  document.getElementById('modal-title').textContent = 'Revertir movimiento';
+  document.getElementById('modal-sub').textContent =
+    `¿Revertir este ${m.tipo} de ${m.cantidad} ${m.unidad||''} — ${m.nombre||''}? El stock se ajustará automáticamente. Esta acción no se puede deshacer.`;
+  document.getElementById('modal-ok-btn').onclick = async ()=>{
+    try {
+      await Movimientos.revertir(id);
+      closeModal('modal-confirm');
+      await loadState();
+      renderMovBody();
+      buildNav();
+      toast('✓ Movimiento revertido — stock actualizado','success');
+    } catch(err){
+      toastError(err.message);
+      closeModal('modal-confirm');
+    }
+  };
+  document.getElementById('modal-confirm').classList.add('open');
+}
+
+// ── ACCIÓN "MOVIMIENTO" DESDE INVENTARIO ──
+// Lleva al módulo de Movimientos con el ítem y la bodega de origen
+// ya preseleccionados, listos para registrar consumo/traslado/destrucción.
+function quickMov(subSkuId, ubicacion){
+  const sub = S.subSkus.find(s => s.id === subSkuId);
+  if(!sub){ toastError('Ítem no encontrado'); return; }
+
+  goTo('movimientos');
+
+  AC.mov.selectedId = sub.id;
+  document.getElementById('mov-sku').value = sub.id;
+  document.getElementById('mov-ac-input').value = sub.nombre;
+  document.getElementById('mov-ac-clear').classList.add('show');
+  document.getElementById('mov-ac-pill-text').innerHTML =
+    `${escHtml(sub.nombre)} <span style="opacity:.6;font-size:11px">${escHtml(sub.subSku)} · ${getTotalStock(sub)} ${escHtml(sub.unidad)}</span>`;
+  document.getElementById('mov-ac-pill').classList.add('show');
+
+  updateMovInfo();
+
+  const origenSel = document.getElementById('mov-origen');
+  if(origenSel && ubicacion){
+    const tieneOpcion = Array.from(origenSel.options).some(o => o.value === ubicacion);
+    if(tieneOpcion){
+      origenSel.value = ubicacion;
+      origenSel.onchange && origenSel.onchange();
+    } else {
+      toast(`"${ubicacion}" no tiene stock disponible de este ítem`, 'error');
+    }
+  }
 }
