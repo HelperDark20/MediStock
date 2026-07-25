@@ -205,7 +205,7 @@
             <div class="form-grid" style="margin-bottom:12px">
               <div class="form-group fg-full">
                 <label>Buscar Sub-SKU / Ítem</label>
-                <div class="ac-wrap">
+                <div class="ac-wrap" id="mov-ac-wrap">
                   <i class="ti ti-search ac-icon"></i>
                   <input type="text" class="ac-input" id="mov-ac-input" placeholder="Buscar por nombre, SKU, lote…" autocomplete="off" oninput="acFilter('mov')" onfocus="acOpen('mov')" onkeydown="acKey(event,'mov')">
                   <button class="ac-clear" id="mov-ac-clear" onclick="acClear('mov')"><i class="ti ti-x"></i></button>
@@ -254,7 +254,7 @@
         <div class="sec-header"><div class="sec-title">Historial de movimientos</div></div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Fecha</th><th>SKU Global</th><th>Sub-SKU</th><th>Tipo</th><th>Origen → Destino</th><th>Cant.</th><th>Usuario</th><th>Nivel</th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Ítem</th><th>Sub-SKU</th><th>Tipo</th><th>Origen → Destino</th><th>Cant.</th><th>Usuario</th><th>Nivel</th></tr></thead>
             <tbody id="mov-body"></tbody>
           </table>
         </div>
@@ -585,24 +585,48 @@
       <div class="view" id="view-reportes">
 
         <div class="card no-print" style="margin-bottom:16px">
-          <div class="card-header"><i class="ti ti-filter card-title"></i><span class="card-title">Filtros del reporte</span></div>
+          <div class="card-header"><i class="ti ti-report-analytics card-title"></i><span class="card-title">Selecciona el reporte a generar</span></div>
+          <div class="card-body">
+            <div class="form-group fg-full" style="margin-bottom:0">
+              <label>Tipo de reporte</label>
+              <select id="rep-tipo-reporte" onchange="repCambiarTipo()">
+                <option value="consumos">Consumos y gastos por ubicación / depósito</option>
+                <option value="cedula">Consumos por cédula de paciente</option>
+                <option value="pacientes">Pacientes atendidos por ubicación</option>
+                <option value="top">Top ítems más consumidos</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="card no-print" style="margin-bottom:16px">
+          <div class="card-header"><i class="ti ti-filter card-title"></i><span class="card-title" id="rep-filtros-title">Filtros del reporte</span></div>
           <div class="card-body">
             <div class="form-grid cols3">
-              <div class="form-group">
-                <label>Mes</label>
-                <input type="month" id="rep-mes" onchange="actualizarReporte()">
+              <div class="form-group" id="rep-fecha-desde-wrap">
+                <label>Desde</label>
+                <input type="date" id="rep-fecha-desde" onchange="actualizarReporte()">
               </div>
-              <div class="form-group">
+              <div class="form-group" id="rep-fecha-hasta-wrap">
+                <label>Hasta</label>
+                <input type="date" id="rep-fecha-hasta" onchange="actualizarReporte()">
+              </div>
+              <div class="form-group" id="rep-ubicacion-wrap">
                 <label>Ubicación</label>
                 <select id="rep-ubicacion" onchange="repUbicacionChange()">
                   <option value="">Todas las ubicaciones</option>
                 </select>
               </div>
-              <div class="form-group">
+              <div class="form-group" id="rep-deposito-wrap">
                 <label>Depósito</label>
                 <select id="rep-deposito" onchange="actualizarReporte()">
                   <option value="">Todos los depósitos</option>
                 </select>
+              </div>
+              <div class="form-group fg-full" id="rep-cedula-wrap" style="display:none">
+                <label>Cédula del paciente</label>
+                <input type="text" id="rep-cedula" placeholder="Ej. 1006166884" inputmode="numeric" pattern="[0-9]*" oninput="repCedulaInput()">
+                <span class="hint">Se mostrará el historial completo de consumos de esta cédula, sin límite de fechas</span>
               </div>
             </div>
             <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
@@ -613,26 +637,12 @@
         </div>
 
         <div id="rep-print-header" class="print-only">
-          <h2 style="font-family:var(--font-head)">Nova Bridge — Reporte de consumos y gastos</h2>
+          <h2 style="font-family:var(--font-head)" id="rep-print-titulo">Nova Bridge — Reporte</h2>
           <p id="rep-print-sub" style="font-size:12px;color:#666"></p>
         </div>
 
-        <div class="grid-4" id="rep-stats" style="margin-bottom:16px"></div>
-
-        <div class="sec-header"><div class="sec-title">Consumos y gastos por ubicación / depósito</div></div>
-        <div class="table-wrap" style="margin-bottom:20px">
-          <table>
-            <thead><tr><th>Ubicación / Depósito</th><th>Unidades consumidas</th><th>Valor (COP)</th><th>% del total</th></tr></thead>
-            <tbody id="rep-body"></tbody>
-          </table>
-        </div>
-
-        <div class="sec-header"><div class="sec-title">Top ítems más consumidos</div></div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>SKU</th><th>Ítem</th><th>Unidades</th><th>Valor (COP)</th></tr></thead>
-            <tbody id="rep-top-body"></tbody>
-          </table>
+        <div id="rep-contenido">
+          <div class="empty-state"><i class="ti ti-report-analytics"></i><p>Cargando reporte...</p></div>
         </div>
 
       </div>
@@ -895,7 +905,7 @@
             <div class="enf-search-title">
               <i class="ti ti-search"></i>Paso 2 — Buscar Medicamento y/o Insumo
             </div>
-            <div class="ac-wrap">
+            <div class="ac-wrap" id="enf-ac-wrap">
               <i class="ti ti-search ac-icon"></i>
               <input type="text" class="ac-input" id="enf-ac-input"
                 placeholder="Nombre, SKU, lote..."

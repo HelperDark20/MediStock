@@ -56,6 +56,70 @@ router.get('/', verificarToken, async (req, res) => {
   }
 });
 
+// GET /api/movimientos/reportes — nivel 4 — sin el tope de 1000 del historial normal,
+// pensado para reportes que necesitan ver todo el histórico o rangos de fecha amplios
+router.get('/reportes', verificarToken, verificarNivel(4), async (req, res) => {
+  const { tipo, fecha_inicio, fecha_fin, ubicacion_id, bodega, cedula_paciente } = req.query;
+  try {
+    let query = `
+      SELECT m.*,
+             g.codigo   AS sku_global_codigo,
+             g.nombre   AS nombre,
+             s.sub_sku,
+             s.unidad,
+             s.precio,
+             bo.nombre  AS origen_nombre,
+             bd.nombre  AS destino_nombre,
+             bo.ubicacion_id AS origen_ubicacion_id,
+             ubo.nombre AS origen_ubicacion_nombre,
+             COALESCE(m.usuario_nombre, u.nombre) AS usuario_nombre,
+             u.nivel                               AS usuario_nivel
+      FROM movimientos m
+      JOIN sub_skus s      ON m.sub_sku_id = s.id
+      JOIN skus_globales g ON s.sku_global_id = g.id
+      LEFT JOIN bodegas bo      ON m.bodega_origen_id  = bo.id
+      LEFT JOIN bodegas bd      ON m.bodega_destino_id = bd.id
+      LEFT JOIN ubicaciones ubo ON bo.ubicacion_id = ubo.id
+      LEFT JOIN usuarios u      ON m.usuario_id = u.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (tipo) {
+      params.push(tipo);
+      query += ` AND m.tipo = $${params.length}`;
+    }
+    if (fecha_inicio) {
+      params.push(fecha_inicio);
+      query += ` AND (m.created_at AT TIME ZONE 'America/Bogota') >= $${params.length}::date`;
+    }
+    if (fecha_fin) {
+      params.push(fecha_fin);
+      query += ` AND (m.created_at AT TIME ZONE 'America/Bogota') < ($${params.length}::date + INTERVAL '1 day')`;
+    }
+    if (ubicacion_id) {
+      params.push(ubicacion_id);
+      query += ` AND bo.ubicacion_id = $${params.length}`;
+    }
+    if (bodega) {
+      params.push(bodega);
+      query += ` AND bo.nombre = $${params.length}`;
+    }
+    if (cedula_paciente) {
+      params.push(String(cedula_paciente).replace(/\D/g, ''));
+      query += ` AND m.cedula_paciente = $${params.length}`;
+    }
+
+    query += ' ORDER BY m.created_at DESC LIMIT 20000';
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor al generar el reporte' });
+  }
+});
+
 // POST /api/movimientos/entrada — nivel 3 y 4
 router.post('/entrada', verificarToken, verificarNivel(3), async (req, res) => {
   const { sub_sku_id, bodega_destino_id, cantidad } = req.body;
