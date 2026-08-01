@@ -8,6 +8,7 @@ let S = {
   usuarios: [],
   movimientos: [],
   eventos: [],
+  stockSeguridad: [],
 };
 
 async function loadState(){
@@ -68,6 +69,7 @@ async function loadState(){
 
     if(currentRole === 4){
       S.usuarios = await Usuarios.getAll();
+      S.stockSeguridad = await StockSeguridad.getAll();
     }
 
   } catch(err){

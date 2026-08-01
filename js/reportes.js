@@ -15,6 +15,7 @@
 const REP_TITULOS = {
   consumos:  { titulo: 'Consumos y gastos por ubicación / depósito' },
   vencidos:  { titulo: 'Vencidos y por vencer — cruce con existencias en Almacén' },
+  seguridad: { titulo: 'Stock de seguridad por depósito' },
   cedula:    { titulo: 'Consumos por cédula de paciente' },
   pacientes: { titulo: 'Pacientes atendidos por ubicación' },
   top:       { titulo: 'Top ítems más consumidos' }
@@ -78,10 +79,11 @@ function repCambiarTipo(){
   const tipo = document.getElementById('rep-tipo-reporte').value;
   const esCedula = tipo === 'cedula';
   const esVencidos = tipo === 'vencidos';
+  const esSeguridad = tipo === 'seguridad';
 
   document.getElementById('rep-cedula-wrap').style.display      = esCedula ? '' : 'none';
-  document.getElementById('rep-fecha-desde-wrap').style.display = (esCedula || esVencidos) ? 'none' : '';
-  document.getElementById('rep-fecha-hasta-wrap').style.display = (esCedula || esVencidos) ? 'none' : '';
+  document.getElementById('rep-fecha-desde-wrap').style.display = (esCedula || esVencidos || esSeguridad) ? 'none' : '';
+  document.getElementById('rep-fecha-hasta-wrap').style.display = (esCedula || esVencidos || esSeguridad) ? 'none' : '';
   document.getElementById('rep-ubicacion-wrap').style.display   = esCedula ? 'none' : '';
   document.getElementById('rep-deposito-wrap').style.display    = (esCedula || tipo==='pacientes') ? 'none' : '';
 
@@ -145,6 +147,13 @@ async function actualizarReporte(){
     if(tipo === 'vencidos'){
       if(printSub) printSub.textContent = `${ubLabel} · ${depLabel} · Generado el ${new Date().toLocaleDateString('es-CO')}`;
       _repRenderVencidos();
+      return;
+    }
+
+    if(tipo === 'seguridad'){
+      const depNombre = document.getElementById('rep-deposito').value;
+      if(printSub) printSub.textContent = `${depNombre||'Selecciona un depósito'} · Generado el ${new Date().toLocaleDateString('es-CO')}`;
+      _repRenderSeguridad(depNombre);
       return;
     }
 
@@ -424,6 +433,141 @@ function _repRenderTop(movs){
 }
 
 // ══════════════════════════════════════════
+// REPORTE — STOCK DE SEGURIDAD POR DEPÓSITO
+// ══════════════════════════════════════════
+function _tokenizeBodega(nombre){
+  return (nombre||'').toUpperCase().split(/[\s\-]+/).filter(Boolean);
+}
+
+// Encuentra el grupo cuyo patrón de tokens está contenido en el nombre
+// del depósito. Si varios matchean, se queda con el más específico
+// (el que tiene más tokens en su patrón).
+function _repBuscarGrupoSeguridad(bodegaNombre){
+  const tokens = new Set(_tokenizeBodega(bodegaNombre));
+  const candidatos = (S.stockSeguridad||[]).filter(g =>
+    (g.patron_tokens||[]).every(t => tokens.has(String(t).toUpperCase()))
+  );
+  if(!candidatos.length) return null;
+  candidatos.sort((a,b)=> (b.patron_tokens||[]).length - (a.patron_tokens||[]).length);
+  return candidatos[0];
+}
+
+function _repCompararSeguridad(bodegaNombre, grupo){
+  // Suma la cantidad actual de cada SKU Global en este depósito
+  // (agregando todos sus sub-SKUs/lotes juntos).
+  const actualPorNombre = {};
+  (S.subSkus||[]).forEach(s=>{
+    const cant = s.stock?.[bodegaNombre] || 0;
+    if(!cant) return;
+    const key = (s.nombre||'').trim().toUpperCase();
+    actualPorNombre[key] = (actualPorNombre[key]||0) + cant;
+  });
+
+  const esperadosNombres = new Set(grupo.items.map(it=>it.item_nombre.trim().toUpperCase()));
+
+  const faltantes = [], diferencias = [], completos = [];
+  grupo.items.forEach(it=>{
+    const key = it.item_nombre.trim().toUpperCase();
+    const actual = actualPorNombre[key] || 0;
+    if(actual === 0){
+      faltantes.push({ nombre: it.item_nombre, esperado: it.cantidad_esperada, actual: 0 });
+    } else if(actual !== it.cantidad_esperada){
+      diferencias.push({ nombre: it.item_nombre, esperado: it.cantidad_esperada, actual });
+    } else {
+      completos.push({ nombre: it.item_nombre, esperado: it.cantidad_esperada, actual });
+    }
+  });
+
+  const sobrantes = Object.entries(actualPorNombre)
+    .filter(([nombre]) => !esperadosNombres.has(nombre))
+    .map(([nombre, cantidad]) => ({ nombre, cantidad }));
+
+  return { faltantes, diferencias, completos, sobrantes };
+}
+
+function _repRenderSeguridad(depNombre){
+  const contenido = document.getElementById('rep-contenido');
+  if(!depNombre){
+    contenido.innerHTML = '<div class="empty-state"><i class="ti ti-shield-check"></i><p>Selecciona un depósito para ver su stock de seguridad</p></div>';
+    return;
+  }
+
+  const grupo = _repBuscarGrupoSeguridad(depNombre);
+  if(!grupo){
+    contenido.innerHTML = `<div class="empty-state"><i class="ti ti-alert-triangle"></i><p>No hay una lista de stock de seguridad definida para <strong>${escHtml(depNombre)}</strong></p></div>`;
+    return;
+  }
+
+  const { faltantes, diferencias, completos, sobrantes } = _repCompararSeguridad(depNombre, grupo);
+
+  const filaCompare = (it) => {
+    const delta = it.actual - it.esperado;
+    const deltaTxt = delta>0?`+${delta}`:`${delta}`;
+    return `<tr>
+      <td data-label="Ítem">${escHtml(it.nombre)}</td>
+      <td data-label="Esperado" style="font-family:var(--font-mono)">${it.esperado}</td>
+      <td data-label="Actual" style="font-family:var(--font-mono);font-weight:700">${it.actual}</td>
+      <td data-label="Diferencia" style="font-family:var(--font-mono);color:${delta<0?'var(--red2)':'var(--amber)'}">${deltaTxt}</td>
+    </tr>`;
+  };
+
+  document.getElementById('rep-contenido').innerHTML = `
+    <div class="grid-4" style="margin-bottom:16px">
+      <div class="stat-card"><div class="stat-card-accent blue"></div><div class="stat-icon blue"><i class="ti ti-list-check"></i></div><div class="stat-label">Grupo detectado</div><div class="stat-val blue" style="font-size:16px">${escHtml(grupo.nombre)}</div><div class="stat-sub">${grupo.items.length} ítems en la lista</div></div>
+      <div class="stat-card"><div class="stat-card-accent red"></div><div class="stat-icon red"><i class="ti ti-alert-circle"></i></div><div class="stat-label">Faltantes</div><div class="stat-val red">${faltantes.length}</div></div>
+      <div class="stat-card"><div class="stat-card-accent amber"></div><div class="stat-icon amber"><i class="ti ti-scale"></i></div><div class="stat-label">Con diferencia</div><div class="stat-val amber">${diferencias.length}</div></div>
+      <div class="stat-card"><div class="stat-card-accent green"></div><div class="stat-icon green"><i class="ti ti-package"></i></div><div class="stat-label">Sobrantes (fuera de lista)</div><div class="stat-val" style="color:var(--ink2)">${sobrantes.length}</div></div>
+    </div>
+
+    <div class="sec-header"><div class="sec-title">Faltantes — sin existencias en el depósito</div></div>
+    <div class="table-wrap" style="margin-bottom:20px">
+      <table><thead><tr><th>Ítem</th><th>Esperado</th><th>Actual</th><th></th></tr></thead>
+      <tbody>${faltantes.length ? faltantes.map(filaCompare).join('') : '<tr><td colspan="4"><div class="empty-state"><i class="ti ti-circle-check"></i><p>Sin faltantes</p></div></td></tr>'}</tbody></table>
+    </div>
+
+    <div class="sec-header"><div class="sec-title">Con diferencia de cantidad</div></div>
+    <div class="table-wrap" style="margin-bottom:20px">
+      <table><thead><tr><th>Ítem</th><th>Esperado</th><th>Actual</th><th>Diferencia</th></tr></thead>
+      <tbody>${diferencias.length ? diferencias.map(filaCompare).join('') : '<tr><td colspan="4"><div class="empty-state"><i class="ti ti-circle-check"></i><p>Sin diferencias de cantidad</p></div></td></tr>'}</tbody></table>
+    </div>
+
+    <div class="sec-header"><div class="sec-title">Sobrantes — están en el depósito pero fuera de la lista</div></div>
+    <div class="table-wrap" style="margin-bottom:20px">
+      <table><thead><tr><th>Ítem</th><th>Cantidad actual</th></tr></thead>
+      <tbody>${sobrantes.length ? sobrantes.map(s=>`<tr><td data-label="Ítem">${escHtml(s.nombre)}</td><td data-label="Cantidad" style="font-family:var(--font-mono);font-weight:700">${s.cantidad}</td></tr>`).join('') : '<tr><td colspan="2"><div class="empty-state"><i class="ti ti-circle-check"></i><p>Sin sobrantes</p></div></td></tr>'}</tbody></table>
+    </div>
+
+    <div class="sec-header"><div class="sec-title">Completos (${completos.length})</div></div>
+    <div class="table-wrap">
+      <table><thead><tr><th>Ítem</th><th>Cantidad</th></tr></thead>
+      <tbody>${completos.length ? completos.map(it=>`<tr><td data-label="Ítem">${escHtml(it.nombre)}</td><td data-label="Cantidad" style="font-family:var(--font-mono);font-weight:700">${it.actual}</td></tr>`).join('') : '<tr><td colspan="2"><div class="empty-state"><i class="ti ti-alert-triangle"></i><p>Ninguno completo</p></div></td></tr>'}</tbody></table>
+    </div>`;
+}
+
+function _repExportSeguridadExcel(depNombre){
+  if(!depNombre){ toastError('Selecciona un depósito primero'); return; }
+  const grupo = _repBuscarGrupoSeguridad(depNombre);
+  if(!grupo){ toastError('No hay lista de stock de seguridad para este depósito'); return; }
+  const { faltantes, diferencias, completos, sobrantes } = _repCompararSeguridad(depNombre, grupo);
+
+  const aoa = [
+    ['Nova Bridge — Stock de seguridad'],
+    [`Depósito: ${depNombre} · Grupo: ${grupo.nombre}`],
+    [],
+    ['FALTANTES'], ['Ítem','Esperado','Actual']
+  ];
+  faltantes.forEach(it=>aoa.push([it.nombre, it.esperado, it.actual]));
+  aoa.push([]); aoa.push(['CON DIFERENCIA DE CANTIDAD']); aoa.push(['Ítem','Esperado','Actual','Diferencia']);
+  diferencias.forEach(it=>aoa.push([it.nombre, it.esperado, it.actual, it.actual-it.esperado]));
+  aoa.push([]); aoa.push(['SOBRANTES (fuera de lista)']); aoa.push(['Ítem','Cantidad actual']);
+  sobrantes.forEach(s=>aoa.push([s.nombre, s.cantidad]));
+  aoa.push([]); aoa.push(['COMPLETOS']); aoa.push(['Ítem','Cantidad']);
+  completos.forEach(it=>aoa.push([it.nombre, it.actual]));
+
+  _repDescargarExcel(aoa, `Stock_Seguridad_${depNombre.replace(/\s+/g,'_')}`);
+}
+
+// ══════════════════════════════════════════
 // REPORTE — VENCIDOS Y POR VENCER (basado en stock actual, agrupado
 // por ubicación/depósito) + cruce con existencias en ALMACÉN
 // ══════════════════════════════════════════
@@ -602,6 +746,8 @@ async function repExportExcel(){
       _repExportCedulaExcel(movs, cedula);
     } else if(tipo === 'vencidos'){
       _repExportVencidosExcel();
+    } else if(tipo === 'seguridad'){
+      _repExportSeguridadExcel(document.getElementById('rep-deposito').value);
     } else {
       const movs = await _repFetchConsumos();
       if(tipo === 'consumos') _repExportConsumosExcel(movs);

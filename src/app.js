@@ -11,7 +11,7 @@ const usuariosRoutes    = require('./routes/usuarios');
 const bodegasRoutes     = require('./routes/bodegas');
 const ubicacionesRoutes = require('./routes/ubicaciones');
 const eventosRoutes     = require('./routes/eventos');
-
+const stockSeguridadRoutes = require('./routes/stockSeguridad');
 const app = express();
 app.set('trust proxy', 1);
 
@@ -112,6 +112,7 @@ app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/skus',         apiLimiterByIp, apiLimiterByUser, skusRoutes);
 app.use('/api/movimientos',  apiLimiterByIp, apiLimiterByUser, movimientosRoutes);
+app.use('/api/stock-seguridad', apiLimiterByIp, apiLimiterByUser, stockSeguridadRoutes);
 // /api/usuarios/me está incluido dentro de usuariosRoutes (Fix crítico #1 — no requiere nivel 4)
 app.use('/api/usuarios',     apiLimiterByIp, apiLimiterByUser, usuariosRoutes);
 app.use('/api/bodegas',      apiLimiterByIp, apiLimiterByUser, bodegasRoutes);

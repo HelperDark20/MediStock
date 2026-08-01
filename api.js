@@ -98,6 +98,11 @@ const Usuarios = {
   delete: (id) => request('DELETE', `/api/usuarios/${id}`)
 };
 
+// ── STOCK SEGURIDAD ──
+const StockSeguridad = {
+  getAll: () => request('GET', '/api/stock-seguridad')
+};
+
 // ── EVENTOS ──
 const Eventos = {
   getAll: () => request('GET', '/api/eventos'),
