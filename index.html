@@ -254,8 +254,7 @@
         <div class="sec-header"><div class="sec-title">Historial de movimientos</div></div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Fecha</th><th>Ítem</th><th>Sub-SKU</th><th>Tipo</th><th>Origen → Destino</th><th>Cant.</th><th>Usuario</th><th>Nivel</th></tr></thead>
-            <tbody id="mov-body"></tbody>
+            <thead><tr><th>Fecha</th><th>Ítem</th><th>Sub-SKU</th><th>Tipo</th><th>Origen → Destino</th><th>Cant.</th><th>Cédula</th><th>Usuario</th><th>Nivel</th></tr></thead>            <tbody id="mov-body"></tbody>
           </table>
         </div>
       </div>
@@ -591,6 +590,7 @@
               <label>Tipo de reporte</label>
               <select id="rep-tipo-reporte" onchange="repCambiarTipo()">
                 <option value="consumos">Consumos y gastos por ubicación / depósito</option>
+                <option value="vencidos">Vencidos y por vencer (con existencias en Almacén)</option>
                 <option value="cedula">Consumos por cédula de paciente</option>
                 <option value="pacientes">Pacientes atendidos por ubicación</option>
                 <option value="top">Top ítems más consumidos</option>

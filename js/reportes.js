@@ -14,6 +14,7 @@
 
 const REP_TITULOS = {
   consumos:  { titulo: 'Consumos y gastos por ubicación / depósito' },
+  vencidos:  { titulo: 'Vencidos y por vencer — cruce con existencias en Almacén' },
   cedula:    { titulo: 'Consumos por cédula de paciente' },
   pacientes: { titulo: 'Pacientes atendidos por ubicación' },
   top:       { titulo: 'Top ítems más consumidos' }
@@ -76,10 +77,11 @@ function repCedulaInput(){
 function repCambiarTipo(){
   const tipo = document.getElementById('rep-tipo-reporte').value;
   const esCedula = tipo === 'cedula';
+  const esVencidos = tipo === 'vencidos';
 
   document.getElementById('rep-cedula-wrap').style.display      = esCedula ? '' : 'none';
-  document.getElementById('rep-fecha-desde-wrap').style.display = esCedula ? 'none' : '';
-  document.getElementById('rep-fecha-hasta-wrap').style.display = esCedula ? 'none' : '';
+  document.getElementById('rep-fecha-desde-wrap').style.display = (esCedula || esVencidos) ? 'none' : '';
+  document.getElementById('rep-fecha-hasta-wrap').style.display = (esCedula || esVencidos) ? 'none' : '';
   document.getElementById('rep-ubicacion-wrap').style.display   = esCedula ? 'none' : '';
   document.getElementById('rep-deposito-wrap').style.display    = (esCedula || tipo==='pacientes') ? 'none' : '';
 
@@ -137,6 +139,12 @@ async function actualizarReporte(){
       }
       const movs = await Movimientos.getReporte({ tipo:'consumo', cedula_paciente: cedula });
       _repRenderCedula(movs, cedula);
+      return;
+    }
+
+    if(tipo === 'vencidos'){
+      if(printSub) printSub.textContent = `${ubLabel} · ${depLabel} · Generado el ${new Date().toLocaleDateString('es-CO')}`;
+      _repRenderVencidos();
       return;
     }
 
@@ -377,7 +385,7 @@ function _repTopItemsDetallado(movs, limite=30){
     if(m.origen_ubicacion_nombre) porItem[key].ubicaciones.add(m.origen_ubicacion_nombre);
     if(m.origen_nombre) porItem[key].depositos.add(m.origen_nombre);
   });
-  return Object.values(porItem).sort((a,b)=>b.valor-a.valor).slice(0, limite);
+  return Object.values(porItem).sort((a,b)=>b.unidades-a.unidades).slice(0, limite);
 }
 
 function _repRenderTop(movs){
@@ -416,6 +424,168 @@ function _repRenderTop(movs){
 }
 
 // ══════════════════════════════════════════
+// REPORTE — VENCIDOS Y POR VENCER (basado en stock actual, agrupado
+// por ubicación/depósito) + cruce con existencias en ALMACÉN
+// ══════════════════════════════════════════
+function _repAgruparVencidos(){
+  const ubFiltro  = document.getElementById('rep-ubicacion').value || '';
+  const depFiltro = document.getElementById('rep-deposito').value || '';
+
+  const filas = [];
+  (S.subSkus||[]).forEach(s=>{
+    if(s.agotado) return;
+    const sem = getSem(s.caducidad);
+    if(!['N','P','R','A'].includes(sem)) return;
+    const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
+    Object.entries(s.stock||{}).forEach(([bodegaNombre, cantidad])=>{
+      if(!cantidad) return;
+      const bodega = (S.bodegasRaw||[]).find(b=>b.nombre===bodegaNombre);
+      const ubNombre = bodega?.ubicacion_nombre || 'Sin ubicación';
+      const ubId = bodega?.ubicacion_id ?? 'sin_ub';
+      if(ubFiltro && String(ubId) !== String(ubFiltro)) return;
+      if(depFiltro && bodegaNombre !== depFiltro) return;
+      filas.push({ s, skuG, sem, bodegaNombre, ubNombre, ubId, cantidad });
+    });
+  });
+
+  const ordenSem = {N:0, P:1, R:2, A:3};
+  filas.sort((a,b)=>
+    a.ubNombre.localeCompare(b.ubNombre) ||
+    a.bodegaNombre.localeCompare(b.bodegaNombre) ||
+    ordenSem[a.sem]-ordenSem[b.sem] ||
+    a.s.nombre.localeCompare(b.s.nombre)
+  );
+  return filas;
+}
+
+// Para cada ítem VENCIDO (sem === 'N'), busca existencias del mismo
+// SKU Global (cualquier lote/proveedor) en los depósitos de la
+// ubicación "ALMACEN" — para facilitar el reemplazo al destruir.
+function _repExistenciasAlmacen(filas){
+  const vencidosUnicos = {};
+  filas.filter(f=>f.sem==='N').forEach(f=>{
+    if(!vencidosUnicos[f.s.skuGlobalId]) vencidosUnicos[f.s.skuGlobalId] = { skuG: f.skuG, nombre: f.s.nombre };
+  });
+
+  const bodegaNombresAlmacen = new Set(
+    (S.bodegasRaw||[])
+      .filter(b => (b.ubicacion_nombre||'').toUpperCase().trim() === 'ALMACEN')
+      .map(b => b.nombre)
+  );
+
+  return Object.values(vencidosUnicos).map(v=>{
+    const existencias = [];
+    (S.subSkus||[]).filter(s=>s.skuGlobalId===v.skuG?.id).forEach(s=>{
+      Object.entries(s.stock||{}).forEach(([bodegaNombre, cantidad])=>{
+        if(cantidad>0 && bodegaNombresAlmacen.has(bodegaNombre)){
+          existencias.push({ subSku: s.subSku, cantidad, unidad: s.unidad, bodegaNombre });
+        }
+      });
+    });
+    return { nombre: v.nombre, skuG: v.skuG, existencias };
+  }).sort((a,b)=>a.nombre.localeCompare(b.nombre));
+}
+
+function _repRenderVencidos(){
+  const filas = _repAgruparVencidos();
+  const semLabelLocal = {N:'Vencido', P:'Por vencer', R:'Crítico', A:'Alerta'};
+
+  let filasHtml = '';
+  if(!filas.length){
+    filasHtml = '<tr><td colspan="5"><div class="empty-state"><i class="ti ti-alert-circle"></i><p>Sin ítems vencidos o por vencer</p></div></td></tr>';
+  } else {
+    let ubActual = null, depActual = null;
+    filas.forEach(f=>{
+      const nuevaUb  = f.ubNombre !== ubActual;
+      const nuevoDep = f.bodegaNombre !== depActual;
+      if(nuevaUb){
+        filasHtml += `<tr style="background:var(--ink)"><td colspan="5" style="color:#fff;font-weight:700;font-family:var(--font-mono);font-size:12px">${escHtml(f.ubNombre)}</td></tr>`;
+      }
+      if(nuevaUb || nuevoDep){
+        filasHtml += `<tr style="background:var(--cream)"><td colspan="5" style="padding-left:20px;font-weight:700;color:var(--ink2)"><i class="ti ti-building-warehouse" style="margin-right:5px"></i>${escHtml(f.bodegaNombre)}</td></tr>`;
+      }
+      const diff = f.s.caducidad ? Math.round((new Date(f.s.caducidad.split('T')[0]+'T00:00:00') - new Date(fechaColombia()+'T00:00:00')) / 864e5) : null;
+      filasHtml += `<tr>
+        <td data-label="Ítem" style="padding-left:28px">
+          <div style="font-weight:500">${escHtml(f.s.nombre)}</div>
+          <div style="font-size:11px;color:#aaa">${escHtml(f.skuG?.codigo||'')} · ${escHtml(f.s.subSku)}</div>
+        </td>
+        <td data-label="Cantidad" style="font-family:var(--font-mono);font-weight:700">${f.cantidad} ${escHtml(f.s.unidad)}</td>
+        <td data-label="Caducidad" style="font-family:var(--font-mono);font-size:12px">${fmtDate(f.s.caducidad)}</td>
+        <td data-label="Estado"><span class="sem ${f.sem}">${semLabelLocal[f.sem]}</span></td>
+        <td data-label="Días" style="font-size:11px;color:#888">${diff!==null?(diff<0?'Vencido hace '+Math.abs(diff)+'d':'Faltan '+diff+'d'):''}</td>
+      </tr>`;
+      ubActual = f.ubNombre; depActual = f.bodegaNombre;
+    });
+  }
+
+  const existenciasAlmacen = _repExistenciasAlmacen(filas);
+  let almacenHtml = '';
+  if(!existenciasAlmacen.length){
+    almacenHtml = '<div class="empty-state"><i class="ti ti-building-warehouse"></i><p>No hay ítems vencidos para cruzar con Almacén</p></div>';
+  } else {
+    almacenHtml = existenciasAlmacen.map(v=>{
+      return v.existencias.length
+        ? v.existencias.map(e=>`
+          <div class="alert-strip ok" style="margin-bottom:4px">
+            <i class="ti ti-circle-check"></i>
+            <div class="alert-text">
+              <div class="alert-name">${escHtml(v.nombre)} — ${escHtml(e.subSku)}</div>
+              <div class="alert-meta">${e.cantidad} ${escHtml(e.unidad)} · ${escHtml(e.bodegaNombre)}</div>
+            </div>
+          </div>`).join('')
+        : `<div class="alert-strip R" style="margin-bottom:4px">
+            <i class="ti ti-alert-circle"></i>
+            <div class="alert-text">
+              <div class="alert-name">${escHtml(v.nombre)}</div>
+              <div class="alert-meta">No hay existencias en Almacén</div>
+            </div>
+          </div>`;
+    }).join('');
+  }
+
+  document.getElementById('rep-contenido').innerHTML = `
+    <div class="sec-header"><div class="sec-title">Ítems vencidos y por vencer — agrupados por ubicación / depósito</div></div>
+    <div class="table-wrap" style="margin-bottom:24px">
+      <table>
+        <thead><tr><th>Ítem</th><th>Cantidad</th><th>Caducidad</th><th>Estado</th><th>Días</th></tr></thead>
+        <tbody>${filasHtml}</tbody>
+      </table>
+    </div>
+    <div class="sec-header"><div class="sec-title">Existencias en ALMACÉN para reemplazo de vencidos</div></div>
+    <div>${almacenHtml}</div>
+  `;
+}
+
+function _repExportVencidosExcel(){
+  const filas = _repAgruparVencidos();
+  const existenciasAlmacen = _repExistenciasAlmacen(filas);
+  const semLabelLocal = {N:'Vencido', P:'Por vencer', R:'Crítico', A:'Alerta'};
+
+  const aoa = [
+    ['Nova Bridge — Vencidos y por vencer'],
+    [`Generado el ${new Date().toLocaleDateString('es-CO')}`],
+    [],
+    ['Ubicación','Depósito','Ítem','Sub-SKU','Cantidad','Caducidad','Estado']
+  ];
+  filas.forEach(f=>{
+    aoa.push([f.ubNombre, f.bodegaNombre, f.s.nombre, f.s.subSku, f.cantidad, fmtDate(f.s.caducidad), semLabelLocal[f.sem]]);
+  });
+  aoa.push([]);
+  aoa.push(['Existencias en ALMACÉN para reemplazo de vencidos']);
+  aoa.push(['Ítem','Sub-SKU','Cantidad','Depósito']);
+  existenciasAlmacen.forEach(v=>{
+    if(v.existencias.length){
+      v.existencias.forEach(e=> aoa.push([v.nombre, e.subSku, e.cantidad, e.bodegaNombre]));
+    } else {
+      aoa.push([v.nombre, '—', 'No hay existencias', '—']);
+    }
+  });
+
+  _repDescargarExcel(aoa, `Reporte_Vencidos_${fechaColombia()}`);
+}
+
+// ══════════════════════════════════════════
 // EXPORTAR A EXCEL — dispatcher según tipo activo
 // ══════════════════════════════════════════
 async function repExportExcel(){
@@ -430,6 +600,8 @@ async function repExportExcel(){
       if(!cedula){ toastError('Ingresa una cédula primero'); return; }
       const movs = await Movimientos.getReporte({ tipo:'consumo', cedula_paciente: cedula });
       _repExportCedulaExcel(movs, cedula);
+    } else if(tipo === 'vencidos'){
+      _repExportVencidosExcel();
     } else {
       const movs = await _repFetchConsumos();
       if(tipo === 'consumos') _repExportConsumosExcel(movs);

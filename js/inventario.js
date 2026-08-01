@@ -72,6 +72,18 @@ function renderInv(){
     });
   });
 
+  // Cuando el filtro activo es de vencimiento (alertas/vencidos desde el
+  // dashboard, o el select de semáforo con N/P/R/A) se agrupan las filas
+  // por depósito: primero todos los ítems de un depósito, luego los del
+  // siguiente, en vez de mezclarlos en el orden natural de S.subSkus.
+  const agruparPorDeposito = _invAlertFilter==='alertas' || _invAlertFilter==='vencidos' || ['N','P','R','A'].includes(sem);
+  if(agruparPorDeposito){
+    rows.sort((a,b)=>
+      a.ubicacion.localeCompare(b.ubicacion) ||
+      a.s.nombre.localeCompare(b.s.nombre)
+    );
+  }
+
   const banner = document.getElementById('inv-alert-banner');
   if(banner){
     if(_invAlertFilter==='alertas'){

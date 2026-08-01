@@ -170,6 +170,7 @@ function renderMovBody(){
       </td>
       <td data-label="Origen → Destino" style="font-size:12px;color:#666">${escHtml(m.origen_nombre||'—')} → ${escHtml(m.destino_nombre||'—')}</td>
       <td data-label="Cant." style="font-family:var(--font-mono);font-weight:600">${m.cantidad}</td>
+      <td data-label="Cédula" style="font-size:12px;font-family:var(--font-mono)">${m.tipo==='consumo' ? escHtml(m.cedula_paciente||'—') : 'N/A'}</td>
       <td data-label="Usuario" style="font-size:12px">
         <div style="font-weight:500">${escHtml(m.usuario_nombre||'—')}</div>
       </td>
