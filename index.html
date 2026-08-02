@@ -624,6 +624,19 @@
                   <option value="">Todos los depósitos</option>
                 </select>
               </div>
+              <div class="form-group fg-full" id="rep-estado-wrap" style="display:none">
+                <label>Estados a mostrar
+                  <span style="font-weight:400;text-transform:none;color:var(--blue);cursor:pointer;margin-left:8px" onclick="repEstadoTodos()">Todos</span>
+                  ·
+                  <span style="font-weight:400;text-transform:none;color:var(--blue);cursor:pointer" onclick="repEstadoNinguno()">Ninguno</span>
+                </label>
+                <div class="campos-toggle" id="rep-estado-chips">
+                  <label class="campo-chip active" onclick="repToggleEstado(this,'N')"><input type="checkbox" checked><i class="ti ti-check"></i>Vencido</label>
+                  <label class="campo-chip active" onclick="repToggleEstado(this,'P')"><input type="checkbox" checked><i class="ti ti-check"></i>Por vencer</label>
+                  <label class="campo-chip active" onclick="repToggleEstado(this,'R')"><input type="checkbox" checked><i class="ti ti-check"></i>Crítico</label>
+                  <label class="campo-chip active" onclick="repToggleEstado(this,'A')"><input type="checkbox" checked><i class="ti ti-check"></i>Alerta</label>
+                </div>
+              </div>
               <div class="form-group fg-full" id="rep-cedula-wrap" style="display:none">
                 <label>Cédula del paciente</label>
                 <input type="text" id="rep-cedula" placeholder="Ej. 1006166884" inputmode="numeric" pattern="[0-9]*" oninput="repCedulaInput()">

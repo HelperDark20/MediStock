@@ -24,6 +24,7 @@ const REP_TITULOS = {
 let _repMovimientosCache = null;
 let _repCacheKey = null;
 let _repCedulaDebounce = null;
+let _repEstadosActivos = new Set(['N','P','R','A']);
 
 function _repStatPill(tono, icon, num, label){
   return `<div class="rep-stat">
@@ -79,6 +80,33 @@ function repUbicacionChange(){
   actualizarReporte();
 }
 
+function repToggleEstado(label, estado){
+  const cb = label.querySelector('input[type=checkbox]');
+  cb.checked = !cb.checked;
+  label.classList.toggle('active', cb.checked);
+  if(cb.checked) _repEstadosActivos.add(estado);
+  else _repEstadosActivos.delete(estado);
+  actualizarReporte();
+}
+
+function repEstadoTodos(){
+  _repEstadosActivos = new Set(['N','P','R','A']);
+  document.querySelectorAll('#rep-estado-chips .campo-chip').forEach(label=>{
+    label.classList.add('active');
+    label.querySelector('input').checked = true;
+  });
+  actualizarReporte();
+}
+
+function repEstadoNinguno(){
+  _repEstadosActivos = new Set();
+  document.querySelectorAll('#rep-estado-chips .campo-chip').forEach(label=>{
+    label.classList.remove('active');
+    label.querySelector('input').checked = false;
+  });
+  actualizarReporte();
+}
+
 function repCedulaInput(){
   clearTimeout(_repCedulaDebounce);
   _repCedulaDebounce = setTimeout(()=>actualizarReporte(), 400);
@@ -96,6 +124,7 @@ function repCambiarTipo(){
   document.getElementById('rep-fecha-hasta-wrap').style.display = (esCedula || esVencidos || esSeguridad) ? 'none' : '';
   document.getElementById('rep-ubicacion-wrap').style.display   = esCedula ? 'none' : '';
   document.getElementById('rep-deposito-wrap').style.display    = (esCedula || tipo==='pacientes') ? 'none' : '';
+  document.getElementById('rep-estado-wrap').style.display      = esVencidos ? '' : 'none';
 
   document.getElementById('rep-filtros-title').textContent = `Filtros — ${REP_TITULOS[tipo].titulo}`;
   actualizarReporte();
@@ -582,7 +611,7 @@ function _repAgruparVencidos(){
   (S.subSkus||[]).forEach(s=>{
     if(s.agotado) return;
     const sem = getSem(s.caducidad);
-    if(!['N','P','R','A'].includes(sem)) return;
+    if(!_repEstadosActivos.has(sem)) return;
     const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
     Object.entries(s.stock||{}).forEach(([bodegaNombre, cantidad])=>{
       if(!cantidad) return;
@@ -650,8 +679,10 @@ function _repRenderVencidos(){
   ]);
 
   let gruposHtml = '';
-  if(!filas.length){
-    gruposHtml = '<div class="empty-state"><i class="ti ti-alert-circle"></i><p>Sin ítems vencidos o por vencer</p></div>';
+  if(!_repEstadosActivos.size){
+    gruposHtml = '<div class="empty-state"><i class="ti ti-filter-off"></i><p>Selecciona al menos un estado para ver resultados</p></div>';
+  } else if(!filas.length){
+    gruposHtml = '<div class="empty-state"><i class="ti ti-alert-circle"></i><p>Sin ítems vencidos o por vencer con los filtros actuales</p></div>';
   } else {
     const grupos = [];
     let grupoActual = null;
