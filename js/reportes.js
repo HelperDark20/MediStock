@@ -248,7 +248,7 @@ function _repRenderConsumos(movs){
             <div class="rep-group-name"><i class="ti ti-map-pin"></i> ${escHtml(u.nombre)}</div>
             <div class="rep-group-count">${fmtCOP(u.valor)} · ${u.unidades.toLocaleString('es-CO')} u.</div>
           </div>
-          <div class="rep-cols" style="--rep-grid:1fr 140px 160px 80px"><div>Depósito</div><div>Unidades</div><div>Valor</div><div>%</div></div>
+          <div class="rep-cols" style="--rep-grid:1fr 140px 160px 80px"><div>Depósito</div><div class="rep-col-num">Unidades</div><div class="rep-col-num">Valor</div><div class="rep-col-num">%</div></div>
           ${rows}
         </div>`;
     });
@@ -297,7 +297,7 @@ function _repRenderCedula(movs, cedula){
     ${stats}
     <div class="rep-section-title">Historial de consumos — Cédula ${escHtml(cedula)}</div>
     <div class="rep-group">
-      <div class="rep-cols" style="--rep-grid:100px 1fr 100px 110px 1fr 130px"><div>Fecha</div><div>Ítem</div><div>Cantidad</div><div>Valor</div><div>Ubicación/Depósito</div><div>Usuario</div></div>
+      <div class="rep-cols" style="--rep-grid:100px 1fr 100px 110px 1fr 130px"><div class="rep-col-num">Fecha</div><div>Ítem</div><div class="rep-col-num">Cantidad</div><div class="rep-col-num">Valor</div><div>Ubicación/Depósito</div><div>Usuario</div></div>
       ${rows}
     </div>`;
 }
@@ -357,7 +357,7 @@ function _repRenderPacientes(movs){
       const rows = dias.map(d=>`<div class="rep-row" style="--rep-grid:130px 1fr"><div class="rep-cell-mono">${fmtDate(d.fecha)}</div><div class="rep-cell-mono strong">${d.cedulas.size} paciente${d.cedulas.size!==1?'s':''}</div></div>`).join('');
       detalleHtml += `<div class="rep-group">
         <div class="rep-group-head"><div class="rep-group-name"><i class="ti ti-map-pin"></i> ${escHtml(ub)}</div><div class="rep-group-count">${dias.length} día${dias.length!==1?'s':''}</div></div>
-        <div class="rep-cols" style="--rep-grid:130px 1fr"><div>Fecha</div><div>Pacientes atendidos</div></div>
+        <div class="rep-cols" style="--rep-grid:130px 1fr"><div class="rep-col-num">Fecha</div><div class="rep-col-num">Pacientes atendidos</div></div>
         ${rows}
       </div>`;
     });
@@ -366,7 +366,7 @@ function _repRenderPacientes(movs){
   document.getElementById('rep-contenido').innerHTML = `
     ${stats}
     <div class="rep-section-title">Total de pacientes atendidos por ubicación</div>
-    <div class="rep-group"><div class="rep-cols" style="--rep-grid:1fr 160px"><div>Ubicación</div><div>Pacientes distintos</div></div>${resumenRows}</div>
+    <div class="rep-group"><div class="rep-cols" style="--rep-grid:1fr 160px"><div>Ubicación</div><div class="rep-col-num">Pacientes distintos</div></div>${resumenRows}</div>
     <div class="rep-section-title">Detalle diario por ubicación</div>
     ${detalleHtml}`;
 }
@@ -429,8 +429,8 @@ function _repRenderTop(movs){
   document.getElementById('rep-contenido').innerHTML = `
     ${stats}
     <div class="rep-section-title">Top ítems más consumidos — de mayor a menor cantidad</div>
-    <div class="rep-group">
-      <div class="rep-cols" style="--rep-grid:36px 1fr 110px 120px 130px 1fr"><div>#</div><div>Ítem</div><div>Unidades</div><div>Costo unit.</div><div>Costo total</div><div>Ubic. / Dep.</div></div>
+    <div class="rep-group"><div class="rep-cols" style="--rep-grid:36px 1fr 110px 120px 130px 1fr"><div class="rep-col-num">#</div><div>Ítem</div><div class="rep-col-num">Unidades</div><div class="rep-col-num">Costo unit.</div><div class="rep-col-num">Costo total</div><div>Ubic. / Dep.</div></div>
+      
       ${rows}
     </div>`;
 }
@@ -520,11 +520,11 @@ function _repRenderSeguridad(depNombre){
   };
 
   const faltantesHtml = faltantes.length
-    ? `<div class="rep-group"><div class="rep-group-head tono-red"><div class="rep-group-name">Faltantes</div></div><div class="rep-cols" style="--rep-grid:1fr 100px 100px 100px"><div>Ítem</div><div>Esperado</div><div>Actual</div><div></div></div>${faltantes.map(filaCompare).join('')}</div>`
+    ? `<div class="rep-group"><div class="rep-group-head tono-red"><div class="rep-group-name">Faltantes</div></div><div class="rep-cols" style="--rep-grid:1fr 100px 100px 100px"><div>Ítem</div><div class="rep-col-num">Esperado</div><div class="rep-col-num">Actual</div><div></div></div>${faltantes.map(filaCompare).join('')}</div>`
     : '<div class="empty-state"><i class="ti ti-circle-check"></i><p>Sin faltantes</p></div>';
 
   const diferenciasHtml = diferencias.length
-    ? `<div class="rep-group"><div class="rep-group-head tono-amber"><div class="rep-group-name">Con diferencia</div></div><div class="rep-cols" style="--rep-grid:1fr 100px 100px 100px"><div>Ítem</div><div>Esperado</div><div>Actual</div><div>Diferencia</div></div>${diferencias.map(filaCompare).join('')}</div>`
+    ? `<div class="rep-group"><div class="rep-group-head tono-amber"><div class="rep-group-name">Con diferencia</div></div><div class="rep-cols" style="--rep-grid:1fr 100px 100px 100px"><div>Ítem</div><div class="rep-col-num">Esperado</div><div class="rep-col-num">Actual</div><div class="rep-col-num">Diferencia</div></div>${diferencias.map(filaCompare).join('')}</div>`
     : '<div class="empty-state"><i class="ti ti-circle-check"></i><p>Sin diferencias de cantidad</p></div>';
 
   const sobrantesHtml = sobrantes.length
@@ -669,7 +669,7 @@ function _repRenderVencidos(){
         const diff = f.s.caducidad ? Math.round((new Date(f.s.caducidad.split('T')[0]+'T00:00:00') - new Date(fechaColombia()+'T00:00:00')) / 864e5) : null;
         const diasTxt = diff!==null ? (diff<0 ? `Vencido hace ${Math.abs(diff)}d` : `${diff}d`) : '';
         return `<div class="rep-row" style="--rep-grid:110px 1fr 100px 100px 100px 130px">
-          <div><span class="sem-badge ${f.sem}">${semLabelLocal[f.sem]}</span></div>
+          <div class="rep-col-num"><span class="sem-badge ${f.sem}">${semLabelLocal[f.sem]}</span></div>
           <div><div class="rep-item-name">${escHtml(f.s.nombre)}</div><div class="rep-item-code">${escHtml(f.skuG?.codigo||'')}</div></div>
           <div class="rep-cell-mono strong">${f.cantidad} ${escHtml(f.s.unidad)}</div>
           <div class="rep-cell-mono">${fmtDate(f.s.caducidad)}</div>
@@ -682,7 +682,7 @@ function _repRenderVencidos(){
           <div class="rep-group-name"><i class="ti ti-building-warehouse"></i> ${escHtml(g.ubNombre)} / ${escHtml(g.bodegaNombre)}</div>
           <div class="rep-group-count">${g.items.length} ítem${g.items.length!==1?'s':''}</div>
         </div>
-        <div class="rep-cols" style="--rep-grid:110px 1fr 100px 100px 100px 130px"><div>Estado</div><div>Producto</div><div>Cantidad</div><div>Vencimiento</div><div>Restante</div><div>Lote</div></div>
+        <div class="rep-cols" style="--rep-grid:110px 1fr 100px 100px 100px 130px"><div class="rep-col-num">Estado</div><div>Producto</div><div class="rep-col-num">Cantidad</div><div class="rep-col-num">Vencimiento</div><div class="rep-col-num">Restante</div><div class="rep-col-num">Lote</div></div>
         ${rows}
       </div>`;
     });

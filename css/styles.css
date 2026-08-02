@@ -1067,7 +1067,8 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 .rep-row:last-child{border-bottom:none}
 .rep-item-name{font-size:13px;font-weight:500;color:var(--ink)}
 .rep-item-code{font-size:10px;color:#aaa;font-family:var(--font-mono);margin-top:2px}
-.rep-cell-mono{font-family:var(--font-mono);font-size:12px}
+.rep-cell-mono{font-family:var(--font-mono);font-size:12px;text-align:center}
+.rep-col-num{text-align:center}
 .rep-cell-mono.strong{font-weight:700}
 
 .sem-badge{display:inline-flex;align-items:center;gap:5px;font-size:9px;font-weight:700;padding:4px 9px;border-radius:10px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
