@@ -1063,6 +1063,7 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 .rep-group-name{display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:12px;font-weight:600;letter-spacing:.04em}
 .rep-group-count{font-size:10px;font-weight:700;background:rgba(255,255,255,.18);color:#fff;padding:3px 9px;border-radius:10px;font-family:var(--font-mono);flex-shrink:0}
 .rep-cols{display:grid;grid-template-columns:var(--rep-grid,1fr);padding:8px 16px;background:var(--cream);border-bottom:1px solid var(--cream3);font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;font-family:var(--font-mono)}
+.rep-cols > div{ text-align:center; }
 .rep-row{display:grid;grid-template-columns:var(--rep-grid,1fr);align-items:center;padding:9px 16px;border-bottom:1px solid var(--cream2);gap:6px}
 .rep-row:last-child{border-bottom:none}
 .rep-item-name{font-size:13px;font-weight:500;color:var(--ink)}
