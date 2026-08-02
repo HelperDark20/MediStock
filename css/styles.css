@@ -1038,7 +1038,7 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 .rep-sub-lg{font-size:13px;color:#888}
 .rep-sub-lg b{color:var(--ink2);font-weight:600}
 .rep-logo-mini{display:flex;align-items:center;gap:10px;flex-shrink:0}
-.rep-logo-mini-img{height:120px;width:auto;object-fit:contain;display:block}
+.rep-logo-mini-img{height:100px;width:auto;object-fit:contain;display:block}
 .rep-logo-mini-sub{font-size:9px;color:#999;letter-spacing:.05em;margin-top:1px;text-align:right}
 
 .rep-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:20px}
