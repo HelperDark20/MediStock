@@ -645,7 +645,7 @@ function _repExistenciasAlmacen(filas){
 
   const bodegaNombresAlmacen = new Set(
     (S.bodegasRaw||[])
-      .filter(b => (b.ubicacion_nombre||'').toUpperCase().trim() === 'ALMACEN')
+      .filter(b => (b.ubicacion_nombre||'').toUpperCase().trim().includes('ALMACEN'))
       .map(b => b.nombre)
   );
 

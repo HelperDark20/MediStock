@@ -580,6 +580,14 @@
         <div class="grid-3" id="eventos-grid"></div>
       </div>
 
+      <!-- ═══ STOCK DE SEGURIDAD (Admin) ═══ -->
+      <div class="view" id="view-segstock">
+        <div class="sec-header">
+          <div class="sec-title">Grupos de stock de seguridad</div>
+        </div>
+        <div class="grid-3" id="segstock-grid"></div>
+      </div>
+
       <!-- ═══ REPORTES (Admin) ═══ -->
       <div class="view" id="view-reportes">
 
@@ -840,6 +848,98 @@
     <div id="mnav-mas-list" class="mnav-mas-list"></div>
   </div>
 </div>
+<!-- MODAL DETALLE GRUPO STOCK SEGURIDAD -->
+<div class="modal-overlay" id="modal-segstock-detalle">
+  <div class="modal-sheet" style="max-width:600px">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="segdet-nombre">Grupo</div>
+    <div class="modal-sub" id="segdet-patron"></div>
+    <input type="hidden" id="segdet-grupo-id">
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px">
+      <button class="act-btn primary" onclick="segAbrirEditarGrupo()" title="Editar grupo"><i class="ti ti-pencil"></i></button>
+      <button class="act-btn danger" onclick="segConfirmEliminarGrupo()" title="Eliminar grupo"><i class="ti ti-trash"></i></button>
+    </div>
+    <div id="segdet-items-list"></div>
+    <button class="btn-submit" style="margin-top:14px" onclick="segAbrirAgregarItem()">
+      <i class="ti ti-plus"></i>Añadir ítem
+    </button>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-segstock-detalle')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CREAR/EDITAR GRUPO -->
+<div class="modal-overlay" id="modal-segstock-grupo">
+  <div class="modal-sheet" style="max-width:480px">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="seggrupo-titulo">Nuevo grupo</div>
+    <div class="modal-sub">El patrón determina a qué depósitos aplica este grupo (ej. depósito "MEC-A-MED" coincide con el patrón MEC, A, MED).</div>
+    <input type="hidden" id="seggrupo-id">
+    <div class="form-grid" style="margin-bottom:14px">
+      <div class="form-group fg-full">
+        <label>Nombre del grupo</label>
+        <input type="text" id="seggrupo-nombre" placeholder="Ej. MEC A MED">
+      </div>
+      <div class="form-group fg-full">
+        <label>Patrón (tokens separados por coma)</label>
+        <input type="text" id="seggrupo-patron" placeholder="Ej. MEC, A, MED" style="font-family:var(--font-mono);text-transform:uppercase">
+        <span class="hint">Se compara contra el nombre del depósito dividido en partes</span>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-segstock-grupo')">Cancelar</button>
+      <button class="btn-confirm" onclick="segGuardarGrupo()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL AÑADIR ÍTEM -->
+<div class="modal-overlay" id="modal-segstock-item">
+  <div class="modal-sheet" style="max-width:480px">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Añadir ítem</div>
+    <div class="modal-sub">Busca el ítem en SKUs Globales y define la cantidad esperada.</div>
+    <div class="form-group fg-full" style="margin-bottom:14px">
+      <label>Buscar ítem (SKU Global)</label>
+      <div class="ac-wrap" id="segitem-ac-wrap">
+        <i class="ti ti-search ac-icon"></i>
+        <input type="text" class="ac-input" id="segitem-ac-input"
+          placeholder="Escribe nombre o código del SKU…" autocomplete="off"
+          oninput="segItemAcFilter()" onfocus="segItemAcOpen()" onkeydown="segItemAcKey(event)">
+        <button class="ac-clear" id="segitem-ac-clear" onclick="segItemAcClear()"><i class="ti ti-x"></i></button>
+        <div class="ac-dropdown" id="segitem-ac-drop"></div>
+      </div>
+    </div>
+    <div class="form-group fg-full" style="margin-bottom:14px">
+      <label>Cantidad esperada</label>
+      <input type="number" id="segitem-cantidad" placeholder="0" min="0">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="segCancelarItem()">Cancelar</button>
+      <button class="btn-confirm" onclick="segGuardarItem()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR CANTIDAD DE ÍTEM -->
+<div class="modal-overlay" id="modal-segstock-editar-item">
+  <div class="modal-sheet" style="max-width:400px">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Editar cantidad</div>
+    <div class="modal-sub" id="segedititem-nombre"></div>
+    <input type="hidden" id="segedititem-id">
+    <div class="form-group fg-full" style="margin-bottom:14px">
+      <label>Cantidad esperada</label>
+      <input type="number" id="segedititem-cantidad" placeholder="0" min="0">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-segstock-editar-item')">Cancelar</button>
+      <button class="btn-confirm" onclick="segGuardarEdicionItem()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- Agregar esta línea en index.html ANTES de <script src="api.js"></script> -->
@@ -868,6 +968,7 @@
 <script src="js/reportes.js"></script>
 <script src="js/trazabilidad.js"></script>
 <script src="js/deletes.js"></script>
+<script src="js/segstock.js"></script>
 <script src="js/main.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/enfermero.js"></script>

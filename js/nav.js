@@ -62,7 +62,7 @@ function goTo(viewId){
     movimientos:'Movimientos', registro:'Registro de entradas',
     sku:'SKUs Globales', usuarios:'Usuarios',
     bodegas:'Ubicaciones y Bodegas', eventos:'Eventos', reportes:'Reportes',
-    trazabilidad:'Trazabilidad'
+    segstock:'Stock de Seguridad', trazabilidad:'Trazabilidad'
   };
   document.getElementById('page-title').textContent = titles[viewId]||viewId;
   const ta = document.getElementById('topbar-actions');
@@ -76,11 +76,15 @@ function goTo(viewId){
   if(viewId==='eventos'&&currentRole===4){
     ta.innerHTML=`<button class="tb-btn primary" onclick="abrirCrearEvento()"><i class="ti ti-plus"></i>Crear evento</button>`;
   }
+  if(viewId==='segstock'&&currentRole===4){
+  ta.innerHTML=`<button class="tb-btn primary" onclick="abrirCrearGrupoSeg()"><i class="ti ti-plus"></i>Crear grupo</button>`;
+  }
   const renders = {
     dashboard:renderDash, inventario:renderInv,
     movimientos:renderMovimientos, registro:renderRegistro,
     sku:renderSKUs, usuarios:renderUsuarios,
-    bodegas:renderBodegas, eventos:renderEventos, reportes:renderReportes
+    bodegas:renderBodegas, eventos:renderEventos, reportes:renderReportes,
+    segstock:renderSegStock
   };
   renders[viewId]?.();
   syncMobileNavActive();

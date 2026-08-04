@@ -100,7 +100,13 @@ const Usuarios = {
 
 // ── STOCK SEGURIDAD ──
 const StockSeguridad = {
-  getAll: () => request('GET', '/api/stock-seguridad')
+  getAll: () => request('GET', '/api/stock-seguridad'),
+  createGrupo: (data) => request('POST', '/api/stock-seguridad/grupos', data),
+  updateGrupo: (id, data) => request('PUT', `/api/stock-seguridad/grupos/${id}`, data),
+  deleteGrupo: (id) => request('DELETE', `/api/stock-seguridad/grupos/${id}`),
+  addItem: (data) => request('POST', '/api/stock-seguridad/items', data),
+  updateItem: (id, data) => request('PUT', `/api/stock-seguridad/items/${id}`, data),
+  deleteItem: (id) => request('DELETE', `/api/stock-seguridad/items/${id}`)
 };
 
 // ── EVENTOS ──
