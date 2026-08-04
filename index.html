@@ -202,52 +202,80 @@
           <div class="card-header"><i class="ti ti-transfer card-title"></i><span class="card-title">Registrar movimiento</span></div>
           <div class="card-body">
             <div id="mov-locked-msg"></div>
-            <div class="form-grid" style="margin-bottom:12px">
-              <div class="form-group fg-full">
-                <label>Buscar Sub-SKU / Ítem</label>
-                <div class="ac-wrap" id="mov-ac-wrap">
-                  <i class="ti ti-search ac-icon"></i>
-                  <input type="text" class="ac-input" id="mov-ac-input" placeholder="Buscar por nombre, SKU, lote…" autocomplete="off" oninput="acFilter('mov')" onfocus="acOpen('mov')" onkeydown="acKey(event,'mov')">
-                  <button class="ac-clear" id="mov-ac-clear" onclick="acClear('mov')"><i class="ti ti-x"></i></button>
-                  <div class="ac-dropdown" id="mov-ac-drop"></div>
-                </div>
-                <div class="ac-selected-pill" id="mov-ac-pill">
-                  <span class="ac-selected-pill-text" id="mov-ac-pill-text"></span>
-                  <button onclick="acClear('mov')"><i class="ti ti-x"></i></button>
-                </div>
-                <input type="hidden" id="mov-sku">
-              </div>
+
+            <!-- PASO 1: ORIGEN -->
+            <div class="form-grid" style="margin-bottom:14px">
               <div class="form-group">
-                <label>Tipo de movimiento</label>
-                <select id="mov-tipo" onchange="toggleMovFields()">
-                  <option value="consumo">Consumo</option>
-                  <option value="traslado" id="opt-traslado">Traslado</option>
-                  <option value="destruccion" id="opt-destruccion">Destrucción</option>
+                <label>Ubicación de origen</label>
+                <select id="mov-origen-sede" onchange="movOrigenSedeChange()">
+                  <option value="">Seleccionar ubicación…</option>
                 </select>
               </div>
               <div class="form-group">
-                <label>Cantidad</label>
-                <input type="number" id="mov-cantidad" placeholder="0" min="1">
-              </div>
-              <div class="form-group" id="mov-origen-wrap">
-                <label>Origen</label>
-                <select id="mov-origen" onchange="updateMovInfo()"></select>
-              </div>
-              <div class="form-group" id="mov-destino-wrap" style="display:none">
-                <label>Destino</label>
-                <select id="mov-destino"></select>
-              </div>
-              <div class="form-group" id="mov-motivo-wrap" style="display:none">
-                <label>Motivo de destrucción</label>
-                <input type="text" id="mov-motivo" placeholder="Ej. Medicamento vencido, avería">
-              </div>
-              <div class="form-group" id="mov-paciente-wrap" style="display:none">
-                <label>Cédula del paciente</label>
-                <input type="number" id="mov-paciente" placeholder="Ej. 1006166884">
-                <span class="hint">Opcional — paciente al que se administró</span>
+                <label>Depósito de origen</label>
+                <select id="mov-origen-deposito" onchange="movOrigenDepositoChange()" disabled>
+                  <option value="">Selecciona primero la ubicación…</option>
+                </select>
               </div>
             </div>
-            <div style="background:var(--cream);border-radius:var(--r-md);padding:10px 14px;font-size:12px;font-family:var(--font-mono);color:#666;margin-bottom:12px" id="mov-stock-info">Selecciona un ítem para ver el stock disponible</div>
+
+            <!-- PASO 2: BUSCAR ÍTEM (bloqueado hasta elegir depósito) -->
+            <div class="form-group fg-full" id="mov-item-wrap" style="margin-bottom:14px;opacity:.4;pointer-events:none">
+              <label>Buscar Sub-SKU / Ítem en este depósito</label>
+              <div class="ac-wrap" id="mov-ac-wrap">
+                <i class="ti ti-search ac-icon"></i>
+                <input type="text" class="ac-input" id="mov-ac-input" placeholder="Selecciona primero un depósito de origen" autocomplete="off" disabled
+                  oninput="acFilter('mov')" onfocus="acOpen('mov')" onkeydown="acKey(event,'mov')">
+                <button class="ac-clear" id="mov-ac-clear" onclick="acClear('mov')"><i class="ti ti-x"></i></button>
+                <div class="ac-dropdown" id="mov-ac-drop"></div>
+              </div>
+              <div class="ac-selected-pill" id="mov-ac-pill">
+                <span class="ac-selected-pill-text" id="mov-ac-pill-text"></span>
+                <button onclick="acClear('mov')"><i class="ti ti-x"></i></button>
+              </div>
+              <input type="hidden" id="mov-sku">
+            </div>
+
+            <!-- PASO 3: TIPO DE MOVIMIENTO + CAMPOS DINÁMICOS (bloqueado hasta elegir ítem) -->
+            <div id="mov-tipo-wrap" style="display:none">
+              <div class="form-grid" style="margin-bottom:12px">
+                <div class="form-group">
+                  <label>Tipo de movimiento</label>
+                  <select id="mov-tipo" onchange="toggleMovFields()">
+                    <option value="consumo">Consumo</option>
+                    <option value="traslado" id="opt-traslado">Traslado</option>
+                    <option value="destruccion" id="opt-destruccion">Destrucción</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label id="mov-cantidad-label">Cantidad</label>
+                  <input type="number" id="mov-cantidad" placeholder="0" min="1">
+                </div>
+                <div class="form-group" id="mov-destino-sede-wrap" style="display:none">
+                  <label>Ubicación destino</label>
+                  <select id="mov-destino-sede" onchange="movDestinoSedeChange()">
+                    <option value="">Seleccionar ubicación…</option>
+                  </select>
+                </div>
+                <div class="form-group" id="mov-destino-wrap" style="display:none">
+                  <label>Depósito destino</label>
+                  <select id="mov-destino">
+                    <option value="">Selecciona primero la ubicación…</option>
+                  </select>
+                </div>
+                <div class="form-group" id="mov-motivo-wrap" style="display:none">
+                  <label>Motivo de destrucción</label>
+                  <input type="text" id="mov-motivo" placeholder="Ej. Medicamento vencido, avería">
+                </div>
+                <div class="form-group" id="mov-paciente-wrap" style="display:none">
+                  <label>Cédula del paciente</label>
+                  <input type="number" id="mov-paciente" placeholder="Ej. 1006166884">
+                  <span class="hint">Opcional — paciente al que se administró</span>
+                </div>
+              </div>
+              <div style="background:var(--cream);border-radius:var(--r-md);padding:10px 14px;font-size:12px;font-family:var(--font-mono);color:#666;margin-bottom:12px" id="mov-stock-info">—</div>
+            </div>
+
             <button class="btn-submit" onclick="registrarMovimiento()"><i class="ti ti-check"></i>Confirmar movimiento</button>
           </div>
         </div>

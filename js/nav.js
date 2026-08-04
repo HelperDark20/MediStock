@@ -32,7 +32,7 @@ function buildNav(){
 
 function populateSelects(){
   const opts = S.bodegas.map(b=>`<option value="${b}">${b}</option>`).join('');
-  ['mov-origen','mov-destino','reg-ubicacion'].forEach(id=>{
+  ['reg-ubicacion'].forEach(id=>{
     const el = document.getElementById(id);
     if(!el) return;
     el.innerHTML = opts;

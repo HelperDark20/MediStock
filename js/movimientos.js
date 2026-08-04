@@ -2,10 +2,17 @@
 // consumo). null = sin filtro, comportamiento normal.
 let _movFiltro = null; // { ubicacionNombre, mes:'YYYY-MM', mesLabel }
 
+// Estado del ORIGEN elegido en el Paso 1 — fija el depósito contra el
+// que se filtran las sugerencias de búsqueda y contra el que se
+// registra el movimiento (ya no se re-selecciona por ítem).
+let _movOrigenBodegaId = null;
+let _movOrigenBodegaNombre = null;
+
 function movClearFiltro(){
   _movFiltro = null;
   renderMovBody();
 }
+
 function renderMovimientos(){
   const canTraslado = currentRole>=3;
   const canDestruccion = currentRole>=3;
@@ -13,96 +20,175 @@ function renderMovimientos(){
   const optDestruccion = document.getElementById('opt-destruccion');
   if(optTraslado) optTraslado.disabled = !canTraslado;
   if(optDestruccion) optDestruccion.disabled = !canDestruccion;
-  if(!canTraslado && document.getElementById('mov-tipo').value!=='consumo'){
+  if(!canTraslado && document.getElementById('mov-tipo') && document.getElementById('mov-tipo').value!=='consumo'){
     document.getElementById('mov-tipo').value='consumo';
   }
   const msg = document.getElementById('mov-locked-msg');
-  if(currentRole===2){
-    msg.innerHTML='<div class="alert-strip A" style="margin-bottom:12px"><i class="ti ti-info-circle"></i><div class="alert-text"><div class="alert-name">Modo Enfermero/a</div><div class="alert-meta">Solo puedes registrar consumos</div></div></div>';
-  } else msg.innerHTML='';
+  if(msg) msg.innerHTML='';
+  movPopulateSedes();
   toggleMovFields();
   renderMovBody();
 }
 
-function toggleMovFields(){
-  const tipo = document.getElementById('mov-tipo').value;
-  document.getElementById('mov-destino-wrap').style.display = tipo==='traslado'?'':'none';
-  document.getElementById('mov-motivo-wrap').style.display = tipo==='destruccion'?'':'none';
-  document.getElementById('mov-paciente-wrap').style.display = tipo==='consumo'?'':'none';
+// ══════════════════════════════════════════
+// PASO 1 — UBICACIÓN Y DEPÓSITO DE ORIGEN
+// ══════════════════════════════════════════
+function movPopulateSedes(){
+  const opts = '<option value="">Seleccionar ubicación…</option>' +
+    S.ubicaciones.map(u=>`<option value="${u.id}">${escHtml(u.nombre)}</option>`).join('');
+
+  const selOrigen = document.getElementById('mov-origen-sede');
+  if(selOrigen){
+    const current = selOrigen.value;
+    selOrigen.innerHTML = opts;
+    if(current) selOrigen.value = current;
+  }
+  const selDestino = document.getElementById('mov-destino-sede');
+  if(selDestino){
+    const current = selDestino.value;
+    selDestino.innerHTML = opts;
+    if(current) selDestino.value = current;
+  }
 }
 
-function updateMovInfo(){
-  const id = parseInt(document.getElementById('mov-sku').value)||0;
-  const sub = S.subSkus.find(s=>s.id===id);
-  if(!sub){
-    document.getElementById('mov-stock-info').textContent='Selecciona un ítem para ver el stock disponible';
+function movOrigenSedeChange(){
+  const sedeId = parseInt(document.getElementById('mov-origen-sede').value)||0;
+  const depSel = document.getElementById('mov-origen-deposito');
+
+  movResetItemSelection();
+  _movOrigenBodegaId = null;
+  _movOrigenBodegaNombre = null;
+  movLockItemSearch(true);
+
+  if(!sedeId){
+    depSel.innerHTML = '<option value="">Selecciona primero la ubicación…</option>';
+    depSel.disabled = true;
     return;
   }
 
-  const bodegasConStock = Object.entries(sub.stock||{})
-    .filter(([,cantidad])=>cantidad>0)
-    .map(([nombre])=>nombre);
-
-  const origenSel = document.getElementById('mov-origen');
-  const destinoSel = document.getElementById('mov-destino');
-
-  origenSel.innerHTML = bodegasConStock.length
-    ? bodegasConStock.map(b=>`<option value="${b}">${b}</option>`).join('')
-    : '<option value="">Sin stock disponible</option>';
-
-  destinoSel.innerHTML = S.bodegas
-    .map(b=>`<option value="${b}">${b}</option>`).join('');
-
-  const origen = origenSel.value;
-  const stk = origen ? (sub.stock?.[origen]||0) : 0;
-  document.getElementById('mov-stock-info').innerHTML=`
-    <strong>${escHtml(sub.nombre)}</strong> · ${escHtml(sub.subSku)}<br>
-    Stock en <strong>${escHtml(origen)}</strong>:
-    <strong style="color:var(--blue)">${stk}</strong> ${escHtml(sub.unidad)}
-    ${bodegasConStock.length>1?`<br><span style="font-size:11px;color:#888">También disponible en: ${bodegasConStock.filter(b=>b!==origen).map(b=>escHtml(b)).join(', ')}</span>`:''}
-  `;
-
-  origenSel.onchange = ()=>{
-    const nuevoOrigen = origenSel.value;
-    const nuevoStk = sub.stock?.[nuevoOrigen]||0;
-    document.getElementById('mov-stock-info').innerHTML=`
-      <strong>${escHtml(sub.nombre)}</strong> · ${escHtml(sub.subSku)}<br>
-      Stock en <strong>${escHtml(nuevoOrigen)}</strong>:
-      <strong style="color:var(--blue)">${nuevoStk}</strong> ${escHtml(sub.unidad)}
-    `;
-  };
+  const depositos = (S.bodegasRaw||[]).filter(b=>b.ubicacion_id===sedeId);
+  depSel.innerHTML = depositos.length
+    ? '<option value="">Seleccionar depósito…</option>' + depositos.map(b=>`<option value="${b.id}">${escHtml(b.nombre)}</option>`).join('')
+    : '<option value="">Sin depósitos en esta ubicación</option>';
+  depSel.disabled = !depositos.length;
 }
 
-async function registrarMovimiento(){
+function movOrigenDepositoChange(){
+  const depId = parseInt(document.getElementById('mov-origen-deposito').value)||0;
+  movResetItemSelection();
+
+  if(!depId){
+    _movOrigenBodegaId = null;
+    _movOrigenBodegaNombre = null;
+    movLockItemSearch(true);
+    return;
+  }
+
+  const bodega = (S.bodegasRaw||[]).find(b=>b.id===depId);
+  _movOrigenBodegaId = depId;
+  _movOrigenBodegaNombre = bodega?.nombre || null;
+  movLockItemSearch(false);
+}
+
+function movLockItemSearch(lock){
+  const wrap  = document.getElementById('mov-item-wrap');
+  const input = document.getElementById('mov-ac-input');
+  if(!wrap || !input) return;
+  wrap.style.opacity = lock ? '.4' : '1';
+  wrap.style.pointerEvents = lock ? 'none' : 'auto';
+  input.disabled = lock;
+  input.placeholder = lock ? 'Selecciona primero un depósito de origen' : 'Buscar por nombre, SKU, lote…';
+}
+
+function movResetItemSelection(){
+  acClear('mov');
+  const tipoWrap = document.getElementById('mov-tipo-wrap');
+  if(tipoWrap) tipoWrap.style.display = 'none';
+}
+
+// ══════════════════════════════════════════
+// PASO 2 — AL SELECCIONAR ÍTEM (llamado desde acSelect en autocomplete.js)
+// ══════════════════════════════════════════
+function updateMovInfo(){
   const id = parseInt(document.getElementById('mov-sku').value)||0;
-  const tipo = document.getElementById('mov-tipo').value;
-  const cant = parseInt(document.getElementById('mov-cantidad').value)||0;
-  const origenNombre = document.getElementById('mov-origen').value;
-  const destinoNombre = document.getElementById('mov-destino').value;
-  const motivo = document.getElementById('mov-motivo')?.value||'';
+  const sub = S.subSkus.find(s=>s.id===id);
+  const tipoWrap = document.getElementById('mov-tipo-wrap');
+
+  if(!sub || !_movOrigenBodegaId){
+    if(tipoWrap) tipoWrap.style.display = 'none';
+    return;
+  }
+
+  tipoWrap.style.display = '';
+
+  const stk = sub.stock?.[_movOrigenBodegaNombre] || 0;
+  document.getElementById('mov-stock-info').innerHTML = `
+    <strong>${escHtml(sub.nombre)}</strong> · ${escHtml(sub.subSku)}<br>
+    Stock en <strong>${escHtml(_movOrigenBodegaNombre)}</strong>:
+    <strong style="color:var(--blue)">${stk}</strong> ${escHtml(sub.unidad)}
+  `;
+
+  toggleMovFields();
+}
+
+// ══════════════════════════════════════════
+// PASO 3 — TIPO DE MOVIMIENTO Y CAMPOS DINÁMICOS
+// ══════════════════════════════════════════
+function toggleMovFields(){
+  const tipo = document.getElementById('mov-tipo')?.value;
+  if(!tipo) return;
+
+  document.getElementById('mov-destino-sede-wrap').style.display = tipo==='traslado'?'':'none';
+  document.getElementById('mov-destino-wrap').style.display      = tipo==='traslado'?'':'none';
+  document.getElementById('mov-motivo-wrap').style.display       = tipo==='destruccion'?'':'none';
+  document.getElementById('mov-paciente-wrap').style.display     = tipo==='consumo'?'':'none';
+
+  const labelCant = document.getElementById('mov-cantidad-label');
+  if(labelCant){
+    labelCant.textContent = tipo==='traslado' ? 'Cantidad a trasladar'
+      : tipo==='consumo' ? 'Cantidad a consumir'
+      : 'Cantidad a destruir';
+  }
+
+  if(tipo==='traslado') movPopulateSedes();
+}
+
+function movDestinoSedeChange(){
+  const sedeId = parseInt(document.getElementById('mov-destino-sede').value)||0;
+  const depSel = document.getElementById('mov-destino');
+  if(!sedeId){
+    depSel.innerHTML = '<option value="">Selecciona primero la ubicación…</option>';
+    return;
+  }
+  const depositos = (S.bodegasRaw||[]).filter(b=>b.ubicacion_id===sedeId);
+  depSel.innerHTML = depositos.length
+    ? '<option value="">Seleccionar depósito…</option>' + depositos.map(b=>`<option value="${b.id}">${escHtml(b.nombre)}</option>`).join('')
+    : '<option value="">Sin depósitos en esta ubicación</option>';
+}
+
+// ══════════════════════════════════════════
+// REGISTRAR MOVIMIENTO
+// ══════════════════════════════════════════
+async function registrarMovimiento(){
+  const id      = parseInt(document.getElementById('mov-sku').value)||0;
+  const tipo    = document.getElementById('mov-tipo')?.value;
+  const cant    = parseInt(document.getElementById('mov-cantidad').value)||0;
+  const motivo  = document.getElementById('mov-motivo')?.value||'';
   const cedula_paciente = document.getElementById('mov-paciente')?.value.trim()||null;
 
-  if(!id){ toastError('Selecciona un ítem'); return; }
-  if(cant<=0){ toastError('Ingresa una cantidad válida'); return; }
+  if(!_movOrigenBodegaId){ toastError('Selecciona la ubicación y depósito de origen'); return; }
+  if(!id)     { toastError('Selecciona un ítem'); return; }
+  if(!tipo)   { toastError('Selecciona el tipo de movimiento'); return; }
+  if(cant<=0) { toastError('Ingresa una cantidad válida'); return; }
+
+  const origenId = _movOrigenBodegaId;
 
   try {
-    const todasBodegas = await Bodegas.getAll();
-    const origenId  = todasBodegas.find(b=>b.nombre===origenNombre)?.id;
-    const destinoId = todasBodegas.find(b=>b.nombre===destinoNombre)?.id;
-
-    // FIX: validar que se encontraron las bodegas antes de continuar
-    if(!origenId){
-      toastError('Bodega origen no encontrada — recarga la página');
-      return;
-    }
-    if(tipo==='traslado' && !destinoId){
-      toastError('Bodega destino no encontrada — recarga la página');
-      return;
-    }
-
     if(tipo==='consumo'){
       await Movimientos.consumo({ sub_sku_id:id, bodega_origen_id:origenId, cantidad:cant, cedula_paciente });
     } else if(tipo==='traslado'){
+      const destinoId = parseInt(document.getElementById('mov-destino').value)||0;
+      if(!destinoId){ toastError('Selecciona el depósito destino'); return; }
       if(origenId===destinoId){ toastError('Origen y destino son iguales'); return; }
       await Movimientos.traslado({ sub_sku_id:id, bodega_origen_id:origenId, bodega_destino_id:destinoId, cantidad:cant });
     } else if(tipo==='destruccion'){
@@ -111,7 +197,8 @@ async function registrarMovimiento(){
 
     document.getElementById('mov-cantidad').value='';
     if(document.getElementById('mov-paciente')) document.getElementById('mov-paciente').value='';
-    acClear('mov');
+    if(document.getElementById('mov-motivo'))   document.getElementById('mov-motivo').value='';
+    movResetItemSelection();
     await loadState();
     renderMovBody();
     buildNav();
@@ -121,6 +208,9 @@ async function registrarMovimiento(){
   }
 }
 
+// ══════════════════════════════════════════
+// HISTORIAL (sin cambios de lógica)
+// ══════════════════════════════════════════
 function renderMovBody(){
   const body   = document.getElementById('mov-body');
   const banner = document.getElementById('mov-alert-banner');
@@ -150,7 +240,7 @@ function renderMovBody(){
   }
 
   if(!movs.length){
-    body.innerHTML='<tr><td colspan="8"><div class="empty-state"><i class="ti ti-history"></i><p>Sin movimientos registrados</p></div></td></tr>';
+    body.innerHTML='<tr><td colspan="9"><div class="empty-state"><i class="ti ti-history"></i><p>Sin movimientos registrados</p></div></td></tr>';
     return;
   }
 
@@ -207,32 +297,21 @@ function confirmRevertirMovimiento(id){
 }
 
 // ── ACCIÓN "MOVIMIENTO" DESDE INVENTARIO ──
-// Lleva al módulo de Movimientos con el ítem y la bodega de origen
-// ya preseleccionados, listos para registrar consumo/traslado/destrucción.
+// Preselecciona la ubicación/depósito de origen y el ítem, listos para
+// completar el tipo de movimiento.
 function quickMov(subSkuId, ubicacion){
   const sub = S.subSkus.find(s => s.id === subSkuId);
   if(!sub){ toastError('Ítem no encontrado'); return; }
 
+  const bodega = (S.bodegasRaw||[]).find(b => b.nombre === ubicacion);
+  if(!bodega){ toastError('Depósito no encontrado — recarga la página'); return; }
+
   goTo('movimientos');
 
-  AC.mov.selectedId = sub.id;
-  document.getElementById('mov-sku').value = sub.id;
-  document.getElementById('mov-ac-input').value = sub.nombre;
-  document.getElementById('mov-ac-clear').classList.add('show');
-  document.getElementById('mov-ac-pill-text').innerHTML =
-    `${escHtml(sub.nombre)} <span style="opacity:.6;font-size:11px">${escHtml(sub.subSku)} · ${getTotalStock(sub)} ${escHtml(sub.unidad)}</span>`;
-  document.getElementById('mov-ac-pill').classList.add('show');
+  document.getElementById('mov-origen-sede').value = bodega.ubicacion_id;
+  movOrigenSedeChange();
+  document.getElementById('mov-origen-deposito').value = bodega.id;
+  movOrigenDepositoChange();
 
-  updateMovInfo();
-
-  const origenSel = document.getElementById('mov-origen');
-  if(origenSel && ubicacion){
-    const tieneOpcion = Array.from(origenSel.options).some(o => o.value === ubicacion);
-    if(tieneOpcion){
-      origenSel.value = ubicacion;
-      origenSel.onchange && origenSel.onchange();
-    } else {
-      toast(`"${ubicacion}" no tiene stock disponible de este ítem`, 'error');
-    }
-  }
+  acSelect('mov', sub.id);
 }
