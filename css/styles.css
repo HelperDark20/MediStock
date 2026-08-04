@@ -819,16 +819,24 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 
   * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 
-  /* FIX: ya no se evita partir el grupo completo — solo se evita
-     partir una fila individual a la mitad. Esto permite que un grupo
-     largo llene el espacio disponible en la página actual y continúe
-     en la siguiente, en vez de saltar toda la página en blanco. */
-  .rep-stats, .rep-list-simple{ break-inside:avoid; }
+  /* FIX: ni .rep-group ni .rep-list-simple se marcan como "no partibles"
+     completos — eso era lo que dejaba páginas casi vacías (el bloque
+     entero saltaba a la siguiente página en vez de repartirse). Solo se
+     evita partir una FILA individual a la mitad. */
+  .rep-stats{ break-inside:avoid; }
   .rep-row, .rep-list-row{ break-inside:avoid; }
   .rep-group-head{ break-after:avoid; }
 
-  /* FIX: encabezado del reporte (logo, título, fechas) fijo — se repite
-     automáticamente en cada página impresa/PDF, no solo en la primera. */
+  /* FIX: los banners de color (verde/rojo/ámbar/gris) perdían su fondo
+     al exportar a PDF porque el motor de impresión no siempre resuelve
+     bien var(--green)/var(--maroon) al pintar. Se fuerza con hex literal
+     y !important para garantizar que siempre se impriman. */
+  .rep-group-head{ background:#0A1628 !important; color:#fff !important; }
+  .rep-group-head.tono-red{ background:#7A1F1F !important; }
+  .rep-group-head.tono-amber{ background:#7A4E08 !important; }
+  .rep-group-head.tono-green{ background:#1A6B3C !important; }
+  .rep-group-head.tono-gray{ background:#4A4A46 !important; }
+
   .rep-logo-mini-img{ height:60px; }
   #rep-print-header{
     position:fixed;
