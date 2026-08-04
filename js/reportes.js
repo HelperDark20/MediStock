@@ -720,15 +720,29 @@ function _repRenderVencidos(){
   }
 
   const existenciasAlmacen = _repExistenciasAlmacen(filas);
+  const conExistencia = existenciasAlmacen.filter(v=>v.existencias.length);
+  const sinExistencia = existenciasAlmacen.filter(v=>!v.existencias.length);
+
   let almacenHtml = '';
   if(!existenciasAlmacen.length){
     almacenHtml = '<div class="empty-state"><i class="ti ti-building-warehouse"></i><p>No hay ítems vencidos para cruzar con Almacén</p></div>';
   } else {
-    almacenHtml = '<div class="rep-list-simple">' + existenciasAlmacen.map(v=>
-      v.existencias.length
-        ? v.existencias.map(e=>`<div class="rep-list-row"><div class="rep-list-dot ok"></div><div><div class="rep-list-name">${escHtml(v.nombre)} — ${escHtml(e.subSku)}</div><div class="rep-list-meta">${e.cantidad} ${escHtml(e.unidad)} · ${escHtml(e.bodegaNombre)}</div></div></div>`).join('')
-        : `<div class="rep-list-row"><div class="rep-list-dot no"></div><div><div class="rep-list-name">${escHtml(v.nombre)}</div><div class="rep-list-meta">No hay existencias en Almacén</div></div></div>`
-    ).join('') + '</div>';
+    if(conExistencia.length){
+      const filas1 = conExistencia.map(v=>
+        v.existencias.map(e=>`<div class="rep-list-row"><div class="rep-list-dot ok"></div><div><div class="rep-list-name">${escHtml(v.nombre)} — ${escHtml(e.subSku)}</div><div class="rep-list-meta">${e.cantidad} ${escHtml(e.unidad)} · ${escHtml(e.bodegaNombre)}</div></div></div>`).join('')
+      ).join('');
+      almacenHtml += `<div class="rep-group">
+        <div class="rep-group-head tono-green"><div class="rep-group-name"><i class="ti ti-circle-check"></i> Con existencias en Almacén</div><div class="rep-group-count">${conExistencia.length} ítem${conExistencia.length!==1?'s':''}</div></div>
+        <div class="rep-list-simple" style="border:none;border-radius:0;margin-bottom:0">${filas1}</div>
+      </div>`;
+    }
+    if(sinExistencia.length){
+      const filas2 = sinExistencia.map(v=>`<div class="rep-list-row"><div class="rep-list-dot no"></div><div><div class="rep-list-name">${escHtml(v.nombre)}</div><div class="rep-list-meta">No hay existencias en Almacén</div></div></div>`).join('');
+      almacenHtml += `<div class="rep-group">
+        <div class="rep-group-head tono-red"><div class="rep-group-name"><i class="ti ti-alert-circle"></i> Sin existencias en Almacén</div><div class="rep-group-count">${sinExistencia.length} ítem${sinExistencia.length!==1?'s':''}</div></div>
+        <div class="rep-list-simple" style="border:none;border-radius:0;margin-bottom:0">${filas2}</div>
+      </div>`;
+    }
   }
 
   document.getElementById('rep-contenido').innerHTML = `

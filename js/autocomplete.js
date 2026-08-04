@@ -198,8 +198,9 @@ function acSelect(ns, id){
   document.getElementById(`${ns}-ac-clear`).classList.add('show');
   document.getElementById(`${ns}-ac-drop`).classList.remove('open');
   const pill = document.getElementById(`${ns}-ac-pill`);
+  const stockPill = ns==='mov' ? (sub.stock?.[_movOrigenBodegaNombre]||0) : getTotalStock(sub);
   document.getElementById(`${ns}-ac-pill-text`).innerHTML =
-    `${sub.nombre} <span style="opacity:.6;font-size:11px">${sub.subSku} · ${getTotalStock(sub)} ${sub.unidad}</span>`;
+    `${sub.nombre} <span style="opacity:.6;font-size:11px">${sub.subSku} · ${stockPill} ${sub.unidad}</span>`;
   pill.classList.add('show');
   if(ns==='mov') updateMovInfo();
   if(ns==='enf') enfOnMedSelect(sub);

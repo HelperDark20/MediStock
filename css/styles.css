@@ -819,9 +819,29 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 
   * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 
-  .rep-group, .rep-stats, .rep-list-simple{ break-inside:avoid; }
+  /* FIX: ya no se evita partir el grupo completo — solo se evita
+     partir una fila individual a la mitad. Esto permite que un grupo
+     largo llene el espacio disponible en la página actual y continúe
+     en la siguiente, en vez de saltar toda la página en blanco. */
+  .rep-stats, .rep-list-simple{ break-inside:avoid; }
   .rep-row, .rep-list-row{ break-inside:avoid; }
   .rep-group-head{ break-after:avoid; }
+
+  /* FIX: encabezado del reporte (logo, título, fechas) fijo — se repite
+     automáticamente en cada página impresa/PDF, no solo en la primera. */
+  .rep-logo-mini-img{ height:60px; }
+  #rep-print-header{
+    position:fixed;
+    top:0; left:0; right:0;
+    background:var(--cream);
+    padding:20px 20px 14px;
+    border-bottom:1px solid var(--cream3);
+    margin-bottom:0;
+    z-index:100;
+  }
+  #rep-contenido{
+    margin-top:130px;
+  }
 }
 
 /* ══════════════════════════════════════════
