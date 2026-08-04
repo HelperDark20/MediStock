@@ -819,23 +819,22 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 
   * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 
-  /* FIX: ni .rep-group ni .rep-list-simple se marcan como "no partibles"
-     completos — eso era lo que dejaba páginas casi vacías (el bloque
-     entero saltaba a la siguiente página en vez de repartirse). Solo se
-     evita partir una FILA individual a la mitad. */
   .rep-stats{ break-inside:avoid; }
   .rep-row, .rep-list-row{ break-inside:avoid; }
   .rep-group-head{ break-after:avoid; }
 
-  /* FIX: los banners de color (verde/rojo/ámbar/gris) perdían su fondo
-     al exportar a PDF porque el motor de impresión no siempre resuelve
-     bien var(--green)/var(--maroon) al pintar. Se fuerza con hex literal
-     y !important para garantizar que siempre se impriman. */
   .rep-group-head{ background:#0A1628 !important; color:#fff !important; }
   .rep-group-head.tono-red{ background:#7A1F1F !important; }
   .rep-group-head.tono-amber{ background:#7A4E08 !important; }
   .rep-group-head.tono-green{ background:#1A6B3C !important; }
   .rep-group-head.tono-gray{ background:#4A4A46 !important; }
+
+  /* FIX: @page reserva espacio en la parte superior de CADA página
+     impresa (no solo la primera), evitando que el header fijo tape
+     el inicio del contenido cuando este salta de página. */
+  @page {
+    margin-top: 150px;
+  }
 
   .rep-logo-mini-img{ height:60px; }
   #rep-print-header{
@@ -846,9 +845,6 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
     border-bottom:1px solid var(--cream3);
     margin-bottom:0;
     z-index:100;
-  }
-  #rep-contenido{
-    margin-top:130px;
   }
 }
 
