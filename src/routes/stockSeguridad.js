@@ -42,7 +42,7 @@ router.post('/grupos', verificarToken, verificarNivel(4), async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO stock_seguridad_grupos (nombre, patron_tokens) VALUES ($1, $2) RETURNING id, nombre, patron_tokens`,
-      [nombre.trim(), JSON.stringify(tokensUpper)]
+      [nombre.trim(), tokensUpper]
     );
     res.status(201).json({ ...result.rows[0], items: [] });
   } catch (err) {
@@ -61,7 +61,7 @@ router.put('/grupos/:id', verificarToken, verificarNivel(4), async (req, res) =>
   try {
     const result = await pool.query(
       `UPDATE stock_seguridad_grupos SET nombre = $1, patron_tokens = $2 WHERE id = $3 AND activo = true RETURNING id, nombre, patron_tokens`,
-      [nombre.trim(), JSON.stringify(tokensUpper), req.params.id]
+      [nombre.trim(), tokensUpper, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Grupo no encontrado' });
     res.json(result.rows[0]);
