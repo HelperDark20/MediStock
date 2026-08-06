@@ -829,23 +829,19 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
   .rep-group-head.tono-green{ background:#1A6B3C !important; }
   .rep-group-head.tono-gray{ background:#4A4A46 !important; }
 
-  /* FIX: @page reserva espacio en la parte superior de CADA página
-     impresa (no solo la primera), evitando que el header fijo tape
-     el inicio del contenido cuando este salta de página. */
-  @page {
-    margin-top: 150px;
-  }
-
   .rep-logo-mini-img{ height:60px; }
-  #rep-print-header{
-    position:fixed;
-    top:0; left:0; right:0;
-    background:var(--cream);
-    padding:20px 20px 14px;
-    border-bottom:1px solid var(--cream3);
-    margin-bottom:0;
-    z-index:100;
-  }
+
+  /* FIX: el header ahora vive en un <thead> real. Esto es lo único que
+     los navegadores repiten de forma fiable en cada página impresa —
+     position:fixed no lo garantiza y por eso aparecía flotando a mitad
+     de página. thead/tbody como table-header-group/table-row-group es
+     el comportamiento nativo por defecto, pero se fuerza explícito
+     para máxima compatibilidad. */
+  #rep-print-table{ width:100%; border-collapse:collapse; }
+  #rep-print-table thead{ display: table-header-group; }
+  #rep-print-table tbody{ display: table-row-group; }
+  #rep-print-table td{ border:none; padding:0; }
+  #rep-print-header{ margin-bottom:16px; }
 }
 
 /* ══════════════════════════════════════════

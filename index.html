@@ -687,20 +687,29 @@
           </div>
         </div>
 
-        <div id="rep-print-header" class="rep-header">
-          <div>
-            <div class="rep-meta" id="rep-meta-fecha"></div>
-            <div class="rep-title-lg" id="rep-print-titulo">Nova Bridge — Reporte</div>
-            <div class="rep-sub-lg" id="rep-print-sub"></div>
-          </div>
-          <div class="rep-logo-mini">
-              <img src="logo.png" alt="Nova Bridge" class="rep-logo-mini-img">
-            </div>
-        </div>
-
-        <div id="rep-contenido">
-          <div class="empty-state"><i class="ti ti-report-analytics"></i><p>Cargando reporte...</p></div>
-        </div>
+        <table id="rep-print-table" style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr><td style="padding:0">
+              <div id="rep-print-header" class="rep-header">
+                <div>
+                  <div class="rep-meta" id="rep-meta-fecha"></div>
+                  <div class="rep-title-lg" id="rep-print-titulo">Nova Bridge — Reporte</div>
+                  <div class="rep-sub-lg" id="rep-print-sub"></div>
+                </div>
+                <div class="rep-logo-mini">
+                  <img src="logo.png" alt="Nova Bridge" class="rep-logo-mini-img">
+                </div>
+              </div>
+            </td></tr>
+          </thead>
+          <tbody>
+            <tr><td style="padding:0">
+              <div id="rep-contenido">
+                <div class="empty-state"><i class="ti ti-report-analytics"></i><p>Cargando reporte...</p></div>
+              </div>
+            </td></tr>
+          </tbody>
+        </table>
 
       </div>
 
