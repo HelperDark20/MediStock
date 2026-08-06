@@ -109,6 +109,7 @@ function renderInv(){
       <td data-label="SKU global"><span class="sku-code">${skuG?.codigo||'—'}</span></td>
       <td data-label="Ítem">
         <div style="font-weight:500;font-size:13px">${s.nombre}</div>
+        <div class="mrow-meta">${skuG?.codigo||''} · ${s.subSku} · ${ubicacion} · ${fmtDate(s.caducidad)}</div>
         <div style="display:flex;gap:4px;margin-top:3px;flex-wrap:wrap">
           ${famBadge(skuG?.familia)}
           ${s.agotado?'<span style="font-size:9px;padding:2px 6px;border-radius:6px;background:#F0F0EE;color:#888;font-family:var(--font-mono);font-weight:700">AGOTADO</span>':''}

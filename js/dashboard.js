@@ -57,7 +57,7 @@ function renderDash(){
     if(!filasVencidas.length){
       al.innerHTML='<div class="alert-strip ok"><i class="ti ti-circle-check"></i><div class="alert-text"><div class="alert-name">Sin ítems vencidos</div><div class="alert-meta">No hay medicamentos vencidos pendientes de destrucción</div></div></div>';
     } else {
-      al.innerHTML = `<div style="max-height:380px;overflow-y:auto;padding-right:2px">` +
+      al.innerHTML = `<div class="dash-alerts-scroll">` +
         filasVencidas.map(({s,bodegaNombre,ubicacionNombre,cantidad})=>{
           const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
           const diff = s.caducidad ? Math.round((new Date(s.caducidad.split('T')[0]+'T00:00:00') - new Date(fechaColombia()+'T00:00:00')) / 864e5) : null;

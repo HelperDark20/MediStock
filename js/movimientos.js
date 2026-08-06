@@ -251,7 +251,16 @@ function renderMovBody(){
       <td data-label="Fecha" style="font-size:11px;font-family:var(--font-mono);color:#888">
         ${new Date(m.created_at).toLocaleString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
       </td>
-      <td data-label="Ítem" style="font-weight:500">${escHtml(m.nombre||'—')}</td>
+      <td data-label="Ítem" style="font-weight:500">
+        ${escHtml(m.nombre||'—')}
+        <div class="mrow-meta">
+          <span class="mov-tipo ${m.tipo}" style="font-size:8px">${m.tipo==='reversion'?'Reversión':escHtml(m.tipo)}</span>
+          ${escHtml(m.origen_nombre||'—')} → ${escHtml(m.destino_nombre||'—')}
+        </div>
+        <div class="mrow-meta">
+          ${new Date(m.created_at).toLocaleString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})} · ${escHtml(m.usuario_nombre||'—')}${m.tipo==='consumo'&&m.cedula_paciente?' · Pac: '+escHtml(m.cedula_paciente):''}
+        </div>
+      </td>
       <td data-label="Sub-SKU"><span class="sub-sku" style="font-size:9px">${escHtml((m.sub_sku||'').split('-').slice(0,2).join('-'))}</span></td>
       <td data-label="Tipo">
         <span class="mov-tipo ${m.tipo}">${m.tipo==='reversion'?'Reversión':escHtml(m.tipo)}</span>
