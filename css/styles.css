@@ -903,15 +903,14 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
   max-height:140px;
 }
 
-.evt-personal-row{
-  display:flex;
-  align-items:flex-start;
-  gap:6px;
-  font-size:12px;
-  color:#666;
-  margin-bottom:3px;
-  line-height:1.4;
-}
+.evt-personal-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px}
+.evt-personal-row i{font-size:13px;color:#888;margin-top:3px;flex-shrink:0}
+.evt-personal-body{flex:1;min-width:0}
+.evt-personal-name{font-size:12px;font-weight:600;color:var(--ink)}
+.evt-personal-deps{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.evt-dep-chip{font-size:10px;font-family:var(--font-mono);background:var(--cream);color:#666;padding:2px 7px;border-radius:8px;border:1px solid var(--cream2)}
+.evt-dep-chip.more{background:var(--blue-bg);color:var(--blue);font-weight:600}
+.evt-dep-chip.empty{color:#aaa;font-style:italic;background:none;border:none;padding:0}
 .evt-personal-row strong{ color:var(--ink); }
 
 /* ══════════════════════════════════════════
@@ -997,13 +996,21 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
   .mnav-item i{font-size:19px}
   .mnav-item span{font-size:9px;font-weight:600}
   .mnav-item.active{color:#fff;background:rgba(33,150,211,.18)}
-  .mnav-mas-list{display:flex;flex-direction:column;gap:4px}
+  .mnav-mas-list{display:flex;flex-direction:column;gap:8px}
   .mnav-mas-item{
-    display:flex;align-items:center;gap:12px;padding:12px 14px;border:none;
-    background:var(--cream);border-radius:var(--r-md);font-size:14px;
-    font-weight:500;color:var(--ink);cursor:pointer;text-align:left;
+    display:flex;align-items:center;gap:12px;padding:12px 14px;
+    border:1px solid var(--cream3);background:var(--white);border-radius:var(--r-lg);
+    font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;text-align:left;
+    box-shadow:var(--sh1);
   }
-  .mnav-mas-item i{font-size:18px;color:var(--blue)}
+  .mnav-mas-icon{
+    width:36px;height:36px;border-radius:var(--r-md);flex-shrink:0;
+    background:var(--blue-bg);color:var(--blue);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .mnav-mas-icon i{font-size:17px}
+  .mnav-mas-label{flex:1}
+  .mnav-mas-arrow{font-size:15px;color:#ccc}
 
   /* Deja espacio para que el contenido no quede tapado por el nav */
   .content{padding-bottom:78px}
@@ -1011,7 +1018,15 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
   /* ── Grids que el media query original no cubría ── */
   .grid-2{grid-template-columns:1fr}
   .grid-3{grid-template-columns:1fr}
-  .grid-4{grid-template-columns:1fr 1fr}
+  .grid-4{grid-template-columns:1fr 1fr;gap:8px}
+  .stat-card{padding:12px 14px}
+  .stat-icon{width:26px;height:26px;margin-bottom:6px}
+  .stat-icon i{font-size:13px}
+  .stat-label{font-size:9px}
+  .stat-val{font-size:21px}
+  .stat-sub{font-size:10px;margin-top:1px}
+  .table-toolbar{flex-direction:column;align-items:stretch}
+  .table-toolbar > *{width:100% !important}
   .form-grid.cols3{grid-template-columns:1fr}
 
   /* ── Tablas → tarjetas (usa data-label de cada <td>) ── */
@@ -1041,9 +1056,6 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
   .table-toolbar{padding:12px}
 }
 
-@media(max-width:420px){
-  .grid-4{grid-template-columns:1fr}
-}
 .mov-row-clickable{cursor:pointer}
 .mov-row-clickable:hover td{background:var(--blue-pale)}
 .mov-tipo.reversion{background:#F5F0FB;color:#6B3FA0}

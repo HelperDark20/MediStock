@@ -30,10 +30,16 @@ function renderEventos(){
 
   el.innerHTML = S.eventos.map(e => {
     const personalHTML = (e.personal||[]).map(p => {
-      const deps = (p.bodegas||[]).map(b=>escHtml(b.nombre)).join(', ') || 'sin depósitos';
+      const deps = p.bodegas||[];
+      const visibles = deps.slice(0,2).map(b=>`<span class="evt-dep-chip">${escHtml(b.nombre)}</span>`).join('');
+      const extra = deps.length>2 ? `<span class="evt-dep-chip more">+${deps.length-2}</span>` : '';
+      const depsHtml = deps.length ? visibles+extra : '<span class="evt-dep-chip empty">sin depósitos</span>';
       return `<div class="evt-personal-row">
-        <i class="ti ti-user" style="font-size:12px;color:#888"></i>
-        <span><strong>${escHtml(p.nombre)}</strong> — ${deps}</span>
+        <i class="ti ti-user"></i>
+        <div class="evt-personal-body">
+          <div class="evt-personal-name">${escHtml(p.nombre)}</div>
+          <div class="evt-personal-deps">${depsHtml}</div>
+        </div>
       </div>`;
     }).join('') || '<div class="evt-personal-row" style="color:#aaa">Sin personal asignado</div>';
 
