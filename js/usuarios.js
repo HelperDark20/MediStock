@@ -103,15 +103,17 @@ function renderUsuarios(){
         <div class="user-name">${u.nombre}</div>
         <div class="user-cedula">CC: ${u.cedula} · ${u.genero||'—'}</div>
       </div>
-      <span class="nivel-badge n${u.nivel}">N${u.nivel} · ${NIVELES[u.nivel]?.label}</span>
-      ${currentRole===4?`
-        <div class="act-btn-group" style="margin-left:6px">
-          <button class="act-btn primary" onclick="abrirEdicionUsuario(${u.id})" title="Editar">
-            <i class="ti ti-pencil"></i>
-          </button>
-          <button class="act-btn danger" onclick="confirmDeleteUser(${u.id})" title="Eliminar">
-            <i class="ti ti-trash"></i>
-          </button>
-        </div>`:''}
+      <div class="user-card-meta">
+        <span class="nivel-badge n${u.nivel}">N${u.nivel} · ${NIVELES[u.nivel]?.label}</span>
+        ${currentRole===4?`
+          <div class="act-btn-group">
+            <button class="act-btn primary" onclick="abrirEdicionUsuario(${u.id})" title="Editar">
+              <i class="ti ti-pencil"></i>
+            </button>
+            <button class="act-btn danger" onclick="confirmDeleteUser(${u.id})" title="Eliminar">
+              <i class="ti ti-trash"></i>
+            </button>
+          </div>`:''}
+      </div>
     </div>`).join('');
 }

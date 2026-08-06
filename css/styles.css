@@ -336,6 +336,7 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 .user-info{flex:1;min-width:0}
 .user-name{font-size:14px;font-weight:600;color:var(--ink)}
 .user-cedula{font-size:11px;color:#888;font-family:var(--font-mono);margin-top:1px}
+.user-card-meta{display:flex;align-items:center;gap:8px;flex-shrink:0}
 
 /* ── BODEGA CARD ── */
 .bodega-card{background:var(--white);border:1px solid var(--cream3);border-radius:var(--r-lg);padding:14px 16px;display:flex;align-items:center;gap:12px;margin-bottom:8px}
@@ -984,6 +985,17 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 
 @media(max-width:768px){
 
+  /* ── Topbar: título arriba a ancho completo, acciones en fila propia abajo ── */
+  .topbar{
+    flex-wrap:wrap;height:auto;padding:12px 16px;row-gap:10px;
+  }
+  .page-title{font-size:16px;flex:0 0 100%;order:-1;line-height:1.25}
+  .topbar-right-group{flex:0 0 100%;justify-content:space-between}
+  .topbar-right{flex:1;min-width:0}
+  .topbar-right .tb-btn{flex:1;justify-content:center;white-space:nowrap}
+  .tb-btn{font-size:12px;padding:8px 10px}
+  .logout-btn{flex-shrink:0}
+
   /* ── Nav inferior fijo ── */
   .mobile-bottom-nav{
     display:flex;position:fixed;left:0;right:0;bottom:0;z-index:700;
@@ -1054,28 +1066,33 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
   .table-wrap .act-btn-group{justify-content:flex-end}
   .table-toolbar{padding:12px}
 
+  /* Usuarios — evita que el badge/acciones queden apretados junto a nombres largos */
+  .user-card{flex-wrap:wrap;padding:12px 14px;gap:8px 12px}
+  .user-name{font-size:13px;line-height:1.35}
+  .user-card-meta{flex:1 1 100%;justify-content:space-between;padding-left:48px}
+
   /* Meta line con datos secundarios (solo visible en mobile) */
   .mrow-meta{
     display:block;font-size:11px;color:#888;font-family:var(--font-mono);
-    margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    margin-top:3px;line-height:1.4;
   }
 
-  /* Inventario — fila única: Ítem (con meta) a la izquierda, Cant./Estado a la derecha */
-  #inv-body tr{display:flex;align-items:center;gap:10px}
+  /* Inventario — 2 líneas: [Ítem + meta a ancho completo] / [Cant. · Estado · acciones a la derecha] */
+  #inv-body tr{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;justify-content:flex-end}
   #inv-body td{display:block;padding:0}
   #inv-body td[data-label]::before{content:none}
   #inv-body td:nth-child(1),
   #inv-body td:nth-child(3),
   #inv-body td:nth-child(4),
   #inv-body td:nth-child(6){display:none}
-  #inv-body td:nth-child(2){flex:1;min-width:0}
-  #inv-body td:nth-child(5){flex-shrink:0;text-align:right}
+  #inv-body td:nth-child(2){flex:1 1 100%;min-width:0}
+  #inv-body td:nth-child(5){flex-shrink:0}
   #inv-body td:nth-child(7){flex-shrink:0}
   #inv-body td:last-child{flex-shrink:0}
   #inv-body .act-btn-group{justify-content:flex-end}
 
-  /* Movimientos — fila única: Ítem (con meta) a la izquierda, Cant. a la derecha */
-  #mov-body tr{display:flex;align-items:center;gap:10px}
+  /* Movimientos — 2 líneas: [Ítem + meta a ancho completo] / [Cant. a la derecha] */
+  #mov-body tr{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;justify-content:flex-end}
   #mov-body td{display:block;padding:0}
   #mov-body td[data-label]::before{content:none}
   #mov-body td:nth-child(1),
@@ -1085,7 +1102,7 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
   #mov-body td:nth-child(7),
   #mov-body td:nth-child(8),
   #mov-body td:nth-child(9){display:none}
-  #mov-body td:nth-child(2){flex:1;min-width:0}
+  #mov-body td:nth-child(2){flex:1 1 100%;min-width:0}
   #mov-body td:nth-child(6){flex-shrink:0;font-size:15px}
 }
 
