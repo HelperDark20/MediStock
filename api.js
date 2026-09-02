@@ -83,6 +83,7 @@ const Movimientos = {
   consumo: (data) => request('POST', '/api/movimientos/consumo', data),
   traslado: (data) => request('POST', '/api/movimientos/traslado', data),
   destruccion: (data) => request('POST', '/api/movimientos/destruccion', data),
+  contingencia: (data) => request('POST', '/api/movimientos/contingencia', data),
   revertir: (id) => request('POST', `/api/movimientos/${id}/revertir`),
   getReporte: (params = {}) => {
     const query = new URLSearchParams(params).toString();

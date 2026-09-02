@@ -70,6 +70,9 @@ function goTo(viewId){
   if(viewId==='inventario'&&currentRole>=3){
     ta.innerHTML=`<button class="tb-btn primary" onclick="goTo('registro')"><i class="ti ti-plus"></i>Nueva entrada</button>`;
   }
+  if(viewId==='movimientos'&&currentRole===4){
+    ta.innerHTML=`<button class="tb-btn" onclick="abrirContingencia()"><i class="ti ti-file-alert"></i>Registrar contingencia</button>`;
+  }
   if(viewId==='sku'&&currentRole===4){
     ta.innerHTML=`<button class="tb-btn primary" onclick="document.getElementById('sku-nombre').focus()"><i class="ti ti-plus"></i>Crear SKU</button>`;
   }

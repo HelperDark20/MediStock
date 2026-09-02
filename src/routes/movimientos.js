@@ -282,6 +282,124 @@ router.post('/destruccion', verificarToken, verificarNivel(3), async (req, res) 
   }
 });
 
+// POST /api/movimientos/contingencia — nivel 4
+//
+// El Administrador transcribe un movimiento (consumo/traslado/destrucción)
+// que el enfermero registró en papel durante una contingencia de
+// conectividad. A diferencia de los endpoints normales:
+//   - usuario_id/usuario_nombre del movimiento son del ENFERMERO que
+//     atendió (no de quien hace el POST), para no romper trazabilidad
+//     ni el historial "Mis consumos de hoy" del panel enfermero.
+//   - fecha_atencion guarda la hora reportada en el papel.
+//   - created_at NO se toca — sigue siendo la hora real de inserción
+//     en la base de datos (ancla de auditoría inmutable).
+//   - cargado_por_id/cargado_por_nombre identifican al Administrador
+//     que hizo la carga, para dejar rastro de quién transcribió qué.
+router.post('/contingencia', verificarToken, verificarNivel(4), async (req, res) => {
+  const {
+    usuario_id, fecha_atencion, tipo,
+    sub_sku_id, bodega_origen_id, bodega_destino_id,
+    cantidad, cedula_paciente, motivo
+  } = req.body;
+
+  const TIPOS_VALIDOS = ['consumo', 'traslado', 'destruccion'];
+
+  if (!usuario_id || !fecha_atencion || !tipo || !sub_sku_id || !bodega_origen_id || !cantidad || cantidad <= 0) {
+    return res.status(400).json({ error: 'Faltan campos obligatorios' });
+  }
+  if (!TIPOS_VALIDOS.includes(tipo)) {
+    return res.status(400).json({ error: 'Tipo de movimiento inválido para contingencia' });
+  }
+
+  const fechaAt = new Date(fecha_atencion);
+  if (isNaN(fechaAt.getTime())) {
+    return res.status(400).json({ error: 'Fecha de atención inválida' });
+  }
+  if (fechaAt.getTime() > Date.now()) {
+    return res.status(400).json({ error: 'La fecha de atención no puede ser futura' });
+  }
+  if (tipo === 'traslado' && (!bodega_destino_id || bodega_destino_id === bodega_origen_id)) {
+    return res.status(400).json({ error: 'Selecciona un depósito destino distinto al de origen' });
+  }
+
+  const cedulaPacienteVal = cedula_paciente
+    ? String(cedula_paciente).replace(/\D/g, '') || null
+    : null;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // El enfermero debe existir y estar activo — su nombre se denormaliza
+    // igual que en los demás endpoints, para sobrevivir a un futuro
+    // borrado suave del usuario.
+    const enfermero = await client.query(
+      'SELECT id, nombre FROM usuarios WHERE id = $1 AND activo = true',
+      [usuario_id]
+    );
+    if (!enfermero.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'El usuario seleccionado no existe o está inactivo' });
+    }
+    const nombreEnfermero = enfermero.rows[0].nombre;
+
+    const stockResult = await client.query(
+      'SELECT cantidad FROM stock WHERE sub_sku_id = $1 AND bodega_id = $2',
+      [sub_sku_id, bodega_origen_id]
+    );
+    if (stockResult.rows.length === 0 || stockResult.rows[0].cantidad < cantidad) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Stock insuficiente en el depósito de origen' });
+    }
+
+    await client.query(
+      `INSERT INTO movimientos
+         (sub_sku_id, tipo, bodega_origen_id, bodega_destino_id, cantidad,
+          usuario_id, usuario_nombre, cedula_paciente, motivo,
+          fecha_atencion, es_contingencia, cargado_por_id, cargado_por_nombre)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true, $11, $12)`,
+      [
+        sub_sku_id,
+        tipo,
+        bodega_origen_id,
+        tipo === 'traslado' ? bodega_destino_id : null,
+        cantidad,
+        usuario_id,
+        nombreEnfermero,
+        tipo === 'consumo' ? cedulaPacienteVal : null,
+        tipo === 'destruccion' ? (motivo || null) : null,
+        fechaAt.toISOString(),
+        req.usuario.id,
+        req.usuario.nombre
+      ]
+    );
+
+    await client.query(
+      'UPDATE stock SET cantidad = cantidad - $1 WHERE sub_sku_id = $2 AND bodega_id = $3',
+      [cantidad, sub_sku_id, bodega_origen_id]
+    );
+
+    if (tipo === 'traslado') {
+      await client.query(
+        `INSERT INTO stock (sub_sku_id, bodega_id, cantidad)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (sub_sku_id, bodega_id)
+         DO UPDATE SET cantidad = stock.cantidad + $3`,
+        [sub_sku_id, bodega_destino_id, cantidad]
+      );
+    }
+
+    await client.query('COMMIT');
+    res.status(201).json({ mensaje: 'Contingencia registrada correctamente' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor al registrar la contingencia' });
+  } finally {
+    client.release();
+  }
+});
+
 // POST /api/movimientos/:id/revertir — nivel 4 — revierte un movimiento y ajusta el stock
 router.post('/:id/revertir', verificarToken, verificarNivel(4), async (req, res) => {
   const movId = parseInt(req.params.id);

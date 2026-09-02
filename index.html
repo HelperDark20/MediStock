@@ -777,6 +777,108 @@
   </div>
 </div>
 
+<!-- MODAL REGISTRAR CONTINGENCIA (Admin) -->
+<div class="modal-overlay" id="modal-contingencia">
+  <div class="modal-sheet" style="max-width:560px">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Registrar contingencia</div>
+    <div class="modal-sub">Carga un movimiento que el enfermero reportó en papel durante una falla de conectividad. Queda marcado como "Contingencia" y se guarda quién lo transcribió.</div>
+
+    <div class="form-group fg-full" style="margin-bottom:14px">
+      <label>Enfermero que atendió</label>
+      <div class="ac-wrap" id="cont-enf-wrap">
+        <i class="ti ti-search ac-icon"></i>
+        <input type="text" class="ac-input" id="cont-enf-input" placeholder="Buscar enfermero por nombre…" autocomplete="off"
+          oninput="contEnfFilter()" onfocus="contEnfFilter()" onkeydown="contEnfKey(event)">
+        <button class="ac-clear" id="cont-enf-clear" onclick="contEnfClear()"><i class="ti ti-x"></i></button>
+        <div class="ac-dropdown" id="cont-enf-drop"></div>
+      </div>
+      <input type="hidden" id="cont-usuario-id">
+    </div>
+
+    <div class="form-group fg-full" style="margin-bottom:14px">
+      <label>Fecha y hora de la atención</label>
+      <input type="datetime-local" id="cont-fecha-atencion">
+      <span class="hint">Tal como aparece en el formulario en papel — no puede ser futura</span>
+    </div>
+
+    <div class="form-grid" style="margin-bottom:14px">
+      <div class="form-group">
+        <label>Ubicación de origen</label>
+        <select id="cont-origen-sede" onchange="contOrigenSedeChange()">
+          <option value="">Seleccionar ubicación…</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Depósito de origen</label>
+        <select id="cont-origen-deposito" onchange="contOrigenDepositoChange()" disabled>
+          <option value="">Selecciona primero la ubicación…</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group fg-full" id="cont-item-wrap" style="margin-bottom:14px;opacity:.4;pointer-events:none">
+      <label>Buscar Sub-SKU / Ítem en este depósito</label>
+      <div class="ac-wrap" id="cont-ac-wrap">
+        <i class="ti ti-search ac-icon"></i>
+        <input type="text" class="ac-input" id="cont-ac-input" placeholder="Selecciona primero un depósito de origen" autocomplete="off" disabled
+          oninput="contAcFilter()" onfocus="contAcOpen()" onkeydown="contAcKey(event)">
+        <button class="ac-clear" id="cont-ac-clear" onclick="contAcClear()"><i class="ti ti-x"></i></button>
+        <div class="ac-dropdown" id="cont-ac-drop"></div>
+      </div>
+      <div class="ac-selected-pill" id="cont-ac-pill">
+        <span class="ac-selected-pill-text" id="cont-ac-pill-text"></span>
+        <button onclick="contAcClear()"><i class="ti ti-x"></i></button>
+      </div>
+      <input type="hidden" id="cont-sku">
+    </div>
+
+    <div id="cont-tipo-wrap" style="display:none">
+      <div class="form-grid" style="margin-bottom:12px">
+        <div class="form-group">
+          <label>Tipo de movimiento</label>
+          <select id="cont-tipo" onchange="contToggleFields()">
+            <option value="consumo">Consumo</option>
+            <option value="traslado">Traslado</option>
+            <option value="destruccion">Destrucción</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label id="cont-cantidad-label">Cantidad</label>
+          <input type="number" id="cont-cantidad" placeholder="0" min="1">
+        </div>
+        <div class="form-group" id="cont-destino-sede-wrap" style="display:none">
+          <label>Ubicación destino</label>
+          <select id="cont-destino-sede" onchange="contDestinoSedeChange()">
+            <option value="">Seleccionar ubicación…</option>
+          </select>
+        </div>
+        <div class="form-group" id="cont-destino-wrap" style="display:none">
+          <label>Depósito destino</label>
+          <select id="cont-destino">
+            <option value="">Selecciona primero la ubicación…</option>
+          </select>
+        </div>
+        <div class="form-group" id="cont-motivo-wrap" style="display:none">
+          <label>Motivo de destrucción</label>
+          <input type="text" id="cont-motivo" placeholder="Ej. Medicamento vencido, avería">
+        </div>
+        <div class="form-group" id="cont-paciente-wrap" style="display:none">
+          <label>Cédula del paciente</label>
+          <input type="number" id="cont-paciente" placeholder="Ej. 1006166884">
+          <span class="hint">Opcional — paciente al que se administró</span>
+        </div>
+      </div>
+      <div style="background:var(--cream);border-radius:var(--r-md);padding:10px 14px;font-size:12px;font-family:var(--font-mono);color:#666;margin-bottom:12px" id="cont-stock-info">—</div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-contingencia')">Cancelar</button>
+      <button class="btn-confirm" onclick="registrarContingencia()">Registrar contingencia</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL CREAR EVENTO -->
 <div class="modal-overlay" id="modal-crear-evento">
   <div class="modal-sheet" style="max-width:480px">
