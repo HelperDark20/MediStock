@@ -582,21 +582,29 @@ function _repExportSeguridadExcel(depNombre){
   if(!grupo){ toastError('No hay lista de stock de seguridad para este depósito'); return; }
   const { faltantes, diferencias, completos, sobrantes } = _repCompararSeguridad(depNombre, grupo);
 
-  const aoa = [
-    ['Nova Bridge — Stock de seguridad'],
-    [`Depósito: ${depNombre} · Grupo: ${grupo.nombre}`],
-    [],
-    ['FALTANTES'], ['Ítem','Esperado','Actual']
-  ];
-  faltantes.forEach(it=>aoa.push([it.nombre, it.esperado, it.actual]));
+  const aoa = _repEncabezadoExcel(
+    'Stock de seguridad',
+    `Depósito ${depNombre} · Grupo ${grupo.nombre} · Generado el ${new Date().toLocaleString('es-CO')}`,
+    [
+      ['Ítems en la lista', grupo.items.length],
+      ['Faltantes', faltantes.length],
+      ['Con diferencia', diferencias.length],
+      ['Sobrantes', sobrantes.length],
+      ['Completos', completos.length]
+    ]
+  );
+
+  aoa.push(['FALTANTES — sin existencias en el depósito']);
+  aoa.push(['Ítem','Esperado','Actual','Diferencia']);
+  faltantes.forEach(it=>aoa.push([it.nombre, it.esperado, it.actual, it.actual-it.esperado]));
   aoa.push([]); aoa.push(['CON DIFERENCIA DE CANTIDAD']); aoa.push(['Ítem','Esperado','Actual','Diferencia']);
   diferencias.forEach(it=>aoa.push([it.nombre, it.esperado, it.actual, it.actual-it.esperado]));
-  aoa.push([]); aoa.push(['SOBRANTES (fuera de lista)']); aoa.push(['Ítem','Cantidad actual']);
+  aoa.push([]); aoa.push(['SOBRANTES — fuera de la lista de seguridad']); aoa.push(['Ítem','Cantidad actual']);
   sobrantes.forEach(s=>aoa.push([s.nombre, s.cantidad]));
-  aoa.push([]); aoa.push(['COMPLETOS']); aoa.push(['Ítem','Cantidad']);
-  completos.forEach(it=>aoa.push([it.nombre, it.actual]));
+  aoa.push([]); aoa.push(['COMPLETOS — cantidad correcta']); aoa.push(['Ítem','Cantidad esperada','Cantidad actual']);
+  completos.forEach(it=>aoa.push([it.nombre, it.esperado, it.actual]));
 
-  _repDescargarExcel(aoa, `Stock_Seguridad_${depNombre.replace(/\s+/g,'_')}`);
+  _repDescargarExcel(aoa, `Stock_Seguridad_${depNombre.replace(/\s+/g,'_')}`, [28,16,14,14]);
 }
 
 // ══════════════════════════════════════════
@@ -758,14 +766,31 @@ function _repExportVencidosExcel(){
   const existenciasAlmacen = _repExistenciasAlmacen(filas);
   const semLabelLocal = {N:'Vencido', P:'Por vencer', R:'Crítico', A:'Alerta'};
 
-  const aoa = [
-    ['Nova Bridge — Vencidos y por vencer'],
-    [`Generado el ${new Date().toLocaleDateString('es-CO')}`],
-    [],
-    ['Ubicación','Depósito','Ítem','Sub-SKU','Cantidad','Caducidad','Estado']
-  ];
+  const counts = {N:0,P:0,R:0,A:0};
+  const ubicacionesSet = new Set();
+  filas.forEach(f=>{ counts[f.sem]++; ubicacionesSet.add(f.ubNombre); });
+
+  const ubSel  = document.getElementById('rep-ubicacion');
+  const ubLabel  = ubSel.value ? ubSel.options[ubSel.selectedIndex].textContent : 'Todas las ubicaciones';
+  const depLabel = document.getElementById('rep-deposito').value || 'Todos los depósitos';
+
+  const aoa = _repEncabezadoExcel(
+    'Vencidos y por vencer',
+    `${ubLabel} · ${depLabel} · Generado el ${new Date().toLocaleString('es-CO')}`,
+    [
+      ['Vencidos', counts.N],
+      ['Críticos', counts.R],
+      ['Alertas', counts.A],
+      ['Por vencer', counts.P],
+      ['Ubicaciones', ubicacionesSet.size]
+    ]
+  );
+
+  aoa.push(['Ubicación','Depósito','Ítem','Sub-SKU','Cantidad','Caducidad','Estado','Restante']);
   filas.forEach(f=>{
-    aoa.push([f.ubNombre, f.bodegaNombre, f.s.nombre, f.s.subSku, f.cantidad, fmtDate(f.s.caducidad), semLabelLocal[f.sem]]);
+    const diff = f.s.caducidad ? Math.round((new Date(f.s.caducidad.split('T')[0]+'T00:00:00') - new Date(fechaColombia()+'T00:00:00')) / 864e5) : null;
+    const diasTxt = diff!==null ? (diff<0 ? `Vencido hace ${Math.abs(diff)}d` : `${diff}d`) : '—';
+    aoa.push([f.ubNombre, f.bodegaNombre, f.s.nombre, f.s.subSku, f.cantidad, fmtDate(f.s.caducidad), semLabelLocal[f.sem], diasTxt]);
   });
   aoa.push([]);
   aoa.push(['Existencias en ALMACÉN para reemplazo de vencidos']);
@@ -778,7 +803,7 @@ function _repExportVencidosExcel(){
     }
   });
 
-  _repDescargarExcel(aoa, `Reporte_Vencidos_${fechaColombia()}`);
+  _repDescargarExcel(aoa, `Reporte_Vencidos_${fechaColombia()}`, [18,18,26,18,10,14,12,16]);
 }
 
 // ══════════════════════════════════════════
@@ -811,46 +836,83 @@ async function repExportExcel(){
   }
 }
 
-function _repDescargarExcel(aoa, nombreArchivo){
+// colWidths es opcional — un array de anchos (en caracteres) por columna,
+// para que cada reporte quede alineado a sus propias columnas en vez de
+// usar siempre el mismo ancho genérico de 9 columnas.
+function _repDescargarExcel(aoa, nombreArchivo, colWidths){
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{wch:20},{wch:24},{wch:24},{wch:16},{wch:16},{wch:16},{wch:16},{wch:24},{wch:24}];
+  const widths = colWidths || [20,24,24,16,16,16,16,24,24];
+  ws['!cols'] = widths.map(w=>({wch:w}));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Reporte');
   XLSX.writeFile(wb, `${nombreArchivo}.xlsx`);
   toast('✓ Excel generado', 'success');
 }
 
+// Construye el bloque de encabezado + resumen que se repite en todos los
+// exportadores, con la MISMA información que se ve en el reporte en
+// pantalla/PDF (los "rep-stat" de arriba), para que no queden datos
+// sueltos que solo existen en un formato y no en el otro.
+function _repEncabezadoExcel(titulo, subtitulo, statPairs){
+  const aoa = [
+    [`Nova Bridge — ${titulo}`],
+    [subtitulo],
+    [],
+    ['Resumen']
+  ];
+  statPairs.forEach(([label, valor]) => aoa.push([label, valor]));
+  aoa.push([]);
+  return aoa;
+}
+
 function _repExportConsumosExcel(movs){
-  const { porUbicacion, totalUnidades, totalValor } = _repAgruparConsumos(movs);
+  const { porUbicacion, totalUnidades, totalValor, itemsSinPrecio } = _repAgruparConsumos(movs);
+  const depositosConMov = Object.values(porUbicacion).reduce((a,u)=>a+Object.keys(u.depositos).length,0);
   const desde = document.getElementById('rep-fecha-desde').value||'—';
   const hasta = document.getElementById('rep-fecha-hasta').value||'—';
+  const ubSel  = document.getElementById('rep-ubicacion');
+  const ubLabel  = ubSel.value ? ubSel.options[ubSel.selectedIndex].textContent : 'Todas las ubicaciones';
+  const depLabel = document.getElementById('rep-deposito').value || 'Todos los depósitos';
 
-  const aoa = [
-    ['Nova Bridge — Consumos y gastos por ubicación / depósito'],
-    [`Rango: ${desde} a ${hasta}`],
-    [],
-    ['Ubicación', 'Depósito', 'Unidades consumidas', 'Valor (COP)']
-  ];
+  const aoa = _repEncabezadoExcel(
+    'Consumos y gastos por ubicación / depósito',
+    `${desde} a ${hasta} · ${ubLabel} · ${depLabel} · Generado el ${new Date().toLocaleString('es-CO')}`,
+    [
+      ['Unidades consumidas', totalUnidades],
+      ['Gasto total (COP)', totalValor],
+      ['Depósitos con movimiento', depositosConMov],
+      ['Ítems sin precio', itemsSinPrecio]
+    ]
+  );
+
+  aoa.push(['Ubicación', 'Depósito', 'Unidades', 'Valor (COP)', '% del total']);
   Object.values(porUbicacion).sort((a,b)=>b.valor-a.valor).forEach(u=>{
-    aoa.push([u.nombre, 'TODOS LOS DEPÓSITOS', u.unidades, u.valor]);
+    aoa.push([u.nombre, 'TODOS LOS DEPÓSITOS', u.unidades, u.valor, totalValor?`${((u.valor/totalValor)*100).toFixed(1)}%`:'0.0%']);
     Object.entries(u.depositos).sort((a,b)=>b[1].valor-a[1].valor).forEach(([depNombre, dep])=>{
-      aoa.push(['', depNombre, dep.unidades, dep.valor]);
+      aoa.push(['', depNombre, dep.unidades, dep.valor, totalValor?`${((dep.valor/totalValor)*100).toFixed(1)}%`:'0.0%']);
     });
   });
   aoa.push([]);
-  aoa.push(['TOTAL', '', totalUnidades, totalValor]);
+  aoa.push(['TOTAL', '', totalUnidades, totalValor, '100.0%']);
 
-  _repDescargarExcel(aoa, `Reporte_Consumos_${desde}_a_${hasta}`);
+  _repDescargarExcel(aoa, `Reporte_Consumos_${desde}_a_${hasta}`, [22,24,14,16,12]);
 }
 
 function _repExportCedulaExcel(movs, cedula){
   const filtrados = movs.filter(m => (m.cedula_paciente||'') === cedula);
-  const aoa = [
-    ['Nova Bridge — Consumos por cédula de paciente'],
-    [`Cédula: ${cedula}`],
-    [],
-    ['Fecha', 'SKU', 'Ítem', 'Cantidad', 'Unidad', 'Valor (COP)', 'Ubicación', 'Depósito', 'Usuario']
-  ];
+  const totalValor = filtrados.reduce((a,m)=>a+(Number(m.precio)||0)*m.cantidad, 0);
+
+  const aoa = _repEncabezadoExcel(
+    'Consumos por cédula de paciente',
+    `Cédula ${cedula} · Generado el ${new Date().toLocaleString('es-CO')}`,
+    [
+      ['Cédula consultada', cedula],
+      ['Consumos registrados', filtrados.length],
+      ['Valor total consumido (COP)', totalValor]
+    ]
+  );
+
+  aoa.push(['Fecha', 'SKU', 'Ítem', 'Cantidad', 'Unidad', 'Valor (COP)', 'Ubicación', 'Depósito', 'Usuario']);
   filtrados.forEach(m=>{
     const valor = (Number(m.precio)||0) * m.cantidad;
     aoa.push([
@@ -859,21 +921,32 @@ function _repExportCedulaExcel(movs, cedula){
       valor, m.origen_ubicacion_nombre||'', m.origen_nombre||'', m.usuario_nombre||''
     ]);
   });
-  _repDescargarExcel(aoa, `Reporte_Cedula_${cedula}`);
+  aoa.push([]);
+  aoa.push(['TOTAL', '', '', '', '', totalValor, '', '', '']);
+
+  _repDescargarExcel(aoa, `Reporte_Cedula_${cedula}`, [20,16,24,10,10,16,20,20,20]);
 }
 
 function _repExportPacientesExcel(movs){
-  const { porFechaUbicacion, totalPorUbicacion } = _repAgruparPacientes(movs);
+  const { porFechaUbicacion, totalPorUbicacion, totalGeneral, sinCedula } = _repAgruparPacientes(movs);
+  const diasConAtencion = new Set(Object.values(porFechaUbicacion).map(d=>d.fecha)).size;
   const desde = document.getElementById('rep-fecha-desde').value||'—';
   const hasta = document.getElementById('rep-fecha-hasta').value||'—';
+  const ubSel  = document.getElementById('rep-ubicacion');
+  const ubLabel  = ubSel.value ? ubSel.options[ubSel.selectedIndex].textContent : 'Todas las ubicaciones';
 
-  const aoa = [
-    ['Nova Bridge — Pacientes atendidos por ubicación'],
-    [`Rango: ${desde} a ${hasta}`],
-    [],
-    ['Total por ubicación (rango completo)'],
-    ['Ubicación', 'Pacientes distintos atendidos']
-  ];
+  const aoa = _repEncabezadoExcel(
+    'Pacientes atendidos por ubicación',
+    `${desde} a ${hasta} · ${ubLabel} · Generado el ${new Date().toLocaleString('es-CO')}`,
+    [
+      ['Pacientes distintos atendidos', totalGeneral],
+      ['Días con atención registrada', diasConAtencion],
+      ['Consumos sin cédula', sinCedula]
+    ]
+  );
+
+  aoa.push(['Total por ubicación (rango completo)']);
+  aoa.push(['Ubicación', 'Pacientes distintos atendidos']);
   Object.entries(totalPorUbicacion).sort((a,b)=>b[1].size-a[1].size).forEach(([ub,set])=>{
     aoa.push([ub, set.size]);
   });
@@ -884,25 +957,37 @@ function _repExportPacientesExcel(movs){
     aoa.push([d.fecha, d.ubNombre, d.cedulas.size]);
   });
 
-  _repDescargarExcel(aoa, `Reporte_Pacientes_${desde}_a_${hasta}`);
+  _repDescargarExcel(aoa, `Reporte_Pacientes_${desde}_a_${hasta}`, [20,28,20]);
 }
 
 function _repExportTopExcel(movs){
   const top = _repTopItemsDetallado(movs, 100);
+  const totalValor = top.reduce((a,it)=>a+it.valor,0);
+  const totalUnidades = top.reduce((a,it)=>a+it.unidades,0);
   const desde = document.getElementById('rep-fecha-desde').value||'—';
   const hasta = document.getElementById('rep-fecha-hasta').value||'—';
+  const ubSel  = document.getElementById('rep-ubicacion');
+  const ubLabel  = ubSel.value ? ubSel.options[ubSel.selectedIndex].textContent : 'Todas las ubicaciones';
+  const depLabel = document.getElementById('rep-deposito').value || 'Todos los depósitos';
 
-  const aoa = [
-    ['Nova Bridge — Top ítems más consumidos'],
-    [`Rango: ${desde} a ${hasta}`],
-    [],
-    ['#','SKU','Ítem','Sub-SKU','Unidades','Costo unitario','Costo total','Ubicaciones','Depósitos']
-  ];
+  const aoa = _repEncabezadoExcel(
+    'Top ítems más consumidos',
+    `${desde} a ${hasta} · ${ubLabel} · ${depLabel} · Generado el ${new Date().toLocaleString('es-CO')}`,
+    [
+      ['Ítems en el ranking', top.length],
+      ['Valor total del top (COP)', totalValor],
+      ['Unidades totales', totalUnidades]
+    ]
+  );
+
+  aoa.push(['#','SKU','Ítem','Sub-SKU','Unidades','Costo unitario','Costo total','Ubicaciones','Depósitos']);
   top.forEach((it,idx)=>{
     aoa.push([idx+1, it.codigo, it.nombre, it.subSku, it.unidades, it.precio, it.valor, [...it.ubicaciones].join(', '), [...it.depositos].join(', ')]);
   });
+  aoa.push([]);
+  aoa.push(['TOTAL', '', '', '', totalUnidades, '', totalValor, '', '']);
 
-  _repDescargarExcel(aoa, `Reporte_Top_Items_${desde}_a_${hasta}`);
+  _repDescargarExcel(aoa, `Reporte_Top_Items_${desde}_a_${hasta}`, [6,16,26,18,12,16,16,24,24]);
 }
 
 // ══════════════════════════════════════════
