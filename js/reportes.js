@@ -707,13 +707,14 @@ function _repRenderVencidos(){
       const rows = g.items.map(f=>{
         const diff = f.s.caducidad ? Math.round((new Date(f.s.caducidad.split('T')[0]+'T00:00:00') - new Date(fechaColombia()+'T00:00:00')) / 864e5) : null;
         const diasTxt = diff!==null ? (diff<0 ? `Vencido hace ${Math.abs(diff)}d` : `${diff}d`) : '';
-        return `<div class="rep-row" style="--rep-grid:110px 1fr 100px 100px 100px 130px">
+        return `<div class="rep-row" style="--rep-grid:100px 1fr 90px 100px 90px 120px 100px">
           <div class="rep-col-num"><span class="sem-badge ${f.sem}">${semLabelLocal[f.sem]}</span></div>
           <div><div class="rep-item-name">${escHtml(f.s.nombre)}</div><div class="rep-item-code">${escHtml(f.skuG?.codigo||'')}</div></div>
           <div class="rep-cell-mono strong">${f.cantidad} ${escHtml(f.s.unidad)}</div>
           <div class="rep-cell-mono">${fmtDate(f.s.caducidad)}</div>
           <div class="rep-cell-mono" style="color:${diff<0?'var(--maroon)':'#888'}">${diasTxt}</div>
           <div class="rep-cell-mono" style="font-size:10px;color:#999">${escHtml(f.s.subSku)}</div>
+          <div class="rep-cell-mono" style="font-size:10px;color:#999">${escHtml(f.s.lote||'—')}</div>
         </div>`;
       }).join('');
       gruposHtml += `<div class="rep-group">
@@ -721,7 +722,7 @@ function _repRenderVencidos(){
           <div class="rep-group-name"><i class="ti ti-building-warehouse"></i> ${escHtml(g.ubNombre)} / ${escHtml(g.bodegaNombre)}</div>
           <div class="rep-group-count">${g.items.length} ítem${g.items.length!==1?'s':''}</div>
         </div>
-        <div class="rep-cols" style="--rep-grid:110px 1fr 100px 100px 100px 130px"><div class="rep-col-num">Estado</div><div>Producto</div><div class="rep-col-num">Cantidad</div><div class="rep-col-num">Vencimiento</div><div class="rep-col-num">Restante</div><div class="rep-col-num">Lote</div></div>
+        <div class="rep-cols" style="--rep-grid:100px 1fr 90px 100px 90px 120px 100px"><div class="rep-col-num">Estado</div><div>Producto</div><div class="rep-col-num">Cantidad</div><div class="rep-col-num">Vencimiento</div><div class="rep-col-num">Restante</div><div class="rep-col-num">Sub-SKU</div><div class="rep-col-num">Lote</div></div>
         ${rows}
       </div>`;
     });
@@ -786,24 +787,27 @@ function _repExportVencidosExcel(){
     ]
   );
 
-  aoa.push(['Ubicación','Depósito','Ítem','Sub-SKU','Cantidad','Caducidad','Estado','Restante']);
+  aoa.push(['Ubicación','Depósito','SKU','Ítem','Sub-SKU','Lote','Cantidad','Caducidad','Estado','Restante']);
   filas.forEach(f=>{
     const diff = f.s.caducidad ? Math.round((new Date(f.s.caducidad.split('T')[0]+'T00:00:00') - new Date(fechaColombia()+'T00:00:00')) / 864e5) : null;
     const diasTxt = diff!==null ? (diff<0 ? `Vencido hace ${Math.abs(diff)}d` : `${diff}d`) : '—';
-    aoa.push([f.ubNombre, f.bodegaNombre, f.s.nombre, f.s.subSku, f.cantidad, fmtDate(f.s.caducidad), semLabelLocal[f.sem], diasTxt]);
+    aoa.push([
+      f.ubNombre, f.bodegaNombre, f.skuG?.codigo||'', f.s.nombre, f.s.subSku, f.s.lote||'—',
+      f.cantidad, fmtDate(f.s.caducidad), semLabelLocal[f.sem], diasTxt
+    ]);
   });
   aoa.push([]);
   aoa.push(['Existencias en ALMACÉN para reemplazo de vencidos']);
-  aoa.push(['Ítem','Sub-SKU','Cantidad','Depósito']);
+  aoa.push(['Ítem','Sub-SKU','Cantidad','Unidad','Depósito']);
   existenciasAlmacen.forEach(v=>{
     if(v.existencias.length){
-      v.existencias.forEach(e=> aoa.push([v.nombre, e.subSku, e.cantidad, e.bodegaNombre]));
+      v.existencias.forEach(e=> aoa.push([v.nombre, e.subSku, e.cantidad, e.unidad||'', e.bodegaNombre]));
     } else {
-      aoa.push([v.nombre, '—', 'No hay existencias', '—']);
+      aoa.push([v.nombre, '—', 'No hay existencias', '', '—']);
     }
   });
 
-  _repDescargarExcel(aoa, `Reporte_Vencidos_${fechaColombia()}`, [18,18,26,18,10,14,12,16]);
+  _repDescargarExcel(aoa, `Reporte_Vencidos_${fechaColombia()}`, [18,18,14,26,18,14,10,14,12,16]);
 }
 
 // ══════════════════════════════════════════
