@@ -42,6 +42,20 @@ function doLogout(){
 window.doLogin = doLogin;
 window.doLogout = doLogout;
 
+// FIX: Enter inicia sesión solo con teclado físico (pointer preciso, tipo
+// mouse/trackpad). En dispositivos táctiles el teclado virtual dispara el
+// mismo evento "Enter" al tocar "Ir"/"Listo", lo que causaba envíos
+// accidentales del formulario mientras el usuario aún corregía su cédula
+// o contraseña — en móvil se exige tap explícito en el botón.
+function handleLoginEnter(e){
+  if(e.key !== 'Enter') return;
+  const esTactil = window.matchMedia('(pointer: coarse)').matches;
+  if(esTactil) return;
+  e.preventDefault();
+  doLogin();
+}
+window.handleLoginEnter = handleLoginEnter;
+
 async function setupApp(user){
   const niv = NIVELES[currentRole];
 

@@ -26,11 +26,11 @@
     <div class="login-form">
       <div class="login-field">
         <label>Número de cédula</label>
-        <input type="text" id="l-cedula" placeholder="Ej. 1006166884">
+        <input type="text" id="l-cedula" placeholder="Ej. 1006166884" onkeydown="handleLoginEnter(event)">
       </div>
       <div class="login-field">
         <label>Contraseña</label>
-        <input type="password" id="l-pass" placeholder="••••••••">
+        <input type="password" id="l-pass" placeholder="••••••••" onkeydown="handleLoginEnter(event)">
       </div>
       <button class="login-btn" onclick="doLogin()">Ingresar al sistema</button>
     </div>
