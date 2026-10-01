@@ -41,6 +41,32 @@ router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
   }
 });
 
+// PUT /api/bodegas/:id — nivel 4 — renombrar (tipo y sufijo). Stock,
+// movimientos y asignaciones de eventos usan bodega_id, así que se conservan.
+// La ubicación no se cambia aquí: mover un depósito de sede afectaría los
+// reportes históricos por ubicación.
+router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
+  const { tipo, sufijo } = req.body;
+  if (!tipo || !String(tipo).trim() || !sufijo || !String(sufijo).trim()) {
+    return res.status(400).json({ error: 'Tipo y nombre del depósito son requeridos' });
+  }
+  const tipoUpper = String(tipo).trim().toUpperCase();
+  const nombre = `${tipoUpper}-${String(sufijo).trim().toUpperCase()}`;
+  try {
+    const existe = await pool.query('SELECT id FROM bodegas WHERE nombre = $1 AND id <> $2', [nombre, req.params.id]);
+    if (existe.rows.length > 0) return res.status(400).json({ error: 'Ya existe un depósito con ese nombre' });
+    const result = await pool.query(
+      'UPDATE bodegas SET nombre = $1, tipo = $2 WHERE id = $3 AND activo = true RETURNING *',
+      [nombre, tipoUpper, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Depósito no encontrado' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
 // DELETE /api/bodegas/:id — nivel 4
 router.delete('/:id', verificarToken, verificarNivel(4), async (req, res) => {
   try {

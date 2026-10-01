@@ -36,10 +36,54 @@ function toggleCampo(label){
   label.classList.toggle('active', cb.checked);
 }
 
-function getCamposSeleccionados(){
-  return Array.from(document.querySelectorAll('.campos-toggle input[type=checkbox]'))
+// Se limita al formulario de creación: el modal de edición tiene sus propios chips
+function getCamposSeleccionados(contenedor = '#view-sku .campos-toggle'){
+  return Array.from(document.querySelectorAll(`${contenedor} input[type=checkbox]`))
     .filter(cb => cb.checked)
     .map(cb => cb.value);
+}
+
+// ── EDITAR SKU GLOBAL ──
+function abrirEditarSKU(id){
+  const g = S.skusGlobales.find(x => x.id === id);
+  if(!g) return;
+  const campos = Array.isArray(g.campos) ? g.campos : JSON.parse(g.campos||'[]');
+
+  document.getElementById('edit-sku-id').value       = g.id;
+  document.getElementById('edit-sku-sub').textContent = `${g.codigo} · ${g.unidad||'sin unidad'}`;
+  document.getElementById('edit-sku-nombre').value   = g.nombre||'';
+  document.getElementById('edit-sku-familia').value  = g.familia||'';
+  document.getElementById('edit-sku-subgrupo').value = g.subgrupo||'';
+  document.querySelectorAll('#edit-sku-campos .campo-chip').forEach(label => {
+    const cb = label.querySelector('input[type=checkbox]');
+    cb.checked = campos.includes(cb.value);
+    label.classList.toggle('active', cb.checked);
+  });
+  document.getElementById('modal-edit-sku').classList.add('open');
+}
+
+async function guardarEdicionSKU(){
+  const id       = parseInt(document.getElementById('edit-sku-id').value)||0;
+  const nombre   = (document.getElementById('edit-sku-nombre').value||'').trim();
+  const familia  = (document.getElementById('edit-sku-familia').value||'').trim();
+  const subgrupo = (document.getElementById('edit-sku-subgrupo').value||'').trim();
+  const campos   = getCamposSeleccionados('#edit-sku-campos');
+
+  if(!nombre)  { toastError('Ingresa el nombre del ítem'); return; }
+  if(!familia) { toastError('Ingresa la familia'); return; }
+  if(!subgrupo){ toastError('Ingresa el subgrupo'); return; }
+
+  try {
+    const r = await SKUs.updateGlobal(id, { nombre, familia, subgrupo, campos });
+    closeModal('modal-edit-sku');
+    await loadState();
+    renderSKUs();
+    toast(r.items_seguridad_actualizados
+      ? `✓ SKU actualizado · también en ${r.items_seguridad_actualizados} lista(s) de stock de seguridad`
+      : '✓ SKU actualizado', 'success');
+  } catch(err){
+    toastError(err.message);
+  }
 }
 
 // ── CREAR SKU GLOBAL ──
@@ -67,7 +111,7 @@ async function crearSKUGlobal(){
     document.getElementById('sku-global-preview').textContent = '---';
     const codigoInput = document.getElementById('sku-codigo');
     if(codigoInput) codigoInput._manualEdit = false;
-    document.querySelectorAll('.campos-toggle .campo-chip').forEach(label => {
+    document.querySelectorAll('#view-sku .campos-toggle .campo-chip').forEach(label => {
       const cb = label.querySelector('input[type=checkbox]');
       cb.checked = true;
       label.classList.add('active');
@@ -115,7 +159,10 @@ function renderSKUs(){
       <td data-label="Familia">${famBadge(g.familia)}</td>
       <td data-label="Campos" style="display:flex;gap:3px;flex-wrap:wrap;align-items:center">${camposBadges||'—'}</td>
       <td data-label="">
-        ${currentRole===4?`<button class="act-btn danger" onclick="confirmDeleteSKU(${g.id})" title="Eliminar"><i class="ti ti-trash"></i></button>`:''}
+        ${currentRole===4?`<div class="act-btn-group">
+          <button class="act-btn primary" onclick="abrirEditarSKU(${g.id})" title="Editar"><i class="ti ti-pencil"></i></button>
+          <button class="act-btn danger" onclick="confirmDeleteSKU(${g.id})" title="Eliminar"><i class="ti ti-trash"></i></button>
+        </div>`:''}
       </td>
     </tr>`;
   }).join('');

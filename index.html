@@ -534,6 +534,88 @@
         </div>
       </div>
 
+      <!-- MODAL EDITAR SKU GLOBAL -->
+      <div class="modal-overlay" id="modal-edit-sku">
+        <div class="modal-sheet" style="max-width:520px">
+          <div class="modal-handle"></div>
+          <div class="modal-title">Editar SKU Global</div>
+          <div class="modal-sub" id="edit-sku-sub"></div>
+          <input type="hidden" id="edit-sku-id">
+          <div class="form-grid" style="margin-bottom:12px">
+            <div class="form-group fg-full">
+              <label>Nombre del ítem</label>
+              <input type="text" id="edit-sku-nombre" placeholder="Ej. Acetaminofén Tab 500mg">
+            </div>
+            <div class="form-group">
+              <label>Familia</label>
+              <input type="text" id="edit-sku-familia" placeholder="Ej. Medicamento, Insumo, Aseo">
+            </div>
+            <div class="form-group">
+              <label>Subgrupo</label>
+              <input type="text" id="edit-sku-subgrupo" placeholder="Ej. Analgésico, Antibiótico">
+            </div>
+          </div>
+          <div style="margin-bottom:6px">
+            <div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono);margin-bottom:8px">Campos activables para este SKU</div>
+            <div class="campos-toggle" id="edit-sku-campos">
+              <label class="campo-chip" onclick="toggleCampo(this)"><input type="checkbox" value="proveedor"><i class="ti ti-check"></i>Proveedor</label>
+              <label class="campo-chip" onclick="toggleCampo(this)"><input type="checkbox" value="lote"><i class="ti ti-check"></i>Lote</label>
+              <label class="campo-chip" onclick="toggleCampo(this)"><input type="checkbox" value="caducidad"><i class="ti ti-check"></i>Fecha Venc.</label>
+              <label class="campo-chip" onclick="toggleCampo(this)"><input type="checkbox" value="invima"><i class="ti ti-check"></i>Reg. INVIMA</label>
+            </div>
+          </div>
+          <span style="display:block;font-size:11px;color:#aaa;margin-bottom:12px">El código SKU y la unidad no se pueden editar. Desactivar un campo solo afecta las entradas nuevas; los datos ya registrados se conservan.</span>
+          <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal('modal-edit-sku')">Cancelar</button>
+            <button class="btn-confirm" onclick="guardarEdicionSKU()">Guardar cambios</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL EDITAR UBICACIÓN -->
+      <div class="modal-overlay" id="modal-edit-ubicacion">
+        <div class="modal-sheet" style="max-width:420px">
+          <div class="modal-handle"></div>
+          <div class="modal-title">Editar ubicación</div>
+          <div class="modal-sub">El nuevo nombre se verá en depósitos, eventos y reportes, incluidos los históricos.</div>
+          <input type="hidden" id="edit-ub-id">
+          <div class="form-group" style="margin-bottom:12px">
+            <label>Nombre de la ubicación</label>
+            <input type="text" id="edit-ub-nombre" style="text-transform:uppercase">
+          </div>
+          <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal('modal-edit-ubicacion')">Cancelar</button>
+            <button class="btn-confirm" onclick="guardarEdicionUbicacion()">Guardar cambios</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL EDITAR DEPÓSITO -->
+      <div class="modal-overlay" id="modal-edit-bodega">
+        <div class="modal-sheet" style="max-width:440px">
+          <div class="modal-handle"></div>
+          <div class="modal-title">Editar depósito</div>
+          <div class="modal-sub">El stock, los movimientos y las asignaciones a eventos se conservan. El nuevo nombre se verá también en los reportes históricos.</div>
+          <input type="hidden" id="edit-bod-id">
+          <div class="form-grid" style="margin-bottom:8px">
+            <div class="form-group">
+              <label>Tipo</label>
+              <input type="text" id="edit-bod-tipo" style="text-transform:uppercase" oninput="editBodegaPreview()">
+            </div>
+            <div class="form-group">
+              <label>Nombre</label>
+              <input type="text" id="edit-bod-sufijo" style="text-transform:uppercase" oninput="editBodegaPreview()">
+            </div>
+          </div>
+          <div style="font-size:12px;color:#888;margin-bottom:8px">Quedará como: <strong id="edit-bod-preview" style="font-family:var(--font-mono)">-</strong></div>
+          <span id="edit-bod-warn" style="display:none;font-size:11px;color:var(--amber);margin-bottom:12px"></span>
+          <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal('modal-edit-bodega')">Cancelar</button>
+            <button class="btn-confirm" onclick="guardarEdicionBodega()">Guardar cambios</button>
+          </div>
+        </div>
+      </div>
+
       <!-- ═══ BODEGAS (Admin) ═══ -->
       <div class="view" id="view-bodegas">
 
@@ -961,6 +1043,7 @@
     <div id="evtdet-enfermeros-list"></div>
 
     <div class="modal-actions">
+      <button class="btn-danger-solid" id="evtdet-eliminar-btn" style="display:none;margin-right:auto" onclick="confirmEliminarEvento()"><i class="ti ti-trash"></i> Eliminar evento</button>
       <button class="btn-cancel" onclick="closeModal('modal-evento-detalle')">Cerrar</button>
     </div>
   </div>
@@ -978,6 +1061,15 @@
       <button class="btn-cancel" onclick="evtCancelarAsignacion()">Cancelar</button>
       <button class="btn-confirm" onclick="evtGuardarAsignacion()">Guardar depósitos</button>
     </div>
+  </div>
+</div>
+<!-- MODAL ELEGIR EVENTO (enfermero con más de un evento en curso) -->
+<div class="modal-overlay" id="modal-elegir-evento">
+  <div class="modal-sheet" style="max-width:480px">
+    <div class="modal-handle"></div>
+    <div class="modal-title">¿En qué evento vas a trabajar?</div>
+    <div class="modal-sub">Estás asignado/a a más de un evento en curso. Elige en cuál vas a registrar consumos; podrás cambiarlo después.</div>
+    <div id="enf-eventos-opciones"></div>
   </div>
 </div>
 <!-- MODAL MÁS OPCIONES (nav móvil) -->

@@ -87,6 +87,40 @@ router.get('/activo', verificarToken, async (req, res) => {
   }
 });
 
+// GET /api/eventos/activos — TODOS los eventos en curso asignados al usuario,
+// cada uno con sus depósitos. Si hay más de uno, el panel del enfermero le
+// pide elegir en cuál va a trabajar.
+router.get('/activos', verificarToken, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT e.*, u.nombre AS ubicacion_nombre
+      FROM eventos e
+      JOIN evento_usuarios eu ON eu.evento_id = e.id
+      LEFT JOIN ubicaciones u ON e.ubicacion_id = u.id
+      WHERE eu.usuario_id = $1 AND e.estado = 'en_curso' AND e.activo = true
+      ORDER BY e.iniciado_at DESC
+    `, [req.usuario.id]);
+    if (!result.rows.length) return res.json([]);
+
+    const ids = result.rows.map(e => e.id);
+    const bodegas = await pool.query(`
+      SELECT eub.evento_id, b.id, b.nombre
+      FROM evento_usuario_bodegas eub
+      JOIN bodegas b ON eub.bodega_id = b.id
+      WHERE eub.evento_id = ANY($1::int[]) AND eub.usuario_id = $2 AND b.activo = true
+      ORDER BY b.nombre
+    `, [ids, req.usuario.id]);
+
+    res.json(result.rows.map(e => ({
+      ...e,
+      bodegas: bodegas.rows.filter(b => b.evento_id === e.id).map(b => ({ id: b.id, nombre: b.nombre }))
+    })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
 // GET /api/eventos/:id — detalle de un evento (nivel 4, usado en el modal de detalle)
 router.get('/:id', verificarToken, verificarNivel(4), async (req, res) => {
   try {
