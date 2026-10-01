@@ -44,6 +44,15 @@ router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
 // DELETE /api/bodegas/:id — nivel 4
 router.delete('/:id', verificarToken, verificarNivel(4), async (req, res) => {
   try {
+    // FIX: no permitir eliminar un depósito con stock — ese stock dejaba de
+    // aparecer en los listados (se filtran depósitos inactivos)
+    const conStock = await pool.query(
+      'SELECT COALESCE(SUM(cantidad), 0) AS total FROM stock WHERE bodega_id = $1 AND cantidad > 0',
+      [req.params.id]
+    );
+    if (Number(conStock.rows[0].total) > 0) {
+      return res.status(400).json({ error: 'Este depósito todavía tiene stock. Trasládalo antes de eliminarlo.' });
+    }
     await pool.query('UPDATE bodegas SET activo = false WHERE id = $1', [req.params.id]);
     res.json({ mensaje: 'Depósito eliminado' });
   } catch (err) {

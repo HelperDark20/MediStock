@@ -3,12 +3,42 @@ const router = express.Router();
 const pool = require('../config/db');
 const { verificarToken, verificarNivel } = require('../middlewares/auth');
 
+// FIX: cantidad debe ser un entero positivo. Antes un texto como "abc"
+// pasaba la validación (`"abc" <= 0` es false) y terminaba en error 500.
+function _cantidadValida(c) {
+  const n = Number(c);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+// FIX CONCURRENCIA: valida y descuenta el stock en una sola sentencia.
+// Antes se hacía SELECT y luego UPDATE: dos peticiones simultáneas podían
+// pasar ambas la validación y dejar el stock en negativo.
+// Devuelve true si había stock suficiente y se descontó.
+async function _descontarStock(client, subSkuId, bodegaId, cantidad) {
+  const r = await client.query(
+    `UPDATE stock SET cantidad = cantidad - $1
+     WHERE sub_sku_id = $2 AND bodega_id = $3 AND cantidad >= $1
+     RETURNING cantidad`,
+    [cantidad, subSkuId, bodegaId]
+  );
+  return r.rows.length > 0;
+}
+
+async function _stockDisponible(client, subSkuId, bodegaId) {
+  const r = await client.query(
+    'SELECT cantidad FROM stock WHERE sub_sku_id = $1 AND bodega_id = $2',
+    [subSkuId, bodegaId]
+  );
+  return r.rows[0]?.cantidad || 0;
+}
+
 // GET /api/movimientos — todos los niveles
 router.get('/', verificarToken, async (req, res) => {
   const { sku_global, sub_sku_id, bodega } = req.query;
   // FIX SEGURIDAD: cap máximo de 1000 para evitar DoS por limit arbitrario
-  const requestedLimit = parseInt(req.query.limit) || 500;
-  const limit = Math.min(requestedLimit, 1000);
+  // FIX: un limit negativo o 0 hacía fallar la consulta (LIMIT -5 → error 500)
+  const requestedLimit = parseInt(req.query.limit);
+  const limit = requestedLimit > 0 ? Math.min(requestedLimit, 1000) : 500;
 
   try {
     let query = `
@@ -110,9 +140,15 @@ router.get('/reportes', verificarToken, verificarNivel(4), async (req, res) => {
       query += ` AND m.cedula_paciente = $${params.length}`;
     }
 
-    query += ' ORDER BY m.created_at DESC LIMIT 20000';
+    // Se pide una fila de más para saber si el resultado quedó recortado
+    const TOPE_REPORTE = 20000;
+    query += ` ORDER BY m.created_at DESC LIMIT ${TOPE_REPORTE + 1}`;
 
     const result = await pool.query(query, params);
+    if (result.rows.length > TOPE_REPORTE) {
+      res.set('X-Reporte-Truncado', String(TOPE_REPORTE));
+      return res.json(result.rows.slice(0, TOPE_REPORTE));
+    }
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -122,9 +158,10 @@ router.get('/reportes', verificarToken, verificarNivel(4), async (req, res) => {
 
 // POST /api/movimientos/entrada — nivel 3 y 4
 router.post('/entrada', verificarToken, verificarNivel(3), async (req, res) => {
-  const { sub_sku_id, bodega_destino_id, cantidad } = req.body;
-  if (!sub_sku_id || !bodega_destino_id || !cantidad || cantidad <= 0) {
-    return res.status(400).json({ error: 'Faltan campos obligatorios' });
+  const { sub_sku_id, bodega_destino_id } = req.body;
+  const cantidad = _cantidadValida(req.body.cantidad);
+  if (!sub_sku_id || !bodega_destino_id || !cantidad) {
+    return res.status(400).json({ error: 'Faltan campos obligatorios o la cantidad no es un entero positivo' });
   }
   const client = await pool.connect();
   try {
@@ -155,9 +192,10 @@ router.post('/entrada', verificarToken, verificarNivel(3), async (req, res) => {
 
 // POST /api/movimientos/consumo — nivel 2, 3 y 4
 router.post('/consumo', verificarToken, verificarNivel(2), async (req, res) => {
-  const { sub_sku_id, bodega_origen_id, cantidad, cedula_paciente } = req.body;
-  if (!sub_sku_id || !bodega_origen_id || !cantidad || cantidad <= 0) {
-    return res.status(400).json({ error: 'Faltan campos obligatorios' });
+  const { sub_sku_id, bodega_origen_id, cedula_paciente } = req.body;
+  const cantidad = _cantidadValida(req.body.cantidad);
+  if (!sub_sku_id || !bodega_origen_id || !cantidad) {
+    return res.status(400).json({ error: 'Faltan campos obligatorios o la cantidad no es un entero positivo' });
   }
   // FIX: sanitizar cedula_paciente — solo dígitos
   const cedulaPacienteVal = cedula_paciente
@@ -167,11 +205,7 @@ router.post('/consumo', verificarToken, verificarNivel(2), async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const stockResult = await client.query(
-      'SELECT cantidad FROM stock WHERE sub_sku_id = $1 AND bodega_id = $2',
-      [sub_sku_id, bodega_origen_id]
-    );
-    if (stockResult.rows.length === 0 || stockResult.rows[0].cantidad < cantidad) {
+    if (!await _descontarStock(client, sub_sku_id, bodega_origen_id, cantidad)) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Stock insuficiente' });
     }
@@ -180,10 +214,6 @@ router.post('/consumo', verificarToken, verificarNivel(2), async (req, res) => {
          (sub_sku_id, tipo, bodega_origen_id, cantidad, usuario_id, usuario_nombre, cedula_paciente)
        VALUES ($1, 'consumo', $2, $3, $4, $5, $6)`,
       [sub_sku_id, bodega_origen_id, cantidad, req.usuario.id, req.usuario.nombre, cedulaPacienteVal]
-    );
-    await client.query(
-      'UPDATE stock SET cantidad = cantidad - $1 WHERE sub_sku_id = $2 AND bodega_id = $3',
-      [cantidad, sub_sku_id, bodega_origen_id]
     );
     await client.query('COMMIT');
     res.status(201).json({ mensaje: 'Consumo registrado correctamente' });
@@ -198,21 +228,19 @@ router.post('/consumo', verificarToken, verificarNivel(2), async (req, res) => {
 
 // POST /api/movimientos/traslado — nivel 3 y 4
 router.post('/traslado', verificarToken, verificarNivel(3), async (req, res) => {
-  const { sub_sku_id, bodega_origen_id, bodega_destino_id, cantidad } = req.body;
-  if (!sub_sku_id || !bodega_origen_id || !bodega_destino_id || !cantidad || cantidad <= 0) {
-    return res.status(400).json({ error: 'Faltan campos obligatorios' });
+  const { sub_sku_id, bodega_origen_id, bodega_destino_id } = req.body;
+  const cantidad = _cantidadValida(req.body.cantidad);
+  if (!sub_sku_id || !bodega_origen_id || !bodega_destino_id || !cantidad) {
+    return res.status(400).json({ error: 'Faltan campos obligatorios o la cantidad no es un entero positivo' });
   }
-  if (bodega_origen_id === bodega_destino_id) {
+  // String() para que "3" y 3 se consideren iguales
+  if (String(bodega_origen_id) === String(bodega_destino_id)) {
     return res.status(400).json({ error: 'Origen y destino son iguales' });
   }
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const stockResult = await client.query(
-      'SELECT cantidad FROM stock WHERE sub_sku_id = $1 AND bodega_id = $2',
-      [sub_sku_id, bodega_origen_id]
-    );
-    if (stockResult.rows.length === 0 || stockResult.rows[0].cantidad < cantidad) {
+    if (!await _descontarStock(client, sub_sku_id, bodega_origen_id, cantidad)) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Stock insuficiente en origen' });
     }
@@ -221,10 +249,6 @@ router.post('/traslado', verificarToken, verificarNivel(3), async (req, res) => 
          (sub_sku_id, tipo, bodega_origen_id, bodega_destino_id, cantidad, usuario_id, usuario_nombre)
        VALUES ($1, 'traslado', $2, $3, $4, $5, $6)`,
       [sub_sku_id, bodega_origen_id, bodega_destino_id, cantidad, req.usuario.id, req.usuario.nombre]
-    );
-    await client.query(
-      'UPDATE stock SET cantidad = cantidad - $1 WHERE sub_sku_id = $2 AND bodega_id = $3',
-      [cantidad, sub_sku_id, bodega_origen_id]
     );
     await client.query(
       `INSERT INTO stock (sub_sku_id, bodega_id, cantidad)
@@ -246,18 +270,15 @@ router.post('/traslado', verificarToken, verificarNivel(3), async (req, res) => 
 
 // POST /api/movimientos/destruccion — nivel 3 y 4
 router.post('/destruccion', verificarToken, verificarNivel(3), async (req, res) => {
-  const { sub_sku_id, bodega_origen_id, cantidad, motivo } = req.body;
-  if (!sub_sku_id || !bodega_origen_id || !cantidad || cantidad <= 0) {
-    return res.status(400).json({ error: 'Faltan campos obligatorios' });
+  const { sub_sku_id, bodega_origen_id, motivo } = req.body;
+  const cantidad = _cantidadValida(req.body.cantidad);
+  if (!sub_sku_id || !bodega_origen_id || !cantidad) {
+    return res.status(400).json({ error: 'Faltan campos obligatorios o la cantidad no es un entero positivo' });
   }
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const stockResult = await client.query(
-      'SELECT cantidad FROM stock WHERE sub_sku_id = $1 AND bodega_id = $2',
-      [sub_sku_id, bodega_origen_id]
-    );
-    if (stockResult.rows.length === 0 || stockResult.rows[0].cantidad < cantidad) {
+    if (!await _descontarStock(client, sub_sku_id, bodega_origen_id, cantidad)) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Stock insuficiente' });
     }
@@ -266,10 +287,6 @@ router.post('/destruccion', verificarToken, verificarNivel(3), async (req, res) 
          (sub_sku_id, tipo, bodega_origen_id, cantidad, motivo, usuario_id, usuario_nombre)
        VALUES ($1, 'destruccion', $2, $3, $4, $5, $6)`,
       [sub_sku_id, bodega_origen_id, cantidad, motivo, req.usuario.id, req.usuario.nombre]
-    );
-    await client.query(
-      'UPDATE stock SET cantidad = cantidad - $1 WHERE sub_sku_id = $2 AND bodega_id = $3',
-      [cantidad, sub_sku_id, bodega_origen_id]
     );
     await client.query('COMMIT');
     res.status(201).json({ mensaje: 'Destrucción registrada correctamente' });
@@ -299,13 +316,14 @@ router.post('/contingencia', verificarToken, verificarNivel(4), async (req, res)
   const {
     usuario_id, fecha_atencion, tipo,
     sub_sku_id, bodega_origen_id, bodega_destino_id,
-    cantidad, cedula_paciente, motivo
+    cedula_paciente, motivo
   } = req.body;
+  const cantidad = _cantidadValida(req.body.cantidad);
 
   const TIPOS_VALIDOS = ['consumo', 'traslado', 'destruccion'];
 
-  if (!usuario_id || !fecha_atencion || !tipo || !sub_sku_id || !bodega_origen_id || !cantidad || cantidad <= 0) {
-    return res.status(400).json({ error: 'Faltan campos obligatorios' });
+  if (!usuario_id || !fecha_atencion || !tipo || !sub_sku_id || !bodega_origen_id || !cantidad) {
+    return res.status(400).json({ error: 'Faltan campos obligatorios o la cantidad no es un entero positivo' });
   }
   if (!TIPOS_VALIDOS.includes(tipo)) {
     return res.status(400).json({ error: 'Tipo de movimiento inválido para contingencia' });
@@ -318,7 +336,7 @@ router.post('/contingencia', verificarToken, verificarNivel(4), async (req, res)
   if (fechaAt.getTime() > Date.now()) {
     return res.status(400).json({ error: 'La fecha de atención no puede ser futura' });
   }
-  if (tipo === 'traslado' && (!bodega_destino_id || bodega_destino_id === bodega_origen_id)) {
+  if (tipo === 'traslado' && (!bodega_destino_id || String(bodega_destino_id) === String(bodega_origen_id))) {
     return res.status(400).json({ error: 'Selecciona un depósito destino distinto al de origen' });
   }
 
@@ -343,11 +361,7 @@ router.post('/contingencia', verificarToken, verificarNivel(4), async (req, res)
     }
     const nombreEnfermero = enfermero.rows[0].nombre;
 
-    const stockResult = await client.query(
-      'SELECT cantidad FROM stock WHERE sub_sku_id = $1 AND bodega_id = $2',
-      [sub_sku_id, bodega_origen_id]
-    );
-    if (stockResult.rows.length === 0 || stockResult.rows[0].cantidad < cantidad) {
+    if (!await _descontarStock(client, sub_sku_id, bodega_origen_id, cantidad)) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Stock insuficiente en el depósito de origen' });
     }
@@ -372,11 +386,6 @@ router.post('/contingencia', verificarToken, verificarNivel(4), async (req, res)
         req.usuario.id,
         req.usuario.nombre
       ]
-    );
-
-    await client.query(
-      'UPDATE stock SET cantidad = cantidad - $1 WHERE sub_sku_id = $2 AND bodega_id = $3',
-      [cantidad, sub_sku_id, bodega_origen_id]
     );
 
     if (tipo === 'traslado') {
@@ -428,19 +437,11 @@ router.post('/:id/revertir', verificarToken, verificarNivel(4), async (req, res)
     let nuevoOrigenId = null, nuevoDestinoId = null;
 
     if (mov.tipo === 'compra') {
-      const stockActual = await client.query(
-        'SELECT cantidad FROM stock WHERE sub_sku_id = $1 AND bodega_id = $2',
-        [mov.sub_sku_id, mov.bodega_destino_id]
-      );
-      const disponible = stockActual.rows[0]?.cantidad || 0;
-      if (disponible < mov.cantidad) {
+      if (!await _descontarStock(client, mov.sub_sku_id, mov.bodega_destino_id, mov.cantidad)) {
+        const disponible = await _stockDisponible(client, mov.sub_sku_id, mov.bodega_destino_id);
         await client.query('ROLLBACK');
         return res.status(400).json({ error: `No se puede revertir: solo quedan ${disponible} unidades disponibles en ese depósito (parte del stock ya se movió o consumió)` });
       }
-      await client.query(
-        'UPDATE stock SET cantidad = cantidad - $1 WHERE sub_sku_id = $2 AND bodega_id = $3',
-        [mov.cantidad, mov.sub_sku_id, mov.bodega_destino_id]
-      );
       nuevoDestinoId = mov.bodega_destino_id;
 
     } else if (mov.tipo === 'consumo' || mov.tipo === 'destruccion') {
@@ -454,19 +455,11 @@ router.post('/:id/revertir', verificarToken, verificarNivel(4), async (req, res)
       nuevoOrigenId = mov.bodega_origen_id;
 
     } else if (mov.tipo === 'traslado') {
-      const stockDestino = await client.query(
-        'SELECT cantidad FROM stock WHERE sub_sku_id = $1 AND bodega_id = $2',
-        [mov.sub_sku_id, mov.bodega_destino_id]
-      );
-      const disponibleDestino = stockDestino.rows[0]?.cantidad || 0;
-      if (disponibleDestino < mov.cantidad) {
+      if (!await _descontarStock(client, mov.sub_sku_id, mov.bodega_destino_id, mov.cantidad)) {
+        const disponibleDestino = await _stockDisponible(client, mov.sub_sku_id, mov.bodega_destino_id);
         await client.query('ROLLBACK');
         return res.status(400).json({ error: `No se puede revertir: solo quedan ${disponibleDestino} unidades disponibles en el depósito destino` });
       }
-      await client.query(
-        'UPDATE stock SET cantidad = cantidad - $1 WHERE sub_sku_id = $2 AND bodega_id = $3',
-        [mov.cantidad, mov.sub_sku_id, mov.bodega_destino_id]
-      );
       await client.query(
         `INSERT INTO stock (sub_sku_id, bodega_id, cantidad)
          VALUES ($1, $2, $3)

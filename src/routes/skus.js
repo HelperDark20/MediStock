@@ -43,13 +43,20 @@ router.post('/globales', verificarToken, verificarNivel(4), async (req, res) => 
 
 // DELETE /api/skus/globales/:id — nivel 4
 router.delete('/globales/:id', verificarToken, verificarNivel(4), async (req, res) => {
+  // FIX: ambos UPDATE en una transacción para no dejar el SKU a medio desactivar
+  const client = await pool.connect();
   try {
-    await pool.query('UPDATE skus_globales SET activo = false WHERE id = $1', [req.params.id]);
-    await pool.query('UPDATE sub_skus SET activo = false WHERE sku_global_id = $1', [req.params.id]);
+    await client.query('BEGIN');
+    await client.query('UPDATE skus_globales SET activo = false WHERE id = $1', [req.params.id]);
+    await client.query('UPDATE sub_skus SET activo = false WHERE sku_global_id = $1', [req.params.id]);
+    await client.query('COMMIT');
     res.json({ mensaje: 'SKU Global desactivado' });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
+  } finally {
+    client.release();
   }
 });
 

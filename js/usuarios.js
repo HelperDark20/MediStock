@@ -78,7 +78,8 @@ async function guardarEdicionUsuario(){
 
   if(!nombre){ toast('El nombre no puede estar vacío','error'); return; }
   try {
-    await Usuarios.update(id, { nombre, nivel, password: password||null, ubicacion_id: null });
+    // FIX: no se envía ubicacion_id — el formulario no la edita y enviarla en null la borraba
+    await Usuarios.update(id, { nombre, nivel, password: password||null });
     closeModal('modal-edit-user');
     S.usuarios = await Usuarios.getAll();
     renderUsuarios();
