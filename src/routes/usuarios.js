@@ -95,16 +95,19 @@ router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
     if (password) {
       password_hash = await bcrypt.hash(password, 10);
     }
+    // FIX: ubicacion_id solo se modifica si viene en el body. Antes se
+    // sobrescribía siempre, y una edición que no la enviaba la dejaba en null.
+    const cambiaUbicacion = Object.prototype.hasOwnProperty.call(req.body, 'ubicacion_id');
     const result = await pool.query(
       `UPDATE usuarios SET
         nombre       = COALESCE($1, nombre),
         nivel        = COALESCE($2, nivel),
         genero       = COALESCE($3, genero),
-        ubicacion_id = $4,
+        ubicacion_id = CASE WHEN $7::boolean THEN $4::int ELSE ubicacion_id END,
         password_hash = CASE WHEN $5::text IS NOT NULL THEN $5::text ELSE password_hash END
        WHERE id = $6 AND activo = true
        RETURNING id, nombre, cedula, nivel, genero, ubicacion_id`,
-      [nombre || null, nivel ? parseInt(nivel) : null, genero || null, ubicacion_id || null, password_hash, req.params.id]
+      [nombre || null, nivel ? parseInt(nivel) : null, genero || null, ubicacion_id || null, password_hash, req.params.id, cambiaUbicacion]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
     res.json(result.rows[0]);

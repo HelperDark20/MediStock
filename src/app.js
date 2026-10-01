@@ -52,7 +52,12 @@ app.use(helmet({
     }
   }
 }));
-app.use(cors());
+// FIX SEGURIDAD: el frontend se sirve desde el mismo dominio que la API,
+// así que no necesita CORS. Si algún día se consume desde otro dominio,
+// definir CORS_ORIGIN en el .env (varios separados por coma).
+app.use(cors({
+  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()) : false
+}));
 app.use(express.json());
 
 // ── Rate limit login: 10 intentos / 15 min por IP (anti fuerza bruta) ──
@@ -74,37 +79,28 @@ const apiLimiterByIp = rateLimit({
 });
 
 // ── Fix #9: Rate limit API por usuario autenticado ──
+// FIX SEGURIDAD: el id se toma solo de un token con firma válida. Antes se
+// decodificaba sin verificar, y cualquiera podía fabricar un token con el
+// id de otro usuario para agotarle el cupo (bloquearlo con 429).
+function _usuarioIdVerificado(req) {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) return null;
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    return payload.id || null;
+  } catch {
+    return null;
+  }
+}
+
 const apiLimiterByUser = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => {
-    try {
-      const authHeader = req.headers['authorization'];
-      const token = authHeader && authHeader.split(' ')[1];
-      if (!token) return null;
-      const payload = JSON.parse(
-        Buffer.from(token.split('.')[1], 'base64').toString('utf8')
-      );
-      return payload.id ? `user_${payload.id}` : null;
-    } catch {
-      return null;
-    }
-  },
-  skip: (req) => {
-    try {
-      const authHeader = req.headers['authorization'];
-      const token = authHeader && authHeader.split(' ')[1];
-      if (!token) return true;
-      const payload = JSON.parse(
-        Buffer.from(token.split('.')[1], 'base64').toString('utf8')
-      );
-      return !payload.id;
-    } catch {
-      return true;
-    }
-  },
+  keyGenerator: (req) => `user_${_usuarioIdVerificado(req)}`,
+  skip: (req) => !_usuarioIdVerificado(req),
 });
 
 // Rutas
