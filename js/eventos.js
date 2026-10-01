@@ -130,6 +130,8 @@ async function abrirDetalleEvento(id){
     document.getElementById('evtdet-enf-drop').classList.remove('open');
 
     evtDetRenderEnfermeros();
+    // Un evento en curso no se puede eliminar (primero hay que finalizarlo)
+    document.getElementById('evtdet-eliminar-btn').style.display = evento.estado === 'en_curso' ? 'none' : '';
     document.getElementById('modal-evento-detalle').classList.add('open');
   } catch(err){
     toastError(err.message);
@@ -308,6 +310,35 @@ async function evtGuardarAsignacion(){
 function evtCancelarAsignacion(){
   closeModal('modal-asignar-depositos');
   document.getElementById('modal-evento-detalle').classList.add('open');
+}
+
+// ── ELIMINAR EVENTO ──
+// Es un borrado suave (activo = false): el evento desaparece de la lista
+// pero el registro queda en la base de datos. Los movimientos no dependen
+// de los eventos, así que reportes, stock y trazabilidad no cambian.
+function confirmEliminarEvento(){
+  const evento = _evtDetalleEvento;
+  if(!evento) return;
+  const nPersonal = (evento.personal||[]).length;
+  document.getElementById('modal-title').textContent = 'Eliminar evento';
+  document.getElementById('modal-sub').textContent =
+    `¿Eliminar el evento "${evento.nombre}"?` +
+    (nPersonal ? ` Se quitará la asignación de ${nPersonal} enfermero${nPersonal!==1?'s':''}.` : '') +
+    ' Los consumos ya registrados y los reportes no se verán afectados.';
+  document.getElementById('modal-ok-btn').onclick = async ()=>{
+    try {
+      await Eventos.delete(evento.id);
+      closeModal('modal-confirm');
+      closeModal('modal-evento-detalle');
+      _evtDetalleId = null;
+      _evtDetalleEvento = null;
+      S.eventos = await Eventos.getAll();
+      renderEventos();
+      buildNav();
+      toast('Evento eliminado');
+    } catch(err){ toastError(err.message); closeModal('modal-confirm'); }
+  };
+  document.getElementById('modal-confirm').classList.add('open');
 }
 
 // ── INICIAR / FINALIZAR ──

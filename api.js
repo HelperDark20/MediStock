@@ -51,6 +51,7 @@ const Auth = {
 const Bodegas = {
   getAll: () => request('GET', '/api/bodegas'),
   create: (tipo, sufijo, ubicacion_id) => request('POST', '/api/bodegas', { tipo, sufijo, ubicacion_id }),
+  update: (id, tipo, sufijo) => request('PUT', `/api/bodegas/${id}`, { tipo, sufijo }),
   delete: (id) => request('DELETE', `/api/bodegas/${id}`)
 };
 
@@ -58,6 +59,7 @@ const Bodegas = {
 const Ubicaciones = {
   getAll: () => request('GET', '/api/ubicaciones'),
   create: (nombre) => request('POST', '/api/ubicaciones', { nombre }),
+  update: (id, nombre) => request('PUT', `/api/ubicaciones/${id}`, { nombre }),
   delete: (id) => request('DELETE', `/api/ubicaciones/${id}`)
 };
 
@@ -65,6 +67,7 @@ const Ubicaciones = {
 const SKUs = {
   getGlobales: () => request('GET', '/api/skus/globales'),
   createGlobal: (data) => request('POST', '/api/skus/globales', data),
+  updateGlobal: (id, data) => request('PUT', `/api/skus/globales/${id}`, data),
   deleteGlobal: (id) => request('DELETE', `/api/skus/globales/${id}`),
   getSub: () => request('GET', '/api/skus/sub'),
   createSub: (data) => request('POST', '/api/skus/sub', data),
@@ -115,6 +118,7 @@ const Eventos = {
   getAll: () => request('GET', '/api/eventos'),
   getOne: (id) => request('GET', `/api/eventos/${id}`),
   getActivo: () => request('GET', '/api/eventos/activo'),
+  getActivos: () => request('GET', '/api/eventos/activos'),
   create: (data) => request('POST', '/api/eventos', data),
   update: (id, data) => request('PUT', `/api/eventos/${id}`, data),
   addEnfermero: (id, data) => request('POST', `/api/eventos/${id}/enfermeros`, data),

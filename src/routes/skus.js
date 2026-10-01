@@ -41,6 +41,60 @@ router.post('/globales', verificarToken, verificarNivel(4), async (req, res) => 
   }
 });
 
+// PUT /api/skus/globales/:id — nivel 4 — editar nombre, familia, subgrupo y campos.
+// El código y la unidad NO se editan: el código identifica al SKU en filtros
+// y reportes, y la unidad ya se copió a cada sub-SKU registrado.
+// Los ítems de Stock de Seguridad referencian al SKU Global por NOMBRE, así
+// que si el nombre cambia se actualizan en la misma transacción.
+router.put('/globales/:id', verificarToken, verificarNivel(4), async (req, res) => {
+  const { nombre, familia, subgrupo, campos } = req.body;
+  if (!nombre || !String(nombre).trim() || !familia || !String(familia).trim() || !subgrupo || !String(subgrupo).trim()) {
+    return res.status(400).json({ error: 'Nombre, familia y subgrupo son obligatorios' });
+  }
+  const CAMPOS_VALIDOS = ['proveedor', 'lote', 'caducidad', 'invima'];
+  if (!Array.isArray(campos) || campos.some(c => !CAMPOS_VALIDOS.includes(c))) {
+    return res.status(400).json({ error: 'Campos inválidos' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const actual = await client.query(
+      'SELECT nombre FROM skus_globales WHERE id = $1 AND activo = true FOR UPDATE', [req.params.id]
+    );
+    if (!actual.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'SKU Global no encontrado' });
+    }
+    const nombreAnterior = actual.rows[0].nombre;
+    const nombreNuevo = String(nombre).trim();
+
+    const result = await client.query(
+      `UPDATE skus_globales SET nombre = $1, familia = $2, subgrupo = $3, campos = $4
+       WHERE id = $5 RETURNING *`,
+      [nombreNuevo, String(familia).trim(), String(subgrupo).trim(), JSON.stringify(campos), req.params.id]
+    );
+
+    let itemsSeguridad = 0;
+    if (nombreAnterior.trim().toUpperCase() !== nombreNuevo.toUpperCase()) {
+      const upd = await client.query(
+        'UPDATE stock_seguridad_items SET item_nombre = $1 WHERE UPPER(TRIM(item_nombre)) = UPPER(TRIM($2))',
+        [nombreNuevo, nombreAnterior]
+      );
+      itemsSeguridad = upd.rowCount;
+    }
+
+    await client.query('COMMIT');
+    res.json({ ...result.rows[0], items_seguridad_actualizados: itemsSeguridad });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Error al actualizar el SKU' });
+  } finally {
+    client.release();
+  }
+});
+
 // DELETE /api/skus/globales/:id — nivel 4
 router.delete('/globales/:id', verificarToken, verificarNivel(4), async (req, res) => {
   // FIX: ambos UPDATE en una transacción para no dejar el SKU a medio desactivar

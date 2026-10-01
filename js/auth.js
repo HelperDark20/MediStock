@@ -29,6 +29,8 @@ async function doLogin(){
 }
 
 function doLogout(){
+  // Al volver a iniciar sesión, el enfermero con varios eventos debe elegir de nuevo
+  if(currentRole === 2 && typeof enfLimpiarEleccion === 'function') enfLimpiarEleccion();
   Auth.logout();
   currentRole = null;
   document.getElementById('enfermero-panel').classList.remove('active');

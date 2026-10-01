@@ -40,6 +40,28 @@ router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
   }
 });
 
+// PUT /api/ubicaciones/:id — nivel 4 — renombrar. Todo lo demás (depósitos,
+// eventos, usuarios) referencia la ubicación por id, así que no se rompe nada.
+router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
+  const { nombre } = req.body;
+  if (!nombre || !String(nombre).trim()) return res.status(400).json({ error: 'Nombre requerido' });
+  const nombreUpper = String(nombre).trim().toUpperCase();
+  try {
+    const existe = await pool.query(
+      'SELECT id FROM ubicaciones WHERE UPPER(nombre) = $1 AND id <> $2', [nombreUpper, req.params.id]
+    );
+    if (existe.rows.length > 0) return res.status(400).json({ error: 'Ya existe una ubicación con ese nombre' });
+    const result = await pool.query(
+      'UPDATE ubicaciones SET nombre = $1 WHERE id = $2 AND activo = true RETURNING *', [nombreUpper, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Ubicación no encontrada' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
 // DELETE /api/ubicaciones/:id — nivel 4
 router.delete('/:id', verificarToken, verificarNivel(4), async (req, res) => {
   try {
