@@ -997,6 +997,79 @@ function _repExportTopExcel(movs){
 // ══════════════════════════════════════════
 // EXPORTAR A PDF (impresión del navegador)
 // ══════════════════════════════════════════
+// El navegador imprime el título del documento en la línea superior de
+// cada página (Chrome al centro, Safari a la izquierda) y lo usa como
+// nombre sugerido del archivo. Se cambia solo mientras se imprime para
+// que ahí aparezcan el reporte, la ubicación y el depósito filtrados.
+const REP_NOMBRE_CORTO = {
+  consumos:  'Consumos y gastos',
+  vencidos:  'Vencidos y por vencer',
+  seguridad: 'Stock de seguridad',
+  cedula:    'Consumos del paciente',
+  pacientes: 'Pacientes atendidos',
+  top:       'Top ítems consumidos'
+};
+
+// dd-mm-aaaa: legible en el encabezado y válido como nombre de archivo
+// (las barras "/" no se permiten en nombres de archivo)
+function _repFechaTitulo(iso){
+  if(!iso) return '';
+  const [y,m,d] = iso.split('T')[0].split('-');
+  return `${d}-${m}-${y}`;
+}
+
+function _repTituloDocumento(){
+  const tipo = document.getElementById('rep-tipo-reporte')?.value;
+  const partes = [REP_NOMBRE_CORTO[tipo] || 'Reporte'];
+  const hoy = _repFechaTitulo(fechaColombia());
+
+  if(tipo === 'cedula'){
+    const cedula = (document.getElementById('rep-cedula').value||'').replace(/\D/g,'');
+    if(cedula) partes.push(`Cédula ${cedula}`);
+    partes.push(hoy);
+    return partes.join(' · ');
+  }
+
+  // Pacientes no filtra por depósito (el filtro está oculto en ese reporte)
+  const depNombre = tipo === 'pacientes' ? '' : (document.getElementById('rep-deposito').value || '');
+  const ubSel = document.getElementById('rep-ubicacion');
+  let ubNombre = ubSel.value ? ubSel.options[ubSel.selectedIndex].textContent : '';
+  if(!ubNombre && depNombre){
+    ubNombre = (S.bodegasRaw||[]).find(b=>b.nombre===depNombre)?.ubicacion_nombre || '';
+  }
+  if(ubNombre)  partes.push(ubNombre);
+  if(depNombre) partes.push(depNombre);
+
+  if(['consumos','top','pacientes'].includes(tipo)){
+    const desde = _repFechaTitulo(document.getElementById('rep-fecha-desde').value);
+    const hasta = _repFechaTitulo(document.getElementById('rep-fecha-hasta').value);
+    if(desde || hasta) partes.push(`${desde||'…'} a ${hasta||'…'}`);
+  } else {
+    partes.push(hoy);
+  }
+  return partes.join(' · ');
+}
+
+let _repTituloOriginal = null;
+
+function _repPonerTitulo(){
+  if(_repTituloOriginal === null) _repTituloOriginal = document.title;
+  document.title = _repTituloDocumento();
+}
+
 function repExportPDF(){
+  _repPonerTitulo();
   window.print();
 }
+
+// También cuando se imprime con Ctrl/Cmd + P estando en Reportes
+window.addEventListener('beforeprint', ()=>{
+  if(document.body.classList.contains('print-inv')) return;
+  if(!document.getElementById('view-reportes')?.classList.contains('active')) return;
+  _repPonerTitulo();
+});
+window.addEventListener('afterprint', ()=>{
+  if(_repTituloOriginal === null) return;
+  document.title = _repTituloOriginal;
+  _repTituloOriginal = null;
+});
