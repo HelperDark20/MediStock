@@ -67,8 +67,11 @@ function goTo(viewId){
   document.getElementById('page-title').textContent = titles[viewId]||viewId;
   const ta = document.getElementById('topbar-actions');
   ta.innerHTML = '';
-  if(viewId==='inventario'&&currentRole>=3){
-    ta.innerHTML=`<button class="tb-btn primary" onclick="goTo('registro')"><i class="ti ti-plus"></i>Nueva entrada</button>`;
+  if(viewId==='inventario'){
+    ta.innerHTML=`<button class="tb-btn" onclick="invExportPDF()"><i class="ti ti-file-type-pdf"></i>Descargar PDF</button>`;
+    if(currentRole>=3){
+      ta.innerHTML+=`<button class="tb-btn primary" onclick="goTo('registro')"><i class="ti ti-plus"></i>Nueva entrada</button>`;
+    }
   }
   if(viewId==='movimientos'&&currentRole===4){
     ta.innerHTML=`<button class="tb-btn" onclick="abrirContingencia()"><i class="ti ti-file-alert"></i>Registrar contingencia</button>`;

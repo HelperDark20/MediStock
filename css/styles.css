@@ -845,7 +845,23 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
   #rep-print-table tbody{ display: table-row-group; }
   #rep-print-table td{ border:none; padding:0; }
   #rep-print-header{ margin-bottom:16px; }
+
+  /* PDF de Inventario: se imprime solo #inv-print y se retira todo lo
+     demás del flujo para que no queden páginas en blanco al final. */
+  /* La app fija html/body a la altura de la pantalla con overflow:hidden;
+     al imprimir eso corta todo lo que no cabe en la primera página. */
+  html.print-inv, html.print-inv body{ height:auto !important; overflow:visible !important; }
+  body.print-inv > *:not(#inv-print){ display:none !important; }
+  body.print-inv #inv-print{ display:block; }
+  body.print-inv #inv-print, body.print-inv #inv-print *{ visibility:visible; }
+  .inv-print-table{ width:100%; border-collapse:collapse; }
+  .inv-print-table thead{ display:table-header-group; }
+  .inv-print-table td{ border:none; padding:0; }
+  .inv-print-table .rep-header{ margin-bottom:16px; }
 }
+
+/* Contenedor del PDF de Inventario: solo existe para imprimir */
+#inv-print{ display:none; }
 
 /* ══════════════════════════════════════════
    EVENTOS — grid, badges de estado y checklist
