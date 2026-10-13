@@ -15,9 +15,11 @@ function populateInvFamilias(){
   if(current && familias.includes(current)) sel.value = current;
 }
 
-function renderInv(){
-  populateInvFamilias();
-
+// Aplica todos los filtros activos de Inventario (búsqueda, ubicación,
+// depósito, sub-SKU, semáforo, familia, agotados y filtros de alerta del
+// dashboard). La usan la tabla y la descarga en PDF, para que el PDF
+// muestre exactamente lo mismo que se ve en pantalla.
+function _invFilasFiltradas(){
   const q=(document.getElementById('inv-search').value||'').toLowerCase();
   const deposito=document.getElementById('inv-ubicacion').value;
   const sedeId=parseInt(document.getElementById('inv-sede-id')?.value)||0;
@@ -84,6 +86,13 @@ function renderInv(){
     );
   }
 
+  return { rows, sem };
+}
+
+function renderInv(){
+  populateInvFamilias();
+  const { rows } = _invFilasFiltradas();
+
   const banner = document.getElementById('inv-alert-banner');
   if(banner){
     if(_invAlertFilter==='alertas'){
@@ -145,6 +154,140 @@ function invClearAlertFilter(){
 function invSemChanged(){
   _invAlertFilter = null;
   renderInv();
+}
+
+// ══════════════════════════════════════════
+// DESCARGAR PDF DEL INVENTARIO
+// Usa los mismos filtros que la tabla y el mismo diseño de los reportes
+// (encabezado con logo, indicadores y grupos por ubicación / depósito).
+// Se genera con la impresión del navegador → "Guardar como PDF".
+// ══════════════════════════════════════════
+function _invDescripcionFiltros(){
+  const partes = [];
+  const sedeId = parseInt(document.getElementById('inv-sede-id')?.value)||0;
+  const deposito = document.getElementById('inv-ubicacion').value;
+  const subSkuId = parseInt(document.getElementById('inv-subsku-id')?.value)||0;
+  const sem = document.getElementById('inv-sem').value;
+  const fam = document.getElementById('inv-familia').value;
+  const q = (document.getElementById('inv-search').value||'').trim();
+
+  if(sedeId) partes.push(`Ubicación: <b>${escHtml((S.ubicaciones||[]).find(u=>u.id===sedeId)?.nombre||'—')}</b>`);
+  if(deposito) partes.push(`Depósito: <b>${escHtml(deposito)}</b>`);
+  if(!sedeId && !deposito) partes.push('<b>Todas las ubicaciones y depósitos</b>');
+  if(subSkuId) partes.push(`Sub-SKU: <b>${escHtml((S.subSkus||[]).find(s=>s.id===subSkuId)?.subSku||'—')}</b>`);
+  if(fam) partes.push(`Familia: <b>${escHtml(fam)}</b>`);
+  if(_invAlertFilter==='alertas') partes.push('<b>Solo ítems en alerta de vencimiento</b>');
+  else if(_invAlertFilter==='vencidos') partes.push('<b>Solo ítems vencidos</b>');
+  else if(sem) partes.push(`Estado: <b>${escHtml(semLabel(sem))}</b>`);
+  if(document.getElementById('inv-agotados')?.checked) partes.push('<b>Solo agotados</b>');
+  if(q) partes.push(`Búsqueda: <b>“${escHtml(q)}”</b>`);
+  return partes.join(' · ');
+}
+
+function invExportPDF(){
+  const { rows } = _invFilasFiltradas();
+  if(!rows.length){ toastError('No hay ítems para descargar con los filtros actuales'); return; }
+
+  const ubPorDeposito = {};
+  (S.bodegasRaw||[]).forEach(b=>{ ubPorDeposito[b.nombre] = b.ubicacion_nombre || 'Sin ubicación'; });
+
+  const filas = rows.map(r => ({ ...r, ubNombre: ubPorDeposito[r.ubicacion] || 'Sin ubicación' }))
+    .sort((a,b)=>
+      a.ubNombre.localeCompare(b.ubNombre) ||
+      a.ubicacion.localeCompare(b.ubicacion) ||
+      a.s.nombre.localeCompare(b.s.nombre)
+    );
+
+  const counts = { N:0, alerta:0 };
+  const productos = new Set(), depositos = new Set(), ubicaciones = new Set();
+  filas.forEach(f=>{
+    if(!f.s.agotado && f.st==='N') counts.N++;
+    if(!f.s.agotado && ['P','R','A'].includes(f.st)) counts.alerta++;
+    productos.add(f.s.skuGlobalId);
+    depositos.add(f.ubicacion);
+    ubicaciones.add(f.ubNombre);
+  });
+
+  const stats = _repStatsHtml([
+    _repStatPill('blue','ti-list-details', filas.length, 'Líneas de stock'),
+    _repStatPill('green','ti-pill', productos.size, 'Productos'),
+    _repStatPill('gray','ti-building-warehouse', depositos.size, depositos.size===1?'Depósito':'Depósitos'),
+    _repStatPill('amber','ti-bell', counts.alerta, 'En alerta'),
+    _repStatPill('maroon','ti-x', counts.N, 'Vencidos')
+  ]);
+
+  const grid = '100px 1fr 120px 100px 100px 100px';
+  const grupos = [];
+  filas.forEach(f=>{
+    const key = f.ubNombre + '|' + f.ubicacion;
+    let g = grupos[grupos.length-1];
+    if(!g || g.key !== key){ g = { key, ubNombre:f.ubNombre, deposito:f.ubicacion, items:[] }; grupos.push(g); }
+    g.items.push(f);
+  });
+
+  const gruposHtml = grupos.map(g=>{
+    const rowsHtml = g.items.map(f=>`<div class="rep-row" style="--rep-grid:${grid}">
+        <div class="rep-col-num">${f.s.agotado
+          ? '<span class="sem-badge N">Agotado</span>'
+          : `<span class="sem-badge ${f.st}">${semLabel(f.st)}</span>`}</div>
+        <div><div class="rep-item-name">${escHtml(f.s.nombre)}</div><div class="rep-item-code">${escHtml(f.skuG?.codigo||'')}${f.skuG?.familia?' · '+escHtml(f.skuG.familia):''}</div></div>
+        <div class="rep-cell-mono" style="font-size:10px;color:#999">${escHtml(f.s.subSku)}</div>
+        <div class="rep-cell-mono" style="font-size:10px;color:#999">${escHtml(f.s.lote||'—')}</div>
+        <div class="rep-cell-mono strong">${f.cantidad} ${escHtml(f.s.unidad||'')}</div>
+        <div class="rep-cell-mono">${fmtDate(f.s.caducidad)}</div>
+      </div>`).join('');
+    return `<div class="rep-group">
+      <div class="rep-group-head">
+        <div class="rep-group-name"><i class="ti ti-building-warehouse"></i> ${escHtml(g.ubNombre)} / ${escHtml(g.deposito)}</div>
+        <div class="rep-group-count">${g.items.length} ítem${g.items.length!==1?'s':''}</div>
+      </div>
+      <div class="rep-cols" style="--rep-grid:${grid}"><div class="rep-col-num">Estado</div><div>Producto</div><div class="rep-col-num">Sub-SKU</div><div class="rep-col-num">Lote</div><div class="rep-col-num">Cantidad</div><div class="rep-col-num">Vencimiento</div></div>
+      ${rowsHtml}
+    </div>`;
+  }).join('');
+
+  let cont = document.getElementById('inv-print');
+  if(!cont){
+    cont = document.createElement('div');
+    cont.id = 'inv-print';
+    document.body.appendChild(cont);
+  }
+  cont.innerHTML = `<table class="inv-print-table">
+    <thead><tr><td>
+      <div class="rep-header">
+        <div>
+          <div class="rep-meta">Generado el ${escHtml(new Date().toLocaleString('es-CO',{dateStyle:'long',timeStyle:'short',timeZone:'America/Bogota'}))}</div>
+          <div class="rep-title-lg">Nova Bridge — Inventario</div>
+          <div class="rep-sub-lg">${_invDescripcionFiltros()}</div>
+        </div>
+        <div class="rep-logo-mini"><img src="logo.png" alt="Nova Bridge" class="rep-logo-mini-img"></div>
+      </div>
+    </td></tr></thead>
+    <tbody><tr><td>
+      ${stats}
+      <div class="rep-section-title">Existencias agrupadas por ubicación / depósito</div>
+      ${gruposHtml}
+    </td></tr></tbody>
+  </table>`;
+
+  // El nombre del documento es el nombre sugerido del archivo PDF
+  const tituloOriginal = document.title;
+  document.title = `Inventario_${fechaColombia()}`;
+  document.documentElement.classList.add('print-inv');
+  document.body.classList.add('print-inv');
+  const limpiar = ()=>{
+    document.documentElement.classList.remove('print-inv');
+    document.body.classList.remove('print-inv');
+    document.title = tituloOriginal;
+    window.removeEventListener('afterprint', limpiar);
+  };
+  window.addEventListener('afterprint', limpiar);
+
+  // Espera a que cargue el logo para que salga en el PDF
+  const logo = cont.querySelector('img');
+  const imprimir = ()=> window.print();
+  if(logo.complete) imprimir();
+  else { logo.onload = imprimir; logo.onerror = imprimir; }
 }
 
 // ══════════════════════════════════════════
