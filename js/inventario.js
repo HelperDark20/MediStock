@@ -184,6 +184,19 @@ function _invDescripcionFiltros(){
   return partes.join(' · ');
 }
 
+// Inventario · Ubicación · Depósito (solo los filtrados) · Fecha
+function _invTituloDocumento(){
+  const partes = ['Inventario'];
+  const sedeId = parseInt(document.getElementById('inv-sede-id')?.value)||0;
+  const deposito = document.getElementById('inv-ubicacion').value;
+  let ubNombre = sedeId ? (S.ubicaciones||[]).find(u=>u.id===sedeId)?.nombre : '';
+  if(!ubNombre && deposito) ubNombre = (S.bodegasRaw||[]).find(b=>b.nombre===deposito)?.ubicacion_nombre;
+  if(ubNombre) partes.push(ubNombre);
+  if(deposito) partes.push(deposito);
+  partes.push(_repFechaTitulo(fechaColombia()));
+  return partes.join(' · ');
+}
+
 function invExportPDF(){
   const { rows } = _invFilasFiltradas();
   if(!rows.length){ toastError('No hay ítems para descargar con los filtros actuales'); return; }
@@ -270,9 +283,10 @@ function invExportPDF(){
     </td></tr></tbody>
   </table>`;
 
-  // El nombre del documento es el nombre sugerido del archivo PDF
+  // El título del documento sale en la línea superior de cada página y es
+  // el nombre sugerido del archivo PDF (ver _repTituloDocumento en reportes.js)
   const tituloOriginal = document.title;
-  document.title = `Inventario_${fechaColombia()}`;
+  document.title = _invTituloDocumento();
   document.documentElement.classList.add('print-inv');
   document.body.classList.add('print-inv');
   const limpiar = ()=>{
