@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0A1628">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Nova Bridge — Enfermería</title>
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="stylesheet" href="css/enfermero-lite.css">
+</head>
+<body>
+<!--
+  Panel de enfermero compatible con navegadores antiguos (iPad con iOS 9–12).
+  Sin librerías externas: HTML, CSS y JavaScript ES5 (ver js/lite/enfermero-lite.js).
+-->
+
+<!-- ═══ LOGIN ═══ -->
+<div class="lt-screen lt-login" id="lt-login">
+  <div class="lt-login-card">
+    <div class="lt-brand">N O V A</div>
+    <div class="lt-brand-sub">Registro de consumos</div>
+    <div class="lt-login-title">Iniciar sesión</div>
+    <div class="lt-login-hint">Ingresa tu cédula y contraseña asignada</div>
+    <form id="lt-login-form" autocomplete="off">
+      <label class="lt-label lt-label-dark" for="lt-cedula">Número de cédula</label>
+      <input class="lt-input lt-input-dark" type="tel" id="lt-cedula" pattern="[0-9]*" placeholder="Ej. 1006166884" autocomplete="username">
+      <label class="lt-label lt-label-dark" for="lt-pass">Contraseña</label>
+      <input class="lt-input lt-input-dark" type="password" id="lt-pass" placeholder="••••••••" autocomplete="current-password">
+      <div class="lt-error" id="lt-login-error"></div>
+      <button class="lt-btn" type="submit" id="lt-login-btn">Ingresar</button>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div class="lt-screen" id="lt-app">
+  <div class="lt-header">
+    <div class="lt-header-logo">
+      <div class="lt-header-title">N O V A</div>
+      <div class="lt-header-wms">WMS</div>
+    </div>
+    <div class="lt-header-user"><span class="lt-avatar" id="lt-avatar">EN</span><span id="lt-nombre"></span></div>
+    <button class="lt-header-btn" type="button" id="lt-logout">Salir</button>
+  </div>
+
+  <div class="lt-body">
+    <div class="lt-banner">Herramienta oficial de registro de consumos — cada movimiento queda asociado a tu usuario. Úsala solo para registrar consumos reales de pacientes.</div>
+
+    <!-- Cargando / mensajes de estado -->
+    <div class="lt-state" id="lt-state"></div>
+
+    <!-- Elegir evento (solo si tiene más de uno en curso) -->
+    <div class="lt-card" id="lt-elegir">
+      <div class="lt-card-title">¿En qué evento vas a trabajar?</div>
+      <div class="lt-muted">Estás asignado/a a más de un evento en curso. Elige en cuál vas a registrar consumos; podrás cambiarlo después.</div>
+      <div id="lt-eventos-lista"></div>
+    </div>
+
+    <!-- Panel de registro -->
+    <div id="lt-panel">
+      <div class="lt-evento">
+        <span id="lt-evento-txt"></span>
+        <button class="lt-link" type="button" id="lt-cambiar-evento">Cambiar evento</button>
+        <button class="lt-link" type="button" id="lt-actualizar">Actualizar</button>
+      </div>
+
+      <div class="lt-cols">
+        <div class="lt-col">
+          <div class="lt-card">
+            <div class="lt-card-title">Paso 1 — Selecciona la bodega</div>
+            <select class="lt-input" id="lt-bodega"></select>
+          </div>
+
+          <div class="lt-card" id="lt-paso2">
+            <div class="lt-card-title">Paso 2 — Buscar medicamento y/o insumo</div>
+            <input class="lt-input" type="text" id="lt-buscar" placeholder="Nombre, SKU, lote…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+            <div class="lt-resultados" id="lt-resultados"></div>
+          </div>
+
+          <div class="lt-card lt-item" id="lt-item">
+            <div class="lt-item-name" id="lt-item-nombre"></div>
+            <div class="lt-item-sub" id="lt-item-sub"></div>
+            <div class="lt-item-stock" id="lt-item-stock"></div>
+            <button class="lt-link" type="button" id="lt-item-quitar">Cambiar producto</button>
+          </div>
+
+          <div class="lt-card">
+            <div class="lt-card-title">Registrar consumo</div>
+            <label class="lt-label" for="lt-cantidad">Cantidad</label>
+            <input class="lt-input" type="tel" id="lt-cantidad" pattern="[0-9]*" placeholder="0">
+            <label class="lt-label" for="lt-paciente">Cédula del paciente</label>
+            <input class="lt-input" type="tel" id="lt-paciente" pattern="[0-9]*" placeholder="Ej. 1006166884">
+            <div class="lt-error" id="lt-consumo-error"></div>
+            <button class="lt-btn" type="button" id="lt-registrar">Registrar consumo</button>
+          </div>
+        </div>
+
+        <div class="lt-col">
+          <div class="lt-card">
+            <div class="lt-card-title">Mis consumos de hoy</div>
+            <div id="lt-historial"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="lt-toast" id="lt-toast"></div>
+
+<script src="js/lite/enfermero-lite.js"></script>
+</body>
+</html>

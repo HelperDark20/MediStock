@@ -1,0 +1,163 @@
+/* ══════════════════════════════════════════
+   PANEL ENFERMERO COMPATIBLE (enfermero.html)
+   Pensado para Safari de iOS 9–12: sin variables CSS, sin grid, sin
+   "gap" en flexbox y sin "inset". Los colores son los de styles.css.
+   ══════════════════════════════════════════ */
+@font-face{
+  font-family:'Methanerse';
+  src:url('../fonts/METHANERSE_Free_Trial.woff2') format('woff2'),
+      url('../fonts/METHANERSE_Free_Trial.woff') format('woff');
+  font-weight:normal;font-style:normal;
+}
+
+*{ -webkit-box-sizing:border-box; box-sizing:border-box; margin:0; padding:0; }
+html,body{ background:#F4F2EE; }
+body{
+  font-family:-apple-system,'Helvetica Neue',Helvetica,Arial,sans-serif;
+  color:#0A1628;
+  font-size:14px;
+  -webkit-text-size-adjust:100%;
+}
+button{ font-family:inherit; cursor:pointer; }
+
+.lt-screen{ display:none; }
+.lt-screen.on{ display:block; }
+
+/* ── Login ── */
+.lt-login{ min-height:100vh; background:#0A1628; padding:60px 24px; }
+.lt-login.on{ display:block; }
+.lt-login-card{ max-width:420px; margin:0 auto; }
+.lt-brand{ font-family:'Methanerse',sans-serif; font-size:34px; color:#fff; letter-spacing:.28em; }
+.lt-brand-sub{ font-family:'Methanerse',sans-serif; font-size:12px; color:rgba(255,255,255,.45); letter-spacing:.1em; text-transform:uppercase; margin:8px 0 40px; }
+.lt-login-title{ font-size:22px; font-weight:700; color:#fff; margin-bottom:6px; }
+.lt-login-hint{ font-size:13px; color:rgba(255,255,255,.5); margin-bottom:24px; }
+
+/* ── Campos ── */
+.lt-label{ display:block; font-size:11px; font-weight:700; color:#666; text-transform:uppercase; letter-spacing:.07em; margin:12px 0 6px; }
+.lt-label-dark{ color:rgba(255,255,255,.45); }
+.lt-input{
+  display:block; width:100%;
+  padding:12px 14px;
+  border:1px solid #D8D4C8; border-radius:10px;
+  background:#fff; color:#0A1628;
+  font-size:16px;              /* 16px evita el zoom automático de iOS al enfocar */
+  -webkit-appearance:none;
+}
+select.lt-input{ background:#fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8'><path d='M1 1l5 5 5-5' fill='none' stroke='%23888' stroke-width='2'/></svg>") no-repeat right 14px center; padding-right:36px; }
+.lt-input:focus{ outline:none; border-color:#2196D3; }
+.lt-input-dark{ background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.12); color:#fff; }
+.lt-input-dark:focus{ border-color:#2196D3; background:rgba(33,150,211,.1); }
+
+.lt-btn{
+  display:block; width:100%; margin-top:16px;
+  padding:14px; border:none; border-radius:10px;
+  background:#2196D3; color:#fff;
+  font-size:16px; font-weight:700;
+  -webkit-appearance:none;
+}
+.lt-btn[disabled]{ opacity:.6; }
+.lt-link{ background:none; border:none; color:#2196D3; font-size:13px; font-weight:600; padding:6px 0; margin-left:12px; text-decoration:underline; }
+.lt-error{ display:none; margin-top:10px; padding:10px 12px; border-radius:8px; background:#FDF0EF; color:#C0392B; font-size:13px; }
+.lt-error.on{ display:block; }
+
+/* ── Encabezado ── */
+.lt-header{
+  display:-webkit-flex; display:flex;
+  -webkit-align-items:center; align-items:center;
+  -webkit-justify-content:space-between; justify-content:space-between;
+  background:#0A1628; padding:14px 20px;
+}
+.lt-header-title{ font-family:'Methanerse',sans-serif; font-size:15px; color:#fff; letter-spacing:.18em; }
+.lt-header-wms{ font-family:'Methanerse',sans-serif; font-size:9px; color:#4DB8F0; letter-spacing:.3em; margin-top:2px; }
+.lt-header-user{ color:rgba(255,255,255,.75); font-size:13px; }
+.lt-avatar{
+  display:inline-block; width:30px; height:30px; line-height:30px; text-align:center;
+  border-radius:50%; background:#1A5C8C; color:#fff; font-size:11px; font-weight:700; margin-right:8px;
+}
+.lt-header-btn{ background:rgba(255,255,255,.12); border:none; color:rgba(255,255,255,.8); padding:7px 12px; border-radius:10px; font-size:13px; }
+
+/* ── Cuerpo ── */
+.lt-body{ padding:16px; max-width:1100px; margin:0 auto; }
+.lt-banner{ background:#EBF6FD; border:1px solid #90D8F7; color:#1A2B45; border-radius:10px; padding:10px 14px; font-size:12px; margin-bottom:14px; }
+.lt-state{ display:none; text-align:center; color:#888; padding:40px 16px; font-size:14px; line-height:1.5; }
+.lt-state.on{ display:block; }
+.lt-state .lt-btn{ max-width:260px; margin:16px auto 0; }
+
+.lt-card{ background:#fff; border:1px solid #D8D4C8; border-radius:16px; padding:16px; margin-bottom:14px; }
+.lt-card-title{ font-size:15px; font-weight:700; margin-bottom:10px; }
+.lt-muted{ color:#888; font-size:13px; margin-bottom:12px; }
+
+#lt-elegir, #lt-panel{ display:none; }
+#lt-elegir.on, #lt-panel.on{ display:block; }
+
+.lt-evento{ font-size:13px; color:#555; margin-bottom:12px; }
+.lt-evento strong{ color:#0A1628; }
+
+/* Dos columnas en pantallas anchas (iPad horizontal), una en vertical */
+@media (min-width:900px){
+  .lt-cols{ display:-webkit-flex; display:flex; -webkit-align-items:flex-start; align-items:flex-start; }
+  .lt-col{ -webkit-flex:1; flex:1; min-width:0; }
+  .lt-col + .lt-col{ margin-left:20px; }
+}
+
+/* ── Paso 2 bloqueado hasta elegir bodega ── */
+#lt-paso2.bloqueado{ opacity:.45; }
+
+/* ── Resultados de búsqueda ── */
+.lt-resultados{ margin-top:8px; }
+.lt-res{
+  display:block; width:100%; text-align:left;
+  background:#fff; border:none; border-top:1px solid #EAE7DE;
+  padding:11px 4px; color:#0A1628; font-size:14px;
+}
+.lt-res:first-child{ border-top:none; }
+.lt-res-name{ font-weight:600; }
+.lt-res-meta{ display:block; font-size:12px; color:#888; margin-top:3px; }
+.lt-res-cant{ float:right; font-weight:700; margin-left:8px; }
+.lt-vacio{ color:#aaa; font-size:13px; padding:10px 4px; }
+
+/* ── Producto seleccionado ── */
+.lt-item{ display:none; border-color:#2196D3; background:#EBF6FD; }
+.lt-item.on{ display:block; }
+.lt-item-name{ font-size:16px; font-weight:700; }
+.lt-item-sub{ font-size:12px; color:#666; margin:4px 0 8px; }
+.lt-item-stock{ font-size:13px; }
+.lt-item .lt-link{ margin-left:0; }
+
+/* ── Semáforo (mismos colores que la app) ── */
+.lt-sem{ display:inline-block; font-size:10px; font-weight:700; padding:3px 8px; border-radius:10px; text-transform:uppercase; margin-left:6px; }
+.lt-sem.V{ background:#EDF7F1; color:#1A6B3C; }
+.lt-sem.A{ background:#FDF6EC; color:#B7680A; }
+.lt-sem.R{ background:#FDF1E5; color:#C2660B; }
+.lt-sem.P{ background:#FDF0EF; color:#E74C3C; }
+.lt-sem.N{ background:#F5E6E5; color:#7A1F1F; }
+
+/* ── Historial ── */
+.lt-hist{ border-top:1px solid #EAE7DE; padding:10px 0; }
+.lt-hist:first-child{ border-top:none; }
+.lt-hist-name{ font-weight:600; }
+.lt-hist-meta{ font-size:12px; color:#888; margin-top:3px; }
+.lt-hist-cant{ float:right; font-weight:700; color:#2196D3; margin-left:8px; }
+
+/* ── Botones de evento ── */
+.lt-evt{
+  display:block; width:100%; text-align:left;
+  background:#fff; border:1px solid #D8D4C8; border-radius:12px;
+  padding:14px; margin-top:8px; color:#0A1628;
+}
+.lt-evt.actual{ border-color:#2196D3; background:#EBF6FD; }
+.lt-evt-name{ font-size:15px; font-weight:700; }
+.lt-evt-meta{ display:block; font-size:12px; color:#666; margin-top:4px; }
+
+/* ── Aviso flotante ── */
+.lt-toast{
+  position:fixed; left:16px; right:16px; bottom:20px;
+  max-width:420px; margin:0 auto;
+  background:#0A1628; color:#fff; text-align:center;
+  padding:12px 16px; border-radius:24px; font-size:14px;
+  opacity:0; visibility:hidden;
+  -webkit-transition:opacity .2s; transition:opacity .2s;
+}
+.lt-toast.on{ opacity:1; visibility:visible; }
+.lt-toast.error{ background:#C0392B; }
+.lt-toast.ok{ background:#1A6B3C; }
