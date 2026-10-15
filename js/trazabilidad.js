@@ -183,7 +183,7 @@ async function renderTrazabilidad(){
                        ${escHtml(m.tipo.toUpperCase())}
                      </div>
                      <div class="tl-fecha">
-                       ${new Date(m.created_at).toLocaleString('es-CO',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}
+                       ${new Date(m.fecha_real||m.created_at).toLocaleString('es-CO',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}
                      </div>
                    </div>
                    <div class="tl-desc">

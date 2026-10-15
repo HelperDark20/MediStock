@@ -307,7 +307,7 @@ function _repRenderCedula(movs, cedula){
     const valor  = precio * m.cantidad;
     totalValor += valor;
     return `<div class="rep-row" style="--rep-grid:100px 1fr 100px 110px 1fr 130px">
-      <div class="rep-cell-mono" style="font-size:11px">${new Date(m.created_at).toLocaleDateString('es-CO',{day:'2-digit',month:'short'})}</div>
+      <div class="rep-cell-mono" style="font-size:11px">${new Date(m.fecha_real||m.created_at).toLocaleDateString('es-CO',{day:'2-digit',month:'short'})}</div>
       <div><div class="rep-item-name">${escHtml(m.nombre||'—')}</div><div class="rep-item-code">${escHtml(m.sku_global_codigo||'')}</div></div>
       <div class="rep-cell-mono strong">${m.cantidad} ${escHtml(m.unidad||'')}</div>
       <div class="rep-cell-mono">${fmtCOP(valor)}</div>
@@ -341,7 +341,7 @@ function _repAgruparPacientes(movs){
   const totalPorUbicacion = {};
 
   conCedula.forEach(m=>{
-    const fecha = fechaColombia(m.created_at);
+    const fecha = fechaColombia(m.fecha_real||m.created_at);   // hora real de atención
     const ubNombre = m.origen_ubicacion_nombre || 'Sin ubicación';
     const key = `${fecha}|${ubNombre}`;
     if(!porFechaUbicacion[key]) porFechaUbicacion[key] = { fecha, ubNombre, cedulas: new Set() };
@@ -920,7 +920,7 @@ function _repExportCedulaExcel(movs, cedula){
   filtrados.forEach(m=>{
     const valor = (Number(m.precio)||0) * m.cantidad;
     aoa.push([
-      new Date(m.created_at).toLocaleString('es-CO'),
+      new Date(m.fecha_real||m.created_at).toLocaleString('es-CO'),
       m.sku_global_codigo||'', m.nombre||'', m.cantidad, m.unidad||'',
       valor, m.origen_ubicacion_nombre||'', m.origen_nombre||'', m.usuario_nombre||''
     ]);

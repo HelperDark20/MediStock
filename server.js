@@ -21,6 +21,42 @@ app.get('/logo.png', (req, res) => res.sendFile(path.join(__dirname, 'logo.png')
 // navegadores que no pueden ejecutar la app principal.
 app.get('/enfermero', (req, res) => res.sendFile(path.join(__dirname, 'enfermero.html')));
 
+// Modo offline del panel de enfermero: la página se guarda en el dispositivo.
+//   - Safari de iOS 9–12 → AppCache (/enfermero.appcache, atributo manifest)
+//   - navegadores modernos → Service Worker (/sw-enfermero.js)
+// La versión es un hash de los archivos del panel: al desplegar cambios y
+// reiniciar, los dispositivos descargan la versión nueva por sí solos.
+const crypto = require('crypto');
+const fs = require('fs');
+const ARCHIVOS_PANEL = [
+  'enfermero.html', 'css/enfermero-lite.css', 'js/lite/enfermero-lite.js', 'js/lite/sw-enfermero.js',
+  'fonts/METHANERSE_Free_Trial.woff2', 'fonts/METHANERSE_Free_Trial.woff', 'logo.png'
+];
+const hashPanel = crypto.createHash('sha1');
+ARCHIVOS_PANEL.forEach(f => hashPanel.update(fs.readFileSync(path.join(__dirname, f))));
+const VERSION_PANEL = hashPanel.digest('hex').slice(0, 12);
+
+app.get('/enfermero.appcache', (req, res) => {
+  res.type('text/cache-manifest').set('Cache-Control', 'no-cache').send([
+    'CACHE MANIFEST',
+    `# version ${VERSION_PANEL}`,
+    'CACHE:',
+    '/css/enfermero-lite.css',
+    '/js/lite/enfermero-lite.js',
+    '/fonts/METHANERSE_Free_Trial.woff',
+    '/logo.png',
+    'NETWORK:',
+    '*',
+    ''
+  ].join('\n'));
+});
+
+const swPanel = fs.readFileSync(path.join(__dirname, 'js/lite/sw-enfermero.js'), 'utf8')
+  .replace(/__VERSION__/g, VERSION_PANEL);
+app.get('/sw-enfermero.js', (req, res) => {
+  res.type('application/javascript').set('Cache-Control', 'no-cache').send(swPanel);
+});
+
 // Fix #12: la versión anterior no llamaba next() cuando la ruta era /api,
 // dejando esas peticiones sin respuesta en Express 5 (timeout silencioso).
 // Ahora: rutas no-API → sirve index.html; rutas /api → pasa al siguiente
@@ -32,6 +68,8 @@ app.get('/{*any}', (req, res, next) => {
     next();
   }
 });
+
+require('./src/config/migraciones').aplicarMigraciones();
 
 app.listen(PORT, () => {
   console.log(`MediStock corriendo en puerto ${PORT}`);

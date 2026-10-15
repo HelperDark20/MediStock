@@ -213,8 +213,9 @@ function calcConsumoMensual(mesYYYYMM){
   const porUbicacion = {};
   let totalGeneral = 0;
   (S.movimientos||[]).forEach(m=>{
-    if(m.tipo!=='consumo'||!m.created_at) return;
-    if(fechaColombia(m.created_at).slice(0,7)!==mesYYYYMM) return;
+    const fecha = m.fecha_real || m.created_at;   // hora real de atención (offline/contingencia)
+    if(m.tipo!=='consumo'||!fecha) return;
+    if(fechaColombia(fecha).slice(0,7)!==mesYYYYMM) return;
     const bodegaNombre = m.origen_nombre;
     if(!bodegaNombre) return;
     const bodega   = (S.bodegasRaw||[]).find(b=>b.nombre===bodegaNombre);
