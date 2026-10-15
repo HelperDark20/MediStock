@@ -1188,3 +1188,12 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 
 .rep-section-title{font-family:var(--font-head);font-size:14px;font-weight:700;color:var(--ink);margin:22px 0 10px}
 .rep-section-title:first-of-type{margin-top:0}
+/* Stock de seguridad: detalle por lote bajo cada producto */
+.rep-lotes{ margin-top:5px; }
+/* Columnas fijas: lote · vencimiento · estado · cantidad, alineadas entre filas */
+.rep-lote{ display:grid; grid-template-columns:minmax(110px,max-content) 120px 95px auto; align-items:center; column-gap:10px; font-size:11px; color:#666; font-family:var(--font-mono); padding:2px 0; }
+.rep-lote-id{ color:var(--ink2); font-weight:600; }
+.rep-lote-cant{ font-weight:700; color:var(--ink); white-space:nowrap; }
+.rep-lote .sem-badge{ justify-self:start; }
+.rep-lote .sem-badge{ font-size:8px; padding:2px 7px; }
+@media print{ .rep-lote{ break-inside:avoid; } }

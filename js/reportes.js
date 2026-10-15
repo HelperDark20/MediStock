@@ -486,14 +486,22 @@ function _repBuscarGrupoSeguridad(bodegaNombre){
 
 function _repCompararSeguridad(bodegaNombre, grupo){
   // Suma la cantidad actual de cada SKU Global en este depósito
-  // (agregando todos sus sub-SKUs/lotes juntos).
+  // (agregando todos sus sub-SKUs/lotes juntos) y guarda el detalle por
+  // lote — lote, vencimiento y cantidad — para facilitar el conteo físico.
   const actualPorNombre = {};
+  const lotesPorNombre = {};
   (S.subSkus||[]).forEach(s=>{
     const cant = s.stock?.[bodegaNombre] || 0;
     if(!cant) return;
     const key = (s.nombre||'').trim().toUpperCase();
     actualPorNombre[key] = (actualPorNombre[key]||0) + cant;
+    (lotesPorNombre[key] = lotesPorNombre[key] || []).push({
+      lote: s.lote || '', subSku: s.subSku, caducidad: s.caducidad, cantidad: cant
+    });
   });
+  // Primero el que vence antes (orden en que conviene usarlos); sin fecha al final
+  const ordenVence = (a,b) => (a.caducidad||'9999').localeCompare(b.caducidad||'9999') || a.lote.localeCompare(b.lote);
+  const lotesDe = (key) => (lotesPorNombre[key]||[]).slice().sort(ordenVence);
 
   const esperadosNombres = new Set(grupo.items.map(it=>it.item_nombre.trim().toUpperCase()));
 
@@ -501,18 +509,19 @@ function _repCompararSeguridad(bodegaNombre, grupo){
   grupo.items.forEach(it=>{
     const key = it.item_nombre.trim().toUpperCase();
     const actual = actualPorNombre[key] || 0;
+    const lotes = lotesDe(key);
     if(actual === 0){
-      faltantes.push({ nombre: it.item_nombre, esperado: it.cantidad_esperada, actual: 0 });
+      faltantes.push({ nombre: it.item_nombre, esperado: it.cantidad_esperada, actual: 0, lotes });
     } else if(actual !== it.cantidad_esperada){
-      diferencias.push({ nombre: it.item_nombre, esperado: it.cantidad_esperada, actual });
+      diferencias.push({ nombre: it.item_nombre, esperado: it.cantidad_esperada, actual, lotes });
     } else {
-      completos.push({ nombre: it.item_nombre, esperado: it.cantidad_esperada, actual });
+      completos.push({ nombre: it.item_nombre, esperado: it.cantidad_esperada, actual, lotes });
     }
   });
 
   const sobrantes = Object.entries(actualPorNombre)
     .filter(([nombre]) => !esperadosNombres.has(nombre))
-    .map(([nombre, cantidad]) => ({ nombre, cantidad }));
+    .map(([nombre, cantidad]) => ({ nombre, cantidad, lotes: lotesDe(nombre) }));
 
   return { faltantes, diferencias, completos, sobrantes };
 }
@@ -537,11 +546,21 @@ function _repRenderSeguridad(depNombre){
     _repStatPill('gray','ti-package', sobrantes.length, 'Sobrantes')
   ]);
 
+  // Una línea por lote: "Lote L2301 · Vence 17/11/2027 [Vigente] · 3 und"
+  const lotesHtml = (lotes) => (lotes||[]).length
+    ? `<div class="rep-lotes">${lotes.map(l=>`<div class="rep-lote">
+        <span class="rep-lote-id">${l.lote ? 'Lote '+escHtml(l.lote) : 'Sin lote · '+escHtml(l.subSku)}</span>
+        <span>Vence ${fmtDate(l.caducidad)}</span>
+        ${l.caducidad ? `<span class="sem-badge ${getSem(l.caducidad)}">${semLabel(getSem(l.caducidad))}</span>` : '<span></span>'}
+        <span class="rep-lote-cant">${l.cantidad} und</span>
+      </div>`).join('')}</div>`
+    : '';
+
   const filaCompare = (it) => {
     const delta = it.actual - it.esperado;
     const deltaTxt = delta>0?`+${delta}`:`${delta}`;
     return `<div class="rep-row" style="--rep-grid:1fr 100px 100px 100px">
-      <div class="rep-item-name">${escHtml(it.nombre)}</div>
+      <div><div class="rep-item-name">${escHtml(it.nombre)}</div>${lotesHtml(it.lotes)}</div>
       <div class="rep-cell-mono">${it.esperado}</div>
       <div class="rep-cell-mono strong">${it.actual}</div>
       <div class="rep-cell-mono" style="color:${delta<0?'var(--red2)':'var(--amber)'}">${deltaTxt}</div>
@@ -557,11 +576,11 @@ function _repRenderSeguridad(depNombre){
     : '<div class="empty-state"><i class="ti ti-circle-check"></i><p>Sin diferencias de cantidad</p></div>';
 
   const sobrantesHtml = sobrantes.length
-    ? '<div class="rep-list-simple">' + sobrantes.map(s=>`<div class="rep-list-row"><div class="rep-list-dot warn"></div><div><div class="rep-list-name">${escHtml(s.nombre)}</div><div class="rep-list-meta">${s.cantidad} unidades — fuera de la lista de seguridad</div></div></div>`).join('') + '</div>'
+    ? '<div class="rep-list-simple">' + sobrantes.map(s=>`<div class="rep-list-row"><div class="rep-list-dot warn"></div><div><div class="rep-list-name">${escHtml(s.nombre)}</div><div class="rep-list-meta">${s.cantidad} unidades — fuera de la lista de seguridad</div>${lotesHtml(s.lotes)}</div></div>`).join('') + '</div>'
     : '<div class="empty-state"><i class="ti ti-circle-check"></i><p>Sin sobrantes</p></div>';
 
   const completosHtml = completos.length
-    ? '<div class="rep-list-simple">' + completos.map(it=>`<div class="rep-list-row"><div class="rep-list-dot ok"></div><div><div class="rep-list-name">${escHtml(it.nombre)}</div><div class="rep-list-meta">${it.actual} unidades — cantidad correcta</div></div></div>`).join('') + '</div>'
+    ? '<div class="rep-list-simple">' + completos.map(it=>`<div class="rep-list-row"><div class="rep-list-dot ok"></div><div><div class="rep-list-name">${escHtml(it.nombre)}</div><div class="rep-list-meta">${it.actual} unidades — cantidad correcta</div>${lotesHtml(it.lotes)}</div></div>`).join('') + '</div>'
     : '<div class="empty-state"><i class="ti ti-alert-triangle"></i><p>Ninguno completo</p></div>';
 
   document.getElementById('rep-contenido').innerHTML = `
@@ -594,17 +613,37 @@ function _repExportSeguridadExcel(depNombre){
     ]
   );
 
-  aoa.push(['FALTANTES — sin existencias en el depósito']);
-  aoa.push(['Ítem','Esperado','Actual','Diferencia']);
-  faltantes.forEach(it=>aoa.push([it.nombre, it.esperado, it.actual, it.actual-it.esperado]));
-  aoa.push([]); aoa.push(['CON DIFERENCIA DE CANTIDAD']); aoa.push(['Ítem','Esperado','Actual','Diferencia']);
-  diferencias.forEach(it=>aoa.push([it.nombre, it.esperado, it.actual, it.actual-it.esperado]));
-  aoa.push([]); aoa.push(['SOBRANTES — fuera de la lista de seguridad']); aoa.push(['Ítem','Cantidad actual']);
-  sobrantes.forEach(s=>aoa.push([s.nombre, s.cantidad]));
-  aoa.push([]); aoa.push(['COMPLETOS — cantidad correcta']); aoa.push(['Ítem','Cantidad esperada','Cantidad actual']);
-  completos.forEach(it=>aoa.push([it.nombre, it.esperado, it.actual]));
+  // Una fila por lote (con su vencimiento y cantidad) para facilitar el
+  // conteo físico; los totales del producto van solo en su primera fila.
+  const COLS = ['Ítem','Lote','Vencimiento','Estado','Cantidad lote','Esperado','Actual total','Diferencia'];
+  const filasItem = (it, conComparacion) => {
+    const lotes = it.lotes && it.lotes.length ? it.lotes : [null];
+    lotes.forEach((l, i) => {
+      const primera = i === 0;
+      const actual = conComparacion ? it.actual : it.cantidad;
+      aoa.push([
+        primera ? it.nombre : '',
+        l ? (l.lote || `Sin lote (${l.subSku})`) : '—',
+        l ? fmtDate(l.caducidad) : '—',
+        l && l.caducidad ? semLabel(getSem(l.caducidad)) : '—',
+        l ? l.cantidad : 0,
+        primera && conComparacion ? it.esperado : '',
+        primera ? actual : '',
+        primera && conComparacion ? actual - it.esperado : ''
+      ]);
+    });
+  };
 
-  _repDescargarExcel(aoa, `Stock_Seguridad_${depNombre.replace(/\s+/g,'_')}`, [28,16,14,14]);
+  aoa.push(['FALTANTES — sin existencias en el depósito']); aoa.push(COLS);
+  faltantes.forEach(it=>filasItem(it, true));
+  aoa.push([]); aoa.push(['CON DIFERENCIA DE CANTIDAD']); aoa.push(COLS);
+  diferencias.forEach(it=>filasItem(it, true));
+  aoa.push([]); aoa.push(['SOBRANTES — fuera de la lista de seguridad']); aoa.push(COLS);
+  sobrantes.forEach(s=>filasItem(s, false));
+  aoa.push([]); aoa.push(['COMPLETOS — cantidad correcta']); aoa.push(COLS);
+  completos.forEach(it=>filasItem(it, true));
+
+  _repDescargarExcel(aoa, `Stock_Seguridad_${depNombre.replace(/\s+/g,'_')}`, [28,16,14,12,14,12,14,12]);
 }
 
 // ══════════════════════════════════════════
