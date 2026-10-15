@@ -34,7 +34,7 @@ async function _stockDisponible(client, subSkuId, bodegaId) {
 
 // GET /api/movimientos — todos los niveles
 router.get('/', verificarToken, async (req, res) => {
-  const { sku_global, sub_sku_id, bodega } = req.query;
+  const { sku_global, sub_sku_id, bodega, mios } = req.query;
   // FIX SEGURIDAD: cap máximo de 1000 para evitar DoS por limit arbitrario
   // FIX: un limit negativo o 0 hacía fallar la consulta (LIMIT -5 → error 500)
   const requestedLimit = parseInt(req.query.limit);
@@ -72,6 +72,12 @@ router.get('/', verificarToken, async (req, res) => {
     if (bodega) {
       params.push(bodega);
       query += ` AND (bo.nombre = $${params.length} OR bd.nombre = $${params.length})`;
+    }
+    // mios=1 → solo los movimientos del usuario autenticado (panel enfermero
+    // liviano: evita descargar el historial de todos en tablets antiguas)
+    if (mios === '1') {
+      params.push(req.usuario.id);
+      query += ` AND m.usuario_id = $${params.length}`;
     }
 
     query += ' ORDER BY m.created_at DESC';

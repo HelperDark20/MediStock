@@ -16,6 +16,11 @@ app.use('/fonts', express.static(path.join(__dirname, 'fonts')));
 app.get('/api.js',   (req, res) => res.sendFile(path.join(__dirname, 'api.js')));
 app.get('/logo.png', (req, res) => res.sendFile(path.join(__dirname, 'logo.png')));
 
+// Panel de enfermero compatible con navegadores antiguos (iPad con iOS 9–12).
+// Página independiente y liviana; js/compat-check.js redirige aquí a los
+// navegadores que no pueden ejecutar la app principal.
+app.get('/enfermero', (req, res) => res.sendFile(path.join(__dirname, 'enfermero.html')));
+
 // Fix #12: la versión anterior no llamaba next() cuando la ruta era /api,
 // dejando esas peticiones sin respuesta en Express 5 (timeout silencioso).
 // Ahora: rutas no-API → sirve index.html; rutas /api → pasa al siguiente
