@@ -559,7 +559,7 @@ function _repRenderSeguridad(depNombre){
   const filaCompare = (it) => {
     const delta = it.actual - it.esperado;
     const deltaTxt = delta>0?`+${delta}`:`${delta}`;
-    return `<div class="rep-row" style="--rep-grid:1fr 100px 100px 100px">
+    return `<div class="rep-row" style="--rep-grid:1fr 80px 80px 80px">
       <div><div class="rep-item-name">${escHtml(it.nombre)}</div>${lotesHtml(it.lotes)}</div>
       <div class="rep-cell-mono">${it.esperado}</div>
       <div class="rep-cell-mono strong">${it.actual}</div>
@@ -568,11 +568,11 @@ function _repRenderSeguridad(depNombre){
   };
 
   const faltantesHtml = faltantes.length
-    ? `<div class="rep-group"><div class="rep-group-head tono-red"><div class="rep-group-name">Faltantes</div></div><div class="rep-cols" style="--rep-grid:1fr 100px 100px 100px"><div>Ítem</div><div class="rep-col-num">Esperado</div><div class="rep-col-num">Actual</div><div></div></div>${faltantes.map(filaCompare).join('')}</div>`
+    ? `<div class="rep-group"><div class="rep-group-head tono-red"><div class="rep-group-name">Faltantes</div></div><div class="rep-cols" style="--rep-grid:1fr 80px 80px 80px"><div>Ítem</div><div class="rep-col-num">Esperado</div><div class="rep-col-num">Actual</div><div></div></div>${faltantes.map(filaCompare).join('')}</div>`
     : '<div class="empty-state"><i class="ti ti-circle-check"></i><p>Sin faltantes</p></div>';
 
   const diferenciasHtml = diferencias.length
-    ? `<div class="rep-group"><div class="rep-group-head tono-amber"><div class="rep-group-name">Con diferencia</div></div><div class="rep-cols" style="--rep-grid:1fr 100px 100px 100px"><div>Ítem</div><div class="rep-col-num">Esperado</div><div class="rep-col-num">Actual</div><div class="rep-col-num">Diferencia</div></div>${diferencias.map(filaCompare).join('')}</div>`
+    ? `<div class="rep-group"><div class="rep-group-head tono-amber"><div class="rep-group-name">Con diferencia</div></div><div class="rep-cols" style="--rep-grid:1fr 80px 80px 80px"><div>Ítem</div><div class="rep-col-num">Esperado</div><div class="rep-col-num">Actual</div><div class="rep-col-num">Diferencia</div></div>${diferencias.map(filaCompare).join('')}</div>`
     : '<div class="empty-state"><i class="ti ti-circle-check"></i><p>Sin diferencias de cantidad</p></div>';
 
   const sobrantesHtml = sobrantes.length

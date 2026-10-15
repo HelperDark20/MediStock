@@ -839,7 +839,9 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
      con table-header-group se repetiría en cada página en Chrome pero no
      en Safari; con table-row-group ambos navegadores lo muestran una
      sola vez y el PDF sale con la misma estructura en los dos. */
-  #rep-print-table{ width:100%; border-collapse:collapse; }
+  /* table-layout:fixed: la tabla respeta el ancho de la hoja en vez de
+     estirarse con el contenido (si no, el lado derecho quedaba sin margen) */
+  #rep-print-table{ width:100%; border-collapse:collapse; table-layout:fixed; }
   #rep-print-table thead{ display: table-row-group; }
   #rep-print-table tbody{ display: table-row-group; }
   #rep-print-table td{ border:none; padding:0; }
@@ -851,9 +853,9 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
      al imprimir eso corta todo lo que no cabe en la primera página. */
   html.print-inv, html.print-inv body{ height:auto !important; overflow:visible !important; }
   body.print-inv > *:not(#inv-print){ display:none !important; }
-  body.print-inv #inv-print{ display:block; }
+  body.print-inv #inv-print{ display:block; padding:20px; }   /* mismo margen interno que #view-reportes */
   body.print-inv #inv-print, body.print-inv #inv-print *{ visibility:visible; }
-  .inv-print-table{ width:100%; border-collapse:collapse; }
+  .inv-print-table{ width:100%; border-collapse:collapse; table-layout:fixed; }
   .inv-print-table thead{ display:table-row-group; }  /* encabezado solo en la 1.ª página, ver #rep-print-table */
   .inv-print-table td{ border:none; padding:0; }
   .inv-print-table .rep-header{ margin-bottom:16px; }
@@ -1162,6 +1164,8 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 .rep-cols{display:grid;grid-template-columns:var(--rep-grid,1fr);padding:8px 16px;background:var(--cream);border-bottom:1px solid var(--cream3);font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;font-family:var(--font-mono)}
 .rep-row{display:grid;grid-template-columns:var(--rep-grid,1fr);align-items:center;padding:9px 16px;border-bottom:1px solid var(--cream2);gap:6px}
 .rep-row:last-child{border-bottom:none}
+/* Las celdas pueden encogerse (si no, "1fr" no baja de su contenido y la fila se sale de la hoja) */
+.rep-row > *, .rep-cols > *{min-width:0}
 .rep-item-name{font-size:13px;font-weight:500;color:var(--ink)}
 .rep-item-code{font-size:10px;color:#aaa;font-family:var(--font-mono);margin-top:2px}
 .rep-cell-mono{font-family:var(--font-mono);font-size:12px;text-align:center}
@@ -1191,7 +1195,7 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 /* Stock de seguridad: detalle por lote bajo cada producto */
 .rep-lotes{ margin-top:5px; }
 /* Columnas fijas: lote · vencimiento · estado · cantidad, alineadas entre filas */
-.rep-lote{ display:grid; grid-template-columns:minmax(110px,max-content) 120px 95px auto; align-items:center; column-gap:10px; font-size:11px; color:#666; font-family:var(--font-mono); padding:2px 0; }
+.rep-lote{ display:grid; grid-template-columns:minmax(90px,max-content) 112px 88px auto; align-items:center; column-gap:8px; font-size:11px; color:#666; font-family:var(--font-mono); padding:2px 0; }
 .rep-lote-id{ color:var(--ink2); font-weight:600; }
 .rep-lote-cant{ font-weight:700; color:var(--ink); white-space:nowrap; }
 .rep-lote .sem-badge{ justify-self:start; }
