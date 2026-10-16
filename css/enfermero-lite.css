@@ -151,6 +151,7 @@ select.lt-input{ background:#fff url("data:image/svg+xml;utf8,<svg xmlns='http:/
 
 /* ── Aviso flotante ── */
 .lt-toast{
+  z-index:60;
   position:fixed; left:16px; right:16px; bottom:20px;
   max-width:420px; margin:0 auto;
   background:#0A1628; color:#fff; text-align:center;
@@ -161,3 +162,42 @@ select.lt-input{ background:#fff url("data:image/svg+xml;utf8,<svg xmlns='http:/
 .lt-toast.on{ opacity:1; visibility:visible; }
 .lt-toast.error{ background:#C0392B; }
 .lt-toast.ok{ background:#1A6B3C; }
+
+/* ══ MODO OFFLINE ══ */
+.lt-modo{ border-radius:12px; padding:12px 14px; margin-bottom:12px; font-size:13px; }
+.lt-modo.online{ background:#EDF7F1; border:1px solid #B9DEC8; color:#1A6B3C; }
+.lt-modo.offline{ background:#FDF6EC; border:1px solid #F0C98A; color:#7A4E08; }
+.lt-modo.alerta{ background:#FDF0EF; border-color:#F2B8B1; color:#C0392B; }
+.lt-modo-titulo{ font-weight:700; font-size:14px; }
+.lt-modo-detalle{ margin-top:3px; }
+.lt-modo-botones{ margin-top:10px; }
+.lt-modo-botones button{ margin:4px 8px 0 0; }
+.lt-btn-sec{
+  display:inline-block; padding:9px 14px; border-radius:10px; font-size:14px; font-weight:700;
+  border:1px solid #2196D3; background:#fff; color:#2196D3; -webkit-appearance:none;
+}
+.lt-btn-sec.primario{ background:#2196D3; color:#fff; }
+.lt-btn-sec.peligro{ border-color:#C0392B; color:#C0392B; }
+.lt-btn-sec[disabled]{ opacity:.6; }
+
+.lt-pend{ display:inline-block; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px; background:#FDF6EC; color:#B7680A; text-transform:uppercase; margin-left:6px; }
+.lt-pend.error{ background:#FDF0EF; color:#C0392B; }
+.lt-hist-error{ font-size:12px; color:#C0392B; margin-top:4px; }
+
+.lt-aviso-pendientes{ display:none; margin-top:14px; padding:10px 12px; border-radius:8px; background:#FDF6EC; color:#7A4E08; font-size:13px; }
+.lt-aviso-pendientes.on{ display:block; }
+
+/* Ventana modal */
+.lt-modal-fondo{
+  display:none; position:fixed; top:0; left:0; right:0; bottom:0;
+  background:rgba(10,22,40,.55); z-index:50; padding:20px; overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.lt-modal-fondo.on{ display:block; }
+.lt-modal{ background:#fff; border-radius:16px; padding:20px; max-width:480px; margin:40px auto; }
+.lt-modal-titulo{ font-size:17px; font-weight:700; margin-bottom:10px; }
+.lt-modal-cuerpo{ font-size:14px; line-height:1.5; color:#333; }
+.lt-modal-cuerpo ul{ margin:10px 0 0 18px; }
+.lt-modal-cuerpo li{ margin-bottom:8px; }
+.lt-modal-botones{ margin-top:18px; text-align:right; }
+.lt-modal-botones button{ margin:6px 0 0 8px; }

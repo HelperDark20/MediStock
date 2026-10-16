@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" manifest="/enfermero.appcache">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
@@ -13,6 +13,8 @@
 <!--
   Panel de enfermero compatible con navegadores antiguos (iPad con iOS 9–12).
   Sin librerías externas: HTML, CSS y JavaScript ES5 (ver js/lite/enfermero-lite.js).
+  Modo offline: la página se guarda en el dispositivo con AppCache (Safari de
+  iOS 9–12, atributo manifest) o con un Service Worker (navegadores modernos).
 -->
 
 <!-- ═══ LOGIN ═══ -->
@@ -28,6 +30,7 @@
       <label class="lt-label lt-label-dark" for="lt-pass">Contraseña</label>
       <input class="lt-input lt-input-dark" type="password" id="lt-pass" placeholder="••••••••" autocomplete="current-password">
       <div class="lt-error" id="lt-login-error"></div>
+      <div class="lt-aviso-pendientes" id="lt-login-pendientes"></div>
       <button class="lt-btn" type="submit" id="lt-login-btn">Ingresar</button>
     </form>
   </div>
@@ -59,6 +62,9 @@
 
     <!-- Panel de registro -->
     <div id="lt-panel">
+      <!-- Estado de conexión: en línea / offline, pendientes y sincronización -->
+      <div class="lt-modo" id="lt-modo"></div>
+
       <div class="lt-evento">
         <span id="lt-evento-txt"></span>
         <button class="lt-link" type="button" id="lt-cambiar-evento">Cambiar evento</button>
@@ -104,6 +110,15 @@
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- Ventana de confirmación / avisos -->
+<div class="lt-modal-fondo" id="lt-modal">
+  <div class="lt-modal">
+    <div class="lt-modal-titulo" id="lt-modal-titulo"></div>
+    <div class="lt-modal-cuerpo" id="lt-modal-cuerpo"></div>
+    <div class="lt-modal-botones" id="lt-modal-botones"></div>
   </div>
 </div>
 

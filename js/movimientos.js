@@ -30,6 +30,11 @@ function renderMovimientos(){
   renderMovBody();
 }
 
+// Fecha que se muestra y con la que se filtra: la hora REAL de atención
+// (contingencias y consumos offline la traen en fecha_atencion); si no
+// existe, la hora de registro.
+function _movFecha(m){ return m.fecha_real || m.created_at; }
+
 // ══════════════════════════════════════════
 // PASO 1 — UBICACIÓN Y DEPÓSITO DE ORIGEN
 // ══════════════════════════════════════════
@@ -220,7 +225,7 @@ function renderMovBody(){
   if(_movFiltro){
     movs = movs.filter(m=>{
       if(m.tipo!=='consumo') return false;
-      if(_movFiltro.mes && (!m.created_at || fechaColombia(m.created_at).slice(0,7)!==_movFiltro.mes)) return false;
+      if(_movFiltro.mes && (!_movFecha(m) || fechaColombia(_movFecha(m)).slice(0,7)!==_movFiltro.mes)) return false;
       if(_movFiltro.ubicacionNombre){
         const bodega = (S.bodegasRaw||[]).find(b=>b.nombre===m.origen_nombre);
         if(!bodega || bodega.ubicacion_nombre!==_movFiltro.ubicacionNombre) return false;
@@ -249,10 +254,13 @@ function renderMovBody(){
     const contTip = m.es_contingencia
       ? `Cargado por ${escHtml(m.cargado_por_nombre||'—')} · Atención: ${m.fecha_atencion?new Date(m.fecha_atencion).toLocaleString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—'}`
       : '';
+    const offTip = m.es_offline
+      ? `Registrado sin conexión · Atención: ${new Date(_movFecha(m)).toLocaleString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})} · Sincronizado: ${new Date(m.sincronizado_at||m.created_at).toLocaleString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}`
+      : '';
     return `
     <tr ${m.revertido?'style="opacity:.55"':''} ${puedeRevertir?`class="mov-row-clickable" onclick="confirmRevertirMovimiento(${m.id})" title="Clic para revertir este movimiento"`:''}>
       <td data-label="Fecha" style="font-size:11px;font-family:var(--font-mono);color:#888">
-        ${new Date(m.created_at).toLocaleString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
+        ${new Date(_movFecha(m)).toLocaleString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
       </td>
       <td data-label="Ítem" style="font-weight:500">
         ${escHtml(m.nombre||'—')}
@@ -261,7 +269,7 @@ function renderMovBody(){
           ${escHtml(m.origen_nombre||'—')} → ${escHtml(m.destino_nombre||'—')}
         </div>
         <div class="mrow-meta">
-          ${new Date(m.created_at).toLocaleString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})} · ${escHtml(m.usuario_nombre||'—')}${m.tipo==='consumo'&&m.cedula_paciente?' · Pac: '+escHtml(m.cedula_paciente):''}
+          ${new Date(_movFecha(m)).toLocaleString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})} · ${escHtml(m.usuario_nombre||'—')}${m.tipo==='consumo'&&m.cedula_paciente?' · Pac: '+escHtml(m.cedula_paciente):''}
         </div>
       </td>
       <td data-label="Sub-SKU"><span class="sub-sku" style="font-size:9px">${escHtml((m.sub_sku||'').split('-').slice(0,2).join('-'))}</span></td>
@@ -271,6 +279,7 @@ function renderMovBody(){
         ${m.es_contingencia?`<span class="mov-tipo" style="background:var(--amber-bg);color:var(--amber);margin-left:4px" title="${contTip}">Contingencia</span>`:''}
         ${m.movimiento_original_id?`<div style="font-size:10px;color:#aaa;margin-top:2px">de mov. #${m.movimiento_original_id}</div>`:''}
         ${m.es_contingencia?`<div style="font-size:10px;color:#aaa;margin-top:2px">${contTip}</div>`:''}
+        ${m.es_offline?`<span class="mov-tipo" style="background:var(--blue-bg);color:var(--blue);margin-left:4px" title="${offTip}">Offline</span><div style="font-size:10px;color:#aaa;margin-top:2px">${offTip}</div>`:''}
       </td>
       <td data-label="Origen → Destino" style="font-size:12px;color:#666">${escHtml(m.origen_nombre||'—')} → ${escHtml(m.destino_nombre||'—')}</td>
       <td data-label="Cant." style="font-family:var(--font-mono);font-weight:600">${m.cantidad}</td>

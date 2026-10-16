@@ -61,10 +61,11 @@ window.handleLoginEnter = handleLoginEnter;
 async function setupApp(user){
   const niv = NIVELES[currentRole];
 
-  // Nivel 2 (Enfermero) → panel especial
+  // Nivel 2 (Enfermero) → panel de enfermero independiente (/enfermero), el
+  // mismo en todos los dispositivos y el único con modo offline. Usa el mismo
+  // token (nb_token), así que no pide iniciar sesión de nuevo.
   if(currentRole === 2){
-    await loadState();
-    initEnfermeroPanel(user);
+    window.location.replace('/enfermero');
     return;
   }
 

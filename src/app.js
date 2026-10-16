@@ -117,7 +117,8 @@ app.use('/api/eventos',      apiLimiterByIp, apiLimiterByUser, eventosRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'MediStock API funcionando' });
+  const { estado } = require('./config/migraciones');
+  res.json({ status: 'ok', message: 'MediStock API funcionando', migraciones: estado.migraciones });
 });
 
 module.exports = app;
