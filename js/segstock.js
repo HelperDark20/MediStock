@@ -1,7 +1,8 @@
 // ══════════════════════════════════════════
 // STOCK DE SEGURIDAD (Nivel 4)
 // Gestión de grupos (botiquines/enfermerías) y sus listas de ítems
-// esperados, referenciados contra SKUs Globales ya existentes.
+// esperados, referenciados contra SKUs Globales ya existentes. Cada depósito
+// tiene asignado como máximo un grupo, desde Ubicaciones (clic en el depósito).
 // ══════════════════════════════════════════
 
 let _segDetalleGrupoId = null;
@@ -22,12 +23,12 @@ function renderSegStock(){
   }
 
   el.innerHTML = S.stockSeguridad.map(g => {
-    const patron = (g.patron_tokens||[]).join(' · ');
     const nItems = (g.items||[]).length;
+    const deps = (g.depositos||[]).map(d=>d.nombre);
     return `<div class="card evt-card" style="margin-bottom:0;cursor:pointer" onclick="segAbrirDetalleGrupo(${g.id})">
       <div class="card-body">
         <div style="font-family:var(--font-head);font-size:15px;font-weight:700;color:var(--ink);margin-bottom:4px">${escHtml(g.nombre)}</div>
-        <div style="font-size:11px;color:#888;font-family:var(--font-mono);margin-bottom:10px">Patrón: ${escHtml(patron||'—')}</div>
+        <div style="font-size:11px;color:#888;font-family:var(--font-mono);margin-bottom:10px">${deps.length?`Depósitos: ${escHtml(deps.join(', '))}`:'Sin depósitos asignados'}</div>
         <div style="font-size:12px;color:#666"><i class="ti ti-list-check" style="margin-right:4px"></i>${nItems} ítem${nItems!==1?'s':''}</div>
       </div>
     </div>`;
@@ -39,7 +40,6 @@ function abrirCrearGrupoSeg(){
   document.getElementById('seggrupo-titulo').textContent = 'Nuevo grupo';
   document.getElementById('seggrupo-id').value = '';
   document.getElementById('seggrupo-nombre').value = '';
-  document.getElementById('seggrupo-patron').value = '';
   document.getElementById('modal-segstock-grupo').classList.add('open');
 }
 
@@ -50,25 +50,20 @@ function segAbrirEditarGrupo(){
   document.getElementById('seggrupo-titulo').textContent = 'Editar grupo';
   document.getElementById('seggrupo-id').value = g.id;
   document.getElementById('seggrupo-nombre').value = g.nombre;
-  document.getElementById('seggrupo-patron').value = (g.patron_tokens||[]).join(', ');
   document.getElementById('modal-segstock-grupo').classList.add('open');
 }
 
 async function segGuardarGrupo(){
   const idRaw = document.getElementById('seggrupo-id').value;
   const nombre = document.getElementById('seggrupo-nombre').value.trim();
-  const patronRaw = document.getElementById('seggrupo-patron').value.trim();
-  const patron_tokens = patronRaw.split(',').map(t=>t.trim().toUpperCase()).filter(Boolean);
-
   if(!nombre){ toastError('Ingresa el nombre del grupo'); return; }
-  if(!patron_tokens.length){ toastError('Ingresa al menos un token de patrón'); return; }
 
   try {
     if(idRaw){
-      await StockSeguridad.updateGrupo(idRaw, { nombre, patron_tokens });
+      await StockSeguridad.updateGrupo(idRaw, { nombre });
       toast('✓ Grupo actualizado','success');
     } else {
-      await StockSeguridad.createGrupo({ nombre, patron_tokens });
+      await StockSeguridad.createGrupo({ nombre });
       toast('✓ Grupo creado — añade sus ítems','success');
     }
     closeModal('modal-segstock-grupo');
@@ -85,12 +80,13 @@ function segConfirmEliminarGrupo(){
   if(!g) return;
   document.getElementById('modal-segstock-detalle').classList.remove('open');
   document.getElementById('modal-title').textContent = 'Eliminar grupo';
-  document.getElementById('modal-sub').textContent = `¿Eliminar el grupo "${g.nombre}"? Se eliminará también su lista de ítems.`;
+  const nDeps = (g.depositos||[]).length;
+  document.getElementById('modal-sub').textContent = `¿Eliminar el grupo "${g.nombre}"? Se eliminará también su lista de ítems${nDeps?` y ${nDeps} depósito${nDeps!==1?'s':''} quedará${nDeps!==1?'n':''} sin stock de seguridad`:''}.`;
   document.getElementById('modal-ok-btn').onclick = async ()=>{
     try {
       await StockSeguridad.deleteGrupo(g.id);
       closeModal('modal-confirm');
-      S.stockSeguridad = await StockSeguridad.getAll();
+      await loadState();
       renderSegStock();
       toast('Grupo eliminado');
     } catch(err){
@@ -109,7 +105,10 @@ function segAbrirDetalleGrupo(id){
   _segDetalleGrupoId = id;
   document.getElementById('segdet-grupo-id').value = id;
   document.getElementById('segdet-nombre').textContent = g.nombre;
-  document.getElementById('segdet-patron').textContent = `Patrón: ${(g.patron_tokens||[]).join(' · ')||'—'}`;
+  const deps = (g.depositos||[]).map(d=>d.nombre);
+  document.getElementById('segdet-patron').textContent = deps.length
+    ? `Asignado a: ${deps.join(', ')}`
+    : 'Sin depósitos asignados — asígnalo desde Ubicaciones (clic en el depósito)';
   segRenderItems();
   document.getElementById('modal-segstock-detalle').classList.add('open');
 }

@@ -567,21 +567,12 @@ function _repRenderTop(movs){
 // ══════════════════════════════════════════
 // REPORTE — STOCK DE SEGURIDAD POR DEPÓSITO
 // ══════════════════════════════════════════
-function _tokenizeBodega(nombre){
-  return (nombre||'').toUpperCase().split(/[\s\-]+/).filter(Boolean);
-}
-
-// Encuentra el grupo cuyo patrón de tokens está contenido en el nombre
-// del depósito. Si varios matchean, se queda con el más específico
-// (el que tiene más tokens en su patrón).
+// El stock de seguridad de un depósito es el grupo que tiene asignado en
+// Ubicaciones (máximo uno). null si no tiene.
 function _repBuscarGrupoSeguridad(bodegaNombre){
-  const tokens = new Set(_tokenizeBodega(bodegaNombre));
-  const candidatos = (S.stockSeguridad||[]).filter(g =>
-    (g.patron_tokens||[]).every(t => tokens.has(String(t).toUpperCase()))
-  );
-  if(!candidatos.length) return null;
-  candidatos.sort((a,b)=> (b.patron_tokens||[]).length - (a.patron_tokens||[]).length);
-  return candidatos[0];
+  const bodega = (S.bodegasRaw||[]).find(b=>b.nombre===bodegaNombre);
+  if(!bodega || !bodega.stock_seguridad_grupo_id) return null;
+  return (S.stockSeguridad||[]).find(g=>g.id===bodega.stock_seguridad_grupo_id) || null;
 }
 
 function _repCompararSeguridad(bodegaNombre, grupo){
@@ -634,7 +625,7 @@ function _repRenderSeguridad(depNombre){
   }
   const grupo = _repBuscarGrupoSeguridad(depNombre);
   if(!grupo){
-    contenido.innerHTML = `<div class="empty-state"><i class="ti ti-alert-triangle"></i><p>No hay una lista de stock de seguridad definida para <strong>${escHtml(depNombre)}</strong></p></div>`;
+    contenido.innerHTML = `<div class="empty-state"><i class="ti ti-alert-triangle"></i><p><strong>${escHtml(depNombre)}</strong> no tiene stock de seguridad asignado. Asígnalo en Ubicaciones (clic en el depósito).</p></div>`;
     return;
   }
   const { faltantes, diferencias, completos, sobrantes } = _repCompararSeguridad(depNombre, grupo);
@@ -698,7 +689,7 @@ function _repRenderSeguridad(depNombre){
 function _repExportSeguridadExcel(depNombre){
   if(!depNombre){ toastError('Selecciona un depósito primero'); return; }
   const grupo = _repBuscarGrupoSeguridad(depNombre);
-  if(!grupo){ toastError('No hay lista de stock de seguridad para este depósito'); return; }
+  if(!grupo){ toastError('Este depósito no tiene stock de seguridad asignado'); return; }
   const { faltantes, diferencias, completos, sobrantes } = _repCompararSeguridad(depNombre, grupo);
 
   const aoa = _repEncabezadoExcel(

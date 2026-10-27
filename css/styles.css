@@ -727,6 +727,14 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 /* Reporte de pacientes: lista de cédulas atendidas en el día */
 .rep-cedulas{font-size:10px;font-family:var(--font-mono);color:#666;line-height:1.5;word-break:break-word}
 
+/* ── MODIFICAR SUB-SKUs ── */
+#subsku-body tr{cursor:pointer}
+#subsku-body tr:hover td{background:var(--cream)}
+.subsku-cambios{max-height:180px;overflow-y:auto;border:1px solid var(--cream3);border-radius:var(--r-md);padding:8px 10px;margin-bottom:4px}
+.subsku-cambio{font-size:12px;color:var(--ink);padding:6px 0;border-bottom:1px solid var(--cream2)}
+.subsku-cambio:last-child{border-bottom:none}
+.subsku-cambio-meta{font-size:10px;color:#999;font-family:var(--font-mono);margin-bottom:2px}
+
 /* ── UBICACIONES TEMPORALES ── */
 .ub-crear-btns{display:flex;gap:8px;flex-wrap:wrap}
 .ub-crear-btns .btn-submit{flex:1 1 200px;font-size:14px}
@@ -743,6 +751,8 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 .ub-finalizar-btn.sec:hover{background:rgba(255,255,255,.22)}
 .deposito-meta{font-size:10px;color:#999;margin-top:1px}
 .deposito-card.prestado{opacity:.6;border-style:dashed}
+.deposito-card.clickable{cursor:pointer}
+.deposito-card.clickable:hover{border-color:var(--blue2)}
 .tmp-checklist{max-height:320px}
 .tmp-grupo{font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono);margin:8px 0 2px}
 .tmp-grupo:first-child{margin-top:0}

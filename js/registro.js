@@ -250,6 +250,12 @@ async function registrarEntrada(){
       sub_sku_manual: manual
     });
 
+    // Si el lote ya existía, se reutiliza con SU precio: avisar si el digitado es otro
+    const precioGuardado = Number(subData.precio)||0;
+    if(subData.ya_existe && precioGuardado && precioGuardado !== precio){
+      toast(`Este lote ya existía (${subData.sub_sku}) con precio ${fmtCOP(precioGuardado)}; se conservó ese precio.${currentRole===4?' Si es un error, corrígelo en "Modificar Sub-SKUs".':''}`, 'error', 6000);
+    }
+
     const todasBodegas = await Bodegas.getAll();
     const bodegaId = todasBodegas.find(b => b.nombre === ubicacion)?.id;
 
@@ -278,3 +284,156 @@ async function registrarEntrada(){
     toastError(err.message);
   }
 }
+
+// ══════════════════════════════════════════
+// MODIFICAR SUB-SKUs EXISTENTES (solo Administrador)
+// Historial del más reciente al más antiguo + búsqueda. Precio, INVIMA y
+// vencimiento se corrigen en el mismo Sub-SKU; si cambia el proveedor o el
+// lote, el servidor pide confirmar porque crea uno nuevo (o lo une al que ya
+// tiene ese código) con todo el stock y el historial.
+// ══════════════════════════════════════════
+let _subskuFilas = [];
+let _subskuBuscarTimer = null;
+let _subskuEditando = null;
+
+const _SUBSKU_CAMPOS = { precio:'Precio', invima:'INVIMA', caducidad:'Vencimiento', proveedor:'Proveedor', lote:'Lote', sub_sku:'Código' };
+
+function abrirModificarSubSkus(){
+  document.getElementById('subsku-buscar').value = '';
+  document.getElementById('modal-subskus').classList.add('open');
+  subskuCargar(false);
+}
+
+function subskuBuscarInput(){
+  clearTimeout(_subskuBuscarTimer);
+  _subskuBuscarTimer = setTimeout(()=>subskuCargar(false), 350);
+}
+
+async function subskuCargar(mas){
+  const body = document.getElementById('subsku-body');
+  const q = (document.getElementById('subsku-buscar').value||'').trim();
+  if(!mas){
+    _subskuFilas = [];
+    body.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i><p>Cargando…</p></div></td></tr>';
+  }
+  try {
+    const r = await SKUs.historialSub({ q, limit: 50, offset: _subskuFilas.length });
+    _subskuFilas = _subskuFilas.concat(r.filas);
+    document.getElementById('subsku-mas').style.display = r.hay_mas ? '' : 'none';
+    subskuRender();
+  } catch(err){ toastError(err.message); }
+}
+
+function subskuRender(){
+  const body = document.getElementById('subsku-body');
+  if(!_subskuFilas.length){
+    body.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="ti ti-search"></i><p>Sin Sub-SKUs</p></div></td></tr>';
+    return;
+  }
+  body.innerHTML = _subskuFilas.map((s, i)=>`<tr onclick="subskuAbrirEditar(${i})">
+    <td data-label="Creado" style="font-size:11px;font-family:var(--font-mono);color:#888">${s.creado?new Date(s.creado).toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}):'—'}</td>
+    <td data-label="Sub-SKU"><span class="sub-sku">${escHtml(s.sub_sku)}</span>${Number(s.total_cambios)?' <i class="ti ti-history" title="Tiene cambios registrados" style="color:#aaa"></i>':''}</td>
+    <td data-label="Ítem"><div style="font-weight:500;font-size:13px">${escHtml(s.nombre)}</div><div class="mrow-meta">${escHtml(s.sku_global)}</div></td>
+    <td data-label="Lote" style="font-size:12px;font-family:var(--font-mono)">${escHtml(s.lote||'—')}</td>
+    <td data-label="Proveedor" style="font-size:12px">${escHtml(s.proveedor||'—')}</td>
+    <td data-label="Vence" style="font-size:12px;font-family:var(--font-mono)">${s.caducidad?fmtDate(s.caducidad):'—'}</td>
+    <td data-label="Precio unit." style="font-size:12px;font-family:var(--font-mono)">${fmtCOP(Number(s.precio)||0)}</td>
+    <td data-label="Stock" style="font-size:12px;font-family:var(--font-mono)">${Number(s.stock_total)} ${escHtml(s.unidad||'')}</td>
+  </tr>`).join('');
+}
+
+async function subskuAbrirEditar(i){
+  const s = _subskuFilas[i];
+  if(!s) return;
+  _subskuEditando = s;
+  document.getElementById('subed-id').value = s.id;
+  document.getElementById('subed-titulo').textContent = `Editar ${s.sub_sku}`;
+  document.getElementById('subed-sub').textContent = `${s.nombre} · ${s.sku_global} · ${Number(s.stock_total)} ${s.unidad||''} en stock`;
+  document.getElementById('subed-precio').value = Number(s.precio)||'';
+  document.getElementById('subed-caducidad').value = s.caducidad||'';
+  document.getElementById('subed-invima').value = s.invima||'';
+  document.getElementById('subed-proveedor').value = s.proveedor||'';
+  document.getElementById('subed-lote').value = s.lote||'';
+  _subskuOcultarConfirmacion();
+  const cont = document.getElementById('subed-cambios');
+  cont.innerHTML = '<div style="font-size:12px;color:#aaa">Cargando…</div>';
+  document.getElementById('modal-subsku-editar').classList.add('open');
+  try {
+    const cambios = await SKUs.cambiosSub(s.id);
+    cont.innerHTML = cambios.length ? cambios.map(_subskuCambioHtml).join('')
+      : '<div style="font-size:12px;color:#aaa">Sin cambios registrados</div>';
+  } catch(err){ cont.innerHTML = ''; toastError(err.message); }
+}
+
+function _subskuValorTxt(campo, v){
+  if(v === null || v === undefined || v === '') return '—';
+  if(campo === 'precio') return fmtCOP(Number(v));
+  if(campo === 'caducidad') return fmtDate(v);
+  return v;
+}
+
+function _subskuCambioHtml(c){
+  const lineas = Object.entries(c.cambios||{}).map(([campo, d]) =>
+    `<div>${escHtml(_SUBSKU_CAMPOS[campo]||campo)}: ${escHtml(_subskuValorTxt(campo, d.antes))} → <strong>${escHtml(_subskuValorTxt(campo, d.despues))}</strong></div>`).join('');
+  return `<div class="subsku-cambio">
+    <div class="subsku-cambio-meta">${new Date(c.created_at).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short',timeZone:'America/Bogota'})} · ${escHtml(c.usuario_nombre||'—')}</div>
+    ${lineas}
+    ${c.nota?`<div style="color:#888;margin-top:2px">${escHtml(c.nota)}</div>`:''}
+  </div>`;
+}
+
+function _subskuOcultarConfirmacion(){
+  const box = document.getElementById('subed-confirmar');
+  box.style.display = 'none';
+  box.innerHTML = '';
+  const btn = document.getElementById('subed-guardar');
+  btn.textContent = 'Guardar cambios';
+  btn.onclick = ()=>subskuGuardar(false);
+}
+
+async function subskuGuardar(confirmar){
+  const id = parseInt(document.getElementById('subed-id').value)||0;
+  const precio = parseFloat(document.getElementById('subed-precio').value)||0;
+  if(precio <= 0){ toastError('El precio unitario debe ser mayor a 0'); return; }
+  const data = {
+    precio,
+    caducidad: document.getElementById('subed-caducidad').value,
+    invima: document.getElementById('subed-invima').value.trim(),
+    proveedor: document.getElementById('subed-proveedor').value.trim(),
+    lote: document.getElementById('subed-lote').value.trim(),
+    confirmar
+  };
+  const btn = document.getElementById('subed-guardar');
+  btn.disabled = true;
+  try {
+    const { status, data: r } = await SKUs.updateSub(id, data);
+    if(status === 409 && r.requiere_confirmacion){
+      // Cambia el código: mostrar qué va a pasar y pedir confirmación
+      const box = document.getElementById('subed-confirmar');
+      const resumen = `${r.stock_total} unidades en stock y ${r.movimientos} movimiento${r.movimientos!==1?'s':''}`;
+      box.innerHTML = r.accion === 'unir'
+        ? `<i class="ti ti-arrows-join"></i><span style="flex:1">El código pasa de <strong>${escHtml(r.codigo_actual)}</strong> a <strong>${escHtml(r.codigo_nuevo)}</strong>, que <strong>ya existe</strong> (precio ${fmtCOP(r.destino.precio)}, vence ${fmtDate(r.destino.caducidad)}). Se unirán: ${resumen} pasan a ${escHtml(r.codigo_nuevo)}, que conserva sus propios datos, y ${escHtml(r.codigo_actual)} se elimina.</span>`
+        : `<i class="ti ti-replace"></i><span style="flex:1">El código pasa de <strong>${escHtml(r.codigo_actual)}</strong> a <strong>${escHtml(r.codigo_nuevo)}</strong>. Se creará ${escHtml(r.codigo_nuevo)} con estos datos, recibirá ${resumen}, y ${escHtml(r.codigo_actual)} se eliminará.</span>`;
+      box.style.display = 'flex';
+      btn.textContent = r.accion === 'unir' ? 'Confirmar y unir' : 'Confirmar y reemplazar';
+      btn.onclick = ()=>subskuGuardar(true);
+      return;
+    }
+    closeModal('modal-subsku-editar');
+    toast(r.accion === 'ninguna' ? 'Sin cambios' : `✓ ${r.mensaje}`, r.accion === 'ninguna' ? '' : 'success');
+    if(r.accion !== 'ninguna'){
+      await loadState();
+      populateSelects();
+      subskuCargar(false);
+    }
+  } catch(err){
+    toastError(err.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// Si se edita un campo después del aviso de reemplazo/unión, se vuelve a preguntar
+document.addEventListener('input', e=>{
+  if(e.target?.id?.startsWith('subed-')) _subskuOcultarConfirmacion();
+});

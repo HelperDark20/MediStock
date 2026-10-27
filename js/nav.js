@@ -77,6 +77,9 @@ function goTo(viewId){
     ta.innerHTML=`<button class="tb-btn" onclick="abrirExportMovimientos()"><i class="ti ti-file-spreadsheet"></i>Descargar Excel</button>`+
       `<button class="tb-btn" onclick="abrirContingencia()"><i class="ti ti-file-alert"></i>Registrar contingencia</button>`;
   }
+  if(viewId==='registro'&&currentRole===4){
+    ta.innerHTML=`<button class="tb-btn" onclick="abrirModificarSubSkus()"><i class="ti ti-edit"></i>Modificar Sub-SKUs</button>`;
+  }
   if(viewId==='sku'&&currentRole===4){
     ta.innerHTML=`<button class="tb-btn primary" onclick="document.getElementById('sku-nombre').focus()"><i class="ti ti-plus"></i>Crear SKU</button>`;
   }

@@ -609,8 +609,12 @@
               <input type="text" id="edit-bod-sufijo" style="text-transform:uppercase" oninput="editBodegaPreview()">
             </div>
           </div>
-          <div style="font-size:12px;color:#888;margin-bottom:8px">Quedará como: <strong id="edit-bod-preview" style="font-family:var(--font-mono)">-</strong></div>
-          <span id="edit-bod-warn" style="display:none;font-size:11px;color:var(--amber);margin-bottom:12px"></span>
+          <div style="font-size:12px;color:#888;margin-bottom:12px">Quedará como: <strong id="edit-bod-preview" style="font-family:var(--font-mono)">-</strong></div>
+          <div class="form-group" style="margin-bottom:12px">
+            <label>Stock de seguridad</label>
+            <select id="edit-bod-segstock"></select>
+            <span class="hint">Lista de ítems esperados en este depósito (máximo una). Se crean en Stock de Seguridad.</span>
+          </div>
           <div class="modal-actions">
             <button class="btn-cancel" onclick="closeModal('modal-edit-bodega')">Cancelar</button>
             <button class="btn-confirm" onclick="guardarEdicionBodega()">Guardar cambios</button>
@@ -894,6 +898,71 @@
   </div>
 </div>
 
+<!-- MODAL MODIFICAR SUB-SKUs: historial + búsqueda (Admin) -->
+<div class="modal-overlay" id="modal-subskus">
+  <div class="modal-sheet" style="max-width:860px">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Modificar Sub-SKUs existentes</div>
+    <div class="modal-sub">Del más reciente al más antiguo. Haz clic en un Sub-SKU para corregir su precio, INVIMA, vencimiento, proveedor o lote.</div>
+    <div class="search-wrap" style="margin-bottom:10px">
+      <i class="ti ti-search si"></i>
+      <input type="text" class="search-input" id="subsku-buscar" placeholder="Buscar por Sub-SKU, ítem, SKU, lote o proveedor…" oninput="subskuBuscarInput()" autocomplete="off">
+    </div>
+    <div class="table-wrap" style="max-height:52vh;overflow:auto;margin-bottom:0">
+      <table>
+        <thead><tr><th>Creado</th><th>Sub-SKU</th><th>Ítem</th><th>Lote</th><th>Proveedor</th><th>Vence</th><th>Precio unit.</th><th>Stock</th></tr></thead>
+        <tbody id="subsku-body"></tbody>
+      </table>
+    </div>
+    <div id="subsku-mas" style="text-align:center;margin-top:10px;display:none">
+      <button class="tb-btn" onclick="subskuCargar(true)"><i class="ti ti-chevron-down"></i>Cargar más</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-subskus')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR UN SUB-SKU (Admin) -->
+<div class="modal-overlay" id="modal-subsku-editar">
+  <div class="modal-sheet" style="max-width:560px">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="subed-titulo">Editar Sub-SKU</div>
+    <div class="modal-sub" id="subed-sub"></div>
+    <input type="hidden" id="subed-id">
+    <div class="form-grid" style="margin-bottom:12px">
+      <div class="form-group">
+        <label>Precio unitario (COP)</label>
+        <input type="number" id="subed-precio" min="0">
+      </div>
+      <div class="form-group">
+        <label>Fecha de vencimiento</label>
+        <input type="date" id="subed-caducidad">
+      </div>
+      <div class="form-group fg-full">
+        <label>Registro INVIMA</label>
+        <input type="text" id="subed-invima">
+      </div>
+      <div class="form-group">
+        <label>Proveedor / Marca</label>
+        <input type="text" id="subed-proveedor">
+      </div>
+      <div class="form-group">
+        <label>Lote</label>
+        <input type="text" id="subed-lote">
+      </div>
+    </div>
+    <span style="display:block;margin-bottom:12px;font-size:11px;color:#999;line-height:1.5">El producto (SKU Global) y la unidad no se cambian. Si corriges el proveedor o el lote, cambia el código: se crea un Sub-SKU nuevo (o se une al que ya tenga ese código) que recibe todo el stock y el historial, y este se elimina.</span>
+    <div id="subed-confirmar" class="alert-banner amber" style="display:none;margin-bottom:12px"></div>
+    <div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono);margin-bottom:8px">Historial de cambios</div>
+    <div id="subed-cambios" class="subsku-cambios"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-subsku-editar')">Cancelar</button>
+      <button class="btn-confirm" id="subed-guardar" onclick="subskuGuardar(false)">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL DESCARGAR HISTORIAL DE MOVIMIENTOS A EXCEL (Admin) -->
 <div class="modal-overlay" id="modal-export-mov">
   <div class="modal-sheet" style="max-width:440px">
@@ -1165,17 +1234,12 @@
   <div class="modal-sheet" style="max-width:480px">
     <div class="modal-handle"></div>
     <div class="modal-title" id="seggrupo-titulo">Nuevo grupo</div>
-    <div class="modal-sub">El patrón determina a qué depósitos aplica este grupo (ej. depósito "MEC-A-MED" coincide con el patrón MEC, A, MED).</div>
+    <div class="modal-sub">Una lista de ítems y cantidades esperadas. Se asigna a cada depósito desde Ubicaciones (clic en el depósito).</div>
     <input type="hidden" id="seggrupo-id">
     <div class="form-grid" style="margin-bottom:14px">
       <div class="form-group fg-full">
         <label>Nombre del grupo</label>
-        <input type="text" id="seggrupo-nombre" placeholder="Ej. MEC A MED">
-      </div>
-      <div class="form-group fg-full">
-        <label>Patrón (tokens separados por coma)</label>
-        <input type="text" id="seggrupo-patron" placeholder="Ej. MEC, A, MED" style="font-family:var(--font-mono);text-transform:uppercase">
-        <span class="hint">Se compara contra el nombre del depósito dividido en partes</span>
+        <input type="text" id="seggrupo-nombre" placeholder="Ej. Botiquín estándar">
       </div>
     </div>
     <div class="modal-actions">
