@@ -179,12 +179,13 @@ async function registrarMovimiento(){
   const tipo    = document.getElementById('mov-tipo')?.value;
   const cant    = parseInt(document.getElementById('mov-cantidad').value)||0;
   const motivo  = document.getElementById('mov-motivo')?.value||'';
-  const cedula_paciente = document.getElementById('mov-paciente')?.value.trim()||null;
+  const cedula_paciente = cedulaPacienteValida(document.getElementById('mov-paciente')?.value);
 
   if(!_movOrigenBodegaId){ toastError('Selecciona la ubicación y depósito de origen'); return; }
   if(!id)     { toastError('Selecciona un ítem'); return; }
   if(!tipo)   { toastError('Selecciona el tipo de movimiento'); return; }
   if(cant<=0) { toastError('Ingresa una cantidad válida'); return; }
+  if(tipo==='consumo' && !cedula_paciente){ toastError(CEDULA_PACIENTE_ERROR); return; }
 
   const origenId = _movOrigenBodegaId;
 
@@ -226,10 +227,7 @@ function renderMovBody(){
     movs = movs.filter(m=>{
       if(m.tipo!=='consumo') return false;
       if(_movFiltro.mes && (!_movFecha(m) || fechaColombia(_movFecha(m)).slice(0,7)!==_movFiltro.mes)) return false;
-      if(_movFiltro.ubicacionNombre){
-        const bodega = (S.bodegasRaw||[]).find(b=>b.nombre===m.origen_nombre);
-        if(!bodega || bodega.ubicacion_nombre!==_movFiltro.ubicacionNombre) return false;
-      }
+      if(_movFiltro.ubicacionNombre && m.origen_ubicacion_nombre!==_movFiltro.ubicacionNombre) return false;
       return true;
     });
   }
@@ -294,6 +292,100 @@ function renderMovBody(){
       </td>
     </tr>`;
   }).join('');
+}
+
+// ══════════════════════════════════════════
+// DESCARGAR HISTORIAL A EXCEL (solo Administrador)
+// Rango de fechas obligatorio + el filtro que haya en pantalla (consumos de
+// una ubicación, al llegar desde el dashboard). Sin el tope de 1000 filas de
+// la tabla: usa /api/movimientos/reportes (nivel 4).
+// ══════════════════════════════════════════
+const _MOV_TIPO_LABEL = { compra:'Entrada', consumo:'Consumo', traslado:'Traslado', destruccion:'Destrucción', reversion:'Reversión' };
+
+function abrirExportMovimientos(){
+  const hoy = fechaColombia();
+  const desde = document.getElementById('expmov-desde');
+  const hasta = document.getElementById('expmov-hasta');
+  if(!hasta.value) hasta.value = hoy;
+  if(!desde.value) desde.value = hoy.slice(0,8) + '01';   // inicio del mes
+  desde.max = hasta.max = hoy;
+  const nota = document.getElementById('expmov-filtro');
+  if(_movFiltro){
+    nota.textContent = `Filtro activo: solo consumos de ${_movFiltro.ubicacionNombre||'todas las ubicaciones'}. Quítalo en el historial para descargar todos los movimientos.`;
+    nota.style.display = 'block';
+  } else {
+    nota.style.display = 'none';
+  }
+  document.getElementById('modal-export-mov').classList.add('open');
+}
+
+async function descargarExcelMovimientos(){
+  if(typeof XLSX === 'undefined'){
+    toastError('No se pudo cargar el módulo de Excel. Verifica tu conexión e intenta de nuevo.');
+    return;
+  }
+  const desde = document.getElementById('expmov-desde').value;
+  const hasta = document.getElementById('expmov-hasta').value;
+  if(!desde || !hasta){ toastError('Selecciona la fecha de inicio y la final'); return; }
+  if(hasta < desde){ toastError('La fecha final no puede ser anterior a la de inicio'); return; }
+
+  const params = { fecha_inicio: desde, fecha_fin: hasta };
+  let filtroTxt = 'Todos los movimientos';
+  if(_movFiltro){
+    params.tipo = 'consumo';
+    filtroTxt = 'Solo consumos';
+    if(_movFiltro.ubicacionNombre){
+      const ub = (S.ubicacionesHistoricas||[]).find(u=>u.nombre===_movFiltro.ubicacionNombre);
+      if(ub) params.ubicacion_id = ub.id;
+      filtroTxt += ` · ${_movFiltro.ubicacionNombre}`;
+    }
+  }
+
+  const btn = document.getElementById('expmov-btn');
+  btn.disabled = true;
+  try {
+    const { filas, truncado } = await Movimientos.getReporteCompleto(params);
+    if(!filas.length){ toastError('No hay movimientos en ese rango de fechas'); return; }
+
+    const fmtFecha = v => v ? new Date(v).toLocaleString('es-CO',{timeZone:'America/Bogota'}) : '';
+    const aoa = [
+      ['Nova Bridge — Historial de movimientos'],
+      [`${desde} a ${hasta} · ${filtroTxt} · ${filas.length} movimiento${filas.length!==1?'s':''} · Generado el ${new Date().toLocaleString('es-CO')}`],
+    ];
+    if(truncado) aoa.push([`ATENCIÓN: el rango tiene más de ${truncado} movimientos y se recortó. Descarga un rango más corto.`]);
+    aoa.push([]);
+    aoa.push(['ID','Fecha de atención','Fecha de registro','Tipo','SKU','Ítem','Sub-SKU','Lote','Vencimiento',
+      'Cantidad','Unidad','Valor unitario (COP)','Valor total (COP)',
+      'Ubicación origen','Depósito origen','Ubicación destino','Depósito destino',
+      'Cédula paciente','Usuario','Motivo','Contingencia','Cargado por','Offline','Sincronizado',
+      'Revertido','Revierte al mov.']);
+    filas.forEach(m=>{
+      const precio = Number(m.precio)||0;
+      aoa.push([
+        m.id, fmtFecha(m.fecha_real), fmtFecha(m.created_at),
+        _MOV_TIPO_LABEL[m.tipo] || m.tipo,
+        m.sku_global_codigo||'', m.nombre||'', m.sub_sku||'', m.lote||'', m.caducidad?fmtDate(m.caducidad):'',
+        m.cantidad, m.unidad||'', precio, precio*m.cantidad,
+        m.origen_ubicacion_nombre||'', m.origen_nombre||'', m.destino_ubicacion_nombre||'', m.destino_nombre||'',
+        m.cedula_paciente||'', m.usuario_nombre||'', m.motivo||'',
+        m.es_contingencia?'Sí':'', m.cargado_por_nombre||'',
+        m.es_offline?'Sí':'', m.es_offline?fmtFecha(m.sincronizado_at):'',
+        m.revertido?'Sí':'', m.movimiento_original_id||''
+      ]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [8,20,20,12,14,28,20,14,12,9,10,14,14,20,18,20,18,14,22,22,11,20,8,20,9,10].map(w=>({wch:w}));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Movimientos');
+    XLSX.writeFile(wb, `Historial_Movimientos_${desde}_a_${hasta}.xlsx`);
+    closeModal('modal-export-mov');
+    toast(truncado ? `Excel generado, pero recortado a ${truncado} filas` : '✓ Excel generado', truncado ? 'error' : 'success');
+  } catch(err){
+    toastError(err.message);
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // ── REVERTIR MOVIMIENTO (solo Administrador) ──
@@ -696,7 +788,7 @@ async function registrarContingencia(){
   const sub_sku_id  = parseInt(document.getElementById('cont-sku').value)||0;
   const cantidad    = parseInt(document.getElementById('cont-cantidad').value)||0;
   const motivo      = document.getElementById('cont-motivo')?.value||'';
-  const cedula_paciente = document.getElementById('cont-paciente')?.value.trim()||null;
+  const cedula_paciente = cedulaPacienteValida(document.getElementById('cont-paciente')?.value);
 
   if(!usuario_id)         { toastError('Selecciona el enfermero que atendió'); return; }
   if(!fechaInput)         { toastError('Ingresa la fecha y hora de la atención'); return; }
@@ -704,6 +796,7 @@ async function registrarContingencia(){
   if(!sub_sku_id)         { toastError('Selecciona un ítem'); return; }
   if(!tipo)               { toastError('Selecciona el tipo de movimiento'); return; }
   if(cantidad<=0)         { toastError('Ingresa una cantidad válida'); return; }
+  if(tipo==='consumo' && !cedula_paciente){ toastError(CEDULA_PACIENTE_ERROR); return; }
 
   const fecha_atencion = new Date(fechaInput).toISOString();
   if(new Date(fecha_atencion).getTime() > Date.now()){
