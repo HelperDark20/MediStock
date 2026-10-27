@@ -4,7 +4,8 @@ let S = {
   subSkus: [],
   stock: [],
   bodegas: [],
-  ubicaciones: [],
+  ubicaciones: [],          // activas (permanentes + temporales en curso)
+  ubicacionesHistoricas: [], // + temporales finalizadas (solo admin, filtros de Reportes)
   usuarios: [],
   movimientos: [],
   eventos: [],
@@ -70,6 +71,7 @@ async function loadState(){
     if(currentRole === 4){
       S.usuarios = await Usuarios.getAll();
       S.stockSeguridad = await StockSeguridad.getAll();
+      S.ubicacionesHistoricas = await Ubicaciones.getHistoricas();
     }
 
   } catch(err){

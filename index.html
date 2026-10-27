@@ -192,7 +192,7 @@
             </label>
           </div>
           <table>
-            <thead><tr><th>SKU Global</th><th>Ítem</th><th>Sub-SKU</th><th>Ubicación</th><th>Cant.</th><th>Caducidad</th><th>Estado</th><th></th></tr></thead>
+            <thead><tr><th>SKU Global</th><th>Ítem</th><th>Sub-SKU</th><th>Ubicación</th><th>Cant.</th><th class="inv-col-valor">Valor unit.</th><th class="inv-col-valor">Valor total</th><th>Caducidad</th><th>Estado</th><th></th></tr></thead>
             <tbody id="inv-body"></tbody>
           </table>
         </div>
@@ -271,9 +271,9 @@
                   <input type="text" id="mov-motivo" placeholder="Ej. Medicamento vencido, avería">
                 </div>
                 <div class="form-group" id="mov-paciente-wrap" style="display:none">
-                  <label>Cédula del paciente</label>
-                  <input type="number" id="mov-paciente" placeholder="Ej. 1006166884">
-                  <span class="hint">Opcional — paciente al que se administró</span>
+                  <label>Cédula del paciente <span style="font-weight:400;color:#aaa">*obligatoria</span></label>
+                  <input type="text" id="mov-paciente" placeholder="Ej. 1006166884" inputmode="numeric" pattern="[0-9]*" maxlength="20">
+                  <span class="hint">Paciente al que se administró — solo números, mínimo 5 dígitos</span>
                 </div>
               </div>
               <div style="background:var(--cream);border-radius:var(--r-md);padding:10px 14px;font-size:12px;font-family:var(--font-mono);color:#666;margin-bottom:12px" id="mov-stock-info">—</div>
@@ -618,6 +618,30 @@
         </div>
       </div>
 
+      <!-- MODAL UBICACIÓN TEMPORAL: crear o agregar depósitos prestados -->
+      <div class="modal-overlay" id="modal-temporal">
+        <div class="modal-sheet" style="max-width:560px">
+          <div class="modal-handle"></div>
+          <div class="modal-title" id="tmp-titulo">Crear ubicación temporal</div>
+          <div class="modal-sub" id="tmp-sub">Elige los depósitos de las sedes permanentes que se moverán temporalmente a esta ubicación, con todo su stock. Al finalizarla volverán a su ubicación de origen.</div>
+          <input type="hidden" id="tmp-ubicacion-id">
+          <div class="form-group" id="tmp-nombre-wrap" style="margin-bottom:12px">
+            <label>Nombre de la ubicación temporal</label>
+            <input type="text" id="tmp-nombre" placeholder="Ej. TEATRO LOS CRISTALES" style="text-transform:uppercase;font-family:var(--font-mono)">
+          </div>
+          <div class="search-wrap" style="margin-bottom:8px">
+            <i class="ti ti-search si"></i>
+            <input type="text" class="search-input" id="tmp-buscar" placeholder="Buscar depósito o ubicación…" oninput="tmpRenderDepositos()">
+          </div>
+          <div class="evt-checklist tmp-checklist" id="tmp-depositos"></div>
+          <div style="font-size:12px;color:#888;margin-top:8px" id="tmp-seleccion">Ningún depósito seleccionado</div>
+          <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal('modal-temporal')">Cancelar</button>
+            <button class="btn-confirm" id="tmp-confirmar" onclick="tmpConfirmar()">Crear ubicación temporal</button>
+          </div>
+        </div>
+      </div>
+
       <!-- ═══ BODEGAS (Admin) ═══ -->
       <div class="view" id="view-bodegas">
 
@@ -628,18 +652,21 @@
           <div class="card" style="margin-bottom:0">
             <div class="card-header">
               <i class="ti ti-map-pin card-title"></i>
-              <span class="card-title">Nueva ubicación (sede)</span>
+              <span class="card-title">Nueva ubicación</span>
             </div>
             <div class="card-body">
               <p style="font-size:12px;color:#888;margin-bottom:14px;line-height:1.5">
-                Una ubicación es la sede física donde opera el cliente.<br>
-                Ej: <strong>CAÑAVERALEJO</strong>, <strong>PALMASECA</strong>, <strong>CEVP</strong>
+                <strong>Permanente:</strong> la sede física donde opera el cliente. Ej: <strong>CAÑAVERALEJO</strong>, <strong>PALMASECA</strong>.<br>
+                <strong>Temporal:</strong> un lugar de evento (ej. <strong>TEATRO LOS CRISTALES</strong>) que recibe depósitos prestados de las sedes; al finalizarla vuelven a su origen.
               </p>
               <div class="form-group" style="margin-bottom:0">
-                <label>Nombre de la sede</label>
+                <label>Nombre de la ubicación</label>
                 <input type="text" id="ub-nombre" placeholder="Ej. CAÑAVERALEJO" style="text-transform:uppercase;font-family:var(--font-mono)">
               </div>
-              <button class="btn-submit" onclick="crearUbicacion()"><i class="ti ti-plus"></i>Crear ubicación</button>
+              <div class="ub-crear-btns">
+                <button class="btn-submit" onclick="crearUbicacion()"><i class="ti ti-map-pin"></i>Crear ubicación permanente</button>
+                <button class="btn-submit amber" onclick="abrirCrearTemporal()"><i class="ti ti-clock-pin"></i>Crear ubicación temporal</button>
+              </div>
             </div>
           </div>
 
@@ -681,7 +708,13 @@
         </div>
 
         <!-- Fila 2: Lista agrupada por ubicación -->
-        <div class="sec-header"><div class="sec-title">Ubicaciones y depósitos registrados</div></div>
+        <div class="sec-header">
+          <div class="sec-title">Ubicaciones y depósitos registrados</div>
+          <div style="display:flex;gap:6px">
+            <button class="dash-valor-btn active" data-ubvista="permanentes" onclick="ubCambiarVista('permanentes')"><i class="ti ti-map-pin"></i> Permanentes <span id="ub-count-permanentes"></span></button>
+            <button class="dash-valor-btn" data-ubvista="temporales" onclick="ubCambiarVista('temporales')"><i class="ti ti-clock-pin"></i> Temporales <span id="ub-count-temporales"></span></button>
+          </div>
+        </div>
         <div id="bodegas-list"></div>
       </div>
 
@@ -861,6 +894,30 @@
   </div>
 </div>
 
+<!-- MODAL DESCARGAR HISTORIAL DE MOVIMIENTOS A EXCEL (Admin) -->
+<div class="modal-overlay" id="modal-export-mov">
+  <div class="modal-sheet" style="max-width:440px">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Descargar historial a Excel</div>
+    <div class="modal-sub">Todos los movimientos del rango, con el detalle completo de cada uno (ítem, Sub-SKU, lote, valores, depósitos, cédula, usuario…). Las fechas son las de atención.</div>
+    <div class="form-grid" style="margin-bottom:12px">
+      <div class="form-group">
+        <label>Desde</label>
+        <input type="date" id="expmov-desde">
+      </div>
+      <div class="form-group">
+        <label>Hasta</label>
+        <input type="date" id="expmov-hasta">
+      </div>
+    </div>
+    <div id="expmov-filtro" class="hint" style="display:none;margin-bottom:12px;color:var(--amber)"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-export-mov')">Cancelar</button>
+      <button class="btn-confirm" id="expmov-btn" onclick="descargarExcelMovimientos()"><i class="ti ti-download"></i> Descargar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL REGISTRAR CONTINGENCIA (Admin) -->
 <div class="modal-overlay" id="modal-contingencia">
   <div class="modal-sheet" style="max-width:560px">
@@ -948,9 +1005,9 @@
           <input type="text" id="cont-motivo" placeholder="Ej. Medicamento vencido, avería">
         </div>
         <div class="form-group" id="cont-paciente-wrap" style="display:none">
-          <label>Cédula del paciente</label>
-          <input type="number" id="cont-paciente" placeholder="Ej. 1006166884">
-          <span class="hint">Opcional — paciente al que se administró</span>
+          <label>Cédula del paciente <span style="font-weight:400;color:#aaa">*obligatoria</span></label>
+          <input type="text" id="cont-paciente" placeholder="Ej. 1006166884" inputmode="numeric" pattern="[0-9]*" maxlength="20">
+          <span class="hint">Paciente al que se administró — solo números, mínimo 5 dígitos</span>
         </div>
       </div>
       <div style="background:var(--cream);border-radius:var(--r-md);padding:10px 14px;font-size:12px;font-family:var(--font-mono);color:#666;margin-bottom:12px" id="cont-stock-info">—</div>
@@ -1296,8 +1353,8 @@
               <input type="number" id="enf-cantidad" placeholder="0" min="1" inputmode="numeric" pattern="[0-9]*">
             </div>
             <div class="enf-field">
-              <label>Cédula del paciente</label>
-              <input type="number" id="enf-paciente" placeholder="Ej. 1006166884" inputmode="numeric" pattern="[0-9]*">
+              <label>Cédula del paciente *</label>
+              <input type="text" id="enf-paciente" placeholder="Ej. 1006166884" inputmode="numeric" pattern="[0-9]*" maxlength="20">
             </div>
             <button class="enf-submit" onclick="enfRegistrarConsumo()" id="enf-submit-btn">
               <i class="ti ti-check"></i>Registrar consumo

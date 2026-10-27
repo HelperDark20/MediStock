@@ -108,9 +108,12 @@ function renderInv(){
   }
 
   const canAct = currentRole>=2;
+  // Valores (costo de compra) solo para el Administrador
+  const verValor = currentRole===4;
+  document.querySelectorAll('#view-inventario th.inv-col-valor').forEach(th=>{ th.style.display = verValor ? '' : 'none'; });
   const el = document.getElementById('inv-body');
   if(!rows.length){
-    el.innerHTML='<tr><td colspan="8"><div class="empty-state"><i class="ti ti-search"></i><p>Sin resultados</p></div></td></tr>';
+    el.innerHTML=`<tr><td colspan="${verValor?10:8}"><div class="empty-state"><i class="ti ti-search"></i><p>Sin resultados</p></div></td></tr>`;
     return;
   }
   el.innerHTML = rows.map(({s,skuG,st,ubicacion,cantidad})=>`
@@ -127,6 +130,8 @@ function renderInv(){
       <td data-label="Sub-SKU"><span class="sub-sku">${s.subSku}</span></td>
       <td data-label="Ubicación"><span class="ubic">${ubicacion}</span></td>
       <td data-label="Cant." style="font-family:var(--font-mono);font-weight:700">${cantidad}<span style="font-size:10px;color:#aaa;font-weight:400;margin-left:3px">${s.unidad}</span></td>
+      ${verValor?`<td data-label="Valor unit." style="font-family:var(--font-mono);font-size:12px">${s.precio?fmtCOP(s.precio):'—'}</td>
+      <td data-label="Valor total" style="font-family:var(--font-mono);font-size:12px;font-weight:600">${s.precio?fmtCOP(s.precio*cantidad):'—'}</td>`:''}
       <td data-label="Caducidad" style="font-size:12px;font-family:var(--font-mono)">${fmtDate(s.caducidad)}</td>
       <td data-label="Estado">${s.agotado?'<span class="sem N">Agotado</span>':`<span class="sem ${st}">${semLabel(st)}</span>`}</td>
       <td data-label="">
@@ -221,15 +226,20 @@ function invExportPDF(){
     ubicaciones.add(f.ubNombre);
   });
 
+  // Valores (costo de compra) solo para el Administrador, igual que en pantalla
+  const verValor = currentRole===4;
+  const valorTotal = filas.reduce((a,f)=>a+(f.s.precio||0)*f.cantidad, 0);
+
   const stats = _repStatsHtml([
     _repStatPill('blue','ti-list-details', filas.length, 'Líneas de stock'),
     _repStatPill('green','ti-pill', productos.size, 'Productos'),
     _repStatPill('gray','ti-building-warehouse', depositos.size, depositos.size===1?'Depósito':'Depósitos'),
     _repStatPill('amber','ti-bell', counts.alerta, 'En alerta'),
-    _repStatPill('maroon','ti-x', counts.N, 'Vencidos')
+    _repStatPill('maroon','ti-x', counts.N, 'Vencidos'),
+    ...(verValor ? [_repStatPill('green','ti-coin', fmtCOP(valorTotal), 'Valor total')] : [])
   ]);
 
-  const grid = '100px 1fr 120px 100px 100px 100px';
+  const grid = verValor ? '90px 1fr 110px 80px 80px 85px 95px 85px' : '100px 1fr 120px 100px 100px 100px';
   const grupos = [];
   filas.forEach(f=>{
     const key = f.ubNombre + '|' + f.ubicacion;
@@ -247,6 +257,8 @@ function invExportPDF(){
         <div class="rep-cell-mono" style="font-size:10px;color:#999">${escHtml(f.s.subSku)}</div>
         <div class="rep-cell-mono" style="font-size:10px;color:#999">${escHtml(f.s.lote||'—')}</div>
         <div class="rep-cell-mono strong">${f.cantidad} ${escHtml(f.s.unidad||'')}</div>
+        ${verValor?`<div class="rep-cell-mono">${f.s.precio?fmtCOP(f.s.precio):'—'}</div>
+        <div class="rep-cell-mono strong">${f.s.precio?fmtCOP(f.s.precio*f.cantidad):'—'}</div>`:''}
         <div class="rep-cell-mono">${fmtDate(f.s.caducidad)}</div>
       </div>`).join('');
     return `<div class="rep-group">
@@ -254,7 +266,7 @@ function invExportPDF(){
         <div class="rep-group-name"><i class="ti ti-building-warehouse"></i> ${escHtml(g.ubNombre)} / ${escHtml(g.deposito)}</div>
         <div class="rep-group-count">${g.items.length} ítem${g.items.length!==1?'s':''}</div>
       </div>
-      <div class="rep-cols" style="--rep-grid:${grid}"><div class="rep-col-num">Estado</div><div>Producto</div><div class="rep-col-num">Sub-SKU</div><div class="rep-col-num">Lote</div><div class="rep-col-num">Cantidad</div><div class="rep-col-num">Vencimiento</div></div>
+      <div class="rep-cols" style="--rep-grid:${grid}"><div class="rep-col-num">Estado</div><div>Producto</div><div class="rep-col-num">Sub-SKU</div><div class="rep-col-num">Lote</div><div class="rep-col-num">Cantidad</div>${verValor?'<div class="rep-col-num">Valor unit.</div><div class="rep-col-num">Valor total</div>':''}<div class="rep-col-num">Vencimiento</div></div>
       ${rowsHtml}
     </div>`;
   }).join('');

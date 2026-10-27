@@ -7,9 +7,11 @@ const { verificarToken, verificarNivel } = require('../middlewares/auth');
 router.get('/', verificarToken, async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT b.*, u.nombre AS ubicacion_nombre
+      SELECT b.*, u.nombre AS ubicacion_nombre, u.es_temporal AS ubicacion_es_temporal,
+             uo.nombre AS ubicacion_origen_nombre
       FROM bodegas b
-      LEFT JOIN ubicaciones u ON b.ubicacion_id = u.id
+      LEFT JOIN ubicaciones u  ON b.ubicacion_id = u.id
+      LEFT JOIN ubicaciones uo ON b.ubicacion_origen_id = uo.id
       WHERE b.activo = true
       ORDER BY u.nombre, b.nombre
     `);
@@ -28,6 +30,15 @@ router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
   }
   const nombre = `${tipo.toUpperCase()}-${sufijo.toUpperCase()}`;
   try {
+    // Los depósitos nacen en una sede permanente; a una temporal solo se
+    // prestan (al finalizarla no tendrían a dónde volver)
+    const ub = await pool.query(
+      'SELECT es_temporal FROM ubicaciones WHERE id = $1 AND activo = true', [ubicacion_id]
+    );
+    if (!ub.rows.length) return res.status(400).json({ error: 'Ubicación no encontrada' });
+    if (ub.rows[0].es_temporal) {
+      return res.status(400).json({ error: 'No se crean depósitos en una ubicación temporal: préstale depósitos de una sede permanente' });
+    }
     const existe = await pool.query('SELECT id FROM bodegas WHERE nombre = $1', [nombre]);
     if (existe.rows.length > 0) return res.status(400).json({ error: 'Este depósito ya existe' });
     const result = await pool.query(
@@ -43,8 +54,8 @@ router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
 
 // PUT /api/bodegas/:id — nivel 4 — renombrar (tipo y sufijo). Stock,
 // movimientos y asignaciones de eventos usan bodega_id, así que se conservan.
-// La ubicación no se cambia aquí: mover un depósito de sede afectaría los
-// reportes históricos por ubicación.
+// La ubicación no se cambia aquí: un depósito solo sale de su sede prestado
+// a una ubicación temporal (ver routes/ubicaciones.js).
 router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
   const { tipo, sufijo } = req.body;
   if (!tipo || !String(tipo).trim() || !sufijo || !String(sufijo).trim()) {
@@ -70,6 +81,12 @@ router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
 // DELETE /api/bodegas/:id — nivel 4
 router.delete('/:id', verificarToken, verificarNivel(4), async (req, res) => {
   try {
+    const prestado = await pool.query(
+      'SELECT 1 FROM bodegas WHERE id = $1 AND ubicacion_origen_id IS NOT NULL', [req.params.id]
+    );
+    if (prestado.rows.length) {
+      return res.status(400).json({ error: 'Este depósito está prestado a una ubicación temporal. Devuélvelo antes de eliminarlo.' });
+    }
     // FIX: no permitir eliminar un depósito con stock — ese stock dejaba de
     // aparecer en los listados (se filtran depósitos inactivos)
     const conStock = await pool.query(

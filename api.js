@@ -58,7 +58,14 @@ const Bodegas = {
 // ── UBICACIONES ──
 const Ubicaciones = {
   getAll: () => request('GET', '/api/ubicaciones'),
+  // Activas + temporales finalizadas (para los filtros de Reportes)
+  getHistoricas: () => request('GET', '/api/ubicaciones?incluir_finalizadas=1'),
   create: (nombre) => request('POST', '/api/ubicaciones', { nombre }),
+  createTemporal: (nombre, bodega_ids) => request('POST', '/api/ubicaciones', { nombre, es_temporal: true, bodega_ids }),
+  depositosPrestables: () => request('GET', '/api/ubicaciones/depositos-prestables'),
+  agregarDepositos: (id, bodega_ids) => request('POST', `/api/ubicaciones/${id}/depositos`, { bodega_ids }),
+  devolverDeposito: (id, bodegaId) => request('POST', `/api/ubicaciones/${id}/depositos/${bodegaId}/devolver`),
+  finalizar: (id) => request('POST', `/api/ubicaciones/${id}/finalizar`),
   update: (id, nombre) => request('PUT', `/api/ubicaciones/${id}`, { nombre }),
   delete: (id) => request('DELETE', `/api/ubicaciones/${id}`)
 };
@@ -91,6 +98,15 @@ const Movimientos = {
   getReporte: (params = {}) => {
     const query = new URLSearchParams(params).toString();
     return request('GET', `/api/movimientos/reportes${query ? '?' + query : ''}`);
+  },
+  // Igual que getReporte, pero avisa si el servidor recortó el resultado
+  // (tope de filas): { filas, truncado }. Lo usa el Excel del historial.
+  getReporteCompleto: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const res = await fetch(`${API_URL}/api/movimientos/reportes${query ? '?' + query : ''}`, { headers: authHeaders() });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Error del servidor');
+    return { filas: data, truncado: res.headers.get('X-Reporte-Truncado') };
   }
 };
 

@@ -138,3 +138,12 @@ function famBadge(familia){
   if(!familia) return '<span class="fam c8">—</span>';
   return `<span class="fam ${famColorClass(familia)}">${escHtml(familia)}</span>`;
 }
+// ── CÉDULA DEL PACIENTE (obligatoria en todo consumo) ──
+// Solo números, mínimo 5 dígitos (máximo 15); se toleran puntos, guiones y
+// espacios de formato. Devuelve los dígitos o null si no es válida. El
+// servidor aplica la misma regla.
+const CEDULA_PACIENTE_ERROR = 'Ingresa la cédula del paciente (solo números, mínimo 5 dígitos)';
+function cedulaPacienteValida(v){
+  const s = String(v ?? '').replace(/[\s.\-]/g, '');
+  return /^\d{5,15}$/.test(s) ? s : null;
+}

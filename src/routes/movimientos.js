@@ -50,6 +50,8 @@ router.get('/', verificarToken, async (req, res) => {
              s.unidad,
              bo.nombre AS origen_nombre,
              bd.nombre AS destino_nombre,
+             ubo.nombre AS origen_ubicacion_nombre,
+             ubd.nombre AS destino_ubicacion_nombre,
              COALESCE(m.usuario_nombre, u.nombre) AS usuario_nombre,
              u.nivel                               AS usuario_nivel
       FROM movimientos m
@@ -57,6 +59,8 @@ router.get('/', verificarToken, async (req, res) => {
       JOIN skus_globales g ON s.sku_global_id = g.id
       LEFT JOIN bodegas bo ON m.bodega_origen_id  = bo.id
       LEFT JOIN bodegas bd ON m.bodega_destino_id = bd.id
+      LEFT JOIN ubicaciones ubo ON m.ubicacion_origen_id  = ubo.id
+      LEFT JOIN ubicaciones ubd ON m.ubicacion_destino_id = ubd.id
       LEFT JOIN usuarios u ON m.usuario_id = u.id
       WHERE 1=1
     `;
@@ -97,8 +101,14 @@ router.get('/', verificarToken, async (req, res) => {
 // pensado para reportes que necesitan ver todo el histórico o rangos de fecha amplios.
 // Las fechas se filtran por la hora REAL de atención (fecha_atencion, que tienen
 // las contingencias y los consumos offline) y, si no existe, por created_at.
+// La ubicación es la que tenía el depósito al momento del movimiento
+// (ubicacion_origen_id / ubicacion_destino_id), no la actual: así los
+// consumos hechos en una ubicación temporal siguen siendo de esa ubicación
+// aunque el depósito ya haya vuelto a su sede.
+// También lo usa la descarga a Excel del historial de movimientos (todos los
+// tipos): por eso trae lote, vencimiento y la ubicación de destino.
 router.get('/reportes', verificarToken, verificarNivel(4), async (req, res) => {
-  const { tipo, fecha_inicio, fecha_fin, ubicacion_id, bodega, cedula_paciente } = req.query;
+  const { tipo, fecha_inicio, fecha_fin, ubicacion_id, bodega, sub_sku_id, cedula_paciente } = req.query;
   try {
     let query = `
       SELECT m.*,
@@ -108,10 +118,13 @@ router.get('/reportes', verificarToken, verificarNivel(4), async (req, res) => {
              s.sub_sku,
              s.unidad,
              s.precio,
+             s.lote,
+             s.caducidad,
              bo.nombre  AS origen_nombre,
              bd.nombre  AS destino_nombre,
-             bo.ubicacion_id AS origen_ubicacion_id,
+             m.ubicacion_origen_id AS origen_ubicacion_id,
              ubo.nombre AS origen_ubicacion_nombre,
+             ubd.nombre AS destino_ubicacion_nombre,
              COALESCE(m.usuario_nombre, u.nombre) AS usuario_nombre,
              u.nivel                               AS usuario_nivel
       FROM movimientos m
@@ -119,7 +132,8 @@ router.get('/reportes', verificarToken, verificarNivel(4), async (req, res) => {
       JOIN skus_globales g ON s.sku_global_id = g.id
       LEFT JOIN bodegas bo      ON m.bodega_origen_id  = bo.id
       LEFT JOIN bodegas bd      ON m.bodega_destino_id = bd.id
-      LEFT JOIN ubicaciones ubo ON bo.ubicacion_id = ubo.id
+      LEFT JOIN ubicaciones ubo ON m.ubicacion_origen_id  = ubo.id
+      LEFT JOIN ubicaciones ubd ON m.ubicacion_destino_id = ubd.id
       LEFT JOIN usuarios u      ON m.usuario_id = u.id
       WHERE 1=1
     `;
@@ -137,13 +151,19 @@ router.get('/reportes', verificarToken, verificarNivel(4), async (req, res) => {
       params.push(fecha_fin);
       query += ` AND (COALESCE(m.fecha_atencion, m.created_at) AT TIME ZONE 'America/Bogota') < ($${params.length}::date + INTERVAL '1 day')`;
     }
+    // Origen o destino: los consumos solo tienen origen; así un traslado o
+    // una compra hacia esa ubicación también aparecen en el Excel del historial
     if (ubicacion_id) {
       params.push(ubicacion_id);
-      query += ` AND bo.ubicacion_id = $${params.length}`;
+      query += ` AND (m.ubicacion_origen_id = $${params.length} OR m.ubicacion_destino_id = $${params.length})`;
     }
     if (bodega) {
       params.push(bodega);
       query += ` AND bo.nombre = $${params.length}`;
+    }
+    if (sub_sku_id) {
+      params.push(sub_sku_id);
+      query += ` AND m.sub_sku_id = $${params.length}`;
     }
     if (cedula_paciente) {
       params.push(String(cedula_paciente).replace(/\D/g, ''));
@@ -244,23 +264,29 @@ async function _registrarConsumo(usuario, d) {
   }
 }
 
+// Cédula del paciente: OBLIGATORIA en todo consumo, solo números, mínimo 5
+// dígitos (máximo 15). Se toleran puntos, guiones y espacios de formato
+// ("1.006.166.884") y se guardan solo los dígitos. Devuelve null si no es válida.
+const CEDULA_ERROR = 'La cédula del paciente es obligatoria (solo números, mínimo 5 dígitos)';
 function _cedulaPaciente(v) {
-  return v ? String(v).replace(/\D/g, '') || null : null;
+  const s = String(v ?? '').replace(/[\s.\-]/g, '');
+  return /^\d{5,15}$/.test(s) ? s : null;
 }
 
 router.post('/consumo', verificarToken, verificarNivel(2), async (req, res) => {
-  const { sub_sku_id, bodega_origen_id, cedula_paciente } = req.body;
+  const { sub_sku_id, bodega_origen_id } = req.body;
   const cantidad = _cantidadValida(req.body.cantidad);
   if (!sub_sku_id || !bodega_origen_id || !cantidad) {
     return res.status(400).json({ error: 'Faltan campos obligatorios o la cantidad no es un entero positivo' });
   }
+  const cedula_paciente = _cedulaPaciente(req.body.cedula_paciente);
+  if (!cedula_paciente) return res.status(400).json({ error: CEDULA_ERROR });
   const client_id = _clientIdValido(req.body.client_id);
   if (client_id === undefined) return res.status(400).json({ error: 'Identificador de consumo inválido' });
 
   try {
     const r = await _registrarConsumo(req.usuario, {
-      sub_sku_id, bodega_origen_id, cantidad, client_id,
-      cedula_paciente: _cedulaPaciente(cedula_paciente)   // FIX: solo dígitos
+      sub_sku_id, bodega_origen_id, cantidad, client_id, cedula_paciente
     });
     if (r.estado === 'sin_stock') return res.status(400).json({ error: 'Stock insuficiente' });
     if (r.estado === 'duplicado') return res.json({ mensaje: 'Este consumo ya estaba registrado', duplicado: true });
@@ -299,6 +325,8 @@ router.post('/sincronizar', verificarToken, verificarNivel(2), async (req, res) 
       resultados.push({ client_id, estado: 'error', error: 'Faltan datos del consumo' });
       continue;
     }
+    const cedula_paciente = _cedulaPaciente(c.cedula_paciente);
+    if (!cedula_paciente) { resultados.push({ client_id, estado: 'error', error: CEDULA_ERROR }); continue; }
     // Hora real de atención = reloj de la tablet. Si viene inválida o en el
     // futuro (reloj adelantado), se usa la hora de llegada al servidor.
     let fecha = c.fecha_atencion ? new Date(c.fecha_atencion) : null;
@@ -307,7 +335,7 @@ router.post('/sincronizar', verificarToken, verificarNivel(2), async (req, res) 
     try {
       const r = await _registrarConsumo(req.usuario, {
         sub_sku_id: c.sub_sku_id, bodega_origen_id: c.bodega_origen_id, cantidad, client_id,
-        cedula_paciente: _cedulaPaciente(c.cedula_paciente),
+        cedula_paciente,
         es_offline: true, fecha_atencion: fecha.toISOString()
       });
       if (r.estado === 'sin_stock') resultados.push({ client_id, estado: 'error', error: 'Stock insuficiente en la bodega' });
@@ -434,9 +462,10 @@ router.post('/contingencia', verificarToken, verificarNivel(4), async (req, res)
     return res.status(400).json({ error: 'Selecciona un depósito destino distinto al de origen' });
   }
 
-  const cedulaPacienteVal = cedula_paciente
-    ? String(cedula_paciente).replace(/\D/g, '') || null
-    : null;
+  const cedulaPacienteVal = _cedulaPaciente(cedula_paciente);
+  if (tipo === 'consumo' && !cedulaPacienteVal) {
+    return res.status(400).json({ error: CEDULA_ERROR });
+  }
 
   const client = await pool.connect();
   try {

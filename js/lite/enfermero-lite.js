@@ -802,6 +802,9 @@
     var cant = parseInt(soloDigitos($('lt-cantidad').value), 10) || 0;
     if(cant <= 0){ errorEn('lt-consumo-error', 'Ingresa una cantidad válida'); return; }
     if(cant > st.item.cantidad){ errorEn('lt-consumo-error', 'Solo hay ' + st.item.cantidad + ' ' + (st.item.unidad || '') + ' disponibles en esta bodega'); return; }
+    // Cédula obligatoria: solo números, mínimo 5 dígitos (misma regla que el servidor)
+    var cedula = String($('lt-paciente').value || '').replace(/[\s.\-]/g, '');
+    if(!/^\d{5,15}$/.test(cedula)){ errorEn('lt-consumo-error', 'Ingresa la cédula del paciente (solo números, mínimo 5 dígitos)'); return; }
 
     var consumo = {
       client_id: nuevoClientId(),
@@ -809,7 +812,7 @@
       bodega_origen_id: st.bodega.id,
       bodega_nombre: st.bodega.nombre,
       cantidad: cant,
-      cedula_paciente: soloDigitos($('lt-paciente').value) || null,
+      cedula_paciente: cedula,
       fecha_atencion: new Date().toISOString(),   // hora del dispositivo = hora real de atención
       nombre: st.item.nombre,
       unidad: st.item.unidad,

@@ -35,6 +35,24 @@ async function _cargarPersonal(eventoIds) {
   return porEvento;
 }
 
+// Los depósitos asignados a un enfermero deben estar en la ubicación del
+// evento. Evita asignar, con la pantalla desactualizada, un depósito que
+// mientras tanto se prestó a (o volvió de) una ubicación temporal.
+async function _bodegasFueraDeUbicacion(client, eventoUbicacionId, bodegaIds) {
+  if (!bodegaIds.length) return [];
+  const r = await client.query(
+    `SELECT nombre FROM bodegas
+     WHERE id = ANY($1::int[]) AND (ubicacion_id IS DISTINCT FROM $2 OR activo = false)`,
+    [bodegaIds.map(Number), eventoUbicacionId]
+  );
+  return r.rows.map(b => b.nombre);
+}
+
+async function _ubicacionActiva(ubicacionId) {
+  const r = await pool.query('SELECT 1 FROM ubicaciones WHERE id = $1 AND activo = true', [ubicacionId]);
+  return r.rows.length > 0;
+}
+
 // GET /api/eventos — cualquier nivel autenticado
 router.get('/', verificarToken, async (req, res) => {
   try {
@@ -150,6 +168,9 @@ router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
     return res.status(400).json({ error: 'La fecha de finalización no puede ser anterior a la de inicio' });
   }
   try {
+    if (!await _ubicacionActiva(ubicacion_id)) {
+      return res.status(400).json({ error: 'La ubicación seleccionada ya no está activa' });
+    }
     const evento = await pool.query(
       `INSERT INTO eventos (nombre, fecha_inicio, fecha_fin, ubicacion_id, creado_por)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
@@ -189,7 +210,11 @@ router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
       return res.status(400).json({ error: 'No puedes editar un evento finalizado' });
     }
 
-    const cambioUbicacion = actual.rows[0].ubicacion_id !== ubicacion_id;
+    const cambioUbicacion = actual.rows[0].ubicacion_id !== Number(ubicacion_id);
+    if (cambioUbicacion && !await _ubicacionActiva(ubicacion_id)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'La ubicación seleccionada ya no está activa' });
+    }
 
     const result = await client.query(
       `UPDATE eventos SET nombre = $1, fecha_inicio = $2, fecha_fin = $3, ubicacion_id = $4
@@ -222,7 +247,7 @@ router.post('/:id/enfermeros', verificarToken, verificarNivel(4), async (req, re
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const evento = await client.query('SELECT id, estado FROM eventos WHERE id = $1 AND activo = true', [req.params.id]);
+    const evento = await client.query('SELECT id, estado, ubicacion_id FROM eventos WHERE id = $1 AND activo = true', [req.params.id]);
     if (!evento.rows.length) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Evento no encontrado' });
@@ -230,6 +255,11 @@ router.post('/:id/enfermeros', verificarToken, verificarNivel(4), async (req, re
     if (evento.rows[0].estado === 'finalizado') {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'No puedes editar un evento finalizado' });
+    }
+    const fuera = await _bodegasFueraDeUbicacion(client, evento.rows[0].ubicacion_id, bodegas);
+    if (fuera.length) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `Estos depósitos ya no están en la ubicación del evento: ${fuera.join(', ')}. Recarga e intenta de nuevo.` });
     }
 
     await client.query(
@@ -263,7 +293,7 @@ router.put('/:id/enfermeros/:usuarioId', verificarToken, verificarNivel(4), asyn
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const evento = await client.query('SELECT id, estado FROM eventos WHERE id = $1 AND activo = true', [req.params.id]);
+    const evento = await client.query('SELECT id, estado, ubicacion_id FROM eventos WHERE id = $1 AND activo = true', [req.params.id]);
     if (!evento.rows.length) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Evento no encontrado' });
@@ -271,6 +301,11 @@ router.put('/:id/enfermeros/:usuarioId', verificarToken, verificarNivel(4), asyn
     if (evento.rows[0].estado === 'finalizado') {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'No puedes editar un evento finalizado' });
+    }
+    const fuera = await _bodegasFueraDeUbicacion(client, evento.rows[0].ubicacion_id, bodegas);
+    if (fuera.length) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `Estos depósitos ya no están en la ubicación del evento: ${fuera.join(', ')}. Recarga e intenta de nuevo.` });
     }
     const miembro = await client.query(
       'SELECT 1 FROM evento_usuarios WHERE evento_id = $1 AND usuario_id = $2',

@@ -724,6 +724,31 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 .deposito-info{flex:1}
 .deposito-name{font-size:12px;font-weight:600;color:var(--ink);font-family:var(--font-mono)}
 
+/* Reporte de pacientes: lista de cédulas atendidas en el día */
+.rep-cedulas{font-size:10px;font-family:var(--font-mono);color:#666;line-height:1.5;word-break:break-word}
+
+/* ── UBICACIONES TEMPORALES ── */
+.ub-crear-btns{display:flex;gap:8px;flex-wrap:wrap}
+.ub-crear-btns .btn-submit{flex:1 1 200px;font-size:14px}
+.btn-submit.amber{background:var(--amber)}
+.btn-submit.amber:hover{background:var(--amber2)}
+.ubicacion-card.temporal .ubicacion-header{background:#3A2A12}
+.ubicacion-card.temporal .ubicacion-icon{background:rgba(224,140,26,.2);color:var(--amber2)}
+.ubicacion-card.finalizada{opacity:.75}
+.ub-badge{display:inline-block;margin-left:8px;padding:2px 7px;border-radius:6px;font-size:9px;font-weight:700;font-family:var(--font-mono);letter-spacing:.04em;vertical-align:middle;background:var(--amber-bg);color:var(--amber)}
+.ub-badge.gris{background:#F0F0EE;color:#888}
+.ub-finalizar-btn{padding:6px 12px;border-radius:var(--r-md);border:none;background:var(--amber2);color:#fff;font-size:12px;font-weight:700;font-family:var(--font-body);cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.ub-finalizar-btn:hover{background:var(--amber)}
+.ub-finalizar-btn.sec{background:rgba(255,255,255,.12)}
+.ub-finalizar-btn.sec:hover{background:rgba(255,255,255,.22)}
+.deposito-meta{font-size:10px;color:#999;margin-top:1px}
+.deposito-card.prestado{opacity:.6;border-style:dashed}
+.tmp-checklist{max-height:320px}
+.tmp-grupo{font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono);margin:8px 0 2px}
+.tmp-grupo:first-child{margin-top:0}
+.evt-check-item.ocupado{opacity:.5;cursor:not-allowed}
+.evt-check-item .tmp-ocupado{margin-left:auto;font-size:10px;color:var(--amber)}
+
 /* Permitir que dropdowns de autocomplete salgan del card */
 #view-trazabilidad .card,
 #view-registro .card,

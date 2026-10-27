@@ -177,12 +177,13 @@ async function enfRegistrarConsumo(){
   const id      = parseInt(document.getElementById('enf-sku').value)||0;
   const cant    = parseInt(document.getElementById('enf-cantidad').value)||0;
   const origen  = document.getElementById('enf-origen').value;
-  const paciente= document.getElementById('enf-paciente').value.trim();
+  const paciente= cedulaPacienteValida(document.getElementById('enf-paciente').value);
 
   if(!window._enfEventoActivo){ toastError('No tienes un evento activo asignado'); return; }
   if(!origen)  { toastError('Selecciona una bodega primero'); return; }
   if(!id)      { toastError('Selecciona un medicamento'); return; }
   if(cant<=0)  { toastError('Ingresa una cantidad válida'); return; }
+  if(!paciente){ toastError(CEDULA_PACIENTE_ERROR); return; }
 
   const btn = document.getElementById('enf-submit-btn');
   btn.disabled = true;
@@ -201,7 +202,7 @@ async function enfRegistrarConsumo(){
       sub_sku_id: id,
       bodega_origen_id: origenId,
       cantidad: cant,
-      cedula_paciente: paciente||null
+      cedula_paciente: paciente
     });
 
     document.getElementById('enf-cantidad').value = '';

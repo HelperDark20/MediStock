@@ -216,11 +216,11 @@ function calcConsumoMensual(mesYYYYMM){
     const fecha = m.fecha_real || m.created_at;   // hora real de atención (offline/contingencia)
     if(m.tipo!=='consumo'||!fecha) return;
     if(fechaColombia(fecha).slice(0,7)!==mesYYYYMM) return;
-    const bodegaNombre = m.origen_nombre;
-    if(!bodegaNombre) return;
-    const bodega   = (S.bodegasRaw||[]).find(b=>b.nombre===bodegaNombre);
-    const ubId     = bodega?.ubicacion_id ?? 'sin_ub';
-    const ubNombre = bodega?.ubicacion_nombre || 'Sin ubicación';
+    if(!m.origen_nombre) return;
+    // Ubicación donde estaba el depósito al consumir (un depósito prestado a
+    // una ubicación temporal cuenta para la temporal, aunque ya haya vuelto)
+    const ubNombre = m.origen_ubicacion_nombre || 'Sin ubicación';
+    const ubId     = ubNombre;
     if(!porUbicacion[ubId]) porUbicacion[ubId] = { nombre:ubNombre, total:0 };
     porUbicacion[ubId].total += m.cantidad;
     totalGeneral += m.cantidad;
