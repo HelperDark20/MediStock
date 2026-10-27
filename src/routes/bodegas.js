@@ -8,10 +8,12 @@ router.get('/', verificarToken, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT b.*, u.nombre AS ubicacion_nombre, u.es_temporal AS ubicacion_es_temporal,
-             uo.nombre AS ubicacion_origen_nombre
+             uo.nombre AS ubicacion_origen_nombre,
+             sg.nombre AS stock_seguridad_nombre
       FROM bodegas b
       LEFT JOIN ubicaciones u  ON b.ubicacion_id = u.id
       LEFT JOIN ubicaciones uo ON b.ubicacion_origen_id = uo.id
+      LEFT JOIN stock_seguridad_grupos sg ON b.stock_seguridad_grupo_id = sg.id AND sg.activo = true
       WHERE b.activo = true
       ORDER BY u.nombre, b.nombre
     `);
@@ -52,7 +54,8 @@ router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
   }
 });
 
-// PUT /api/bodegas/:id — nivel 4 — renombrar (tipo y sufijo). Stock,
+// PUT /api/bodegas/:id — nivel 4 — renombrar (tipo y sufijo) y asignar su
+// stock de seguridad (stock_seguridad_grupo_id: id de un grupo o null). Stock,
 // movimientos y asignaciones de eventos usan bodega_id, así que se conservan.
 // La ubicación no se cambia aquí: un depósito solo sale de su sede prestado
 // a una ubicación temporal (ver routes/ubicaciones.js).
@@ -63,13 +66,26 @@ router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
   }
   const tipoUpper = String(tipo).trim().toUpperCase();
   const nombre = `${tipoUpper}-${String(sufijo).trim().toUpperCase()}`;
+  const grupoRaw = req.body.stock_seguridad_grupo_id;
+  const grupoId = grupoRaw === null || grupoRaw === '' || grupoRaw === undefined ? null : parseInt(grupoRaw);
+  if (grupoRaw !== undefined && grupoId !== null && !(grupoId > 0)) {
+    return res.status(400).json({ error: 'Stock de seguridad inválido' });
+  }
   try {
     const existe = await pool.query('SELECT id FROM bodegas WHERE nombre = $1 AND id <> $2', [nombre, req.params.id]);
     if (existe.rows.length > 0) return res.status(400).json({ error: 'Ya existe un depósito con ese nombre' });
-    const result = await pool.query(
-      'UPDATE bodegas SET nombre = $1, tipo = $2 WHERE id = $3 AND activo = true RETURNING *',
-      [nombre, tipoUpper, req.params.id]
-    );
+    if (grupoId) {
+      const g = await pool.query('SELECT 1 FROM stock_seguridad_grupos WHERE id = $1 AND activo = true', [grupoId]);
+      if (!g.rows.length) return res.status(400).json({ error: 'Ese stock de seguridad ya no existe' });
+    }
+    // Sin stock_seguridad_grupo_id en el body, la asignación no se toca
+    const result = grupoRaw === undefined
+      ? await pool.query(
+          'UPDATE bodegas SET nombre = $1, tipo = $2 WHERE id = $3 AND activo = true RETURNING *',
+          [nombre, tipoUpper, req.params.id])
+      : await pool.query(
+          'UPDATE bodegas SET nombre = $1, tipo = $2, stock_seguridad_grupo_id = $3 WHERE id = $4 AND activo = true RETURNING *',
+          [nombre, tipoUpper, grupoId, req.params.id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Depósito no encontrado' });
     res.json(result.rows[0]);
   } catch (err) {

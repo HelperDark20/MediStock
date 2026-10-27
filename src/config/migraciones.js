@@ -56,14 +56,76 @@ const MIGRACIONES = [
   `UPDATE movimientos m SET ubicacion_destino_id = b.ubicacion_id
    FROM bodegas b WHERE m.bodega_destino_id = b.id AND m.ubicacion_destino_id IS NULL`,
   'CREATE INDEX IF NOT EXISTS movimientos_ubicacion_origen_idx ON movimientos (ubicacion_origen_id)',
+
+  // Stock de seguridad asignado directamente a cada depósito (máximo uno).
+  // Reemplaza la asignación por patrón de palabras del nombre del depósito.
+  'ALTER TABLE bodegas ADD COLUMN IF NOT EXISTS stock_seguridad_grupo_id INTEGER REFERENCES stock_seguridad_grupos(id)',
+
+  // Edición de Sub-SKUs: fecha de creación (los existentes quedan sin ella)
+  // y bitácora de quién cambió qué y cuándo.
+  'ALTER TABLE sub_skus ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ',
+  'ALTER TABLE sub_skus ALTER COLUMN created_at SET DEFAULT NOW()',
+  `CREATE TABLE IF NOT EXISTS sub_sku_cambios (
+     id SERIAL PRIMARY KEY,
+     sub_sku_id INTEGER NOT NULL REFERENCES sub_skus(id),
+     usuario_id INTEGER,
+     usuario_nombre TEXT,
+     cambios JSONB NOT NULL DEFAULT '{}'::jsonb,
+     nota TEXT,
+     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   )`,
+  'CREATE INDEX IF NOT EXISTS sub_sku_cambios_sub_sku_idx ON sub_sku_cambios (sub_sku_id)',
+
+  // Registro de las migraciones que deben correr UNA sola vez
+  'CREATE TABLE IF NOT EXISTS migraciones_aplicadas (nombre TEXT PRIMARY KEY, aplicada_at TIMESTAMPTZ NOT NULL DEFAULT NOW())',
+];
+
+// Migraciones de datos que corren una sola vez (quedan anotadas en
+// migraciones_aplicadas). Repetirlas en cada arranque desharía cambios
+// hechos después por los usuarios.
+const MIGRACIONES_UNICAS = [
+  {
+    // Cada depósito recibe el grupo que le correspondía por patrón: el más
+    // específico (más palabras) cuyas palabras están todas en el nombre del
+    // depósito — la misma regla que usaba el reporte. Así nada cambia el
+    // día del despliegue; después se ajusta desde Ubicaciones.
+    nombre: 'stock_seguridad_por_patron_a_deposito',
+    sql: `UPDATE bodegas b SET stock_seguridad_grupo_id = (
+            SELECT g.id FROM stock_seguridad_grupos g
+            WHERE g.activo = true
+              AND cardinality(g.patron_tokens) > 0
+              AND g.patron_tokens::text[] <@ regexp_split_to_array(UPPER(b.nombre), '[[:space:]-]+')
+            ORDER BY cardinality(g.patron_tokens) DESC, g.nombre
+            LIMIT 1)
+          WHERE b.activo = true AND b.stock_seguridad_grupo_id IS NULL`
+  },
 ];
 
 // Lo informa GET /api/health, para comprobar tras desplegar que se aplicaron
 const estado = { migraciones: 'pendiente' };
 
+async function _aplicarUnaVez({ nombre, sql }) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // ON CONFLICT: si dos procesos arrancan a la vez, solo uno la aplica
+    const r = await client.query(
+      'INSERT INTO migraciones_aplicadas (nombre) VALUES ($1) ON CONFLICT DO NOTHING RETURNING nombre', [nombre]
+    );
+    if (r.rows.length) await client.query(sql);
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 async function aplicarMigraciones() {
   try {
     for (const sql of MIGRACIONES) await pool.query(sql);
+    for (const m of MIGRACIONES_UNICAS) await _aplicarUnaVez(m);
     estado.migraciones = 'ok';
     console.log('Migraciones de base de datos al día');
   } catch (err) {

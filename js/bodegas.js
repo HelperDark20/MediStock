@@ -66,15 +66,22 @@ function ubCambiarVista(vista){
 
 const _BOD_ICONS = { BTQ:'ti-briefcase-medical', ENF:'ti-stethoscope', MEC:'ti-heart-rate-monitor', ALM:'ti-building-warehouse' };
 
+// El Administrador hace clic en cualquier depósito para editar su nombre y
+// su stock de seguridad. Los botones de la tarjeta no abren la edición.
 function _depositoCardHtml(b, acciones, meta, clase){
   const prefix = b.nombre.split('-')[0];
-  return `<div class="deposito-card ${clase||''}">
+  const admin = currentRole===4;
+  const seg = b.stock_seguridad_nombre
+    ? `<i class="ti ti-shield-check"></i> ${escHtml(b.stock_seguridad_nombre)}`
+    : (admin ? '<span style="color:#bbb">Sin stock de seguridad</span>' : '');
+  const metas = [meta, seg].filter(Boolean).join(' · ');
+  return `<div class="deposito-card ${clase||''} ${admin?'clickable':''}" ${admin?`onclick="abrirEditarBodega(${b.id})" title="Editar depósito"`:''}>
     <div class="deposito-icon"><i class="ti ${_BOD_ICONS[prefix]||'ti-map-pin'}"></i></div>
     <div class="deposito-info">
       <div class="deposito-name">${escHtml(b.nombre)}</div>
-      ${meta?`<div class="deposito-meta">${meta}</div>`:''}
+      ${metas?`<div class="deposito-meta">${metas}</div>`:''}
     </div>
-    ${acciones||''}
+    ${acciones?`<div onclick="event.stopPropagation()">${acciones}</div>`:''}
   </div>`;
 }
 
@@ -351,20 +358,19 @@ async function guardarEdicionUbicacion(){
   } catch(err){ toastError(err.message); }
 }
 
-// ── EDITAR NOMBRE DE DEPÓSITO ──
-// Los grupos de Stock de Seguridad se asignan por las palabras del nombre
-// del depósito (ej. BTQ, ENF). Si el cambio de nombre hace que le
-// corresponda otro grupo (o ninguno), se avisa antes de guardar.
-let _editBodegaOriginal = null;
-
+// ── EDITAR DEPÓSITO: nombre y stock de seguridad (máximo uno) ──
 function abrirEditarBodega(id){
   const b = (S.bodegasRaw||[]).find(x=>x.id===id);
   if(!b) return;
-  _editBodegaOriginal = b;
   const [tipo, ...resto] = b.nombre.split('-');
   document.getElementById('edit-bod-id').value = b.id;
   document.getElementById('edit-bod-tipo').value = tipo;
   document.getElementById('edit-bod-sufijo').value = resto.join('-');
+  const grupos = (S.stockSeguridad||[]).slice().sort((a,c)=>a.nombre.localeCompare(c.nombre));
+  const sel = document.getElementById('edit-bod-segstock');
+  sel.innerHTML = '<option value="">Ninguno</option>' +
+    grupos.map(g=>`<option value="${g.id}">${escHtml(g.nombre)} (${(g.items||[]).length} ítem${(g.items||[]).length!==1?'s':''})</option>`).join('');
+  sel.value = b.stock_seguridad_grupo_id && grupos.some(g=>g.id===b.stock_seguridad_grupo_id) ? b.stock_seguridad_grupo_id : '';
   editBodegaPreview();
   document.getElementById('modal-edit-bodega').classList.add('open');
 }
@@ -378,16 +384,6 @@ function _editBodegaNombreNuevo(){
 function editBodegaPreview(){
   const { nombre } = _editBodegaNombreNuevo();
   document.getElementById('edit-bod-preview').textContent = nombre || '-';
-
-  const warn = document.getElementById('edit-bod-warn');
-  warn.style.display = 'none';
-  if(!nombre || !_editBodegaOriginal || typeof _repBuscarGrupoSeguridad !== 'function') return;
-  const antes = _repBuscarGrupoSeguridad(_editBodegaOriginal.nombre);
-  const despues = _repBuscarGrupoSeguridad(nombre);
-  if((antes?.id||null) !== (despues?.id||null)){
-    warn.textContent = `Ojo: con este nombre el depósito pasa de la lista de stock de seguridad "${antes?.nombre||'ninguna'}" a "${despues?.nombre||'ninguna'}".`;
-    warn.style.display = 'block';
-  }
 }
 
 async function guardarEdicionBodega(){
@@ -395,13 +391,14 @@ async function guardarEdicionBodega(){
   const { tipo, sufijo, nombre } = _editBodegaNombreNuevo();
   if(!tipo){   toastError('Ingresa el tipo de depósito'); return; }
   if(!sufijo){ toastError('Ingresa el nombre del depósito'); return; }
+  const grupoId = parseInt(document.getElementById('edit-bod-segstock').value) || null;
   try {
-    await Bodegas.update(id, tipo, sufijo);
+    await Bodegas.update(id, tipo, sufijo, grupoId);
     closeModal('modal-edit-bodega');
     await loadState();
     populateSelects();
     renderBodegas();
-    toast(`✓ Depósito renombrado a ${nombre}`, 'success');
+    toast(`✓ Depósito ${nombre} actualizado`, 'success');
   } catch(err){ toastError(err.message); }
 }
 

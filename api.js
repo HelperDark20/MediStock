@@ -51,7 +51,8 @@ const Auth = {
 const Bodegas = {
   getAll: () => request('GET', '/api/bodegas'),
   create: (tipo, sufijo, ubicacion_id) => request('POST', '/api/bodegas', { tipo, sufijo, ubicacion_id }),
-  update: (id, tipo, sufijo) => request('PUT', `/api/bodegas/${id}`, { tipo, sufijo }),
+  // stock_seguridad_grupo_id: id del grupo o null (sin stock de seguridad)
+  update: (id, tipo, sufijo, stock_seguridad_grupo_id) => request('PUT', `/api/bodegas/${id}`, { tipo, sufijo, stock_seguridad_grupo_id }),
   delete: (id) => request('DELETE', `/api/bodegas/${id}`)
 };
 
@@ -79,6 +80,16 @@ const SKUs = {
   getSub: () => request('GET', '/api/skus/sub'),
   createSub: (data) => request('POST', '/api/skus/sub', data),
   deleteSub: (id) => request('DELETE', `/api/skus/sub/${id}`),
+  historialSub: (params = {}) => request('GET', `/api/skus/sub/historial?${new URLSearchParams(params)}`),
+  cambiosSub: (id) => request('GET', `/api/skus/sub/${id}/cambios`),
+  // Devuelve { status, data } sin lanzar en 409: el servidor pide confirmar
+  // cuando el cambio de proveedor/lote reemplaza o une el Sub-SKU
+  updateSub: async (id, data) => {
+    const res = await fetch(`${API_URL}/api/skus/sub/${id}`, { method:'PUT', headers: authHeaders(), body: JSON.stringify(data) });
+    const json = await res.json();
+    if(!res.ok && res.status !== 409) throw new Error(json.error || 'Error del servidor');
+    return { status: res.status, data: json };
+  },
   getStock: () => request('GET', '/api/skus/stock')
 };
 
