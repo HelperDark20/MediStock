@@ -69,10 +69,25 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// El hosting (cPanel) atiende a través de un proxy (Apache). Sin esto,
+// req.ip es la dirección del proxy y TODOS los usuarios compartían un
+// mismo cupo del límite por IP. 1 = confiar en un salto de proxy (la IP
+// real que agrega Apache, no la que pueda inventar el cliente).
+app.set('trust proxy', process.env.TRUST_PROXY !== undefined ? Number(process.env.TRUST_PROXY) : 1);
+
+// Al pasar el límite se responde en JSON (antes era texto plano: el
+// navegador no lo podía leer, mostraba "The string did not match the
+// expected pattern" y la app quedaba sin datos).
+const MENSAJE_LIMITE = { error: 'Demasiadas solicitudes en poco tiempo. Espera unos minutos e intenta de nuevo.' };
+
 // ── Fix #9: Rate limit API por IP ──
+// Límites pensados contra abuso, no contra el uso normal: cada acción en la
+// app hace ~10 solicitudes (la acción + recargar datos), y una sede entera
+// puede salir por la misma IP.
 const apiLimiterByIp = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 600,
+  max: 5000,
+  message: MENSAJE_LIMITE,
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: false,
@@ -96,7 +111,8 @@ function _usuarioIdVerificado(req) {
 
 const apiLimiterByUser = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 2000,
+  message: MENSAJE_LIMITE,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => `user_${_usuarioIdVerificado(req)}`,

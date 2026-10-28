@@ -83,7 +83,17 @@ async function setupApp(user){
 
 // FIX: checkSession usa GET /api/auth/me para validar el token server-side
 // en vez de decodificar el JWT localmente con atob() sin verificar firma
-(async function checkSession(){
+// Ante un error temporal reintenta solo (cada 5 s, hasta ~1 minuto) en vez
+// de dejar al usuario en el login con la sesión aún válida.
+let _checkSessionIntentos = 0;
+function _reintentarSesion(motivo){
+  if(_checkSessionIntentos++ >= 12){ toastError(motivo + ' Recarga la página.'); return; }
+  toast(motivo + ' Reintentando…', 'error', 4500);
+  setTimeout(checkSession, 5000);
+}
+
+async function checkSession(){
+  if(document.getElementById('app')?.classList.contains('visible')) return;   // ya entró
   const token = localStorage.getItem('nb_token');
   if(!token) return;
 
@@ -92,13 +102,19 @@ async function setupApp(user){
       headers: { 'Authorization': `Bearer ${token}` }
     });
 
-    if(!res.ok){
-      // Token inválido o expirado — limpiar y mostrar login
+    // Solo un token inválido o vencido (401/403) cierra la sesión. Un error
+    // temporal (límite de solicitudes, servidor reiniciándose) NO: antes
+    // sacaba al usuario y al volver a entrar todo aparecía vacío.
+    if(res.status === 401 || res.status === 403){
       localStorage.removeItem('nb_token');
       return;
     }
+    const data = await leerRespuesta(res);
+    if(!res.ok){
+      _reintentarSesion(data.error || 'No se pudo validar la sesión.');
+      return;
+    }
 
-    const data = await res.json();
     const user = data.usuario;
 
     if(!user || !user.nivel || !user.id){
@@ -112,7 +128,9 @@ async function setupApp(user){
     await setupApp(user);
 
   } catch(e){
+    // Sin red o error de lectura: se conserva la sesión para reintentar
     console.error('Error checkSession:', e);
-    localStorage.removeItem('nb_token');
+    _reintentarSesion('Sin conexión con el servidor.');
   }
-})();
+}
+checkSession();

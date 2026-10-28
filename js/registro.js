@@ -256,8 +256,7 @@ async function registrarEntrada(){
       toast(`Este lote ya existía (${subData.sub_sku}) con precio ${fmtCOP(precioGuardado)}; se conservó ese precio.${currentRole===4?' Si es un error, corrígelo en "Modificar Sub-SKUs".':''}`, 'error', 6000);
     }
 
-    const todasBodegas = await Bodegas.getAll();
-    const bodegaId = todasBodegas.find(b => b.nombre === ubicacion)?.id;
+    const bodegaId = (S.bodegasRaw||[]).find(b => b.nombre === ubicacion)?.id;
 
     if(!bodegaId){
       toastError('Bodega destino no encontrada — recarga la página');
