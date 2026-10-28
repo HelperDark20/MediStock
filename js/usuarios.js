@@ -33,11 +33,9 @@ async function crearUsuario(){
   const nivel    = parseInt(document.getElementById('u-nivel').value);
   const genero   = document.getElementById('u-genero').value;
   const nacTxt = document.getElementById('u-nacimiento-txt').value.trim();
-  let fecha_nacimiento = null;
-  if(nacTxt && nacTxt.length === 10) {
-    const [d, m, y] = nacTxt.split('/');
-    if(d && m && y) fecha_nacimiento = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
-  }
+  const nacISO = fechaDMAaISO(nacTxt);
+  if(nacISO === null){ toastError('La fecha de nacimiento no es válida. Usa día/mes/año, ej. 15/03/1990'); return; }
+  const fecha_nacimiento = nacISO || null;
   const password = document.getElementById('u-pass').value.trim();
 
   if(!nombre||!cedula||!password){

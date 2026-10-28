@@ -226,11 +226,8 @@ async function registrarEntrada(){
   const invima = campos.includes('invima')    ? document.getElementById('reg-invima').value.trim() : '';
   const cadRaw = campos.includes('caducidad') ? document.getElementById('reg-caducidad').value.trim() : '';
 
-  let cad = '';
-  if(cadRaw && cadRaw.includes('/')){
-    const [d, m, y] = cadRaw.split('/');
-    if(d && m && y) cad = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
-  }
+  const cad = fechaDMAaISO(cadRaw);
+  if(cad === null){ toastError('La fecha de caducidad no es válida. Usa día/mes/año, ej. 18/06/2026'); return; }
 
   const precio   = parseFloat(document.getElementById('reg-precio')?.value)||0;
   const cant     = parseInt(document.getElementById('reg-cantidad').value)||0;
