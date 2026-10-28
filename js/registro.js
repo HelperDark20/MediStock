@@ -226,11 +226,8 @@ async function registrarEntrada(){
   const invima = campos.includes('invima')    ? document.getElementById('reg-invima').value.trim() : '';
   const cadRaw = campos.includes('caducidad') ? document.getElementById('reg-caducidad').value.trim() : '';
 
-  let cad = '';
-  if(cadRaw && cadRaw.includes('/')){
-    const [d, m, y] = cadRaw.split('/');
-    if(d && m && y) cad = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
-  }
+  const cad = fechaDMAaISO(cadRaw);
+  if(cad === null){ toastError('La fecha de caducidad no es válida. Usa día/mes/año, ej. 18/06/2026'); return; }
 
   const precio   = parseFloat(document.getElementById('reg-precio')?.value)||0;
   const cant     = parseInt(document.getElementById('reg-cantidad').value)||0;
@@ -256,8 +253,7 @@ async function registrarEntrada(){
       toast(`Este lote ya existía (${subData.sub_sku}) con precio ${fmtCOP(precioGuardado)}; se conservó ese precio.${currentRole===4?' Si es un error, corrígelo en "Modificar Sub-SKUs".':''}`, 'error', 6000);
     }
 
-    const todasBodegas = await Bodegas.getAll();
-    const bodegaId = todasBodegas.find(b => b.nombre === ubicacion)?.id;
+    const bodegaId = (S.bodegasRaw||[]).find(b => b.nombre === ubicacion)?.id;
 
     if(!bodegaId){
       toastError('Bodega destino no encontrada — recarga la página');

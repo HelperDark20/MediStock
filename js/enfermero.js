@@ -190,8 +190,7 @@ async function enfRegistrarConsumo(){
   btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i>Registrando...';
 
   try {
-    const todasBodegas = await Bodegas.getAll();
-    const origenId = todasBodegas.find(b=>b.nombre===origen)?.id;
+    const origenId = (S.bodegasRaw||[]).find(b=>b.nombre===origen)?.id;
 
     if(!origenId){
       toastError('Bodega no encontrada — recarga la página');

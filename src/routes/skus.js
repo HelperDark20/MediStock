@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const { verificarToken, verificarNivel } = require('../middlewares/auth');
+const { fechaValida } = require('../utils/fechas');
 
 // GET /api/skus/globales
 router.get('/globales', verificarToken, async (req, res) => {
@@ -184,6 +185,9 @@ router.post('/sub', verificarToken, verificarNivel(3), async (req, res) => {
   if (precio === undefined || precio === null || isNaN(precio) || Number(precio) <= 0) {
     return res.status(400).json({ error: 'El precio unitario es obligatorio y debe ser mayor a 0' });
   }
+  if (caducidad && !fechaValida(caducidad)) {
+    return res.status(400).json({ error: 'La fecha de caducidad no es válida. Usa día/mes/año, ej. 18/06/2026' });
+  }
 
   let unidad;
   try {
@@ -295,7 +299,7 @@ router.put('/sub/:id', verificarToken, verificarNivel(4), async (req, res) => {
   const precio = Number(req.body.precio);
   if (!(precio > 0)) return res.status(400).json({ error: 'El precio unitario debe ser mayor a 0' });
   const caducidad = _txt(req.body.caducidad);
-  if (caducidad && !/^\d{4}-\d{2}-\d{2}$/.test(caducidad)) {
+  if (caducidad && !fechaValida(caducidad)) {
     return res.status(400).json({ error: 'Fecha de vencimiento inválida' });
   }
   const nuevo = {

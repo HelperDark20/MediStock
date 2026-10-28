@@ -54,6 +54,19 @@ function formatFecha(input){
   }
 }
 
+// Convierte 'DD/MM/AAAA' a 'AAAA-MM-DD'. Devuelve '' si está vacío y null si
+// la fecha no existe o el año no tiene 4 dígitos (ej. 30/92/028).
+function fechaDMAaISO(txt){
+  const t = String(txt||'').trim();
+  if(!t) return '';
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(t);
+  if(!m) return null;
+  const [d, mo, y] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const f = new Date(Date.UTC(y, mo-1, d));
+  if(y < 1900 || y > 2100 || f.getUTCMonth() !== mo-1 || f.getUTCDate() !== d) return null;
+  return `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+
 function abrevProv(str){
   if(!str) return '----';
   const words = str.trim().split(/\s+/).filter(Boolean);

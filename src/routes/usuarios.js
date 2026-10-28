@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../config/db');
 const bcrypt = require('bcryptjs');
 const { verificarToken, verificarNivel } = require('../middlewares/auth');
+const { fechaValida } = require('../utils/fechas');
 
 const NIVELES_VALIDOS = [1, 2, 3, 4];
 
@@ -47,6 +48,9 @@ router.get('/', verificarToken, verificarNivel(4), async (req, res) => {
 // POST /api/usuarios — nivel 4
 router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
   const { nombre, cedula, nivel, genero, fecha_nacimiento, password, ubicacion_id } = req.body;
+  if (fecha_nacimiento && !fechaValida(fecha_nacimiento)) {
+    return res.status(400).json({ error: 'La fecha de nacimiento no es válida. Usa día/mes/año, ej. 15/03/1990' });
+  }
   if (!nombre || !cedula || !nivel || !password) {
     return res.status(400).json({ error: 'Faltan campos obligatorios' });
   }

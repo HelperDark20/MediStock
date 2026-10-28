@@ -69,6 +69,22 @@ app.get('/{*any}', (req, res, next) => {
   }
 });
 
+// Toda respuesta de /api debe ser JSON: el frontend no puede leer las
+// páginas HTML de error de Express ("The string did not match the
+// expected pattern" en Safari).
+app.use('/api', (req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));
+app.use((err, req, res, next) => {
+  console.error('Error no controlado en', req.method, req.originalUrl, '-', err.message);
+  if (res.headersSent) return next(err);
+  const status = err.status || err.statusCode || 500;
+  res.status(status).json({
+    error: status === 400 ? 'Solicitud inválida' : 'Error del servidor. Intenta de nuevo.'
+  });
+});
+
+// Un error no controlado se registra en el log en vez de tumbar la app
+process.on('unhandledRejection', err => console.error('Promesa rechazada sin controlar:', err));
+
 require('./src/config/migraciones').aplicarMigraciones();
 
 app.listen(PORT, () => {

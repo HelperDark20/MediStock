@@ -74,14 +74,33 @@ async function loadState(){
       S.ubicacionesHistoricas = await Ubicaciones.getHistoricas();
     }
 
+    _avisoCargaDatos(null);
   } catch(err){
+    // Los datos anteriores se conservan (S solo se reemplaza si todo cargó).
+    // Al entrar, S está vacío: sin este aviso parecía un inventario en blanco.
     console.error('Error cargando datos:', err);
-    toast('Error cargando datos del servidor', 'error');
+    _avisoCargaDatos(err.message);
   } finally {
     showLoading(false);
   }
 }
 
+// Aviso fijo arriba del contenido mientras los datos no se puedan cargar
+function _avisoCargaDatos(motivo){
+  let el = document.getElementById('aviso-carga-datos');
+  if(!motivo){ if(el) el.remove(); return; }
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'aviso-carga-datos';
+    el.className = 'alert-banner show red';
+    document.querySelector('#app .content')?.prepend(el);
+  }
+  el.innerHTML = `<i class="ti ti-alert-circle"></i><span style="flex:1"><strong>No se pudieron cargar los datos.</strong> ${escHtml(motivo)} Lo que ves puede estar incompleto o vacío.</span><button class="tb-btn" onclick="resetState()"><i class="ti ti-refresh"></i>Reintentar</button>`;
+}
+
 function resetState(){
-  loadState().then(()=>{ renderAll(); toast('Datos actualizados','success'); });
+  loadState().then(()=>{
+    renderAll();
+    if(!document.getElementById('aviso-carga-datos')) toast('Datos actualizados','success');
+  });
 }

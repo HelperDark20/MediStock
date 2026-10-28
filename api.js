@@ -14,6 +14,21 @@ function authHeaders(){
   };
 }
 
+// ── LEER RESPUESTA ──
+// Si el servidor responde algo que no es JSON (límite de solicitudes, app
+// reiniciándose, error del hosting), res.json() fallaba con un mensaje
+// incomprensible ("The string did not match the expected pattern" en
+// Safari). Aquí se lee como texto y se traduce a un mensaje claro.
+async function leerRespuesta(res){
+  const texto = await res.text();
+  let data = null;
+  try { data = texto ? JSON.parse(texto) : {}; } catch(e){ data = null; }
+  if(data !== null) return data;
+  if(res.status === 429) return { error: 'Demasiadas solicitudes en poco tiempo. Espera unos minutos e intenta de nuevo.' };
+  if(res.status === 502 || res.status === 503 || res.status === 504) return { error: 'El servidor se está reiniciando. Espera unos segundos e intenta de nuevo.' };
+  return { error: `Respuesta inesperada del servidor (${res.status}). Intenta de nuevo.` };
+}
+
 // ── REQUEST BASE ──
 async function request(method, path, body = null){
   const token = localStorage.getItem('nb_token');
@@ -25,9 +40,15 @@ async function request(method, path, body = null){
     }
   };
   if(body) opts.body = JSON.stringify(body);
-  const res = await fetch(`${API_URL}${path}`, opts);
-  const data = await res.json();
+  let res;
+  try {
+    res = await fetch(`${API_URL}${path}`, opts);
+  } catch(e){
+    throw new Error('Sin conexión con el servidor. Revisa la red e intenta de nuevo.');
+  }
+  const data = await leerRespuesta(res);
   if(!res.ok) throw new Error(data.error || 'Error del servidor');
+  if(data && data.error && Object.keys(data).length === 1) throw new Error(data.error);   // respuesta 200 no-JSON
   return data;
 }
 
@@ -39,8 +60,8 @@ const Auth = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cedula, password })
     });
-    const json = await data.json();
-    if(!data.ok) throw new Error(json.error);
+    const json = await leerRespuesta(data);
+    if(!data.ok) throw new Error(json.error || 'Error del servidor');
     setToken(json.token);
     return json;
   },
@@ -86,7 +107,7 @@ const SKUs = {
   // cuando el cambio de proveedor/lote reemplaza o une el Sub-SKU
   updateSub: async (id, data) => {
     const res = await fetch(`${API_URL}/api/skus/sub/${id}`, { method:'PUT', headers: authHeaders(), body: JSON.stringify(data) });
-    const json = await res.json();
+    const json = await leerRespuesta(res);
     if(!res.ok && res.status !== 409) throw new Error(json.error || 'Error del servidor');
     return { status: res.status, data: json };
   },
@@ -115,7 +136,7 @@ const Movimientos = {
   getReporteCompleto: async (params = {}) => {
     const query = new URLSearchParams(params).toString();
     const res = await fetch(`${API_URL}/api/movimientos/reportes${query ? '?' + query : ''}`, { headers: authHeaders() });
-    const data = await res.json();
+    const data = await leerRespuesta(res);
     if(!res.ok) throw new Error(data.error || 'Error del servidor');
     return { filas: data, truncado: res.headers.get('X-Reporte-Truncado') };
   }
