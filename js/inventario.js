@@ -317,6 +317,69 @@ function invExportPDF(){
 }
 
 // ══════════════════════════════════════════
+// DESCARGAR EXCEL DEL INVENTARIO
+// Mismos filtros y orden que el PDF, una fila por Sub-SKU y depósito. El
+// Administrador recibe además valor unitario y valor total (como en
+// pantalla), útiles para ordenar y detectar precios mal registrados.
+// ══════════════════════════════════════════
+function invExportExcel(){
+  if(typeof XLSX === 'undefined'){
+    toastError('No se pudo cargar el módulo de Excel. Verifica tu conexión e intenta de nuevo.');
+    return;
+  }
+  const { rows } = _invFilasFiltradas();
+  if(!rows.length){ toastError('No hay ítems para descargar con los filtros actuales'); return; }
+
+  const verValor = currentRole===4;
+  const ubPorDeposito = {};
+  (S.bodegasRaw||[]).forEach(b=>{ ubPorDeposito[b.nombre] = b.ubicacion_nombre || 'Sin ubicación'; });
+  const filas = rows.map(r => ({ ...r, ubNombre: ubPorDeposito[r.ubicacion] || 'Sin ubicación' }))
+    .sort((a,b)=>
+      a.ubNombre.localeCompare(b.ubNombre) ||
+      a.ubicacion.localeCompare(b.ubicacion) ||
+      a.s.nombre.localeCompare(b.s.nombre)
+    );
+
+  const filtros = _invDescripcionFiltros().replace(/<[^>]+>/g,'');
+  const aoa = [
+    ['Nova Bridge — Inventario'],
+    [`${filtros} · Generado el ${new Date().toLocaleString('es-CO',{timeZone:'America/Bogota'})}`],
+    []
+  ];
+  const cols = ['Ubicación','Depósito','SKU','Ítem','Familia','Sub-SKU','Lote','Proveedor','INVIMA','Vencimiento','Estado','Cantidad','Unidad'];
+  if(verValor) cols.push('Valor unitario (COP)','Valor total (COP)');
+  aoa.push(cols);
+
+  let total = 0;
+  filas.forEach(f=>{
+    const fila = [
+      f.ubNombre, f.ubicacion, f.skuG?.codigo||'', f.s.nombre, f.skuG?.familia||'',
+      f.s.subSku, f.s.lote||'', f.s.proveedor||'', f.s.invima||'',
+      f.s.caducidad ? fmtDate(f.s.caducidad) : '',
+      f.s.agotado ? 'Agotado' : semLabel(f.st),
+      f.cantidad, f.s.unidad||''
+    ];
+    if(verValor){
+      const precio = f.s.precio||0;
+      fila.push(precio, precio*f.cantidad);
+      total += precio*f.cantidad;
+    }
+    aoa.push(fila);
+  });
+  if(verValor){
+    aoa.push([]);
+    aoa.push(['TOTAL','','','','','','','','','','','','', '', total]);
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [18,18,14,30,16,20,14,20,16,12,11,10,10,16,16].slice(0, cols.length).map(w=>({wch:w}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Inventario');
+  XLSX.writeFile(wb, `${_invTituloDocumento().replace(/\s*·\s*/g,'_').replace(/[\\/:*?"<>|]/g,'')}.xlsx`);
+  toast('✓ Excel generado', 'success');
+}
+
+// ══════════════════════════════════════════
 // AUTOCOMPLETE: FILTRO DE UBICACIÓN / SEDE
 // ══════════════════════════════════════════
 let _invSedeFocusIdx = -1;

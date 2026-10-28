@@ -68,7 +68,8 @@ function goTo(viewId){
   const ta = document.getElementById('topbar-actions');
   ta.innerHTML = '';
   if(viewId==='inventario'){
-    ta.innerHTML=`<button class="tb-btn" onclick="invExportPDF()"><i class="ti ti-file-type-pdf"></i>Descargar PDF</button>`;
+    ta.innerHTML=`<button class="tb-btn" onclick="invExportExcel()"><i class="ti ti-file-spreadsheet"></i>Descargar Excel</button>`+
+      `<button class="tb-btn" onclick="invExportPDF()"><i class="ti ti-file-type-pdf"></i>Descargar PDF</button>`;
     if(currentRole>=3){
       ta.innerHTML+=`<button class="tb-btn primary" onclick="goTo('registro')"><i class="ti ti-plus"></i>Nueva entrada</button>`;
     }
