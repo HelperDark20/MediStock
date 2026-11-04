@@ -34,7 +34,7 @@ function _movItemRow(s, idx, bodega, q){
   const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
   const cantBodega = s.stock?.[bodega]||0;
   const sem = getSem(s.caducidad);
-  const hilite = q ? (str => str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>')) : (str => str);
+  const hilite = str => hiliteHtml(str, q);
   return `<div class="ac-item" data-id="${s.id}"
     onmousedown="acSelect('mov',${s.id})"
     onmouseover="acHover('mov',${idx})">
@@ -42,13 +42,13 @@ function _movItemRow(s, idx, bodega, q){
     <div class="ac-item-body">
       <div class="ac-item-name">${hilite(s.nombre)}</div>
       <div class="ac-item-meta">
-        <span class="sku-code" style="font-size:9px">${skuG?.codigo||''}</span>
+        <span class="sku-code" style="font-size:9px">${escHtml(skuG?.codigo||'')}</span>
         <span>${hilite(s.subSku)}</span>
         ${s.lote&&s.lote!=='—'?`<span>Lote: ${hilite(s.lote)}</span>`:''}
         <span class="enf-sem ${sem}">Vence: ${fmtDate(s.caducidad)}</span>
       </div>
     </div>
-    <div class="ac-item-stock">${cantBodega} ${s.unidad}</div>
+    <div class="ac-item-stock">${cantBodega} ${escHtml(s.unidad||'')}</div>
   </div>`;
 }
 
@@ -133,7 +133,7 @@ function _acFilterEnf(){
     return;
   }
 
-  const hilite = str => str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>');
+  const hilite = str => hiliteHtml(str, q);
 
   drop.innerHTML = results.map((s, idx) => {
     const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
@@ -146,13 +146,13 @@ function _acFilterEnf(){
       <div class="ac-item-body">
         <div class="ac-item-name">${hilite(s.nombre)}</div>
         <div class="ac-item-meta">
-          <span class="sku-code" style="font-size:9px">${skuG?.codigo||''}</span>
+          <span class="sku-code" style="font-size:9px">${escHtml(skuG?.codigo||'')}</span>
           <span>${hilite(s.subSku)}</span>
           ${s.lote&&s.lote!=='—'?`<span>Lote: ${hilite(s.lote)}</span>`:''}
           <span class="enf-sem ${sem}">Vence: ${fmtDate(s.caducidad)}</span>
         </div>
       </div>
-      <div class="ac-item-stock">${cantBodega} ${s.unidad}</div>
+      <div class="ac-item-stock">${cantBodega} ${escHtml(s.unidad||'')}</div>
     </div>`;
   }).join('');
   drop.classList.add('open');
@@ -173,14 +173,14 @@ function _acOpenEnf(){
     return`<div class="ac-item" data-id="${s.id}" onmousedown="acSelect('enf',${s.id})" onmouseover="acHover('enf',${idx})">
       <div class="ac-item-icon"><i class="ti ti-pill"></i></div>
       <div class="ac-item-body">
-        <div class="ac-item-name">${s.nombre}</div>
+        <div class="ac-item-name">${escHtml(s.nombre)}</div>
         <div class="ac-item-meta">
-          <span class="sku-code" style="font-size:9px">${skuG?.codigo||''}</span>
-          <span>${s.subSku}</span>
+          <span class="sku-code" style="font-size:9px">${escHtml(skuG?.codigo||'')}</span>
+          <span>${escHtml(s.subSku)}</span>
           <span class="enf-sem ${semEnf}">Vence: ${fmtDate(s.caducidad)}</span>
         </div>
       </div>
-      <div class="ac-item-stock">${stock} ${s.unidad}</div>
+      <div class="ac-item-stock">${stock} ${escHtml(s.unidad||'')}</div>
     </div>`;
   }).join('')+(S.subSkus.length>8?`<div class="ac-no-results" style="padding:8px;font-size:11px">Escribe para filtrar más resultados</div>`:'');
   drop.classList.add('open');
@@ -200,7 +200,7 @@ function acSelect(ns, id){
   const pill = document.getElementById(`${ns}-ac-pill`);
   const stockPill = ns==='mov' ? (sub.stock?.[_movOrigenBodegaNombre]||0) : getTotalStock(sub);
   document.getElementById(`${ns}-ac-pill-text`).innerHTML =
-    `${sub.nombre} <span style="opacity:.6;font-size:11px">${sub.subSku} · ${stockPill} ${sub.unidad}</span>`;
+    `${escHtml(sub.nombre)} <span style="opacity:.6;font-size:11px">${escHtml(sub.subSku)} · ${stockPill} ${escHtml(sub.unidad||'')}</span>`;
   pill.classList.add('show');
   if(ns==='mov') updateMovInfo();
   if(ns==='enf') enfOnMedSelect(sub);

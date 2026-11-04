@@ -31,13 +31,13 @@ function buildNav(){
 }
 
 function populateSelects(){
-  const opts = S.bodegas.map(b=>`<option value="${b}">${b}</option>`).join('');
+  const opts = S.bodegas.map(b=>`<option value="${escHtml(b)}">${escHtml(b)}</option>`).join('');
   ['reg-ubicacion'].forEach(id=>{
     const el = document.getElementById(id);
     if(!el) return;
     el.innerHTML = opts;
   });
-  const skuOpts = S.skusGlobales.map(s=>`<option value="${s.id}">${s.codigo} — ${s.nombre}</option>`).join('');
+  const skuOpts = S.skusGlobales.map(s=>`<option value="${s.id}">${escHtml(s.codigo)} — ${escHtml(s.nombre)}</option>`).join('');
   ['reg-sku-global'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.innerHTML = '<option value="">Seleccionar…</option>' + skuOpts;

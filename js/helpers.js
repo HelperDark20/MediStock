@@ -97,6 +97,32 @@ function escHtml(str){
   );
 }
 
+// Resalta con <mark> lo que coincide con la búsqueda `q`, escapando el
+// resto. Se escapa cada pedazo POR SEPARADO: resaltar sobre un texto ya
+// escapado partía entidades (buscar "amp" dentro de "&amp;"), y resaltar
+// sin escapar dejaba pasar HTML guardado en nombres, lotes o proveedores.
+function hiliteHtml(str, q){
+  const s = str == null ? '' : String(str);
+  if(!q) return escHtml(s);
+  const re = new RegExp(String(q).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi');
+  let out = '', last = 0, m;
+  while((m = re.exec(s))){
+    if(!m[0].length){ re.lastIndex++; continue; }
+    out += escHtml(s.slice(last, m.index)) + '<mark>' + escHtml(m[0]) + '</mark>';
+    last = m.index + m[0].length;
+  }
+  return out + escHtml(s.slice(last));
+}
+
+// Texto como argumento de una función JS dentro de un atributo HTML:
+//   onclick="abrir(${jsArg(nombre)})"
+// JSON.stringify produce un literal JS válido (comillas, barras, saltos de
+// línea) y escHtml evita que una comilla doble cierre el atributo. Antes se
+// reemplazaba solo la comilla simple, y se rompía con " o con \.
+function jsArg(str){
+  return escHtml(JSON.stringify(str == null ? '' : String(str)));
+}
+
 function toast(msg, type='', duracion=2400){
   const t = document.getElementById('toast');
   t.textContent = msg;

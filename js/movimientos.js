@@ -506,7 +506,7 @@ function contEnfFilter(){
 
   drop.innerHTML = results.map((u, idx) => `
     <div class="ac-item" data-id="${u.id}" data-nombre="${escHtml(u.nombre)}"
-      onmousedown="contEnfSelect(${u.id},'${(u.nombre||'').replace(/'/g,"\\'")}')"
+      onmousedown="contEnfSelect(${u.id},${jsArg(u.nombre)})"
       onmouseover="_contEnfFocusIdx=${idx};document.querySelectorAll('#cont-enf-drop .ac-item').forEach((el,i)=>el.classList.toggle('focused',i===${idx}))">
       <div class="ac-item-icon"><i class="ti ti-stethoscope"></i></div>
       <div class="ac-item-body">
@@ -624,16 +624,16 @@ function _contItemRow(s, idx, bodega, q){
   const skuG = S.skusGlobales.find(g=>g.id===s.skuGlobalId);
   const cantBodega = s.stock?.[bodega]||0;
   const sem = getSem(s.caducidad);
-  const hilite = q ? (str => str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>')) : (str => str);
+  const hilite = str => hiliteHtml(str, q);
   return `<div class="ac-item" data-id="${s.id}"
     onmousedown="contAcSelect(${s.id})"
     onmouseover="_contFocusIdx=${idx};document.querySelectorAll('#cont-ac-drop .ac-item').forEach((el,i)=>el.classList.toggle('focused',i===${idx}))">
     <div class="ac-item-icon"><i class="ti ti-pill"></i></div>
     <div class="ac-item-body">
-      <div class="ac-item-name">${hilite(escHtml(s.nombre))}</div>
+      <div class="ac-item-name">${hilite(s.nombre)}</div>
       <div class="ac-item-meta">
         <span class="sku-code" style="font-size:9px">${escHtml(skuG?.codigo||'')}</span>
-        <span>${hilite(escHtml(s.subSku))}</span>
+        <span>${hilite(s.subSku)}</span>
         <span class="enf-sem ${sem}">Vence: ${fmtDate(s.caducidad)}</span>
       </div>
     </div>

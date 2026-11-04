@@ -21,7 +21,7 @@ function trazAcFilter(){
     return;
   }
 
-  const hilite = str => str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>');
+  const hilite = str => hiliteHtml(str, q);
 
   drop.innerHTML = results.map((g, idx) => `
     <div class="ac-item" data-id="${g.id}"
@@ -29,9 +29,9 @@ function trazAcFilter(){
       onmouseover="_trazAcFocusIdx=${idx};document.querySelectorAll('#traz-ac-drop .ac-item').forEach((el,i)=>el.classList.toggle('focused',i===${idx}))">
       <div class="ac-item-icon"><i class="ti ti-tag"></i></div>
       <div class="ac-item-body">
-        <div class="ac-item-name">${hilite(escHtml(g.nombre))}</div>
+        <div class="ac-item-name">${hilite(g.nombre)}</div>
         <div class="ac-item-meta">
-          <span class="sku-code" style="font-size:9px">${hilite(escHtml(g.codigo))}</span>
+          <span class="sku-code" style="font-size:9px">${hilite(g.codigo)}</span>
           <span style="font-size:9px;color:#aaa">${escHtml(g.familia||'')}</span>
         </div>
       </div>

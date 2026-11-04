@@ -147,7 +147,7 @@ function renderSKUs(){
   el.innerHTML = rows.map(g => {
     const campos = Array.isArray(g.campos) ? g.campos : JSON.parse(g.campos||'[]');
     const camposBadges = campos.map(c =>
-      `<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:var(--cream2);color:#666;font-family:var(--font-mono)">${c}</span>`
+      `<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:var(--cream2);color:#666;font-family:var(--font-mono)">${escHtml(c)}</span>`
     ).join(' ');
     const subsCount = S.subSkus.filter(s => s.skuGlobalId === g.id).length;
     return `<tr>
@@ -201,7 +201,7 @@ function checkSimilarFamilia(){
     hint.className = 'similar-hint warning';
     hint.style.display = 'block';
     hint.innerHTML = `<i class="ti ti-alert-triangle" style="margin-right:4px"></i>Ya existe: <strong>${escHtml(similar)}</strong><br>
-      <button class="hint-use-btn" onclick="usarFamiliaExistente('${similar.replace(/'/g,"\\'")}')">
+      <button class="hint-use-btn" onclick="usarFamiliaExistente(${jsArg(similar)})">
         <i class="ti ti-check"></i> Usar "${escHtml(similar)}"
       </button>`;
   } else {
@@ -219,7 +219,7 @@ function checkSimilarSubgrupo(){
     hint.className = 'similar-hint warning';
     hint.style.display = 'block';
     hint.innerHTML = `<i class="ti ti-alert-triangle" style="margin-right:4px"></i>Ya existe: <strong>${escHtml(similar)}</strong><br>
-      <button class="hint-use-btn" onclick="usarSubgrupoExistente('${similar.replace(/'/g,"\\'")}')">
+      <button class="hint-use-btn" onclick="usarSubgrupoExistente(${jsArg(similar)})">
         <i class="ti ti-check"></i> Usar "${escHtml(similar)}"
       </button>`;
   } else {
@@ -237,7 +237,7 @@ function checkSimilarUnidadGlobal(){
     hint.className = 'similar-hint warning';
     hint.style.display = 'block';
     hint.innerHTML = `<i class="ti ti-alert-triangle" style="margin-right:4px"></i>Ya existe la unidad: <strong>${escHtml(similar)}</strong><br>
-      <button class="hint-use-btn" onclick="usarUnidadExistenteGlobal('${similar.replace(/'/g,"\\'")}')">
+      <button class="hint-use-btn" onclick="usarUnidadExistenteGlobal(${jsArg(similar)})">
         <i class="ti ti-check"></i> Usar "${escHtml(similar)}"
       </button>`;
   } else {
