@@ -2,6 +2,11 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const { verificarToken, verificarNivel } = require('../middlewares/auth');
+const { validarParamsId, idValido, idsValidos, texto } = require('../utils/validar');
+const { fechaValida } = require('../utils/fechas');
+
+// :id, :usuarioId deben ser ids numéricos (si no, 400 en vez de error 500)
+validarParamsId(router, 'id', 'usuarioId');
 
 // ── Helper: arma personal + depósitos por evento (reutilizado en varias rutas) ──
 async function _cargarPersonal(eventoIds) {
@@ -43,7 +48,7 @@ async function _bodegasFueraDeUbicacion(client, eventoUbicacionId, bodegaIds) {
   const r = await client.query(
     `SELECT nombre FROM bodegas
      WHERE id = ANY($1::int[]) AND (ubicacion_id IS DISTINCT FROM $2 OR activo = false)`,
-    [bodegaIds.map(Number), eventoUbicacionId]
+    [bodegaIds, eventoUbicacionId]
   );
   return r.rows.map(b => b.nombre);
 }
@@ -158,15 +163,38 @@ router.get('/:id', verificarToken, verificarNivel(4), async (req, res) => {
   }
 });
 
+// bodega_ids del cuerpo: ausente → [] (sin depósitos); lista de ids → esos
+// ids como números; cualquier otra cosa → null (inválido)
+function _bodegasDelBody(body) {
+  if (body.bodega_ids === undefined || body.bodega_ids === null) return [];
+  return idsValidos(body.bodega_ids);
+}
+
+// Valida y normaliza el cuerpo de crear/editar evento. Las fechas llegan de
+// un <input type="date"> (AAAA-MM-DD); con otro formato o una fecha que no
+// existe, antes fallaba la base de datos con error 500.
+function _datosEvento(body) {
+  const nombre = texto(body.nombre);
+  const { fecha_inicio, fecha_fin } = body;
+  if (!nombre || !fecha_inicio || !fecha_fin || !body.ubicacion_id) {
+    return { error: 'Nombre, fechas y ubicación son obligatorios' };
+  }
+  if (!fechaValida(fecha_inicio) || !fechaValida(fecha_fin)) {
+    return { error: 'Las fechas del evento no son válidas' };
+  }
+  if (fecha_fin < fecha_inicio) {   // AAAA-MM-DD se compara bien como texto
+    return { error: 'La fecha de finalización no puede ser anterior a la de inicio' };
+  }
+  const ubicacion_id = idValido(body.ubicacion_id);
+  if (!ubicacion_id) return { error: 'Ubicación inválida' };
+  return { nombre, fecha_inicio, fecha_fin, ubicacion_id };
+}
+
 // POST /api/eventos — nivel 4 — SOLO datos del evento, sin enfermeros
 router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
-  const { nombre, fecha_inicio, fecha_fin, ubicacion_id } = req.body;
-  if (!nombre || !fecha_inicio || !fecha_fin || !ubicacion_id) {
-    return res.status(400).json({ error: 'Nombre, fechas y ubicación son obligatorios' });
-  }
-  if (new Date(fecha_fin) < new Date(fecha_inicio)) {
-    return res.status(400).json({ error: 'La fecha de finalización no puede ser anterior a la de inicio' });
-  }
+  const datos = _datosEvento(req.body);
+  if (datos.error) return res.status(400).json({ error: datos.error });
+  const { nombre, fecha_inicio, fecha_fin, ubicacion_id } = datos;
   try {
     if (!await _ubicacionActiva(ubicacion_id)) {
       return res.status(400).json({ error: 'La ubicación seleccionada ya no está activa' });
@@ -174,7 +202,7 @@ router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
     const evento = await pool.query(
       `INSERT INTO eventos (nombre, fecha_inicio, fecha_fin, ubicacion_id, creado_por)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [nombre.trim(), fecha_inicio, fecha_fin, ubicacion_id, req.usuario.id]
+      [nombre, fecha_inicio, fecha_fin, ubicacion_id, req.usuario.id]
     );
     res.status(201).json(evento.rows[0]);
   } catch (err) {
@@ -187,13 +215,9 @@ router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
 // Si cambia la ubicación, se limpian los depósitos ya asignados a cada
 // enfermero (pertenecían a la sede anterior y podrían no existir en la nueva).
 router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
-  const { nombre, fecha_inicio, fecha_fin, ubicacion_id } = req.body;
-  if (!nombre || !fecha_inicio || !fecha_fin || !ubicacion_id) {
-    return res.status(400).json({ error: 'Nombre, fechas y ubicación son obligatorios' });
-  }
-  if (new Date(fecha_fin) < new Date(fecha_inicio)) {
-    return res.status(400).json({ error: 'La fecha de finalización no puede ser anterior a la de inicio' });
-  }
+  const datos = _datosEvento(req.body);
+  if (datos.error) return res.status(400).json({ error: datos.error });
+  const { nombre, fecha_inicio, fecha_fin, ubicacion_id } = datos;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -210,7 +234,7 @@ router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
       return res.status(400).json({ error: 'No puedes editar un evento finalizado' });
     }
 
-    const cambioUbicacion = actual.rows[0].ubicacion_id !== Number(ubicacion_id);
+    const cambioUbicacion = actual.rows[0].ubicacion_id !== ubicacion_id;
     if (cambioUbicacion && !await _ubicacionActiva(ubicacion_id)) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'La ubicación seleccionada ya no está activa' });
@@ -219,7 +243,7 @@ router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
     const result = await client.query(
       `UPDATE eventos SET nombre = $1, fecha_inicio = $2, fecha_fin = $3, ubicacion_id = $4
        WHERE id = $5 RETURNING *`,
-      [nombre.trim(), fecha_inicio, fecha_fin, ubicacion_id, req.params.id]
+      [nombre, fecha_inicio, fecha_fin, ubicacion_id, req.params.id]
     );
 
     if (cambioUbicacion) {
@@ -240,9 +264,10 @@ router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
 // POST /api/eventos/:id/enfermeros — nivel 4 — agregar enfermero al evento
 // body: { usuario_id, bodega_ids?: [...] }
 router.post('/:id/enfermeros', verificarToken, verificarNivel(4), async (req, res) => {
-  const { usuario_id, bodega_ids } = req.body;
+  const usuario_id = idValido(req.body.usuario_id);
   if (!usuario_id) return res.status(400).json({ error: 'Selecciona un enfermero' });
-  const bodegas = Array.isArray(bodega_ids) ? bodega_ids : [];
+  const bodegas = _bodegasDelBody(req.body);
+  if (!bodegas) return res.status(400).json({ error: 'Depósitos inválidos' });
 
   const client = await pool.connect();
   try {
@@ -287,8 +312,8 @@ router.post('/:id/enfermeros', verificarToken, verificarNivel(4), async (req, re
 // depósitos asignados a ESE enfermero dentro del evento
 // body: { bodega_ids: [...] }
 router.put('/:id/enfermeros/:usuarioId', verificarToken, verificarNivel(4), async (req, res) => {
-  const { bodega_ids } = req.body;
-  const bodegas = Array.isArray(bodega_ids) ? bodega_ids : [];
+  const bodegas = _bodegasDelBody(req.body);
+  if (!bodegas) return res.status(400).json({ error: 'Depósitos inválidos' });
 
   const client = await pool.connect();
   try {

@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const { verificarToken, verificarNivel } = require('../middlewares/auth');
+const { validarParamsId, idValido, texto } = require('../utils/validar');
+
+// :id debe ser un id numérico (si no, 400 en vez de error 500)
+validarParamsId(router, 'id');
 
 // GET /api/bodegas — todos los niveles, incluye nombre de ubicación
 router.get('/', verificarToken, async (req, res) => {
@@ -26,7 +30,9 @@ router.get('/', verificarToken, async (req, res) => {
 
 // POST /api/bodegas — nivel 4, ahora requiere ubicacion_id
 router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
-  const { tipo, sufijo, ubicacion_id } = req.body;
+  const tipo = texto(req.body.tipo);
+  const sufijo = texto(req.body.sufijo);
+  const ubicacion_id = idValido(req.body.ubicacion_id);
   if (!tipo || !sufijo || !ubicacion_id) {
     return res.status(400).json({ error: 'Tipo, sufijo y ubicación son requeridos' });
   }

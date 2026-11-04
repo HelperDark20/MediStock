@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const { verificarToken, verificarNivel } = require('../middlewares/auth');
+const { validarParamsId } = require('../utils/validar');
+
+// :id debe ser un id numérico (si no, 400 en vez de error 500)
+validarParamsId(router, 'id');
 const { fechaValida } = require('../utils/fechas');
 
 // GET /api/skus/globales

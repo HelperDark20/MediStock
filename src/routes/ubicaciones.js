@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const { verificarToken, verificarNivel } = require('../middlewares/auth');
+const { validarParamsId } = require('../utils/validar');
+
+// :id, :bodegaId deben ser ids numéricos (si no, 400 en vez de error 500)
+validarParamsId(router, 'id', 'bodegaId');
 
 // Ubicaciones PERMANENTES: las sedes de siempre.
 // Ubicaciones TEMPORALES: se crean para un evento fuera de sede (ej. un
