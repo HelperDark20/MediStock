@@ -96,12 +96,41 @@ router.put('/globales/:id', verificarToken, verificarNivel(4), async (req, res) 
   }
 });
 
+// Unidades en depósitos activos (los mismos que muestran los listados).
+// Un Sub-SKU o SKU Global con stock no se elimina: ese stock dejaría de
+// aparecer en inventario y reportes (mismo criterio que al eliminar depósitos).
+async function _stockActivo(db, condicion, id) {
+  const r = await db.query(
+    `SELECT COALESCE(SUM(st.cantidad), 0) AS total
+     FROM stock st
+     JOIN bodegas b   ON b.id = st.bodega_id AND b.activo = true
+     JOIN sub_skus s  ON s.id = st.sub_sku_id AND s.activo = true
+     WHERE st.cantidad > 0 AND ${condicion} = $1`,
+    [id]
+  );
+  return Number(r.rows[0].total);
+}
+
+const _MSG_CON_STOCK = 'Trasládalo, consúmelo o regístralo como destrucción antes de eliminarlo.';
+
 // DELETE /api/skus/globales/:id — nivel 4
 router.delete('/globales/:id', verificarToken, verificarNivel(4), async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!(id > 0)) return res.status(400).json({ error: 'SKU inválido' });
   // FIX: ambos UPDATE en una transacción para no dejar el SKU a medio desactivar
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    const sku = await client.query('SELECT id FROM skus_globales WHERE id = $1 AND activo = true FOR UPDATE', [id]);
+    if (!sku.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'SKU Global no encontrado' });
+    }
+    const unidades = await _stockActivo(client, 's.sku_global_id', id);
+    if (unidades > 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `Este SKU todavía tiene ${unidades} unidades en stock en sus Sub-SKUs. ${_MSG_CON_STOCK}` });
+    }
     await client.query('UPDATE skus_globales SET activo = false WHERE id = $1', [req.params.id]);
     await client.query('UPDATE sub_skus SET activo = false WHERE sku_global_id = $1', [req.params.id]);
     await client.query('COMMIT');
@@ -466,8 +495,15 @@ router.get('/stock', verificarToken, async (req, res) => {
 
 // DELETE /api/skus/sub/:id — nivel 4
 router.delete('/sub/:id', verificarToken, verificarNivel(4), async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!(id > 0)) return res.status(400).json({ error: 'Sub-SKU inválido' });
   try {
-    await pool.query('UPDATE sub_skus SET activo = false WHERE id = $1', [req.params.id]);
+    const unidades = await _stockActivo(pool, 's.id', id);
+    if (unidades > 0) {
+      return res.status(400).json({ error: `Este Sub-SKU todavía tiene ${unidades} unidades en stock. ${_MSG_CON_STOCK}` });
+    }
+    const result = await pool.query('UPDATE sub_skus SET activo = false WHERE id = $1 AND activo = true RETURNING id', [id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Sub-SKU no encontrado' });
     res.json({ mensaje: 'Sub-SKU desactivado' });
   } catch (err) {
     console.error(err);

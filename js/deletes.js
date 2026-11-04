@@ -44,7 +44,8 @@ async function doDelete(){
     renderAll();
     toast('Eliminado correctamente');
   } catch(err){
-    toast(err.message,'error');
+    // toastError deja el mensaje 8 s: el de "todavía tiene stock" es largo
+    toastError(err.message);
     closeModal('modal-confirm');
   }
 }
