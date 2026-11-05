@@ -260,11 +260,9 @@ async function registrarEntrada(){
       return;
     }
 
-    await Movimientos.entrada({
-      sub_sku_id: subData.id,
-      bodega_destino_id: bodegaId,
-      cantidad: cant
-    });
+    const datosEntrada = { sub_sku_id: subData.id, bodega_destino_id: bodegaId, cantidad: cant };
+    await Movimientos.entrada({ ...datosEntrada, client_id: idEnvio('entrada', datosEntrada) });
+    idEnvioListo('entrada');
 
     regAcClear();
     ['reg-lote','reg-invima','reg-cantidad','reg-subsku-manual']

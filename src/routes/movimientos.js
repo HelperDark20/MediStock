@@ -29,6 +29,23 @@ async function _descontarStock(client, subSkuId, bodegaId, cantidad) {
   return r.rows.length > 0;
 }
 
+// Envíos duplicados (doble clic en "Registrar", reintento tras un corte de
+// red): el frontend manda un client_id único por registro. Si ya existe un
+// movimiento con ese client_id, el segundo envío se descarta sin tocar el
+// stock. Si llegan dos a la vez, el índice único movimientos_client_id_key
+// frena el segundo (error 23505) y su transacción se deshace.
+async function _yaRegistrado(client, clientId) {
+  if (!clientId) return false;
+  const r = await client.query('SELECT 1 FROM movimientos WHERE client_id = $1', [clientId]);
+  return r.rows.length > 0;
+}
+function _esDuplicado(err, clientId) {
+  return !!clientId && err && err.code === '23505';
+}
+function _respuestaDuplicado(res) {
+  return res.json({ mensaje: 'Este movimiento ya estaba registrado', duplicado: true });
+}
+
 async function _stockDisponible(client, subSkuId, bodegaId) {
   const r = await client.query(
     'SELECT cantidad FROM stock WHERE sub_sku_id = $1 AND bodega_id = $2',
@@ -206,14 +223,20 @@ router.post('/entrada', verificarToken, verificarNivel(3), async (req, res) => {
   if (!sub_sku_id || !bodega_destino_id || !cantidad) {
     return res.status(400).json({ error: 'Faltan campos obligatorios o la cantidad no es un entero positivo' });
   }
+  const client_id = _clientIdValido(req.body.client_id);
+  if (client_id === undefined) return res.status(400).json({ error: 'Identificador de registro inválido' });
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    if (await _yaRegistrado(client, client_id)) {
+      await client.query('ROLLBACK');
+      return _respuestaDuplicado(res);
+    }
     await client.query(
       `INSERT INTO movimientos
-         (sub_sku_id, tipo, bodega_destino_id, cantidad, usuario_id, usuario_nombre)
-       VALUES ($1, 'compra', $2, $3, $4, $5)`,
-      [sub_sku_id, bodega_destino_id, cantidad, req.usuario.id, req.usuario.nombre]
+         (sub_sku_id, tipo, bodega_destino_id, cantidad, usuario_id, usuario_nombre, client_id)
+       VALUES ($1, 'compra', $2, $3, $4, $5, $6)`,
+      [sub_sku_id, bodega_destino_id, cantidad, req.usuario.id, req.usuario.nombre, client_id]
     );
     await client.query(
       `INSERT INTO stock (sub_sku_id, bodega_id, cantidad)
@@ -226,6 +249,7 @@ router.post('/entrada', verificarToken, verificarNivel(3), async (req, res) => {
     res.status(201).json({ mensaje: 'Entrada registrada correctamente' });
   } catch (err) {
     await client.query('ROLLBACK');
+    if (_esDuplicado(err, client_id)) return _respuestaDuplicado(res);
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   } finally {
@@ -377,18 +401,24 @@ router.post('/traslado', verificarToken, verificarNivel(3), async (req, res) => 
   if (String(bodega_origen_id) === String(bodega_destino_id)) {
     return res.status(400).json({ error: 'Origen y destino son iguales' });
   }
+  const client_id = _clientIdValido(req.body.client_id);
+  if (client_id === undefined) return res.status(400).json({ error: 'Identificador de registro inválido' });
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    if (await _yaRegistrado(client, client_id)) {
+      await client.query('ROLLBACK');
+      return _respuestaDuplicado(res);
+    }
     if (!await _descontarStock(client, sub_sku_id, bodega_origen_id, cantidad)) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Stock insuficiente en origen' });
     }
     await client.query(
       `INSERT INTO movimientos
-         (sub_sku_id, tipo, bodega_origen_id, bodega_destino_id, cantidad, usuario_id, usuario_nombre)
-       VALUES ($1, 'traslado', $2, $3, $4, $5, $6)`,
-      [sub_sku_id, bodega_origen_id, bodega_destino_id, cantidad, req.usuario.id, req.usuario.nombre]
+         (sub_sku_id, tipo, bodega_origen_id, bodega_destino_id, cantidad, usuario_id, usuario_nombre, client_id)
+       VALUES ($1, 'traslado', $2, $3, $4, $5, $6, $7)`,
+      [sub_sku_id, bodega_origen_id, bodega_destino_id, cantidad, req.usuario.id, req.usuario.nombre, client_id]
     );
     await client.query(
       `INSERT INTO stock (sub_sku_id, bodega_id, cantidad)
@@ -401,6 +431,7 @@ router.post('/traslado', verificarToken, verificarNivel(3), async (req, res) => 
     res.status(201).json({ mensaje: 'Traslado registrado correctamente' });
   } catch (err) {
     await client.query('ROLLBACK');
+    if (_esDuplicado(err, client_id)) return _respuestaDuplicado(res);
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   } finally {
@@ -417,23 +448,30 @@ router.post('/destruccion', verificarToken, verificarNivel(3), async (req, res) 
   if (!sub_sku_id || !bodega_origen_id || !cantidad) {
     return res.status(400).json({ error: 'Faltan campos obligatorios o la cantidad no es un entero positivo' });
   }
+  const client_id = _clientIdValido(req.body.client_id);
+  if (client_id === undefined) return res.status(400).json({ error: 'Identificador de registro inválido' });
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    if (await _yaRegistrado(client, client_id)) {
+      await client.query('ROLLBACK');
+      return _respuestaDuplicado(res);
+    }
     if (!await _descontarStock(client, sub_sku_id, bodega_origen_id, cantidad)) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Stock insuficiente' });
     }
     await client.query(
       `INSERT INTO movimientos
-         (sub_sku_id, tipo, bodega_origen_id, cantidad, motivo, usuario_id, usuario_nombre)
-       VALUES ($1, 'destruccion', $2, $3, $4, $5, $6)`,
-      [sub_sku_id, bodega_origen_id, cantidad, motivo, req.usuario.id, req.usuario.nombre]
+         (sub_sku_id, tipo, bodega_origen_id, cantidad, motivo, usuario_id, usuario_nombre, client_id)
+       VALUES ($1, 'destruccion', $2, $3, $4, $5, $6, $7)`,
+      [sub_sku_id, bodega_origen_id, cantidad, motivo, req.usuario.id, req.usuario.nombre, client_id]
     );
     await client.query('COMMIT');
     res.status(201).json({ mensaje: 'Destrucción registrada correctamente' });
   } catch (err) {
     await client.query('ROLLBACK');
+    if (_esDuplicado(err, client_id)) return _respuestaDuplicado(res);
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   } finally {
@@ -489,9 +527,16 @@ router.post('/contingencia', verificarToken, verificarNivel(4), async (req, res)
     return res.status(400).json({ error: CEDULA_ERROR });
   }
 
+  const client_id = _clientIdValido(req.body.client_id);
+  if (client_id === undefined) return res.status(400).json({ error: 'Identificador de registro inválido' });
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    if (await _yaRegistrado(client, client_id)) {
+      await client.query('ROLLBACK');
+      return _respuestaDuplicado(res);
+    }
 
     // El enfermero debe existir y estar activo — su nombre se denormaliza
     // igual que en los demás endpoints, para sobrevivir a un futuro
@@ -515,8 +560,8 @@ router.post('/contingencia', verificarToken, verificarNivel(4), async (req, res)
       `INSERT INTO movimientos
          (sub_sku_id, tipo, bodega_origen_id, bodega_destino_id, cantidad,
           usuario_id, usuario_nombre, cedula_paciente, motivo,
-          fecha_atencion, es_contingencia, cargado_por_id, cargado_por_nombre)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true, $11, $12)`,
+          fecha_atencion, es_contingencia, cargado_por_id, cargado_por_nombre, client_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true, $11, $12, $13)`,
       [
         sub_sku_id,
         tipo,
@@ -529,7 +574,8 @@ router.post('/contingencia', verificarToken, verificarNivel(4), async (req, res)
         tipo === 'destruccion' ? (motivo || null) : null,
         fechaAt.toISOString(),
         req.usuario.id,
-        req.usuario.nombre
+        req.usuario.nombre,
+        client_id
       ]
     );
 
@@ -547,6 +593,7 @@ router.post('/contingencia', verificarToken, verificarNivel(4), async (req, res)
     res.status(201).json({ mensaje: 'Contingencia registrada correctamente' });
   } catch (err) {
     await client.query('ROLLBACK');
+    if (_esDuplicado(err, client_id)) return _respuestaDuplicado(res);
     console.error(err);
     res.status(500).json({ error: 'Error del servidor al registrar la contingencia' });
   } finally {

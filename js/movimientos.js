@@ -189,17 +189,20 @@ async function registrarMovimiento(){
 
   const origenId = _movOrigenBodegaId;
 
+  // client_id: el servidor descarta un segundo envío del mismo movimiento
+  const conId = datos => ({ ...datos, client_id: idEnvio('movimiento', { tipo, ...datos }) });
   try {
     if(tipo==='consumo'){
-      await Movimientos.consumo({ sub_sku_id:id, bodega_origen_id:origenId, cantidad:cant, cedula_paciente });
+      await Movimientos.consumo(conId({ sub_sku_id:id, bodega_origen_id:origenId, cantidad:cant, cedula_paciente }));
     } else if(tipo==='traslado'){
       const destinoId = parseInt(document.getElementById('mov-destino').value)||0;
       if(!destinoId){ toastError('Selecciona el depósito destino'); return; }
       if(origenId===destinoId){ toastError('Origen y destino son iguales'); return; }
-      await Movimientos.traslado({ sub_sku_id:id, bodega_origen_id:origenId, bodega_destino_id:destinoId, cantidad:cant });
+      await Movimientos.traslado(conId({ sub_sku_id:id, bodega_origen_id:origenId, bodega_destino_id:destinoId, cantidad:cant }));
     } else if(tipo==='destruccion'){
-      await Movimientos.destruccion({ sub_sku_id:id, bodega_origen_id:origenId, cantidad:cant, motivo });
+      await Movimientos.destruccion(conId({ sub_sku_id:id, bodega_origen_id:origenId, cantidad:cant, motivo }));
     }
+    idEnvioListo('movimiento');
 
     document.getElementById('mov-cantidad').value='';
     if(document.getElementById('mov-paciente')) document.getElementById('mov-paciente').value='';
@@ -818,7 +821,8 @@ async function registrarContingencia(){
   }
 
   try {
-    await Movimientos.contingencia(payload);
+    await Movimientos.contingencia({ ...payload, client_id: idEnvio('contingencia', payload) });
+    idEnvioListo('contingencia');
     closeModal('modal-contingencia');
     await loadState();
     renderMovBody();

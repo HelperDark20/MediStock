@@ -123,6 +123,46 @@ function jsArg(str){
   return escHtml(JSON.stringify(str == null ? '' : String(str)));
 }
 
+// ── Evitar registros duplicados por doble clic ──
+// unaVez(clave, btn, fn): mientras fn está en curso, los demás clics con la
+// misma clave se ignoran y el botón queda desactivado. Uso en un onclick:
+//   onclick="unaVez('entrada', this, registrarEntrada)"
+const _enCurso = new Set();
+async function unaVez(clave, btn, fn){
+  if(_enCurso.has(clave)) return;
+  _enCurso.add(clave);
+  const html = btn ? btn.innerHTML : null;
+  if(btn){
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i>Registrando...';
+  }
+  try {
+    return await fn();
+  } finally {
+    _enCurso.delete(clave);
+    if(btn){ btn.disabled = false; btn.innerHTML = html; }
+  }
+}
+
+// idEnvio(clave, datos): identificador único (client_id) de un registro. El
+// servidor descarta un segundo envío con el mismo id, así que aunque llegue
+// dos veces (doble clic, reintento tras un corte de red) se registra una sola
+// vez. Si el envío falla y se reintenta con los MISMOS datos se reutiliza el
+// id (por si el primero sí alcanzó a guardarse); con datos distintos es un
+// registro nuevo. Tras un registro exitoso hay que llamar idEnvioListo(clave).
+const _idsEnvio = {};
+function idEnvio(clave, datos){
+  const firma = JSON.stringify(datos);
+  const prev = _idsEnvio[clave];
+  if(prev && prev.firma === firma) return prev.id;
+  const id = (window.crypto && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
+  _idsEnvio[clave] = { firma, id };
+  return id;
+}
+function idEnvioListo(clave){ delete _idsEnvio[clave]; }
+
 function toast(msg, type='', duracion=2400){
   const t = document.getElementById('toast');
   t.textContent = msg;

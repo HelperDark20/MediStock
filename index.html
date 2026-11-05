@@ -279,7 +279,7 @@
               <div style="background:var(--cream);border-radius:var(--r-md);padding:10px 14px;font-size:12px;font-family:var(--font-mono);color:#666;margin-bottom:12px" id="mov-stock-info">—</div>
             </div>
 
-            <button class="btn-submit" onclick="registrarMovimiento()"><i class="ti ti-check"></i>Confirmar movimiento</button>
+            <button class="btn-submit" onclick="unaVez('movimiento', this, registrarMovimiento)"><i class="ti ti-check"></i>Confirmar movimiento</button>
           </div>
         </div>
         <div class="sec-header"><div class="sec-title">Historial de movimientos</div></div>
@@ -377,7 +377,7 @@
                   <select id="reg-ubicacion"></select>
                 </div>
               </div>
-              <button class="btn-submit" onclick="registrarEntrada()"><i class="ti ti-circle-plus"></i>Registrar entrada</button>
+              <button class="btn-submit" onclick="unaVez('entrada', this, registrarEntrada)"><i class="ti ti-circle-plus"></i>Registrar entrada</button>
             </div>
           </div>
         </div>
@@ -1084,7 +1084,7 @@
 
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal('modal-contingencia')">Cancelar</button>
-      <button class="btn-confirm" onclick="registrarContingencia()">Registrar contingencia</button>
+      <button class="btn-confirm" onclick="unaVez('contingencia', this, registrarContingencia)">Registrar contingencia</button>
     </div>
   </div>
 </div>

@@ -197,12 +197,9 @@ async function enfRegistrarConsumo(){
       return;
     }
 
-    await Movimientos.consumo({
-      sub_sku_id: id,
-      bodega_origen_id: origenId,
-      cantidad: cant,
-      cedula_paciente: paciente
-    });
+    const datosConsumo = { sub_sku_id: id, bodega_origen_id: origenId, cantidad: cant, cedula_paciente: paciente };
+    await Movimientos.consumo({ ...datosConsumo, client_id: idEnvio('enf-consumo', datosConsumo) });
+    idEnvioListo('enf-consumo');
 
     document.getElementById('enf-cantidad').value = '';
     document.getElementById('enf-paciente').value = '';
