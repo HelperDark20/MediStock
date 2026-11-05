@@ -96,11 +96,11 @@ function renderUsuarios(){
   el.innerHTML = S.usuarios.map(u=>`
     <div class="user-card">
       <div class="user-avatar n${u.nivel}">
-        ${u.nombre.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()}
+        ${escHtml((u.nombre||'').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase())}
       </div>
       <div class="user-info">
-        <div class="user-name">${u.nombre}</div>
-        <div class="user-cedula">CC: ${u.cedula} · ${u.genero||'—'}</div>
+        <div class="user-name">${escHtml(u.nombre)}</div>
+        <div class="user-cedula">CC: ${escHtml(u.cedula)} · ${escHtml(u.genero||'—')}</div>
       </div>
       <div class="user-card-meta">
         <span class="nivel-badge n${u.nivel}">N${u.nivel} · ${NIVELES[u.nivel]?.label}</span>

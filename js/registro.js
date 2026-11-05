@@ -40,7 +40,7 @@ function regAcFilter(){
     return;
   }
 
-  const hilite = str => str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>');
+  const hilite = str => hiliteHtml(str, q);
 
   drop.innerHTML = results.map((g, idx) => `
     <div class="ac-item" data-id="${g.id}"
@@ -51,7 +51,7 @@ function regAcFilter(){
         <div class="ac-item-name">${hilite(g.nombre)}</div>
         <div class="ac-item-meta">
           <span class="sku-code" style="font-size:9px">${hilite(g.codigo)}</span>
-          <span style="font-size:9px;color:#aaa">${g.familia||''} · ${g.subgrupo||''}</span>
+          <span style="font-size:9px;color:#aaa">${escHtml(g.familia||'')} · ${escHtml(g.subgrupo||'')}</span>
         </div>
       </div>
     </div>`).join('');
@@ -69,10 +69,10 @@ function regAcOpen(){
       onmouseover="_regAcFocusIdx=${idx};regAcHover(${idx})">
       <div class="ac-item-icon"><i class="ti ti-tag"></i></div>
       <div class="ac-item-body">
-        <div class="ac-item-name">${g.nombre}</div>
+        <div class="ac-item-name">${escHtml(g.nombre)}</div>
         <div class="ac-item-meta">
-          <span class="sku-code" style="font-size:9px">${g.codigo}</span>
-          <span style="font-size:9px;color:#aaa">${g.familia||''}</span>
+          <span class="sku-code" style="font-size:9px">${escHtml(g.codigo)}</span>
+          <span style="font-size:9px;color:#aaa">${escHtml(g.familia||'')}</span>
         </div>
       </div>
     </div>`).join('') + (S.skusGlobales.length > 8
@@ -260,11 +260,9 @@ async function registrarEntrada(){
       return;
     }
 
-    await Movimientos.entrada({
-      sub_sku_id: subData.id,
-      bodega_destino_id: bodegaId,
-      cantidad: cant
-    });
+    const datosEntrada = { sub_sku_id: subData.id, bodega_destino_id: bodegaId, cantidad: cant };
+    await Movimientos.entrada({ ...datosEntrada, client_id: idEnvio('entrada', datosEntrada) });
+    idEnvioListo('entrada');
 
     regAcClear();
     ['reg-lote','reg-invima','reg-cantidad','reg-subsku-manual']

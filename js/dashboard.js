@@ -252,7 +252,7 @@ function renderConsumoChart(){
     chips.innerHTML = labels.length
       ? entries.map(([,u])=>`
           <span class="dash-chip active" style="cursor:pointer" title="Ver historial de consumos"
-            onclick="dashGoConsumoHistorial('${u.nombre.replace(/'/g,"\\'")}')">
+            onclick="dashGoConsumoHistorial(${jsArg(u.nombre)})">
             ${escHtml(u.nombre)}: ${u.total.toLocaleString('es-CO')} u.
           </span>
         `).join('')

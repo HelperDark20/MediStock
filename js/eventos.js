@@ -53,7 +53,7 @@ function renderEventos(){
     if(e.estado === 'creado' && currentRole === 4){
       accion = `<button class="btn-submit" style="margin-top:12px" onclick="event.stopPropagation();iniciarEvento(${e.id})"><i class="ti ti-player-play"></i>Iniciar evento</button>`;
     } else if(e.estado === 'en_curso' && currentRole === 4){
-      accion = `<button class="btn-submit" style="margin-top:12px;background:var(--red2)" onclick="event.stopPropagation();confirmFinalizarEvento(${e.id},'${(e.nombre||'').replace(/'/g,"\\'")}')"><i class="ti ti-player-stop"></i>Finalizar evento</button>`;
+      accion = `<button class="btn-submit" style="margin-top:12px;background:var(--red2)" onclick="event.stopPropagation();confirmFinalizarEvento(${e.id},${jsArg(e.nombre)})"><i class="ti ti-player-stop"></i>Finalizar evento</button>`;
     }
 
     return `<div class="card evt-card" style="margin-bottom:0;cursor:pointer" onclick="abrirDetalleEvento(${e.id})">
@@ -190,8 +190,8 @@ function evtDetRenderEnfermeros(){
         <div class="user-cedula">${deps}</div>
       </div>
       <div class="act-btn-group">
-        <button class="act-btn primary" title="Editar depósitos" onclick="evtAbrirAsignarDepositos(${p.id},'${(p.nombre||'').replace(/'/g,"\\'")}')"><i class="ti ti-building-warehouse"></i></button>
-        <button class="act-btn danger" title="Quitar del evento" onclick="evtDetEnfRemove(${p.id},'${(p.nombre||'').replace(/'/g,"\\'")}')"><i class="ti ti-trash"></i></button>
+        <button class="act-btn primary" title="Editar depósitos" onclick="evtAbrirAsignarDepositos(${p.id},${jsArg(p.nombre)})"><i class="ti ti-building-warehouse"></i></button>
+        <button class="act-btn danger" title="Quitar del evento" onclick="evtDetEnfRemove(${p.id},${jsArg(p.nombre)})"><i class="ti ti-trash"></i></button>
       </div>
     </div>`;
   }).join('');
@@ -212,7 +212,7 @@ function evtDetEnfFilter(){
   }
 
   drop.innerHTML = results.map(u => `
-    <div class="ac-item" onmousedown="evtDetEnfSelect(${u.id},'${(u.nombre||'').replace(/'/g,"\\'")}')">
+    <div class="ac-item" onmousedown="evtDetEnfSelect(${u.id},${jsArg(u.nombre)})">
       <div class="ac-item-icon"><i class="ti ti-stethoscope"></i></div>
       <div class="ac-item-body">
         <div class="ac-item-name">${escHtml(u.nombre)}</div>

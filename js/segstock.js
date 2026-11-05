@@ -133,8 +133,8 @@ function segRenderItems(){
         <div class="user-cedula">Cantidad esperada: <strong>${it.cantidad_esperada}</strong></div>
       </div>
       <div class="act-btn-group">
-        <button class="act-btn primary" title="Editar cantidad" onclick="segAbrirEditarItem(${it.id},'${(it.item_nombre||'').replace(/'/g,"\\'")}',${it.cantidad_esperada})"><i class="ti ti-pencil"></i></button>
-        <button class="act-btn danger" title="Eliminar ítem" onclick="segConfirmEliminarItem(${it.id},'${(it.item_nombre||'').replace(/'/g,"\\'")}')"><i class="ti ti-trash"></i></button>
+        <button class="act-btn primary" title="Editar cantidad" onclick="segAbrirEditarItem(${it.id},${jsArg(it.item_nombre)},${it.cantidad_esperada})"><i class="ti ti-pencil"></i></button>
+        <button class="act-btn danger" title="Eliminar ítem" onclick="segConfirmEliminarItem(${it.id},${jsArg(it.item_nombre)})"><i class="ti ti-trash"></i></button>
       </div>
     </div>`).join('');
 }
@@ -178,17 +178,17 @@ function segItemAcFilter(){
     return;
   }
 
-  const hilite = str => str.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'),'<mark>$1</mark>');
+  const hilite = str => hiliteHtml(str, q);
 
   drop.innerHTML = results.map((sk, idx) => `
     <div class="ac-item" data-nombre="${escHtml(sk.nombre)}"
-      onmousedown="segItemAcSelect('${sk.nombre.replace(/'/g,"\\'")}')"
+      onmousedown="segItemAcSelect(${jsArg(sk.nombre)})"
       onmouseover="_segAcFocusIdx=${idx};document.querySelectorAll('#segitem-ac-drop .ac-item').forEach((el,i)=>el.classList.toggle('focused',i===${idx}))">
       <div class="ac-item-icon"><i class="ti ti-tag"></i></div>
       <div class="ac-item-body">
-        <div class="ac-item-name">${hilite(escHtml(sk.nombre))}</div>
+        <div class="ac-item-name">${hilite(sk.nombre)}</div>
         <div class="ac-item-meta">
-          <span class="sku-code" style="font-size:9px">${hilite(escHtml(sk.codigo))}</span>
+          <span class="sku-code" style="font-size:9px">${hilite(sk.codigo)}</span>
           <span style="font-size:9px;color:#aaa">${escHtml(sk.familia||'')}</span>
         </div>
       </div>
@@ -205,7 +205,7 @@ function segItemAcOpen(){
   const all = S.skusGlobales.filter(sk => !yaAgregados.has(sk.nombre.trim().toUpperCase())).slice(0, 8);
   drop.innerHTML = all.map((sk, idx) => `
     <div class="ac-item" data-nombre="${escHtml(sk.nombre)}"
-      onmousedown="segItemAcSelect('${sk.nombre.replace(/'/g,"\\'")}')"
+      onmousedown="segItemAcSelect(${jsArg(sk.nombre)})"
       onmouseover="_segAcFocusIdx=${idx};document.querySelectorAll('#segitem-ac-drop .ac-item').forEach((el,i)=>el.classList.toggle('focused',i===${idx}))">
       <div class="ac-item-icon"><i class="ti ti-tag"></i></div>
       <div class="ac-item-body">

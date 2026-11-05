@@ -161,13 +161,13 @@ function enfOnMedSelect(sub){
   const cantEnBodega = sub.stock?.[bodegaSeleccionada] || 0;
 
   if(cantEnBodega <= 0){
-    stockEl.innerHTML = `<span style="font-size:12px;color:var(--red)">Sin stock en ${bodegaSeleccionada}</span>`;
+    stockEl.innerHTML = `<span style="font-size:12px;color:var(--red)">Sin stock en ${escHtml(bodegaSeleccionada)}</span>`;
   } else {
     const sem = getSem(sub.caducidad);
     stockEl.innerHTML = `
       <div class="enf-stock-chip">
         <i class="ti ti-building-warehouse" style="font-size:12px"></i>
-        ${bodegaSeleccionada}: <strong>${cantEnBodega}</strong> ${sub.unidad}
+        ${escHtml(bodegaSeleccionada)}: <strong>${cantEnBodega}</strong> ${escHtml(sub.unidad||'')}
       </div>
       <span class="enf-sem ${sem}" style="margin-left:4px">${semLabel(sem)}</span>`;
   }
@@ -197,12 +197,9 @@ async function enfRegistrarConsumo(){
       return;
     }
 
-    await Movimientos.consumo({
-      sub_sku_id: id,
-      bodega_origen_id: origenId,
-      cantidad: cant,
-      cedula_paciente: paciente
-    });
+    const datosConsumo = { sub_sku_id: id, bodega_origen_id: origenId, cantidad: cant, cedula_paciente: paciente };
+    await Movimientos.consumo({ ...datosConsumo, client_id: idEnvio('enf-consumo', datosConsumo) });
+    idEnvioListo('enf-consumo');
 
     document.getElementById('enf-cantidad').value = '';
     document.getElementById('enf-paciente').value = '';
@@ -242,13 +239,13 @@ function renderEnfHistorial(){
     <div class="enf-history-item">
       <div class="enf-history-dot"></div>
       <div class="enf-history-info">
-        <div class="enf-history-name">${m.nombre||m.sku_global_codigo||'—'}</div>
+        <div class="enf-history-name">${escHtml(m.nombre||m.sku_global_codigo||'—')}</div>
         <div class="enf-history-meta">
-          ${m.origen_nombre||'—'} ·
+          ${escHtml(m.origen_nombre||'—')} ·
           ${new Date(m.created_at).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'})}
-          ${m.cedula_paciente?` · Pac: ${m.cedula_paciente}`:''}
+          ${m.cedula_paciente?` · Pac: ${escHtml(m.cedula_paciente)}`:''}
         </div>
       </div>
-      <div class="enf-history-cant">${m.cantidad} ${m.unidad||''}</div>
+      <div class="enf-history-cant">${m.cantidad} ${escHtml(m.unidad||'')}</div>
     </div>`).join('');
 }

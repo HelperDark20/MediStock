@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const { verificarToken, verificarNivel } = require('../middlewares/auth');
+const { validarParamsId, idValido, texto } = require('../utils/validar');
+
+// :id debe ser un id numérico (si no, 400 en vez de error 500)
+validarParamsId(router, 'id');
 
 // Un grupo es una lista de ítems esperados. Se asigna a cada depósito desde
 // Ubicaciones (bodegas.stock_seguridad_grupo_id, máximo uno por depósito);
@@ -105,7 +109,9 @@ router.delete('/grupos/:id', verificarToken, verificarNivel(4), async (req, res)
 
 // POST /api/stock-seguridad/items — nivel 4 — añadir ítem a un grupo (referencia a SKU Global por nombre)
 router.post('/items', verificarToken, verificarNivel(4), async (req, res) => {
-  const { grupo_id, item_nombre, cantidad_esperada } = req.body;
+  const { cantidad_esperada } = req.body;
+  const grupo_id = idValido(req.body.grupo_id);
+  const item_nombre = texto(req.body.item_nombre);
   if (!grupo_id || !item_nombre || cantidad_esperada === undefined || cantidad_esperada === null || isNaN(cantidad_esperada) || Number(cantidad_esperada) < 0) {
     return res.status(400).json({ error: 'Grupo, ítem y cantidad esperada (0 o mayor) son obligatorios' });
   }
@@ -121,7 +127,7 @@ router.post('/items', verificarToken, verificarNivel(4), async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO stock_seguridad_items (grupo_id, item_nombre, cantidad_esperada) VALUES ($1, $2, $3) RETURNING id, grupo_id, item_nombre, cantidad_esperada`,
-      [grupo_id, item_nombre.trim(), Math.round(Number(cantidad_esperada))]
+      [grupo_id, item_nombre, Math.round(Number(cantidad_esperada))]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
