@@ -13,6 +13,7 @@ const ubicacionesRoutes = require('./routes/ubicaciones');
 const eventosRoutes     = require('./routes/eventos');
 const stockSeguridadRoutes = require('./routes/stockSeguridad');
 const hcRoutes          = require('./routes/hc');
+const asistenciaRoutes  = require('./routes/asistencia');
 const app = express();
 app.set('trust proxy', 1);
 
@@ -75,6 +76,13 @@ app.use('/api/hc', express.json({ limit: '2mb' }));
 // archivo tal cual. La ruta limita a 5 MB con un mensaje claro; por encima de
 // 6 MB lo corta este parser (413).
 app.use('/api/hc', express.raw({ type: ['image/jpeg', 'image/png', 'application/pdf'], limit: '6mb' }));
+// Marcas de asistencia de las tablets (con foto): solo con token de tablet
+// válido se lee el cuerpo, que puede traer varias marcas guardadas sin conexión
+app.use('/api/asistencia/kiosco/marcas', (req, res, next) => {
+  const token = (req.headers.authorization || '').split(' ')[1];
+  try { const p = jwt.verify(token, process.env.JWT_SECRET); if (p && p.kiosco) return next(); } catch (e) {}
+  return res.status(401).json({ error: 'Esta tablet no está activada' });
+}, express.json({ limit: '4mb' }));
 app.use(express.json());
 
 // ── Rate limit login: 10 intentos / 15 min por IP (anti fuerza bruta) ──
@@ -138,6 +146,7 @@ const apiLimiterByUser = rateLimit({
 
 // Rutas
 app.use('/api/auth/login', loginLimiter);
+app.use('/api/asistencia/kiosco/login', loginLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/skus',         apiLimiterByIp, apiLimiterByUser, skusRoutes);
 app.use('/api/movimientos',  apiLimiterByIp, apiLimiterByUser, movimientosRoutes);
@@ -148,6 +157,7 @@ app.use('/api/bodegas',      apiLimiterByIp, apiLimiterByUser, bodegasRoutes);
 app.use('/api/ubicaciones',  apiLimiterByIp, apiLimiterByUser, ubicacionesRoutes);
 app.use('/api/eventos',      apiLimiterByIp, apiLimiterByUser, eventosRoutes);
 app.use('/api/hc',           apiLimiterByIp, apiLimiterByUser, hcRoutes);
+app.use('/api/asistencia',   apiLimiterByIp, apiLimiterByUser, asistenciaRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

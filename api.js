@@ -47,7 +47,8 @@ async function request(method, path, body = null){
     throw new Error('Sin conexión con el servidor. Revisa la red e intenta de nuevo.');
   }
   const data = await leerRespuesta(res);
-  if(!res.ok) throw new Error(data.error || 'Error del servidor');
+  // err.data: la respuesta completa (p. ej. la lista de errores de un archivo)
+  if(!res.ok){ const err = new Error(data.error || 'Error del servidor'); err.data = data; throw err; }
   if(data && data.error && Object.keys(data).length === 1) throw new Error(data.error);   // respuesta 200 no-JSON
   return data;
 }
@@ -78,6 +79,28 @@ const Bodegas = {
 };
 
 // ── HISTORIAS CLÍNICAS (módulo admin, nivel 4) ──
+const Asistencia = {
+  listar: (filtros) => {
+    const q = Object.entries(filtros || {}).filter(([, v]) => v !== '' && v !== null && v !== undefined)
+      .map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+    return request('GET', '/api/asistencia' + (q ? '?' + q : ''));
+  },
+  salidaManual: (id, data) => request('POST', `/api/asistencia/${id}/salida`, data),
+  eventos: () => request('GET', '/api/asistencia/eventos'),
+  // Sin evento: todos los eventos con personal, agrupados
+  personal: (eventoId) => request('GET', '/api/asistencia/personal' + (eventoId ? `?evento_id=${eventoId}` : '')),
+  cargarPersonal: (eventoId, personas) => request('POST', '/api/asistencia/personal', { evento_id: eventoId, personas }),
+  quitarPersonal: (id) => request('DELETE', `/api/asistencia/personal/${id}`),
+  cuenta: () => request('GET', '/api/asistencia/cuenta'),
+  guardarCuenta: (data) => request('PUT', '/api/asistencia/cuenta', data),
+  cerrarSesiones: () => request('POST', '/api/asistencia/cuenta/cerrar-sesiones'),
+  async foto(id, tipo){
+    const res = await fetch(`${API_URL}/api/asistencia/${id}/foto/${tipo}`, { headers: { Authorization: 'Bearer ' + getToken() } });
+    if(!res.ok) throw new Error('No se pudo cargar la foto');
+    return res.blob();
+  }
+};
+
 const HistoriasClinicas = {
   listar: (filtros) => {
     const q = Object.entries(filtros || {}).filter(([, v]) => v !== '' && v !== null && v !== undefined)

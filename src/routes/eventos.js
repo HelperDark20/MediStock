@@ -4,6 +4,7 @@ const pool = require('../config/db');
 const { verificarToken, verificarNivel } = require('../middlewares/auth');
 const { validarParamsId, idValido, idsValidos, texto } = require('../utils/validar');
 const { fechaValida } = require('../utils/fechas');
+const { bloqueoPorTurnosAbiertos } = require('../utils/asistencia');
 
 // :id, :usuarioId deben ser ids numéricos (si no, 400 en vez de error 500)
 validarParamsId(router, 'id', 'usuarioId');
@@ -456,9 +457,12 @@ router.post('/:id/iniciar', verificarToken, verificarNivel(4), async (req, res) 
   }
 });
 
-// POST /api/eventos/:id/finalizar — nivel 4
+// POST /api/eventos/:id/finalizar — nivel 4. No se puede con personal en
+// turno (asistencia). Quien no marcó ningún turno queda como "no asistió".
 router.post('/:id/finalizar', verificarToken, verificarNivel(4), async (req, res) => {
   try {
+    const bloqueo = await bloqueoPorTurnosAbiertos(pool, req.params.id, 'finalizar');
+    if (bloqueo) return res.status(400).json({ error: bloqueo });
     const result = await pool.query(
       `UPDATE eventos SET estado = 'finalizado', finalizado_at = NOW()
        WHERE id = $1 AND activo = true AND estado = 'en_curso' RETURNING *`,
@@ -477,6 +481,8 @@ router.post('/:id/finalizar', verificarToken, verificarNivel(4), async (req, res
 // DELETE /api/eventos/:id — nivel 4 (soft delete; no permite borrar un evento en curso)
 router.delete('/:id', verificarToken, verificarNivel(4), async (req, res) => {
   try {
+    const bloqueo = await bloqueoPorTurnosAbiertos(pool, req.params.id, 'eliminar');
+    if (bloqueo) return res.status(400).json({ error: bloqueo });
     const result = await pool.query(
       `UPDATE eventos SET activo = false WHERE id = $1 AND estado != 'en_curso' RETURNING id`,
       [req.params.id]

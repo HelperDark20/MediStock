@@ -779,6 +779,47 @@
         <div class="grid-3" id="eventos-grid"></div>
       </div>
 
+      <!-- ═══ ASISTENCIAS (Admin, js/asistencia.js) ═══ -->
+      <div class="view" id="view-asistencia">
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header"><img class="card-ico" src="img/iconos/asistencia.svg" alt=""><span class="card-title">Asistencia de personal</span>
+            <span class="asis-enlace">Tablets: <code>wms.novabridge.com.co/datacontrol</code></span></div>
+          <div class="card-body">
+            <div class="asis-filtros">
+              <div class="form-group"><label>Evento</label><select id="asis-evento" onchange="asisBuscar()"></select></div>
+              <div class="form-group"><label>Desde</label><input type="date" id="asis-desde" onchange="asisBuscar()"></div>
+              <div class="form-group"><label>Hasta</label><input type="date" id="asis-hasta" onchange="asisBuscar()"></div>
+              <div class="form-group"><label>Persona</label><input type="text" id="asis-q" placeholder="Nombre o cédula" oninput="asisBuscarPronto()"></div>
+              <div class="form-group"><label>Estado</label>
+                <select id="asis-estado" onchange="asisBuscar()">
+                  <option value="">Todas</option>
+                  <option value="abierta">En turno</option>
+                  <option value="cerrada">Completas</option>
+                  <option value="sin_salida">Sin salida</option>
+                  <option value="manual">Salida manual</option>
+                </select>
+              </div>
+              <div class="asis-filtros-btns"><button class="btn-cancel" onclick="asisLimpiar()"><img class="btn-ico" src="img/iconos/limpiar.svg" alt="">Limpiar</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="rep-stats asis-stats" id="asis-stats"></div>
+        <!-- Personal cargado del evento elegido, con su estado de hoy -->
+        <div class="card asis-personal-card" id="asis-personal-card" style="display:none;margin-bottom:16px">
+          <div class="card-header"><img class="card-ico" src="img/modulos/usuarios.png" alt=""><span class="card-title" id="asis-personal-titulo">Personal del evento</span>
+            <span class="asis-personal-resumen" id="asis-personal-resumen"></span></div>
+          <div class="asis-personal-lista" id="asis-personal-lista"></div>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table class="asis-tabla">
+              <thead><tr><th>Fotos</th><th>Persona</th><th>Evento</th><th>Entrada</th><th>Salida</th><th>Horas</th><th>Estado</th><th></th></tr></thead>
+              <tbody id="asis-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <!-- ═══ HISTORIAS CLÍNICAS (Admin, js/historias.js) ═══ -->
       <div class="view" id="view-historias">
         <div class="card" style="margin-bottom:16px">
@@ -1213,6 +1254,69 @@
   </div>
 </div>
 
+<!-- ═══ MODALES DE ASISTENCIAS (js/asistencia.js) ═══ -->
+<div class="modal-overlay" id="modal-asis-carga">
+  <div class="modal-sheet" style="max-width:560px">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Cargar personal</div>
+    <div class="modal-sub">Solo el personal cargado para el evento puede marcar asistencia en las tablets. Su PIN son los últimos 4 dígitos de su cédula.</div>
+    <div class="form-grid">
+      <div class="form-group fg-full"><label>1. Evento</label><select id="asis-carga-evento"></select></div>
+      <div class="form-group fg-full"><label>2. Plantilla</label>
+        <button type="button" class="tb-btn" style="justify-content:center" onclick="asisDescargarPlantilla()"><img class="btn-ico" src="img/iconos/excel.svg" alt="">Descargar plantilla (Nombre completo y Cédula)</button></div>
+      <div class="form-group fg-full"><label>3. Archivo lleno</label><input type="file" id="asis-carga-archivo" accept=".xlsx,.xls,.csv" onchange="asisLeerArchivo()"></div>
+      <div class="form-group fg-full"><div class="asis-carga-aviso"><b>Personal de último minuto:</b> si vas a agregar personal a un evento que ya tiene lista, sube solo las personas nuevas, no la lista completa. Las que ya estaban cargadas no se modifican y conservan sus datos de acceso.</div></div>
+      <div class="form-group fg-full" id="asis-carga-previa"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-asis-carga')">Cancelar</button>
+      <button class="btn-confirm" id="asis-carga-btn" onclick="asisConfirmarCarga(this)" disabled>Cargar personal</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-asis-salida">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Registrar salida manual</div>
+    <div class="modal-sub" id="asis-salida-sub"></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Fecha de salida</label><input type="date" id="asis-salida-fecha"></div>
+      <div class="form-group"><label>Hora de salida</label><input type="time" id="asis-salida-hora"></div>
+      <div class="form-group fg-full"><label>Motivo</label><input type="text" id="asis-salida-motivo" maxlength="300" placeholder="Ej. No marcó salida; confirmada con el coordinador"></div>
+      <div class="form-group fg-full"><span class="hint">Queda registrado quién la puso y cuándo. Debe ser después de la entrada y como máximo 24 horas después.</span></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-asis-salida')">Cancelar</button>
+      <button class="btn-confirm" onclick="asisGuardarSalida(this)">Registrar salida</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-asis-cuenta">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Cuenta de las tablets</div>
+    <div class="modal-sub" id="asis-cuenta-estado"></div>
+    <div class="form-grid">
+      <div class="form-group fg-full"><label>Usuario</label><input type="text" id="asis-cuenta-usuario" autocomplete="off" style="font-family:var(--font-mono)"></div>
+      <div class="form-group fg-full"><label>Contraseña <span style="font-weight:400;color:#aaa">(mín. 8 caracteres)</span></label><input type="text" id="asis-cuenta-pass" autocomplete="off" style="font-family:var(--font-mono)"></div>
+      <div class="form-group fg-full"><span class="hint">Con este usuario se activa cada tablet una sola vez en /datacontrol. Si cambias la contraseña, las tablets activadas se cierran y hay que activarlas de nuevo.</span></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-asis-cuenta')">Cancelar</button>
+      <button class="btn-confirm" onclick="asisGuardarCuenta(this)">Guardar</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-asis-foto">
+  <div class="modal-sheet" style="max-width:420px">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="asis-foto-titulo"></div>
+    <div class="modal-sub" id="asis-foto-sub"></div>
+    <img id="asis-foto-img" alt="Foto de la marca" style="width:100%;border-radius:12px;display:block">
+    <div class="modal-actions"><button class="btn-confirm" onclick="closeModal('modal-asis-foto')">Cerrar</button></div>
+  </div>
+</div>
+
 <!-- ═══ MODALES DE HISTORIAS CLÍNICAS (js/historias.js) ═══ -->
 <div class="modal-overlay" id="modal-hc">
   <div class="modal-sheet hc-sheet">
@@ -1474,6 +1578,7 @@
 <script src="js/usuarios.js"></script>
 <script src="js/municipios.js"></script>
 <script src="js/historias.js"></script>
+<script src="js/asistencia.js"></script>
 <script src="js/bodegas.js"></script>
 <script src="js/eventos.js"></script>
 <script src="js/reportes.js"></script>
