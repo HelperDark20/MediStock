@@ -193,13 +193,30 @@ function asisCerrarSesiones(){
 }
 
 // ── Exportar para nómina ──
+// Fecha y hora por separado (hora de Colombia)
+function _asisSoloFecha(iso){ return iso ? _asisFechaCO(iso).slice(0, 10) : ''; }
+function _asisSoloHora(iso){ return iso ? _asisFechaCO(iso).slice(11, 16) : ''; }
+
+// Una fila por jornada, en orden cronológico, con todo lo que muestra el PDF
 function _asisFilasExport(){
   return _asisDatos.jornadas.slice().reverse().map(j => ({
     persona: j.persona, cedula: j.cedula, rol: j.nivel === 1 ? 'Médico' : 'Enfermero/a', evento: j.evento,
-    entrada: _asisFechaCO(j.entrada_at), salida: _asisFechaCO(j.salida_at), minutos: j.minutos,
+    fecha_entrada: _asisSoloFecha(j.entrada_at), hora_entrada: _asisSoloHora(j.entrada_at),
+    fecha_salida: _asisSoloFecha(j.salida_at), hora_salida: _asisSoloHora(j.salida_at),
+    minutos: j.minutos,
     horas: j.minutos !== null && j.minutos !== undefined ? _asisDur(j.minutos) : '',
-    estado: _asisEstado(j)[0], motivo: j.salida_manual ? (j.salida_manual_motivo || '') : ''
+    estado: _asisEstado(j)[0],
+    motivo: j.salida_manual ? (j.salida_manual_motivo || '') : '',
+    registrada_por: j.salida_manual ? (j.salida_manual_por || '') : '',
+    sin_conexion: j.entrada_offline || j.salida_offline ? 'Sí' : 'No',
+    reloj: j.reloj_desfase_seg && Math.abs(j.reloj_desfase_seg) > 600 ? Math.round(j.reloj_desfase_seg / 60) : ''
   }));
+}
+const ASIS_COLS_JORNADAS = ['Persona','Cédula','Rol','Evento','Fecha de entrada','Hora de entrada','Fecha de salida','Hora de salida',
+  'Minutos','Horas trabajadas','Estado','Motivo salida manual','Salida registrada por','Marcada sin conexión','Reloj de la tablet corregido (min)'];
+function _asisFilaJornada(f){
+  return [f.persona, f.cedula, f.rol, f.evento, f.fecha_entrada, f.hora_entrada, f.fecha_salida || 'Sin salida', f.hora_salida,
+    f.minutos === null || f.minutos === undefined ? '' : f.minutos, f.horas, f.estado, f.motivo, f.registrada_por, f.sin_conexion, f.reloj];
 }
 function _asisConsolidado(filas){
   const porPersona = {};
@@ -223,14 +240,23 @@ function asisExportExcel(){
   if(typeof XLSX === 'undefined') return toastError('No se pudo cargar el generador de Excel. Revisa la conexión.');
   const filas = _asisFilasExport();
   if(!filas.length) return toastError('No hay jornadas para exportar');
-  const j = [['Persona','Cédula','Rol','Evento','Entrada','Salida','Minutos','Horas trabajadas','Estado','Motivo salida manual']]
-    .concat(filas.map(f => [f.persona, f.cedula, f.rol, f.evento, f.entrada, f.salida, f.minutos === null ? '' : f.minutos, f.horas, f.estado, f.motivo]));
-  const c = [['Persona','Cédula','Rol','Jornadas','Completas','Sin salida','Minutos','Horas trabajadas']]
+  const jornadas = [ASIS_COLS_JORNADAS].concat(filas.map(_asisFilaJornada));
+  const consolidado = [['Persona','Cédula','Rol','Jornadas','Completas','Sin salida','Minutos','Horas trabajadas']]
     .concat(_asisConsolidado(filas).map(p => [p.persona, p.cedula, p.rol, p.jornadas, p.completas, p.sin_salida, p.minutos, _asisDur(p.minutos)]));
+  const anchos = [26, 13, 12, 24, 15, 13, 15, 13, 9, 16, 22, 34, 22, 12, 14].map(w => ({ wch: w }));
   const wb = XLSX.utils.book_new();
-  const titulo = [[`Asistencia de personal — ${_asisTituloPeriodo()}`], [`Generado el ${_asisFechaCO(new Date().toISOString())}`], []];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(titulo.concat(c)), 'Consolidado nómina');
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(titulo.concat(j)), 'Jornadas');
+  // Hoja 1 — igual que el PDF: consolidado para nómina y, debajo, cada jornada
+  const hoja1 = [['NOVA BRIDGE SAS — Asistencia de personal'], [_asisTituloPeriodo()],
+    [`Generado el ${_asisFechaCO(new Date().toISOString())}`], [],
+    ['CONSOLIDADO PARA NÓMINA']].concat(consolidado, [[], ['JORNADAS']], jornadas);
+  const ws1 = XLSX.utils.aoa_to_sheet(hoja1);
+  ws1['!cols'] = anchos;
+  XLSX.utils.book_append_sheet(wb, ws1, 'Asistencia');
+  // Hoja 2 — solo la tabla de jornadas, con filtros, para ordenar o cruzar con la nómina
+  const ws2 = XLSX.utils.aoa_to_sheet(jornadas);
+  ws2['!cols'] = anchos;
+  ws2['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: jornadas.length - 1, c: ASIS_COLS_JORNADAS.length - 1 } }) };
+  XLSX.utils.book_append_sheet(wb, ws2, 'Jornadas (tabla)');
   XLSX.writeFile(wb, `asistencia_${_asisHoyCO()}.xlsx`);
 }
 function asisExportPDF(){
@@ -246,8 +272,8 @@ th,td{border:1px solid #bbb;padding:4px 6px;text-align:left}th{background:#eee}t
 <h1>NOVA BRIDGE SAS — Asistencia de personal</h1><div class="sub">${escHtml(_asisTituloPeriodo())} · Generado el ${_asisFechaCO(new Date().toISOString())}</div>
 <h2>Consolidado para nómina</h2><table><tr><th>Persona</th><th>Cédula</th><th>Rol</th><th>Jornadas</th><th>Completas</th><th>Sin salida</th><th>Horas trabajadas</th></tr>
 ${cons.map(p => `<tr><td>${escHtml(p.persona)}</td><td>${escHtml(p.cedula)}</td><td>${p.rol}</td><td class="n">${p.jornadas}</td><td class="n">${p.completas}</td><td class="n">${p.sin_salida}</td><td class="n">${_asisDur(p.minutos)}</td></tr>`).join('')}</table>
-<h2>Jornadas</h2><table><tr><th>Persona</th><th>Evento</th><th>Entrada</th><th>Salida</th><th>Horas</th><th>Estado</th><th>Motivo salida manual</th></tr>
-${filas.map(f => `<tr><td>${escHtml(f.persona)}</td><td>${escHtml(f.evento)}</td><td>${f.entrada}</td><td>${f.salida || '—'}</td><td class="n">${f.horas || '—'}</td><td>${escHtml(f.estado)}</td><td>${escHtml(f.motivo)}</td></tr>`).join('')}</table>
+<h2>Jornadas</h2><table><tr><th>Persona</th><th>Cédula</th><th>Evento</th><th>Fecha de entrada</th><th>Hora de entrada</th><th>Fecha de salida</th><th>Hora de salida</th><th>Horas</th><th>Estado</th><th>Motivo salida manual</th></tr>
+${filas.map(f => `<tr><td>${escHtml(f.persona)}</td><td>${escHtml(f.cedula)}</td><td>${escHtml(f.evento)}</td><td>${f.fecha_entrada}</td><td>${f.hora_entrada}</td><td>${f.fecha_salida || 'Sin salida'}</td><td>${f.hora_salida}</td><td class="n">${f.horas || '—'}</td><td>${escHtml(f.estado)}</td><td>${escHtml(f.motivo)}${f.registrada_por ? ' (' + escHtml(f.registrada_por) + ')' : ''}</td></tr>`).join('')}</table>
 </body></html>`);
   w.document.close();
   w.focus();
