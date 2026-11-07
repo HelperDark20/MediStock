@@ -199,11 +199,22 @@ router.post('/enviar', verificarToken, verificarNivel(2), async (req, res) => {
   }
 });
 
-// GET /api/hc/paciente?tipo_doc=CC&documento=123 — nivel 2+
+// GET /api/hc/paciente?tipo_doc=CC&documento=123 — solo enfermero (nivel 2)
+// asignado a un evento en curso (protección de datos de salud, Ley 1581).
 // Identificación y antecedentes de la última atención del paciente, para
 // precargarlos en una HC nueva. No incluye la atención en sí (motivo,
 // valoración, etc.) ni firmas.
 router.get('/paciente', verificarToken, verificarNivel(2), async (req, res) => {
+  if (req.usuario.nivel !== 2) return res.status(403).json({ error: 'Solo el personal de enfermería en un evento consulta pacientes' });
+  try {
+    const ev = await pool.query(
+      `SELECT 1 FROM evento_usuarios eu JOIN eventos e ON e.id = eu.evento_id
+       WHERE eu.usuario_id = $1 AND e.estado = 'en_curso' AND e.activo = true LIMIT 1`, [req.usuario.id]);
+    if (!ev.rows.length) return res.status(403).json({ error: 'Necesitas estar asignado a un evento en curso' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Error del servidor' });
+  }
   const tipo = String(req.query.tipo_doc || '');
   const doc = String(req.query.documento || '').toUpperCase().replace(/[^A-Z0-9-]/g, '');
   if (TIPOS_DOC.indexOf(tipo) < 0 || doc.length < 3) {
@@ -540,6 +551,13 @@ router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    const vigente = await client.query(
+      'SELECT 1 FROM historias_clinicas WHERE id = $1 AND estado = $2 AND datos = $3::jsonb FOR UPDATE',
+      [hc.id, hc.estado, JSON.stringify(antes)]);
+    if (!vigente.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'La historia clínica cambió mientras la editabas (entrega, firma u otra corrección). Ciérrala, vuelve a abrirla y repite el cambio.' });
+    }
     await client.query(
       `UPDATE historias_clinicas SET datos = $2, estado = $3, paciente_tipo_doc = $4, paciente_documento = $5,
               paciente_nombre = $6, actualizada_at = NOW() WHERE id = $1`,

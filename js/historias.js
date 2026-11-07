@@ -264,6 +264,21 @@ function hcHtmlAdjuntos(h){
       <button class="act-btn primary" title="Ver" onclick="hcVerAdjunto(${a.id})"><i class="ti ti-eye"></i></button></div>`).join(''));
 }
 
+// Para el PDF: cada corrección posterior a la recepción, en orden, con quién,
+// cuándo, el motivo y el antes → después (nota aclaratoria, Res. 1995/1999)
+function hcNotasAclaratorias(h){
+  const lista = (h.cambios || []).slice().sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+  if(!lista.length) return '';
+  const fmt = x => x === null || x === undefined || x === '' ? '<em>vacío</em>' : escHtml(typeof x === 'object' ? JSON.stringify(x) : String(x));
+  const campo = c => escHtml(String(c).split('.').join(' › ').replace(/_/g, ' '));
+  return hcSec('Notas aclaratorias (correcciones posteriores)', lista.map((c, i) => `
+    <div class="hc-cambio" style="padding:4px 6px;border-top:${i ? '1px dashed #bbb' : '0'}">
+      <div><strong>${i + 1}. ${escHtml(hcT('accion', c.accion))}</strong> · ${escHtml(c.usuario_nombre || '—')} · ${hcFechaHora(c.created_at)}</div>
+      ${c.motivo ? `<div>Motivo: ${escHtml(c.motivo)}</div>` : ''}
+      ${(c.cambios || []).length ? `<ul style="margin:3px 0 0 16px;padding:0">${c.cambios.slice(0, 80).map(x => `<li>${campo(x.campo)}: ${fmt(x.antes)} → ${fmt(x.despues)}</li>`).join('')}</ul>` : ''}
+    </div>`).join(''));
+}
+
 function hcHtmlCambios(h){
   if(!(h.cambios || []).length) return hcSec('Historial de cambios', '<div class="hc-nada">Sin cambios desde que se recibió de la tablet.</div>');
   const fmt = x => x === null || x === undefined || x === '' ? '<em>vacío</em>' : escHtml(typeof x === 'object' ? JSON.stringify(x) : String(x));
@@ -528,6 +543,7 @@ function hcImprimir(){
   <div class="cod"><div>SIG_08NB_0030</div><div class="num">${escHtml(h.consecutivo)}</div><div>${h.estado === 'abierta' ? 'ABIERTA (pendiente de entrega)' : 'CERRADA'}</div></div>
 </div>
 ${hcHtml(h, true)}
+${hcNotasAclaratorias(h)}
 <div class="pie">Generada desde MediStock el ${hcFechaHora(new Date().toISOString())}. Recibida en el servidor el ${hcFechaHora(h.recibida_at)}${(h.cambios || []).length ? ` · ${h.cambios.length} registro(s) en el historial de cambios` : ''}.</div>
 </body></html>`);
   w.document.close();

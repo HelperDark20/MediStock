@@ -8,7 +8,8 @@ const { validarParamsId, idValido, texto } = require('../utils/validar');
 validarParamsId(router, 'id');
 
 // GET /api/bodegas — todos los niveles, incluye nombre de ubicación
-router.get('/', verificarToken, async (req, res) => {
+// Panel principal (nivel 3+). El enfermero recibe sus depósitos con /api/eventos/activos.
+router.get('/', verificarToken, verificarNivel(3), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT b.*, u.nombre AS ubicacion_nombre, u.es_temporal AS ubicacion_es_temporal,
