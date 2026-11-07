@@ -454,8 +454,13 @@ var HCLite = (function(){
       (p.otra_aseguradora ? campo('paciente.aseguradora', 'Nombre de la otra aseguradora', { req: true, max: 80, mayus: true }) : ''));
 
     var a = hc.datos.acompanante;
+    // Tarjeta de identidad (menor de edad): el acompañante es obligatorio
+    var acompObligatorio = p.tipo_doc === 'TI';
+    if(acompObligatorio && !a.tiene) a.tiene = true;
     html += seccion('Contacto de acompañante',
-      interruptor('acompanante.tiene', '¿El paciente tiene acompañante?') +
+      (acompObligatorio
+        ? '<div class="lt-aviso">Paciente con <strong>tarjeta de identidad</strong>: los datos del acompañante son obligatorios.</div>'
+        : interruptor('acompanante.tiene', '¿El paciente tiene acompañante?')) +
       (a.tiene ? campo('acompanante.nombre', 'Nombre y apellidos completos', { req: true, max: 120, mayus: true }) +
         fila([campo('acompanante.parentesco', 'Parentesco', { req: true, max: 60, mayus: true, ph: 'Ej. MADRE' }),
               campo('acompanante.telefono', 'Teléfono', { req: true, tipo: 'digitos', max: 15 })]) : ''));
@@ -1065,6 +1070,7 @@ var HCLite = (function(){
       if(p.telefono && digitos(p.telefono).length < 7) err('paciente.telefono', 'El teléfono debe tener al menos 7 dígitos');
       if(p.otra_aseguradora && !txt(p.aseguradora)) err('paciente.aseguradora', 'Escribe el nombre de la otra aseguradora');
       var a = d.acompanante;
+      if(p.tipo_doc === 'TI' && !a.tiene) a.tiene = true;   // TI: acompañante obligatorio
       if(a.tiene){
         if(txt(a.nombre).length < 3) err('acompanante.nombre', 'Escribe el nombre completo del acompañante');
         if(!txt(a.parentesco)) err('acompanante.parentesco', 'Escribe el parentesco del acompañante');

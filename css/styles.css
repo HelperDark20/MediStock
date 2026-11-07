@@ -1115,6 +1115,7 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
   }
   .table-wrap td[data-label=""]{justify-content:flex-end;padding-top:6px}
   .table-wrap td[data-label=""]::before{content:none}
+  .table-wrap td.sin-venc{display:none}   /* ítem sin fecha de vencimiento */
   .table-wrap .act-btn-group{justify-content:flex-end}
   .table-toolbar{padding:12px}
 

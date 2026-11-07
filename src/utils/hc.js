@@ -151,8 +151,9 @@ function _paciente(p, fechaAtencion, errores) {
   return out;
 }
 
-function _acompanante(a, errores) {
-  const out = { tiene: bool(a.tiene), nombre: '', parentesco: '', telefono: '' };
+// Paciente con tarjeta de identidad (menor de edad): acompañante obligatorio
+function _acompanante(a, tipoDoc, errores) {
+  const out = { tiene: bool(a.tiene) || tipoDoc === 'TI', nombre: '', parentesco: '', telefono: '' };
   if (!out.tiene) return out;
   out.nombre = mayus(a.nombre, 120);
   out.parentesco = mayus(a.parentesco, 60);
@@ -442,7 +443,7 @@ function normalizarHC(cuerpo, fechaAtencion, contexto) {
   const paciente = _paciente(obj(d.paciente), fechaAtencion, errores);
   const datos = {
     paciente,
-    acompanante: _acompanante(obj(d.acompanante), errores),
+    acompanante: _acompanante(obj(d.acompanante), paciente.tipo_doc, errores),
     motivo: _motivo(obj(d.motivo), errores),
     antecedentes: _antecedentes(obj(d.antecedentes), paciente.sexo, errores),
     consentimiento: _consentimiento(obj(d.consentimiento), firmasIn, errores)

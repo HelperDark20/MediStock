@@ -641,7 +641,7 @@ function _repRenderSeguridad(depNombre){
   const lotesHtml = (lotes) => (lotes||[]).length
     ? `<div class="rep-lotes">${lotes.map(l=>`<div class="rep-lote">
         <span class="rep-lote-id">${l.lote ? 'Lote '+escHtml(l.lote) : 'Sin lote'} · ${escHtml(l.subSku)}</span>
-        <span>Vence ${fmtDate(l.caducidad)}</span>
+        <span>${l.caducidad ? 'Vence ' + fmtDate(l.caducidad) : ''}</span>
         ${l.caducidad ? `<span class="sem-badge ${getSem(l.caducidad)}">${semLabel(getSem(l.caducidad))}</span>` : '<span></span>'}
         <span class="rep-lote-cant">${l.cantidad} und</span>
       </div>`).join('')}</div>`
@@ -716,8 +716,8 @@ function _repExportSeguridadExcel(depNombre){
         primera ? it.nombre : '',
         l ? l.subSku : '—',
         l ? (l.lote || 'Sin lote') : '—',
-        l ? fmtDate(l.caducidad) : '—',
-        l && l.caducidad ? semLabel(getSem(l.caducidad)) : '—',
+        l && l.caducidad ? fmtDate(l.caducidad) : '',
+        l && l.caducidad ? semLabel(getSem(l.caducidad)) : '',
         l ? l.cantidad : 0,
         primera && conComparacion ? it.esperado : '',
         primera ? actual : '',
@@ -842,7 +842,7 @@ function _repRenderVencidos(){
           <div class="rep-col-num"><span class="sem-badge ${f.sem}">${semLabelLocal[f.sem]}</span></div>
           <div><div class="rep-item-name">${escHtml(f.s.nombre)}</div><div class="rep-item-code">${escHtml(f.skuG?.codigo||'')}</div></div>
           <div class="rep-cell-mono strong">${f.cantidad} ${escHtml(f.s.unidad)}</div>
-          <div class="rep-cell-mono">${fmtDate(f.s.caducidad)}</div>
+          <div class="rep-cell-mono">${f.s.caducidad ? fmtDate(f.s.caducidad) : ''}</div>
           <div class="rep-cell-mono" style="color:${diff<0?'var(--maroon)':'#888'}">${diasTxt}</div>
           <div class="rep-cell-mono" style="font-size:10px;color:#999">${escHtml(f.s.subSku)}</div>
           <div class="rep-cell-mono" style="font-size:10px;color:#999">${escHtml(f.s.lote||'—')}</div>
@@ -921,10 +921,10 @@ function _repExportVencidosExcel(){
   aoa.push(['Ubicación','Depósito','SKU','Ítem','Sub-SKU','Lote','Cantidad','Caducidad','Estado','Restante']);
   filas.forEach(f=>{
     const diff = f.s.caducidad ? Math.round((new Date(f.s.caducidad.split('T')[0]+'T00:00:00') - new Date(fechaColombia()+'T00:00:00')) / 864e5) : null;
-    const diasTxt = diff!==null ? (diff<0 ? `Vencido hace ${Math.abs(diff)}d` : `${diff}d`) : '—';
+    const diasTxt = diff!==null ? (diff<0 ? `Vencido hace ${Math.abs(diff)}d` : `${diff}d`) : '';
     aoa.push([
       f.ubNombre, f.bodegaNombre, f.skuG?.codigo||'', f.s.nombre, f.s.subSku, f.s.lote||'—',
-      f.cantidad, fmtDate(f.s.caducidad), semLabelLocal[f.sem], diasTxt
+      f.cantidad, f.s.caducidad ? fmtDate(f.s.caducidad) : '', semLabelLocal[f.sem], diasTxt
     ]);
   });
   aoa.push([]);

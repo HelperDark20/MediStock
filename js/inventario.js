@@ -121,7 +121,7 @@ function renderInv(){
       <td data-label="SKU global"><span class="sku-code">${escHtml(skuG?.codigo||'—')}</span></td>
       <td data-label="Ítem">
         <div style="font-weight:500;font-size:13px">${escHtml(s.nombre)}</div>
-        <div class="mrow-meta">${escHtml(skuG?.codigo||'')} · ${escHtml(s.subSku)} · ${escHtml(ubicacion)} · ${fmtDate(s.caducidad)}</div>
+        <div class="mrow-meta">${escHtml(skuG?.codigo||'')} · ${escHtml(s.subSku)} · ${escHtml(ubicacion)}${s.caducidad ? ' · Vence ' + fmtDate(s.caducidad) : ''}</div>
         <div style="display:flex;gap:4px;margin-top:3px;flex-wrap:wrap">
           ${famBadge(skuG?.familia)}
           ${s.agotado?'<span style="font-size:9px;padding:2px 6px;border-radius:6px;background:#F0F0EE;color:#888;font-family:var(--font-mono);font-weight:700">AGOTADO</span>':''}
@@ -132,7 +132,7 @@ function renderInv(){
       <td data-label="Cant." style="font-family:var(--font-mono);font-weight:700">${cantidad}<span style="font-size:10px;color:#aaa;font-weight:400;margin-left:3px">${escHtml(s.unidad||'')}</span></td>
       ${verValor?`<td data-label="Valor unit." style="font-family:var(--font-mono);font-size:12px">${s.precio?fmtCOP(s.precio):'—'}</td>
       <td data-label="Valor total" style="font-family:var(--font-mono);font-size:12px;font-weight:600">${s.precio?fmtCOP(s.precio*cantidad):'—'}</td>`:''}
-      <td data-label="Caducidad" style="font-size:12px;font-family:var(--font-mono)">${fmtDate(s.caducidad)}</td>
+      <td ${s.caducidad ? 'data-label="Caducidad"' : 'class="sin-venc"'} style="font-size:12px;font-family:var(--font-mono)">${s.caducidad ? fmtDate(s.caducidad) : ''}</td>
       <td data-label="Estado">${s.agotado?'<span class="sem N">Agotado</span>':`<span class="sem ${st}">${semLabel(st)}</span>`}</td>
       <td data-label="">
         <div class="act-btn-group">
@@ -259,7 +259,7 @@ function invExportPDF(){
         <div class="rep-cell-mono strong">${f.cantidad} ${escHtml(f.s.unidad||'')}</div>
         ${verValor?`<div class="rep-cell-mono">${f.s.precio?fmtCOP(f.s.precio):'—'}</div>
         <div class="rep-cell-mono strong">${f.s.precio?fmtCOP(f.s.precio*f.cantidad):'—'}</div>`:''}
-        <div class="rep-cell-mono">${fmtDate(f.s.caducidad)}</div>
+        <div class="rep-cell-mono">${f.s.caducidad ? fmtDate(f.s.caducidad) : ''}</div>
       </div>`).join('');
     return `<div class="rep-group">
       <div class="rep-group-head">

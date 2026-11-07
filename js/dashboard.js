@@ -2,6 +2,9 @@
 let _valorChart   = null;
 let _consumoChart = null;
 let _dashValorModo = 'dona'; // 'dona' | 'barra'
+// El valor del inventario se muestra oculto (*****) hasta pulsar el ojo; al
+// recargar la página vuelve a quedar oculto
+let _dashValorVisible = false;
 
 // Paleta de colores para las ubicaciones
 const DASH_COLORS = [
@@ -130,13 +133,26 @@ function calcValorInventario(){
   return { total, porUbicacion };
 }
 
+function dashValorVer(){
+  _dashValorVisible = !_dashValorVisible;
+  renderValorChart();
+}
+
 function renderValorChart(){
   const totalEl = document.getElementById('dash-valor-total');
   const canvas  = document.getElementById('dash-valor-chart');
   if(!totalEl || !canvas) return;
 
   const { total, porUbicacion } = calcValorInventario();
-  totalEl.textContent = fmtCOP(total);
+  totalEl.textContent = _dashValorVisible ? fmtCOP(total) : '*****';
+  const ojo = document.getElementById('dash-valor-ojo');
+  if(ojo){
+    const txt = _dashValorVisible ? 'Ocultar valor' : 'Mostrar valor';
+    ojo.title = txt;
+    ojo.setAttribute('aria-label', txt);
+    ojo.setAttribute('aria-pressed', _dashValorVisible ? 'true' : 'false');
+    ojo.innerHTML = `<i class="ti ${_dashValorVisible ? 'ti-eye-off' : 'ti-eye'}"></i>`;
+  }
 
   const entries  = Object.entries(porUbicacion).sort((a,b)=>b[1].valor-a[1].valor);
   const labels   = entries.map(([,u])=>u.nombre);
@@ -184,14 +200,14 @@ function renderValorChart(){
         legend:{ display: false },
         tooltip:{
           callbacks:{
-            label: ctx => ` ${fmtCOP(ctx.raw)}`
+            label: ctx => ` ${_dashValorVisible ? fmtCOP(ctx.raw) : '*****'}`
           }
         }
       },
       ...(isDona ? {} : {
         scales:{
           x:{ grid:{ display:false }, ticks:{ font:{ size:11 } } },
-          y:{ grid:{ color:'#f0ede6' }, ticks:{ callback: v=>fmtCOP(v), font:{ size:10 } } }
+          y:{ grid:{ color:'#f0ede6' }, ticks:{ callback: v=>_dashValorVisible ? fmtCOP(v) : '', font:{ size:10 } } }
         }
       })
     }
