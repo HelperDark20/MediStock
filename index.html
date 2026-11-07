@@ -97,10 +97,13 @@
                 <button type="button" class="act-btn" id="dash-valor-ojo" onclick="dashValorVer()" title="Mostrar valor" aria-label="Mostrar valor" aria-pressed="false"><i class="ti ti-eye"></i></button>
               </div>
               <div style="font-size:11px;color:#999;margin-bottom:14px">valorado al costo de compra</div>
-              <div style="position:relative;width:100%;height:220px">
-                <canvas id="dash-valor-chart" role="img" aria-label="Distribución del valor del inventario por sede"></canvas>
+              <div class="dash-valor-graf" id="dash-valor-graf">
+                <div class="dash-valor-lienzo">
+                  <canvas id="dash-valor-chart" role="img" aria-label="Distribución del valor del inventario por sede"></canvas>
+                  <div class="dash-valor-centro" id="dash-valor-centro"><b></b><small></small></div>
+                </div>
+                <div class="dash-valor-ley" id="dash-valor-legend"></div>
               </div>
-              <div id="dash-valor-legend" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px"></div>
             </div>
           </div>
 
@@ -148,7 +151,7 @@
           <div>
             <div class="sec-header">
               <div class="sec-title"><img class="card-ico" src="img/iconos/vencimiento.svg" alt="">Alertas de vencimiento</div>
-              <div class="sec-link" onclick="goTo('inventario')">Ver inventario →</div>
+              <span class="dash-contador" id="dash-alerts-cont" style="display:none"></span>
             </div>
             <div id="dash-alerts"></div>
           </div>
