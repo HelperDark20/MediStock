@@ -28,7 +28,7 @@ function buildMobileNav(){
 
   wrap.innerHTML = primarios.map(n => `
     <button class="mnav-item" data-nav-id="${n.id}" onclick="goTo('${n.id}')">
-      <i class="ti ${n.icon}"></i>
+      ${iconoModulo(n)}
       <span>${n.label}</span>
     </button>`).join('') +
     (resto.length ? `
@@ -46,7 +46,7 @@ function abrirMasMovil(){
   const resto = JSON.parse(wrap.dataset.resto||'[]');
   document.getElementById('mnav-mas-list').innerHTML = resto.map(n=>`
     <button class="mnav-mas-item" onclick="closeModal('modal-mas-movil');goTo('${n.id}')">
-      <span class="mnav-mas-icon"><i class="ti ${n.icon}"></i></span>
+      <span class="mnav-mas-icon"><img src="img/modulos/${n.id}.png" alt=""></span>
       <span class="mnav-mas-label">${n.label}</span>
       <i class="ti ti-chevron-right mnav-mas-arrow"></i>
     </button>`).join('');

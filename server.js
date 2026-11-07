@@ -13,6 +13,7 @@ const PORT = process.env.PORT || 3000;
 app.use('/js',    express.static(path.join(__dirname, 'js')));
 app.use('/css',   express.static(path.join(__dirname, 'css')));
 app.use('/fonts', express.static(path.join(__dirname, 'fonts')));
+app.use('/img',   express.static(path.join(__dirname, 'img')));
 app.get('/api.js',   (req, res) => res.sendFile(path.join(__dirname, 'api.js')));
 app.get('/logo.png', (req, res) => res.sendFile(path.join(__dirname, 'logo.png')));
 

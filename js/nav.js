@@ -1,3 +1,11 @@
+// Ícono ilustrado del módulo (img/modulos/<id>.png). Lleva dos versiones:
+// a color en estado normal y blanca al pasar el mouse o con el módulo
+// seleccionado (el CSS alterna cuál se ve).
+function iconoModulo(n){
+  return `<span class="nav-ico"><img class="ico-color" src="img/modulos/${n.id}.png" alt="">` +
+    `<img class="ico-blanco" src="img/modulos/${n.id}-blanco.png" alt=""></span>`;
+}
+
 function buildNav(){
   const niv = NIVELES[currentRole];
   const sb = document.getElementById('sb-nav');
@@ -14,7 +22,7 @@ function buildNav(){
     }
     const btn = document.createElement('button');
     btn.className = 'nav-item';
-    btn.innerHTML = `<i class="ti ${n.icon}"></i>${n.label}`;
+    btn.innerHTML = `${iconoModulo(n)}${n.label}`;
     // FIX: se quitó el badge de "Inventario" (contaba alertas con un criterio
     // distinto al del dashboard — resultaba visualmente inconsistente, ej.
     // dashboard mostraba 48 alertas y el nav mostraba 39). El dashboard ya
