@@ -65,7 +65,7 @@ app.get('/sw-enfermero.js', (req, res) => {
 app.get('/datacontrol', (req, res) => res.sendFile(path.join(__dirname, 'datacontrol.html')));
 const ARCHIVOS_DC_CACHE = [
   '/css/datacontrol.css', '/js/lite/datacontrol-lite.js', '/fonts/METHANERSE_Free_Trial.woff', '/logo.png',
-  '/img/avatares/enfermero.svg', '/img/avatares/medico.svg', '/img/iconos/asistencia.svg', '/img/iconos/ubicacion.svg',
+  '/img/avatares/personal.svg', '/img/iconos/asistencia.svg', '/img/iconos/ubicacion.svg',
   '/img/iconos/temporales.svg', '/img/iconos/cedula.svg', '/img/iconos/iniciar-evento.svg', '/img/iconos/salir.svg'
 ];
 const hashDc = crypto.createHash('sha1');

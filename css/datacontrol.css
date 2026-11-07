@@ -95,6 +95,9 @@ button{ font-family:inherit; cursor:pointer; }
 .dc-foto-botones .dc-btn{ margin-top:0; margin-left:10px; }
 .dc-foto-botones .dc-btn:first-child{ margin-left:0; -webkit-flex:0 0 30%; flex:0 0 30%; }
 
+.dc-aviso-datos{ margin-top:12px; background:#EEF3FB; border:1px solid #D3E0F3; border-radius:10px; padding:10px 12px; font-size:12px; line-height:1.45; color:#3E557C; }
+.dc-aviso-datos b{ color:#0A1628; }
+
 /* ── Marca registrada ── */
 .dc-ok{ text-align:center; padding-top:40px; }
 .dc-ok-circ{ width:96px; height:96px; border-radius:50%; margin:0 auto 14px; display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; -webkit-justify-content:center; justify-content:center; background:#1A6B3C; color:#fff; font-size:50px; }

@@ -96,7 +96,8 @@ function goTo(viewId){
     ta.innerHTML=`<button class="tb-btn primary" onclick="abrirCrearEvento()"><img class="btn-ico" src="img/iconos/crear-evento.svg" alt="">Crear evento</button>`;
   }
   if(viewId==='asistencia'&&currentRole===4){
-    ta.innerHTML=`<button class="tb-btn" onclick="asisExportExcel()"><img class="btn-ico" src="img/iconos/excel.svg" alt="">Excel nómina</button>`+
+    ta.innerHTML=`<button class="tb-btn primary" onclick="asisAbrirCarga()"><img class="btn-ico" src="img/iconos/crear-usuario.svg" alt="">Cargar personal</button>`+
+      `<button class="tb-btn" onclick="asisExportExcel()"><img class="btn-ico" src="img/iconos/excel.svg" alt="">Excel</button>`+
       `<button class="tb-btn" onclick="asisExportPDF()"><img class="btn-ico" src="img/iconos/pdf.svg" alt="">PDF</button>`+
       `<button class="tb-btn" onclick="asisAbrirCuenta()"><img class="btn-ico" src="img/iconos/cedula.svg" alt="">Cuenta de tablets</button>`+
       `<button class="tb-btn" onclick="asisCerrarSesiones()"><img class="btn-ico" src="img/iconos/salir.svg" alt="">Cerrar sesión de tablets</button>`;

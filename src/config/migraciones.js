@@ -194,8 +194,27 @@ const MIGRACIONES = [
      reloj_desfase_seg INTEGER,
      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
    )`,
-  // Una sola jornada abierta por persona
-  "CREATE UNIQUE INDEX IF NOT EXISTS asistencia_una_abierta ON asistencia_jornadas (usuario_id) WHERE estado = 'abierta'",
+  // Personal de cada evento para la asistencia: lo carga el admin desde un
+  // archivo (nombre completo y cédula). El PIN es el final de la cédula.
+  `CREATE TABLE IF NOT EXISTS asistencia_personal (
+     id SERIAL PRIMARY KEY,
+     evento_id INTEGER NOT NULL REFERENCES eventos(id),
+     nombre TEXT NOT NULL,
+     cedula TEXT NOT NULL,
+     cargado_por TEXT,
+     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+     UNIQUE (evento_id, cedula)
+   )`,
+  // Las jornadas pasan a ser del personal cargado (usuario_id queda para las
+  // jornadas anteriores); cedula = quién marcó, para la regla de una sola
+  // jornada abierta aunque la persona esté cargada en varios eventos
+  'ALTER TABLE asistencia_jornadas ADD COLUMN IF NOT EXISTS personal_id INTEGER REFERENCES asistencia_personal(id)',
+  'ALTER TABLE asistencia_jornadas ADD COLUMN IF NOT EXISTS cedula TEXT',
+  'ALTER TABLE asistencia_jornadas ADD COLUMN IF NOT EXISTS aviso_datos TEXT',
+  'ALTER TABLE asistencia_jornadas ALTER COLUMN usuario_id DROP NOT NULL',
+  'DROP INDEX IF EXISTS asistencia_una_abierta',
+  "CREATE UNIQUE INDEX IF NOT EXISTS asistencia_una_abierta_cedula ON asistencia_jornadas (cedula) WHERE estado = 'abierta'",
+  'CREATE INDEX IF NOT EXISTS asistencia_personal_idx ON asistencia_jornadas (personal_id)',
   'CREATE INDEX IF NOT EXISTS asistencia_evento_idx ON asistencia_jornadas (evento_id, entrada_at)',
   'CREATE INDEX IF NOT EXISTS asistencia_entrada_idx ON asistencia_jornadas (entrada_at)',
 
@@ -207,6 +226,12 @@ const MIGRACIONES = [
 // migraciones_aplicadas). Repetirlas en cada arranque desharía cambios
 // hechos después por los usuarios.
 const MIGRACIONES_UNICAS = [
+  {
+    // Jornadas de asistencia anteriores al personal cargado: la cédula sale del usuario
+    nombre: 'asistencia_cedula_desde_usuario',
+    sql: `UPDATE asistencia_jornadas j SET cedula = us.cedula
+          FROM usuarios us WHERE us.id = j.usuario_id AND j.cedula IS NULL`
+  },
   {
     // Los antiguos auditores (nivel 1) pasan a ser médicos: pierden el acceso
     nombre: 'nivel1_medicos_sin_acceso',

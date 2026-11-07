@@ -28,33 +28,31 @@ function _asisEstado(j){
   return ASIS_ESTADOS[j.estado] || [j.estado, ''];
 }
 
-// Filtros: eventos (todos los del panel) y personas (médicos y enfermeros)
+// Filtro de eventos: todos los del panel (también los finalizados, para la nómina)
 function _asisLlenarFiltros(){
   const ev = document.getElementById('asis-evento');
-  const per = document.getElementById('asis-persona');
-  const evActual = ev.value, perActual = per.value;
+  const evActual = ev.value;
   ev.innerHTML = '<option value="">Todos los eventos</option>' + (S.eventos || []).map(e =>
     `<option value="${e.id}">${escHtml(e.nombre)} (${fmtDate(e.fecha_inicio)} → ${fmtDate(e.fecha_fin)})</option>`).join('');
-  per.innerHTML = '<option value="">Todas las personas</option>' + (S.usuarios || []).filter(u => u.nivel === 1 || u.nivel === 2)
-    .map(u => `<option value="${u.id}">${escHtml(u.nombre)}</option>`).join('');
   if(evActual) ev.value = evActual;
   else {
     const enCurso = (S.eventos || []).find(e => e.estado === 'en_curso');
     if(enCurso) ev.value = enCurso.id;
   }
-  if(perActual) per.value = perActual;
 }
 
 async function renderAsistencia(){
-  if(!S.usuarios || !S.usuarios.length){ try { S.usuarios = await Usuarios.getAll(); } catch(e){} }
   _asisLlenarFiltros();
   await asisBuscar();
 }
 
+let _asisTimerQ = null;
+function asisBuscarPronto(){ clearTimeout(_asisTimerQ); _asisTimerQ = setTimeout(asisBuscar, 350); }
+
 function _asisFiltros(){
   return {
     evento_id: document.getElementById('asis-evento').value,
-    usuario_id: document.getElementById('asis-persona').value,
+    q: document.getElementById('asis-q').value.trim(),
     desde: document.getElementById('asis-desde').value,
     hasta: document.getElementById('asis-hasta').value,
     estado: document.getElementById('asis-estado').value
@@ -66,6 +64,7 @@ async function asisBuscar(){
   tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state" style="padding:24px"><p>Cargando…</p></div></td></tr>';
   try {
     _asisDatos = await Asistencia.listar(_asisFiltros());
+    _asisRenderPersonal();
   } catch(e){
     tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state" style="padding:24px"><p>${escHtml(e.message)}</p></div></td></tr>`;
     return;
@@ -77,7 +76,7 @@ function _asisRender(){
   const { jornadas, resumen } = _asisDatos;
   const st = (ico, num, label) => `<div class="rep-stat"><div class="rep-stat-icon ilustrado"><img src="img/${ico}" alt=""></div><div><div class="rep-stat-num">${num}</div><div class="rep-stat-label">${label}</div></div></div>`;
   document.getElementById('asis-stats').innerHTML =
-    (resumen.personas_asignadas !== null && resumen.personas_asignadas !== undefined ? st('modulos/usuarios.png', resumen.personas_asignadas, 'Personas asignadas') : st('modulos/usuarios.png', new Set(jornadas.map(j => j.usuario_id)).size, 'Personas con jornadas')) +
+    (resumen.personas_cargadas !== null && resumen.personas_cargadas !== undefined ? st('modulos/usuarios.png', resumen.personas_cargadas, 'Personal cargado') : st('modulos/usuarios.png', new Set(jornadas.map(j => j.cedula)).size, 'Personas con jornadas')) +
     st('iconos/estado-en-curso.svg', resumen.en_turno || 0, 'En turno ahora') +
     st('iconos/faltante.svg', resumen.sin_salida || 0, 'Sin salida') +
     st('iconos/vencimiento.svg', _asisDur(resumen.minutos || 0), 'Horas del período');
@@ -97,7 +96,7 @@ function _asisRender(){
       ? `<button class="tb-btn asis-btn-salida" onclick="asisAbrirSalida(${j.id})"><img class="btn-ico" src="img/iconos/salir.svg" alt="">Registrar salida</button>` : '';
     return `<tr>
       <td data-label="Fotos"><div class="asis-fotos">${fotos || '<span style="color:#bbb">—</span>'}</div></td>
-      <td data-label="Persona"><div class="asis-persona"><img src="${avatarNivel(j.nivel)}" alt=""><div><b>${escHtml(j.persona)}</b><div class="asis-sub">CC ${escHtml(j.cedula)}</div></div></div></td>
+      <td data-label="Persona"><div class="asis-persona"><img src="img/avatares/personal.svg" alt=""><div><b>${escHtml(j.persona)}</b><div class="asis-sub">CC ${escHtml(j.cedula)}</div></div></div></td>
       <td data-label="Evento">${escHtml(j.evento)}</td>
       <td data-label="Entrada"><span class="asis-chip">${_asisFechaCO(j.entrada_at)}</span></td>
       <td data-label="Salida">${j.salida_at ? `<span class="asis-chip">${_asisFechaCO(j.salida_at)}</span>` : '—'}${j.salida_manual ? `<div class="asis-sub" title="${escHtml(j.salida_manual_motivo || '')}">Motivo: ${escHtml(j.salida_manual_motivo || '')}</div>` : ''}</td>
@@ -109,8 +108,134 @@ function _asisRender(){
 }
 
 function asisLimpiar(){
-  ['asis-desde','asis-hasta','asis-estado','asis-persona'].forEach(id => document.getElementById(id).value = '');
+  ['asis-desde','asis-hasta','asis-estado','asis-q'].forEach(id => document.getElementById(id).value = '');
   asisBuscar();
+}
+
+// ── Personal del evento (cargado desde archivo) y su estado de hoy ──
+const ASIS_ESTADO_PERSONAL = {
+  sin_marcar: ['Sin marcar hoy', 'gris'], en_turno: ['En turno', 'abierta'], completa: ['Completa', 'ok'], sin_salida: ['Sin salida', 'sin']
+};
+async function _asisRenderPersonal(){
+  const card = document.getElementById('asis-personal-card');
+  const eventoId = document.getElementById('asis-evento').value;
+  if(!eventoId){ card.style.display = 'none'; return; }
+  let lista;
+  try { lista = await Asistencia.personal(eventoId); } catch(e){ card.style.display = 'none'; return; }
+  card.style.display = '';
+  const cuenta = {};
+  lista.forEach(p => { cuenta[p.estado] = (cuenta[p.estado] || 0) + 1; });
+  document.getElementById('asis-personal-titulo').textContent = `Personal del evento (${lista.length})`;
+  document.getElementById('asis-personal-resumen').innerHTML = Object.keys(ASIS_ESTADO_PERSONAL).filter(k => cuenta[k])
+    .map(k => `<span class="asis-est ${ASIS_ESTADO_PERSONAL[k][1]}">${cuenta[k]} · ${ASIS_ESTADO_PERSONAL[k][0]}</span>`).join('');
+  document.getElementById('asis-personal-lista').innerHTML = lista.length ? lista.map(p => `
+    <div class="asis-personal-fila">
+      <img src="img/avatares/personal.svg" alt="">
+      <div class="asis-personal-datos"><b>${escHtml(p.nombre)}</b><div class="asis-sub">CC ${escHtml(p.cedula)}${p.ultima_entrada ? ' · última entrada ' + _asisFechaCO(p.ultima_entrada) : ''}</div></div>
+      <span class="asis-est ${ASIS_ESTADO_PERSONAL[p.estado][1]}">${ASIS_ESTADO_PERSONAL[p.estado][0]}</span>
+      ${p.jornadas ? '' : `<button class="act-btn danger" title="Quitar del evento (aún no ha marcado)" onclick="asisQuitarPersonal(${p.id})"><img class="btn-ico" src="img/iconos/eliminar.svg" alt=""></button>`}
+    </div>`).join('')
+    : '<div class="empty-state" style="padding:18px"><img class="empty-ico" src="img/modulos/usuarios.png" alt=""><p>Este evento no tiene personal cargado: usa "Cargar personal"</p></div>';
+}
+function asisQuitarPersonal(id){
+  document.getElementById('modal-title').textContent = 'Quitar del evento';
+  document.getElementById('modal-sub').textContent = 'La persona dejará de poder marcar asistencia en este evento.';
+  document.getElementById('modal-ok-btn').onclick = async () => {
+    try { await Asistencia.quitarPersonal(id); closeModal('modal-confirm'); toast('✓ Persona quitada del evento', 'success'); _asisRenderPersonal(); }
+    catch(e){ toastError(e.message); }
+  };
+  document.getElementById('modal-confirm').classList.add('open');
+}
+
+// ── Carga de personal desde archivo (Nombre completo, Cédula) ──
+let _asisCargaPersonas = [];
+let _asisCargaLectura = 0;
+async function asisAbrirCarga(){
+  _asisCargaPersonas = [];
+  document.getElementById('asis-carga-archivo').value = '';
+  document.getElementById('asis-carga-previa').innerHTML = '';
+  document.getElementById('asis-carga-btn').disabled = true;
+  try {
+    const eventos = await Asistencia.eventos();
+    const sel = document.getElementById('asis-carga-evento');
+    sel.innerHTML = '<option value="">Selecciona el evento…</option>' + eventos.map(e =>
+      `<option value="${e.id}">${escHtml(e.nombre)} (${fmtDate(e.fecha_inicio)} → ${fmtDate(e.fecha_fin)}) · ${e.personal} cargad${e.personal === 1 ? 'a' : 'as'}</option>`).join('');
+    const filtro = document.getElementById('asis-evento').value;
+    if(filtro && eventos.some(e => String(e.id) === filtro)) sel.value = filtro;
+    document.getElementById('modal-asis-carga').classList.add('open');
+  } catch(e){ toastError(e.message); }
+}
+function asisDescargarPlantilla(){
+  if(typeof XLSX === 'undefined') return toastError('No se pudo cargar el generador de Excel. Revisa la conexión.');
+  const ws = XLSX.utils.aoa_to_sheet([['Nombre completo', 'Cédula']]);
+  ws['!cols'] = [{ wch: 40 }, { wch: 18 }];
+  const ins = XLSX.utils.aoa_to_sheet([
+    ['Cómo llenar la plantilla'], [],
+    ['1. En la hoja "Personal", una persona por fila desde la fila 2.'],
+    ['2. Nombre completo: nombres y apellidos.'],
+    ['3. Cédula: solo números (sin puntos ni espacios). Su PIN serán los últimos 4 dígitos.'],
+    ['4. Guarda el archivo y súbelo en Asistencias → Cargar personal, eligiendo el evento.'],
+    ['5. Personal de último minuto: sube solo las personas nuevas, no la lista completa.']
+  ]);
+  ins['!cols'] = [{ wch: 90 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Personal');
+  XLSX.utils.book_append_sheet(wb, ins, 'Instrucciones');
+  XLSX.writeFile(wb, 'plantilla_personal_asistencia.xlsx');
+}
+// Lee el archivo en el navegador: busca la fila con "Nombre" y "Cédula" y toma las de abajo
+function asisLeerArchivo(){
+  const archivo = document.getElementById('asis-carga-archivo').files[0];
+  const previa = document.getElementById('asis-carga-previa');
+  const btn = document.getElementById('asis-carga-btn');
+  _asisCargaPersonas = []; btn.disabled = true; previa.innerHTML = '';
+  if(!archivo) return;
+  if(typeof XLSX === 'undefined') return toastError('No se pudo cargar el lector de Excel. Revisa la conexión.');
+  // Cada lectura reemplaza a la anterior (si el evento "change" llega dos veces
+  // no se suman las filas): solo cuenta la última
+  const lectura = ++_asisCargaLectura;
+  const lector = new FileReader();
+  lector.onload = () => {
+    if(lectura !== _asisCargaLectura) return;
+    _asisCargaPersonas = [];
+    let filas;
+    try {
+      const wb = XLSX.read(new Uint8Array(lector.result), { type: 'array' });
+      filas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: '' });
+    } catch(e){ previa.innerHTML = '<div class="asis-carga-error">No se pudo leer el archivo. Usa la plantilla (.xlsx).</div>'; return; }
+    const norm = v => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const iCab = filas.findIndex(f => f.some(c => norm(c).indexOf('nombre') === 0) && f.some(c => norm(c).indexOf('cedula') === 0));
+    if(iCab < 0){ previa.innerHTML = '<div class="asis-carga-error">El archivo debe tener las columnas "Nombre completo" y "Cédula" (usa la plantilla).</div>'; return; }
+    const cN = filas[iCab].findIndex(c => norm(c).indexOf('nombre') === 0), cC = filas[iCab].findIndex(c => norm(c).indexOf('cedula') === 0);
+    for(let i = iCab + 1; i < filas.length; i++){
+      const nombre = String(filas[i][cN] || '').trim(), cedula = String(filas[i][cC] || '').trim();
+      if(!nombre && !cedula) continue;
+      _asisCargaPersonas.push({ fila: i + 1, nombre, cedula });
+    }
+    if(!_asisCargaPersonas.length){ previa.innerHTML = '<div class="asis-carga-error">El archivo no trae personas debajo de los títulos.</div>'; return; }
+    previa.innerHTML = `<div class="asis-carga-ok">Se leyeron <b>${_asisCargaPersonas.length}</b> persona${_asisCargaPersonas.length !== 1 ? 's' : ''}: ` +
+      _asisCargaPersonas.slice(0, 3).map(p => escHtml(p.nombre)).join(', ') + (_asisCargaPersonas.length > 3 ? '…' : '') + '</div>';
+    btn.disabled = false;
+  };
+  lector.readAsArrayBuffer(archivo);
+}
+async function asisConfirmarCarga(btn){
+  const eventoId = document.getElementById('asis-carga-evento').value;
+  if(!eventoId) return toastError('Selecciona el evento al que se carga el personal');
+  if(!_asisCargaPersonas.length) return toastError('Elige el archivo con el personal');
+  await unaVez('asis-carga', btn, async () => {
+    try {
+      const r = await Asistencia.cargarPersonal(parseInt(eventoId), _asisCargaPersonas);
+      closeModal('modal-asis-carga');
+      toast('✓ ' + r.mensaje, 'success');
+      document.getElementById('asis-evento').value = eventoId;
+      await asisBuscar();
+    } catch(e){
+      const errs = e.data && e.data.errores;
+      document.getElementById('asis-carga-previa').innerHTML = '<div class="asis-carga-error"><b>No se cargó nada.</b> Corrige el archivo y vuelve a subirlo:<ul>' +
+        (errs || [e.message]).slice(0, 15).map(x => `<li>${escHtml(x)}</li>`).join('') + (errs && errs.length > 15 ? `<li>… y ${errs.length - 15} más</li>` : '') + '</ul></div>';
+    }
+  });
 }
 
 // ── Fotos ──

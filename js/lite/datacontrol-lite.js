@@ -10,7 +10,9 @@
    PIN, jornadas abiertas) se descargan para validar sin señal.
 
    Reglas (las mismas de src/utils/asistencia.js en el servidor):
-   - solo personal asignado al evento; PIN = SHA-256 de "sal:pin";
+   - solo el personal que el admin cargó para el evento (módulo Asistencias);
+   - PIN = últimos 4 dígitos de la cédula; la foto es la evidencia;
+   - una sola jornada abierta por cédula (aunque esté en varios eventos);
    - entrada dentro de las fechas del evento (hora de Colombia);
    - jornada = entrada → salida, máximo 16 horas.
 
@@ -74,47 +76,6 @@
     for(var i = 0; i < botones.length; i++) b += '<button type="button" class="' + (botones[i].clase || '') + '" data-boton="' + i + '">' + escHtml(botones[i].texto) + '</button>';
     $('dc-modal-botones').innerHTML = b;
     mostrar('dc-modal', true);
-  }
-
-  // SHA-256 (ES5) para validar el PIN sin conexión. Entrada ASCII.
-  function sha256(ascii){
-    function rr(v, n){ return (v >>> n) | (v << (32 - n)); }
-    var k = [], h = [], primos = [], i, j;
-    for(var c = 2; primos.length < 64; c++){
-      var es = true;
-      for(i = 0; i < primos.length && primos[i] * primos[i] <= c; i++) if(c % primos[i] === 0){ es = false; break; }
-      if(es) primos.push(c);
-    }
-    for(i = 0; i < 64; i++){
-      if(i < 8) h[i] = (Math.pow(primos[i], 1 / 2) * 4294967296) | 0;
-      k[i] = (Math.pow(primos[i], 1 / 3) * 4294967296) | 0;
-    }
-    var bytes = [];
-    for(i = 0; i < ascii.length; i++) bytes.push(ascii.charCodeAt(i) & 255);
-    var bits = bytes.length * 8;
-    bytes.push(0x80);
-    while(bytes.length % 64 !== 56) bytes.push(0);
-    for(i = 7; i >= 0; i--) bytes.push(i > 3 ? 0 : (bits >>> (i * 8)) & 255);
-    for(var off = 0; off < bytes.length; off += 64){
-      var w = [];
-      for(i = 0; i < 16; i++) w[i] = (bytes[off + i * 4] << 24) | (bytes[off + i * 4 + 1] << 16) | (bytes[off + i * 4 + 2] << 8) | bytes[off + i * 4 + 3];
-      for(i = 16; i < 64; i++){
-        var s0 = rr(w[i - 15], 7) ^ rr(w[i - 15], 18) ^ (w[i - 15] >>> 3);
-        var s1 = rr(w[i - 2], 17) ^ rr(w[i - 2], 19) ^ (w[i - 2] >>> 10);
-        w[i] = (w[i - 16] + s0 + w[i - 7] + s1) | 0;
-      }
-      var a = h[0], b = h[1], cc = h[2], d = h[3], e = h[4], f = h[5], g = h[6], hh = h[7];
-      for(i = 0; i < 64; i++){
-        var t1 = (hh + (rr(e, 6) ^ rr(e, 11) ^ rr(e, 25)) + ((e & f) ^ (~e & g)) + k[i] + w[i]) | 0;
-        var t2 = ((rr(a, 2) ^ rr(a, 13) ^ rr(a, 22)) + ((a & b) ^ (a & cc) ^ (b & cc))) | 0;
-        hh = g; g = f; f = e; e = (d + t1) | 0; d = cc; cc = b; b = a; a = (t1 + t2) | 0;
-      }
-      h[0] = (h[0] + a) | 0; h[1] = (h[1] + b) | 0; h[2] = (h[2] + cc) | 0; h[3] = (h[3] + d) | 0;
-      h[4] = (h[4] + e) | 0; h[5] = (h[5] + f) | 0; h[6] = (h[6] + g) | 0; h[7] = (h[7] + hh) | 0;
-    }
-    var hex = '';
-    for(i = 0; i < 8; i++) for(j = 3; j >= 0; j--){ var by = (h[i] >>> (j * 8)) & 255; hex += (by < 16 ? '0' : '') + by.toString(16); }
-    return hex;
   }
 
   // ── API ──
@@ -219,7 +180,7 @@
       var ab = {};
       for(var i = 0; i < (d.abiertas || []).length; i++){
         var a = d.abiertas[i];
-        ab[a.usuario_id] = { jornada_client_id: a.entrada_client_id, evento_id: a.evento_id, entrada_at: a.entrada_at };
+        ab[a.cedula] = { jornada_client_id: a.entrada_client_id, evento_id: a.evento_id, personal_id: a.personal_id, entrada_at: a.entrada_at };
       }
       for(var j = 0; j < st.cola.length; j++) aplicarMarcaLocal(ab, st.cola[j]);
       st.abiertas = ab;
@@ -231,8 +192,8 @@
   }
 
   function aplicarMarcaLocal(ab, m){
-    if(m.tipo === 'entrada') ab[m.usuario_id] = { jornada_client_id: m.client_id, evento_id: m.evento_id, entrada_at: m.fecha };
-    else if(ab[m.usuario_id] && ab[m.usuario_id].jornada_client_id === m.jornada_client_id) delete ab[m.usuario_id];
+    if(m.tipo === 'entrada') ab[m.cedula] = { jornada_client_id: m.client_id, evento_id: m.evento_id, personal_id: m.personal_id, entrada_at: m.fecha };
+    else if(ab[m.cedula] && ab[m.cedula].jornada_client_id === m.jornada_client_id) delete ab[m.cedula];
   }
 
   function estado(html){
@@ -337,7 +298,7 @@
     $('dc-cedula').textContent = st.cedula;
     $('dc-cedula').className = 'dc-campo' + (st.fase === 'cedula' ? ' activo' : '');
     var p = st.persona;
-    $('dc-persona').innerHTML = p ? '<img src="img/avatares/' + (p.nivel === 1 ? 'medico' : 'enfermero') + '.svg" alt=""><div><b>' + escHtml(p.nombre) + '</b><span>' +
+    $('dc-persona').innerHTML = p ? '<img src="img/avatares/personal.svg" alt=""><div><b>' + escHtml(p.nombre) + '</b><span>' +
       (st.abierta ? 'Turno abierto desde ' + fechaHoraCO(st.abierta.entrada_at) + ' · marcará SALIDA' : 'Marcará ENTRADA') + '</span></div>' : '';
     $('dc-pin-wrap').className = st.fase === 'pin' ? '' : 'dc-oculto';
     var puntos = $('dc-pin').getElementsByTagName('i');
@@ -370,16 +331,15 @@
     for(var i = 0; i < e.personal.length; i++) if(e.personal[i].cedula === st.cedula) p = e.personal[i];
     if(!p){ error('dc-marcar-error', 'Esa cédula no está asignada a este evento'); return; }
     // ¿Tiene una jornada abierta (de cualquier evento) de menos de 16 h?
-    var ab = st.abiertas[p.id], abierta = null;
+    var ab = st.abiertas[p.cedula], abierta = null;
     if(ab){
       if(ahora().getTime() - new Date(ab.entrada_at).getTime() <= MAX_JORNADA_MS) abierta = ab;
-      else { delete st.abiertas[p.id]; guardarJSON('dc_abiertas', st.abiertas); }
+      else { delete st.abiertas[p.cedula]; guardarJSON('dc_abiertas', st.abiertas); }
     }
     if(!abierta && !(e.fecha_inicio <= fechaCO(ahora()) && e.fecha_fin >= fechaCO(ahora()))){
       error('dc-marcar-error', 'Este evento ya no admite entradas (terminó el ' + fmtFecha(e.fecha_fin) + ')');
       return;
     }
-    if(!p.pin_hash){ error('dc-marcar-error', 'No tienes PIN de asistencia: pídelo al administrador'); return; }
     st.persona = p; st.abierta = abierta; st.accion = abierta ? 'salida' : 'entrada';
     st.fase = 'pin'; st.pin = '';
     renderMarca();
@@ -387,7 +347,8 @@
 
   function validarPin(){
     var p = st.persona;
-    if(sha256(p.pin_sal + ':' + st.pin) !== p.pin_hash){
+    // PIN = últimos 4 dígitos de la cédula
+    if(st.pin !== String(p.cedula).slice(-4)){
       st.intentos++;
       st.pin = '';
       renderMarca();
@@ -406,7 +367,7 @@
     st.timerInactivo = setTimeout(cancelarMarca, INACTIVIDAD_MS);
     var p = st.persona, salida = st.accion === 'salida';
     var ev = salida ? buscarEvento(st.abierta.evento_id) : st.evento;
-    $('dc-foto-persona').innerHTML = '<img src="img/avatares/' + (p.nivel === 1 ? 'medico' : 'enfermero') + '.svg" alt=""><div><b>' + escHtml(p.nombre) + '</b><span>' +
+    $('dc-foto-persona').innerHTML = '<img src="img/avatares/personal.svg" alt=""><div><b>' + escHtml(p.nombre) + '</b><span>' +
       escHtml(ev ? ev.nombre : '') + ' · ' + (salida ? 'entrada ' + fechaHoraCO(st.abierta.entrada_at) : fechaHoraCO(ahora())) + '</span></div>';
     var btn = $('dc-btn-marcar');
     btn.className = 'dc-btn ' + (salida ? 'azul' : 'verde');
@@ -532,7 +493,9 @@
     detenerCamara();
     var p = st.persona, salida = st.accion === 'salida', fecha = new Date().toISOString();
     var m = {
-      client_id: nuevoId(), tipo: st.accion, usuario_id: p.id, pin: st.pin, fecha: fecha, foto: st.foto,
+      client_id: nuevoId(), tipo: st.accion, pin: st.pin, fecha: fecha, foto: st.foto, cedula: p.cedula,
+      // La salida va contra la jornada abierta (su evento y su registro de personal)
+      personal_id: salida ? st.abierta.personal_id : p.id,
       evento_id: salida ? st.abierta.evento_id : st.evento.id
     };
     if(salida) m.jornada_client_id = st.abierta.jornada_client_id;
@@ -607,9 +570,9 @@
           var m = st.cola[q];
           if(!quitar[m.client_id]) { resto.push(m); continue; }
           for(var z = 0; z < rechazadas.length; z++) if(rechazadas[z].client_id === m.client_id){
-            rech.push({ nombre: nombrePersona(m.usuario_id), tipo: m.tipo, fecha: m.fecha, error: rechazadas[z].error });
+            rech.push({ nombre: nombrePersona(m.personal_id), tipo: m.tipo, fecha: m.fecha, error: rechazadas[z].error });
             // Entrada rechazada: la persona ya no tiene esa jornada abierta
-            if(m.tipo === 'entrada' && st.abiertas[m.usuario_id] && st.abiertas[m.usuario_id].jornada_client_id === m.client_id) delete st.abiertas[m.usuario_id];
+            if(m.tipo === 'entrada' && st.abiertas[m.cedula] && st.abiertas[m.cedula].jornada_client_id === m.client_id) delete st.abiertas[m.cedula];
           }
         }
         st.cola = resto;

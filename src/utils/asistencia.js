@@ -1,7 +1,6 @@
 // Asistencia de personal (/datacontrol): PIN, fechas en hora de Colombia y
 // cálculo de jornadas. La tablet repite estas reglas para trabajar sin
 // conexión (js/lite/datacontrol-lite.js): si se cambia una, cambiar la otra.
-const crypto = require('crypto');
 
 // Una jornada (entrada → salida) dura como máximo 16 horas. Pasado ese
 // plazo sin salida queda "sin salida" y la salida la registra el administrador.
@@ -12,17 +11,27 @@ const MAX_SALIDA_MANUAL_MS = 24 * 3600 * 1000;
 const TOLERANCIA_RELOJ_MS = 2 * 60 * 1000;
 const COLOMBIA_OFFSET_MS = 5 * 3600 * 1000;
 
-// PIN de 4 dígitos: se guarda como SHA-256 de "sal:pin". La tablet recibe la
-// sal y el hash del personal de sus eventos para validar sin conexión.
+// PIN = últimos 4 dígitos de la cédula (decisión del cliente). La protección
+// contra la suplantación es la foto de cada marca.
 function pinValido(pin) { return typeof pin === 'string' && /^\d{4}$/.test(pin); }
-function nuevaSal() { return crypto.randomBytes(8).toString('hex'); }
-function hashPin(sal, pin) { return crypto.createHash('sha256').update(`${sal}:${pin}`).digest('hex'); }
-function pinCoincide(sal, hash, pin) {
-  if (!sal || !hash || !pinValido(pin)) return false;
-  const a = Buffer.from(hashPin(sal, pin), 'hex');
-  const b = Buffer.from(String(hash), 'hex');
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+function pinDeCedula(cedula) { return String(cedula || '').slice(-4); }
+function pinCoincide(cedula, pin) { return pinValido(pin) && pinDeCedula(cedula) === pin; }
+
+// Cédula del archivo de personal: solo dígitos (se quitan puntos, comas,
+// guiones y espacios). Entre 5 y 15 dígitos.
+function normalizarCedula(v) {
+  const s = String(v === undefined || v === null ? '' : v).replace(/[\s.,'-]/g, '');
+  return /^\d{5,15}$/.test(s) ? s : null;
 }
+// Nombre completo: espacios simples, en MAYÚSCULAS, máx. 120 caracteres
+function normalizarNombre(v) {
+  const s = String(v === undefined || v === null ? '' : v).replace(/\s+/g, ' ').trim().toUpperCase().slice(0, 120);
+  return s.length >= 3 ? s : null;
+}
+
+// Versión del aviso de protección de datos que muestra la tablet; queda
+// guardada en cada marca como evidencia de qué texto se mostró
+const AVISO_DATOS_VERSION = 'ley1581-v1-2026-11-07';
 
 // Fecha AAAA-MM-DD en hora de Colombia
 function fechaCO(d) {
@@ -64,8 +73,8 @@ function mimeFoto(buf) {
 }
 
 module.exports = {
-  MAX_JORNADA_MS, MAX_SALIDA_MANUAL_MS, TOLERANCIA_RELOJ_MS,
-  pinValido, nuevaSal, hashPin, pinCoincide,
+  MAX_JORNADA_MS, MAX_SALIDA_MANUAL_MS, TOLERANCIA_RELOJ_MS, AVISO_DATOS_VERSION,
+  pinValido, pinDeCedula, pinCoincide, normalizarCedula, normalizarNombre,
   fechaCO, desdeCO, fechaHoraCO, textoDuracion, minutosEntre,
   fotoDesdeDataUrl, mimeFoto
 };
