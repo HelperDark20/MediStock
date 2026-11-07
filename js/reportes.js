@@ -210,7 +210,7 @@ async function actualizarReporte(){
 
   try {
     if(tipo === 'cedula'){
-      const cedula = (document.getElementById('rep-cedula').value||'').replace(/\D/g,'').trim();
+      const cedula = (document.getElementById('rep-cedula').value||'').toUpperCase().replace(/[^A-Z0-9-]/g,'').trim();
       if(printSub) printSub.textContent = cedula ? `Cédula ${cedula} · Generado el ${new Date().toLocaleDateString('es-CO')}` : '';
       if(!cedula){
         contenido.innerHTML = '<div class="empty-state"><img class="empty-ico" src="img/iconos/cedula.svg" alt=""><p>Ingresa la cédula de un paciente para ver su historial de consumos</p></div>';
@@ -972,7 +972,7 @@ async function repExportExcel(){
   const tipo = document.getElementById('rep-tipo-reporte').value;
   try {
     if(tipo === 'cedula'){
-      const cedula = (document.getElementById('rep-cedula').value||'').replace(/\D/g,'').trim();
+      const cedula = (document.getElementById('rep-cedula').value||'').toUpperCase().replace(/[^A-Z0-9-]/g,'').trim();
       if(!cedula){ toastError('Ingresa una cédula primero'); return; }
       const movs = await Movimientos.getReporte({ tipo:'consumo', cedula_paciente: cedula });
       _repExportCedulaExcel(movs, cedula);
@@ -1207,7 +1207,7 @@ function _repTituloDocumento(){
   const hoy = _repFechaTitulo(fechaColombia());
 
   if(tipo === 'cedula'){
-    const cedula = (document.getElementById('rep-cedula').value||'').replace(/\D/g,'');
+    const cedula = (document.getElementById('rep-cedula').value||'').toUpperCase().replace(/[^A-Z0-9-]/g,'');
     if(cedula) partes.push(`Cédula ${cedula}`);
     partes.push(hoy);
     return partes.join(' · ');

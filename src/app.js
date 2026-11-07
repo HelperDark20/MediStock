@@ -61,6 +61,15 @@ app.use(cors({
 }));
 // La historia clínica lleva firmas (imágenes) y puede pesar más que el
 // límite general de 100 KB. Este parser va primero y solo aplica a /api/hc.
+// Sin un token válido se responde de inmediato, sin leer cuerpos grandes
+// (solo firma; la ruta vuelve a verificar el usuario contra la BD).
+app.use('/api/hc', (req, res, next) => {
+  const h = req.headers.authorization || '';
+  const token = h.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Token requerido' });
+  try { jwt.verify(token, process.env.JWT_SECRET); return next(); }
+  catch (e) { return res.status(403).json({ error: 'Token inválido o expirado' }); }
+});
 app.use('/api/hc', express.json({ limit: '2mb' }));
 // Recibido de la IPS (foto o PDF) que sube el administrador: el cuerpo es el
 // archivo tal cual. La ruta limita a 5 MB con un mensaje claro; por encima de

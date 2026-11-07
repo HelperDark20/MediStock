@@ -195,7 +195,7 @@ router.get('/reportes', verificarToken, verificarNivel(4), async (req, res) => {
       query += ` AND m.sub_sku_id = $${params.length}`;
     }
     if (cedula_paciente) {
-      params.push(String(cedula_paciente).replace(/\D/g, ''));
+      params.push(String(cedula_paciente).toUpperCase().replace(/[^A-Z0-9-]/g, ''));
       query += ` AND m.cedula_paciente = $${params.length}`;
     }
 
@@ -267,8 +267,30 @@ function _clientIdValido(v) {
   return /^[A-Za-z0-9_-]{8,64}$/.test(s) ? s : undefined;  // undefined = inválido
 }
 
+// El enfermero (nivel 2) solo puede descontar de un depósito que tenga
+// asignado en un evento. En línea el evento debe estar en curso; al
+// sincronizar consumos hechos sin conexión vale también un evento ya
+// finalizado, siempre que la atención haya sido antes del cierre (más 10 min
+// de tolerancia por el reloj de la tablet). Supervisor y administrador sin
+// restricción (registran desde el panel principal).
+async function _depositoAsignado(client, usuario, bodegaId, fechaAtencion) {
+  if (usuario.nivel !== 2) return true;
+  const r = await client.query(
+    `SELECT 1 FROM evento_usuario_bodegas eub
+     JOIN eventos e ON e.id = eub.evento_id
+     WHERE eub.usuario_id = $1 AND eub.bodega_id = $2 AND e.activo = true
+       AND (e.estado = 'en_curso'
+            OR ($3::timestamptz IS NOT NULL AND e.estado = 'finalizado'
+                AND $3::timestamptz <= e.finalizado_at + INTERVAL '10 minutes'))
+     LIMIT 1`,
+    [usuario.id, bodegaId, fechaAtencion || null]
+  );
+  return r.rows.length > 0;
+}
+const ERROR_SIN_ASIGNACION = 'Ese depósito no está asignado a ti en un evento en curso';
+
 // Registra un consumo dentro de una transacción propia.
-// Devuelve { estado: 'ok' | 'duplicado' | 'sin_stock' }.
+// Devuelve { estado: 'ok' | 'duplicado' | 'sin_stock' | 'hc_enviada' | 'sin_asignacion' }.
 async function _registrarConsumo(usuario, d) {
   const client = await pool.connect();
   try {
@@ -281,6 +303,10 @@ async function _registrarConsumo(usuario, d) {
     if (d.hc_client_id) {
       const hc = await client.query('SELECT 1 FROM historias_clinicas WHERE client_id = $1', [d.hc_client_id]);
       if (hc.rows.length) { await client.query('ROLLBACK'); return { estado: 'hc_enviada' }; }
+    }
+    if (!await _depositoAsignado(client, usuario, d.bodega_origen_id, d.es_offline ? d.fecha_atencion : null)) {
+      await client.query('ROLLBACK');
+      return { estado: 'sin_asignacion' };
     }
     if (!await _descontarStock(client, d.sub_sku_id, d.bodega_origen_id, d.cantidad)) {
       await client.query('ROLLBACK');
@@ -352,6 +378,7 @@ router.post('/consumo', verificarToken, verificarNivel(2), async (req, res) => {
     });
     if (r.estado === 'sin_stock') return res.status(400).json({ error: 'Stock insuficiente' });
     if (r.estado === 'hc_enviada') return res.status(400).json({ error: ERROR_HC_ENVIADA });
+    if (r.estado === 'sin_asignacion') return res.status(400).json({ error: ERROR_SIN_ASIGNACION });
     if (r.estado === 'duplicado') return res.json({ mensaje: 'Este consumo ya estaba registrado', duplicado: true });
     res.status(201).json({ mensaje: 'Consumo registrado correctamente' });
   } catch (err) {
@@ -405,6 +432,7 @@ router.post('/sincronizar', verificarToken, verificarNivel(2), async (req, res) 
       });
       if (r.estado === 'sin_stock') resultados.push({ client_id, estado: 'error', error: 'Stock insuficiente en la bodega' });
       else if (r.estado === 'hc_enviada') resultados.push({ client_id, estado: 'error', error: ERROR_HC_ENVIADA });
+      else if (r.estado === 'sin_asignacion') resultados.push({ client_id, estado: 'error', error: ERROR_SIN_ASIGNACION });
       else resultados.push({ client_id, estado: r.estado });
     } catch (err) {
       console.error('ERROR sincronizando consumo', client_id, err.message);

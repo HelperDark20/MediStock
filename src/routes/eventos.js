@@ -79,8 +79,9 @@ async function _ubicacionActiva(ubicacionId) {
   return r.rows.length > 0;
 }
 
-// GET /api/eventos — cualquier nivel autenticado
-router.get('/', verificarToken, async (req, res) => {
+// GET /api/eventos — panel principal (nivel 3+). La cédula del personal solo
+// la ve el administrador. El enfermero usa /activo y /activos (solo los suyos).
+router.get('/', verificarToken, verificarNivel(3), async (req, res) => {
   try {
     const eventos = await pool.query(`
       SELECT e.*, u.nombre AS ubicacion_nombre
@@ -94,7 +95,11 @@ router.get('/', verificarToken, async (req, res) => {
     if (!eventos.rows.length) return res.json([]);
     const ids = eventos.rows.map(e => e.id);
     const personalPorEvento = await _cargarPersonal(ids);
-    res.json(eventos.rows.map(e => ({ ...e, personal: personalPorEvento[e.id] || [] })));
+    const conCedula = req.usuario.nivel >= 4;
+    res.json(eventos.rows.map(e => ({
+      ...e,
+      personal: (personalPorEvento[e.id] || []).map(p => conCedula ? p : { ...p, cedula: undefined })
+    })));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
