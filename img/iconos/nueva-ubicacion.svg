@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <defs>
+    <linearGradient id="m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7896C8"/><stop offset="1" stop-color="#4C6898"/></linearGradient>
+    <linearGradient id="mc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8AA6D3"/><stop offset="1" stop-color="#5A78AA"/></linearGradient>
+    <linearGradient id="d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5A76A6"/><stop offset="1" stop-color="#3E557C"/></linearGradient>
+    <linearGradient id="p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6F9FE"/><stop offset="1" stop-color="#D3E0F3"/></linearGradient>
+    <linearGradient id="t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9DB5DD"/><stop offset="1" stop-color="#7A98C9"/></linearGradient>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#36B571"/><stop offset="1" stop-color="#16804A"/></linearGradient>
+    <linearGradient id="a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F7BE55"/><stop offset="1" stop-color="#DB8B14"/></linearGradient>
+    <linearGradient id="r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#EA5F57"/><stop offset="1" stop-color="#BD2E29"/></linearGradient>
+  </defs>
+  <path d="M40 90C40 90 12 53.36 12 36A28 28 0 0 1 68 36C68 53.36 40 90 40 90Z" fill="url(#m)" stroke="#3E557C" stroke-width="4" stroke-linejoin="round"/>
+  <circle cx="40" cy="36" r="15" fill="url(#p)"/>
+  <path d="M36.175 25.8h7.6499999999999995v6.375h6.375v7.6499999999999995h-6.375v6.375h-7.6499999999999995v-6.375h-6.375v-7.6499999999999995h6.375z" fill="#4C6898"/>
+  <circle cx="70" cy="70" r="19" fill="url(#g)" stroke="#FFFFFF" stroke-width="4.5"/>
+  <path d="M70 61v18M61 70h18" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round"/>
+</svg>

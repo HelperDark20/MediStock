@@ -694,7 +694,7 @@
           <!-- Card: Nueva ubicación (sede) -->
           <div class="card" style="margin-bottom:0">
             <div class="card-header">
-              <i class="ti ti-map-pin card-title"></i>
+              <img class="card-ico" src="img/iconos/nueva-ubicacion.svg" alt="">
               <span class="card-title">Nueva ubicación</span>
             </div>
             <div class="card-body">
@@ -717,8 +717,8 @@
                 <span class="hint">Lista oficial del DANE. La historia clínica toma de aquí el municipio del lugar de atención.</span>
               </div>
               <div class="ub-crear-btns">
-                <button class="btn-submit" onclick="crearUbicacion()"><i class="ti ti-map-pin"></i>Crear ubicación permanente</button>
-                <button class="btn-submit amber" onclick="abrirCrearTemporal()"><i class="ti ti-clock-pin"></i>Crear ubicación temporal</button>
+                <button class="btn-submit" onclick="crearUbicacion()"><img class="btn-ico" src="img/iconos/crear-permanente.svg" alt="">Crear ubicación permanente</button>
+                <button class="btn-submit amber" onclick="abrirCrearTemporal()"><img class="btn-ico" src="img/iconos/crear-temporal.svg" alt="">Crear ubicación temporal</button>
               </div>
             </div>
           </div>
@@ -726,7 +726,7 @@
           <!-- Card: Nuevo depósito -->
           <div class="card" style="margin-bottom:0">
             <div class="card-header">
-              <i class="ti ti-building-warehouse card-title"></i>
+              <img class="card-ico" src="img/iconos/nuevo-deposito.svg" alt="">
               <span class="card-title">Nuevo depósito</span>
             </div>
             <div class="card-body">
@@ -755,7 +755,7 @@
                   <div style="padding:10px 14px;background:var(--ink);border-radius:var(--r-md);font-family:var(--font-mono);font-size:15px;font-weight:700;color:var(--blue2)" id="bodega-preview">-</div>
                 </div>
               </div>
-              <button class="btn-submit" onclick="crearBodega()"><i class="ti ti-plus"></i>Crear depósito</button>
+              <button class="btn-submit" onclick="crearBodega()"><img class="btn-ico" src="img/iconos/crear-deposito.svg" alt="">Crear depósito</button>
             </div>
           </div>
         </div>
@@ -764,8 +764,8 @@
         <div class="sec-header">
           <div class="sec-title">Ubicaciones y depósitos registrados</div>
           <div style="display:flex;gap:6px">
-            <button class="dash-valor-btn active" data-ubvista="permanentes" onclick="ubCambiarVista('permanentes')"><i class="ti ti-map-pin"></i> Permanentes <span id="ub-count-permanentes"></span></button>
-            <button class="dash-valor-btn" data-ubvista="temporales" onclick="ubCambiarVista('temporales')"><i class="ti ti-clock-pin"></i> Temporales <span id="ub-count-temporales"></span></button>
+            <button class="dash-valor-btn active" data-ubvista="permanentes" onclick="ubCambiarVista('permanentes')"><img class="tab-ico" src="img/iconos/permanentes.svg" alt=""> Permanentes <span id="ub-count-permanentes"></span></button>
+            <button class="dash-valor-btn" data-ubvista="temporales" onclick="ubCambiarVista('temporales')"><img class="tab-ico" src="img/iconos/temporales.svg" alt=""> Temporales <span id="ub-count-temporales"></span></button>
           </div>
         </div>
         <div id="bodegas-list"></div>

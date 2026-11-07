@@ -798,6 +798,12 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 .ubicacion-card.temporal .ubicacion-header{background:#3A2A12}
 .ubicacion-card.temporal .ubicacion-icon{background:rgba(224,140,26,.2);color:var(--amber2)}
 .ubicacion-card.finalizada{opacity:.75}
+/* Íconos ilustrados de Ubicaciones */
+.ubicacion-icon.ilus,.ubicacion-card.temporal .ubicacion-icon.ilus{background:none}
+.ubicacion-icon.ilus img{width:34px;height:34px;display:block}
+.deposito-icon.ilus{background:none}
+.deposito-icon.ilus img{width:26px;height:26px;display:block}
+.tab-ico{width:16px;height:16px;vertical-align:-3px;margin-right:2px}
 .ub-badge{display:inline-block;margin-left:8px;padding:2px 7px;border-radius:6px;font-size:9px;font-weight:700;font-family:var(--font-mono);letter-spacing:.04em;vertical-align:middle;background:var(--amber-bg);color:var(--amber)}
 .ub-badge.gris{background:#F0F0EE;color:#888}
 .ub-finalizar-btn{padding:6px 12px;border-radius:var(--r-md);border:none;background:var(--amber2);color:#fff;font-size:12px;font-weight:700;font-family:var(--font-body);cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
