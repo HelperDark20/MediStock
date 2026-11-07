@@ -2,6 +2,9 @@
    iOS 12: flexbox con prefijos, sin grid ni variables CSS. */
 @font-face{ font-family:'Methanerse'; src:url('../fonts/METHANERSE_Free_Trial.woff') format('woff'); }
 *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+/* Sin zoom por doble toque (Safari de iOS 9.3+) ni selección de texto al tocar rápido */
+html, body, button, .dc-teclado{ touch-action:manipulation; }
+.dc-teclado, .dc-teclado button, .dc-campo, .dc-pin{ -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
 html,body{ margin:0; padding:0; background:#F4F2EE; color:#0A1628; font-family:-apple-system,'Helvetica Neue',Arial,sans-serif; -webkit-text-size-adjust:100%; }
 button{ font-family:inherit; cursor:pointer; }
 .dc-oculto{ display:none !important; }

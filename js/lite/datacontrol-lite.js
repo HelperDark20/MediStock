@@ -143,7 +143,7 @@
   // ACTIVACIÓN
   // ══════════════════════════════════════════
   function pantallaActivar(msg){
-    detenerCamara();
+    detenerCamara(true);
     mostrar('dc-app', false);
     mostrar('dc-activar', true);
     error('dc-activar-error', msg || '');
@@ -422,26 +422,44 @@
   // Cámara directa (Safari de iOS 11+). Si no se puede (por ejemplo la página
   // abierta desde un ícono de la pantalla de inicio en iOS 12), se usa la
   // cámara del sistema con el botón "Tomar foto".
+  // Safari de iOS 12 pide permiso cada vez que se abre la cámara y no tiene
+  // "Permitir siempre" (llegó en iOS 13): se abre una sola vez y se deja
+  // encendida mientras la página siga abierta; las marcas siguientes la reusan.
+  function camaraViva(){
+    if(!st.stream) return false;
+    var t = st.stream.getTracks();
+    for(var i = 0; i < t.length; i++) if(t[i].readyState === 'ended') return false;
+    return t.length > 0;
+  }
+  function camaraLista(video){
+    video.style.display = 'block';
+    var pr = video.play();
+    if(pr && pr['catch']) pr['catch'](function(){});
+    $('dc-camara-msg').textContent = '';
+    $('dc-btn-marcar').disabled = false;
+    $('dc-foto-ayuda').textContent = 'Mira a la cámara: la foto se toma al confirmar.';
+  }
   function iniciarCamara(){
     var video = $('dc-video');
     var md = navigator.mediaDevices;
+    if(camaraViva()){
+      if(video.srcObject !== st.stream) video.srcObject = st.stream;
+      camaraLista(video);
+      return;
+    }
+    st.stream = null;
     if(!md || !md.getUserMedia){ modoTomarFoto(); return; }
     $('dc-camara-msg').textContent = 'Abriendo la cámara…';
     $('dc-btn-marcar').disabled = true;
     md.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false }).then(function(stream){
       st.stream = stream;
       video.srcObject = stream;
-      video.style.display = 'block';
-      var pr = video.play();
-      if(pr && pr['catch']) pr['catch'](function(){});
-      $('dc-camara-msg').textContent = '';
-      $('dc-btn-marcar').disabled = false;
-      $('dc-foto-ayuda').textContent = 'Mira a la cámara: la foto se toma al confirmar.';
+      camaraLista(video);
     })['catch'](function(){ modoTomarFoto(); });
   }
 
   function modoTomarFoto(){
-    detenerCamara();
+    detenerCamara(true);
     $('dc-video').style.display = 'none';
     $('dc-camara-msg').textContent = 'Pulsa "Tomar foto" para abrir la cámara';
     mostrar('dc-btn-tomar', true);
@@ -450,14 +468,16 @@
     $('dc-foto-ayuda').textContent = 'Toma la foto y luego confirma la marca.';
   }
 
-  function detenerCamara(){
-    if(st.stream){
+  // apagar = true: cierra la cámara (al salir o si falló). Si no, solo se
+  // oculta y queda encendida para la próxima marca.
+  function detenerCamara(apagar){
+    if(apagar && st.stream){
       var t = st.stream.getTracks();
       for(var i = 0; i < t.length; i++) t[i].stop();
       st.stream = null;
     }
     var v = $('dc-video');
-    if(v){ v.srcObject = null; }
+    if(v && apagar){ v.srcObject = null; }
     if($('dc-btn-tomar')) $('dc-btn-tomar').className = 'dc-btn dc-btn-sec dc-oculto';
   }
 
@@ -647,6 +667,23 @@
 
   function conectar(){
     on($('dc-activar-form'), 'submit', activar);
+    // Teclado: cada toque cuenta al instante, aunque sean seguidos (Safari
+    // hacía zoom con el doble toque). preventDefault evita el zoom y el
+    // "click" duplicado; con mouse sigue funcionando el click.
+    on($('dc-teclado'), 'touchend', function(e){
+      var t = closestData(e.target, 'data-tecla');
+      if(!t) return;
+      e.preventDefault();
+      tecla(t.getAttribute('data-tecla'));
+    });
+    // Resto de la pantalla: sin zoom por doble toque ni por pellizco
+    var ultimoToque = 0;
+    on(document, 'touchend', function(e){
+      var ahora = new Date().getTime();
+      if(ahora - ultimoToque < 350 && !closestData(e.target, 'data-tecla') && e.target.tagName !== 'INPUT') e.preventDefault();
+      ultimoToque = ahora;
+    });
+    on(document, 'gesturestart', function(e){ e.preventDefault(); });
     on(document.body, 'click', function(e){
       var t = closestData(e.target, 'data-tecla');
       if(t){ tecla(t.getAttribute('data-tecla')); return; }
