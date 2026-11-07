@@ -312,7 +312,7 @@ router.post('/kiosco/marcas', verificarKiosco, async (req, res) => {
 router.get('/cuenta', verificarToken, verificarNivel(4), async (req, res) => {
   try {
     const r = await pool.query('SELECT usuario, activo, sesiones_desde, actualizada_at FROM asistencia_cuentas ORDER BY id LIMIT 1');
-    res.json(r.rows[0] || null);
+    res.json(r.rows[0] ? { existe: true, ...r.rows[0] } : { existe: false });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });

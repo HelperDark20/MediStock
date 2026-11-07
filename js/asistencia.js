@@ -160,8 +160,9 @@ async function asisAbrirCuenta(){
   document.getElementById('asis-cuenta-pass').value = '';
   try {
     const c = await Asistencia.cuenta();
-    document.getElementById('asis-cuenta-usuario').value = c ? c.usuario : 'datacontrol@novabridge.com.co';
-    document.getElementById('asis-cuenta-estado').innerHTML = c
+    const hay = !!(c && c.existe);
+    document.getElementById('asis-cuenta-usuario').value = hay ? c.usuario : 'datacontrol@novabridge.com.co';
+    document.getElementById('asis-cuenta-estado').innerHTML = hay
       ? `Cuenta creada. Sesiones válidas desde ${_asisFechaCO(c.sesiones_desde)}. Deja la contraseña vacía para no cambiarla.`
       : 'Aún no hay cuenta: crea el usuario y la contraseña con los que se activan las tablets.';
     document.getElementById('modal-asis-cuenta').classList.add('open');
