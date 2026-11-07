@@ -11,8 +11,11 @@
    No lo conviertas a sintaxis moderna: las tablets con iOS 9 dejarían de
    funcionar. `npm run check:lite` valida la sintaxis ES5.
 
-   Flujo: login → evento en curso (elegir si hay varios) → bodega →
-   producto → cantidad y cédula → consumo.
+   Flujo: login → evento en curso (elegir si hay varios; sin evento no se
+   puede continuar) → Historias clínicas (js/lite/hc-lite.js): lista + editor
+   por módulos. Los consumos ya no se registran por fuera de la HC: el
+   formulario de consumo (bodega → producto → cantidad) queda oculto hasta que
+   el módulo 6 de la HC lo reutilice.
 
    MODO OFFLINE (solo consumos):
    - Se activa a mano ("Trabajar offline") o se ofrece cuando un registro
@@ -32,6 +35,8 @@
      nb_modo_U           'offline' mientras el modo offline está activo
      nb_cola_U           consumos pendientes de sincronizar
      nb_evento_U         evento elegido cuando tiene varios en curso
+     nb_hc_U             historias clínicas en curso / pendientes de envío
+     nb_hcenv_U          consecutivos de las HC ya enviadas (sin datos del paciente)
    ══════════════════════════════════════════ */
 (function(){
   'use strict';
@@ -235,9 +240,21 @@
 
   function textoSesionVencida(){
     var n = st.usuario ? leerCola(st.usuario.id).length : 0;
-    return n
-      ? 'Tu sesión venció. Ingresa de nuevo para sincronizar tus ' + plural(n, 'consumo pendiente', 'consumos pendientes') + '; siguen guardados en esta tablet.'
+    var h = st.usuario ? HCLite.contar(st.usuario.id) : { total: 0 };
+    var partes = [];
+    if(n) partes.push(plural(n, 'consumo pendiente', 'consumos pendientes'));
+    if(h.total) partes.push(plural(h.total, 'historia clínica', 'historias clínicas'));
+    return partes.length
+      ? 'Tu sesión venció. Ingresa de nuevo: tus ' + partes.join(' y ') + ' siguen guardados en esta tablet.'
       : 'Tu sesión venció. Ingresa de nuevo.';
+  }
+
+  // Lo pendiente de este usuario en la tablet: consumos sin sincronizar e
+  // historias clínicas en curso o pendientes de envío
+  function pendientesTablet(idUsuario){
+    var n = leerCola(idUsuario).length;
+    var h = HCLite.contar(idUsuario);
+    return { consumos: n, hc: h.total, hcPorEnviar: h.porEnviar, hcEnCurso: h.enCurso, porSubir: n + h.porEnviar };
   }
 
   // ── Pantallas ──
@@ -253,14 +270,17 @@
   // En el login se avisa si quedaron consumos sin sincronizar en esta tablet
   function avisoPendientesLogin(){
     var u = leerJSON('nb_ultimo_usuario');
-    var n = u ? leerCola(u.id).length : 0;
+    var p = u ? pendientesTablet(u.id) : { consumos: 0, hc: 0 };
     var el = $('lt-login-pendientes');
-    if(n){
-      el.innerHTML = 'En esta tablet hay <strong>' + plural(n, 'consumo', 'consumos') + ' sin sincronizar</strong> de ' +
-        escHtml(u.nombre) + '. Debe ingresar con su usuario y pulsar <strong>Sincronizar</strong>.';
+    var partes = [];
+    if(p.consumos) partes.push(plural(p.consumos, 'consumo sin sincronizar', 'consumos sin sincronizar'));
+    if(p.hc) partes.push(plural(p.hc, 'historia clínica sin enviar', 'historias clínicas sin enviar'));
+    if(partes.length){
+      el.innerHTML = 'En esta tablet hay <strong>' + partes.join(' y ') + '</strong> de ' +
+        escHtml(u.nombre) + '. Debe ingresar con su usuario para terminarlas y pulsar <strong>Sincronizar</strong>.';
       if(u.cedula && !$('lt-cedula').value) $('lt-cedula').value = u.cedula;
     }
-    mostrar('lt-login-pendientes', !!n);
+    mostrar('lt-login-pendientes', !!partes.length);
   }
 
   function estado(html){
@@ -278,7 +298,9 @@
 
   function cerrarSesion(){
     var id = st.usuario ? st.usuario.id : null;
-    if(id && !leerCola(id).length){
+    HCLite.salir();
+    var p = id ? pendientesTablet(id) : null;
+    if(id && !p.consumos && !p.hc){
       // Sin pendientes: no queda nada de este usuario en la tablet
       guardar(claveUsuario('paquete', id), null);
       guardar(claveUsuario('modo', id), null);
@@ -290,17 +312,22 @@
 
   // Q4 del cliente: no compartir la tablet con consumos sin sincronizar
   function pedirSalir(){
-    var n = leerCola(st.usuario.id).length;
-    if(!n){ cerrarSesion(); return; }
-    modal('Tienes consumos sin sincronizar',
-      'Tienes <strong>' + plural(n, 'consumo pendiente', 'consumos pendientes') + '</strong> en esta tablet.' +
-      '<ul><li><strong>No compartas esta tablet con otro enfermero</strong> hasta sincronizarlos.</li>' +
-      '<li>Si sales, quedan guardados a tu nombre y tendrás que volver a ingresar con tu usuario para sincronizarlos.</li></ul>',
-      [
-        { texto: 'Cancelar' },
-        { texto: 'Salir de todos modos', clase: 'peligro', accion: cerrarSesion },
-        { texto: 'Sincronizar ahora', clase: 'primario', accion: sincronizar }
-      ]);
+    var p = pendientesTablet(st.usuario.id);
+    if(!p.consumos && !p.hc){ cerrarSesion(); return; }
+    var partes = [];
+    if(p.consumos) partes.push(plural(p.consumos, 'consumo pendiente', 'consumos pendientes'));
+    if(p.hcEnCurso) partes.push(plural(p.hcEnCurso, 'historia clínica en curso', 'historias clínicas en curso'));
+    if(p.hcPorEnviar) partes.push(plural(p.hcPorEnviar, 'historia clínica pendiente de envío', 'historias clínicas pendientes de envío'));
+    var botones = [
+      { texto: 'Cancelar' },
+      { texto: 'Salir de todos modos', clase: 'peligro', accion: cerrarSesion }
+    ];
+    if(p.porSubir) botones.push({ texto: 'Sincronizar ahora', clase: 'primario', accion: sincronizar });
+    modal('Tienes información sin terminar en la tablet',
+      'Tienes <strong>' + partes.join(', ') + '</strong> en esta tablet.' +
+      '<ul><li><strong>No compartas esta tablet con otro enfermero</strong> hasta terminarlas y sincronizarlas.</li>' +
+      '<li>Si sales, quedan guardadas a tu nombre y tendrás que volver a ingresar con tu usuario para terminarlas.</li></ul>',
+      botones);
   }
 
   // ── Inicio de sesión ──
@@ -542,32 +569,78 @@
   }
 
   // ── Sincronizar (solo con el botón) ──
+  // Primero los consumos y después las historias clínicas pendientes de envío:
+  // el servidor exige que los consumos de una HC estén registrados en el
+  // inventario antes de aceptarla.
   function sincronizar(){
     if(st.sincronizando) return;
-    var cola = leerCola(st.usuario.id);
-    if(!cola.length){ toast('No hay consumos pendientes', 'ok'); return; }
+    var nc = leerCola(st.usuario.id).length, nh = HCLite.contar(st.usuario.id).porEnviar;
+    if(!nc && !nh){ toast('No hay nada pendiente de sincronizar', 'ok'); return; }
     st.sincronizando = true;
     renderModo();
-    var total = cola.length, ok = 0, errores = 0;
+    sincronizarConsumos(function(rc){
+      if(rc.sesion){ st.sincronizando = false; renderModo(); salirSinBorrar(textoSesionVencida()); return; }
+      if(rc.sinRed || !nh){ terminarSincronizacion(rc, null); return; }
+      HCLite.sincronizar(function(rh){
+        if(rh.sesion){ st.sincronizando = false; renderModo(); salirSinBorrar(textoSesionVencida()); return; }
+        terminarSincronizacion(rc, rh);
+      });
+    });
+  }
+
+  // Resumen del envío de historias clínicas para los avisos de sincronización
+  function resumenHC(r){
+    if(!r || !r.total) return '';
+    var t = r.enviadas ? (r.enviadas === 1 ? 'Se envió' : 'Se enviaron') + ' <strong>' + plural(r.enviadas, 'historia clínica', 'historias clínicas') + '</strong>. ' : '';
+    if(r.sinRed) t += 'Sin conexión: quedan historias clínicas pendientes de envío. ';
+    if(r.errores) t += '<strong>' + plural(r.errores, 'historia clínica fue rechazada', 'historias clínicas fueron rechazadas') + '</strong>: ábrela en "Mis historias clínicas" para ver el motivo y corregirla. ';
+    return t;
+  }
+
+  function terminarSincronizacion(rc, rh){
+    st.sincronizando = false;
+    renderModo();
+    renderHistorial();
+    HCLite.mostrarInicio();
+    var quedanConsumos = leerCola(st.usuario.id).length;
+    var quedanHC = HCLite.contar(st.usuario.id).porEnviar;
+    var incompleto = rc.sinRed || rc.errores || quedanConsumos || quedanHC || (rh && rh.errores);
+    var t = '';
+    if(rc.ok) t += 'Se subieron <strong>' + plural(rc.ok, 'consumo', 'consumos') + '</strong>. ';
+    if(rc.errores) t += '<strong>' + plural(rc.errores, 'consumo no se pudo registrar', 'consumos no se pudieron registrar') + '</strong>: ábrelos en el módulo 6 de su historia clínica para ver el motivo. ';
+    if(rc.sinRed) t += 'Sin conexión: lo pendiente sigue guardado en la tablet; sincroniza cuando tengas señal. ';
+    else if(rc.error) t += escHtml(rc.error) + ' ';
+    t += resumenHC(rh);
+    if(!incompleto) t += 'Los datos de los pacientes se borraron de esta tablet.';
+    modal(incompleto ? 'Sincronización incompleta' : 'Sincronización completa', t,
+      !incompleto && st.offline
+        ? [{ texto: 'Seguir offline' }, { texto: 'Volver a en línea', clase: 'primario', accion: volverEnLinea }]
+        : [{ texto: 'Aceptar', clase: 'primario' }]);
+  }
+
+  // Sube la cola de consumos. cb({ total, ok, errores, sinRed, sesion, error })
+  function sincronizarConsumos(cb){
+    var cola = leerCola(st.usuario.id);
+    var res = { total: cola.length, ok: 0, errores: 0 };
+    if(!cola.length){ cb(res); return; }
     var lotes = [];
     for(var i = 0; i < cola.length; i += LOTE_SINCRONIZAR) lotes.push(cola.slice(i, i + LOTE_SINCRONIZAR));
 
     function siguiente(n){
-      if(n >= lotes.length){ terminar(); return; }
+      if(n >= lotes.length){ cb(res); return; }
       var envio = [];
       for(var k = 0; k < lotes[n].length; k++){
         var c = lotes[n][k];
         envio.push({ client_id: c.client_id, sub_sku_id: c.sub_sku_id, bodega_origen_id: c.bodega_origen_id,
-                     cantidad: c.cantidad, cedula_paciente: c.cedula_paciente, fecha_atencion: c.fecha_atencion });
+                     cantidad: c.cantidad, cedula_paciente: c.cedula_paciente, fecha_atencion: c.fecha_atencion,
+                     hc_client_id: c.hc_client_id || null });
       }
       api('POST', '/api/movimientos/sincronizar', { consumos: envio }, function(err, data){
         if(err){
-          st.sincronizando = false;
-          renderModo();
-          if(sesionVencida(err)){ salirSinBorrar(textoSesionVencida()); return; }
-          renderHistorial();
-          toast((ok ? 'Se sincronizaron ' + ok + ' de ' + total + '. ' : '') +
-            (err.sinRed ? 'Sin conexión: sincroniza cuando tengas señal; los pendientes siguen guardados.' : err.message), 'error');
+          if(sesionVencida(err)) res.sesion = true;
+          else if(err.sinRed) res.sinRed = true;
+          else res.error = err.message;
+          cb(res);
           return;
         }
         aplicarResultados(data.resultados || []);
@@ -580,14 +653,14 @@
       for(var r = 0; r < resultados.length; r++) porId[resultados[r].client_id] = resultados[r];
       var actual = leerCola(st.usuario.id), resto = [];
       for(var q = 0; q < actual.length; q++){
-        var item = actual[q], res = porId[item.client_id];
-        if(res && (res.estado === 'ok' || res.estado === 'duplicado')){
-          ok++;
+        var item = actual[q], r2 = porId[item.client_id];
+        if(r2 && (r2.estado === 'ok' || r2.estado === 'duplicado')){
+          res.ok++;
           // Ya está en el servidor: pasa al historial sin cédula y sale de la tablet
           st.historial.unshift({ nombre: item.nombre, cantidad: item.cantidad, unidad: item.unidad,
                                  origen_nombre: item.bodega_nombre, fecha: item.fecha_atencion });
         } else {
-          if(res && res.estado === 'error'){ errores++; item.error = res.error; }
+          if(r2 && r2.estado === 'error'){ res.errores++; item.error = r2.error; }
           resto.push(item);
         }
       }
@@ -595,27 +668,82 @@
       guardarPaquete();
     }
 
-    function terminar(){
-      st.sincronizando = false;
-      var pendientes = leerCola(st.usuario.id).length;
-      renderModo();
-      renderHistorial();
-      if(!pendientes){
-        modal('Sincronización completa',
-          'Se subieron <strong>' + plural(ok, 'consumo', 'consumos') + '</strong> y se borraron de esta tablet.' +
-          (st.offline ? '<br><br>¿Quieres volver al modo en línea?' : ''),
-          st.offline
-            ? [{ texto: 'Seguir offline' }, { texto: 'Volver a en línea', clase: 'primario', accion: volverEnLinea }]
-            : [{ texto: 'Aceptar', clase: 'primario' }]);
-      } else {
-        modal('Sincronización incompleta',
-          'Se subieron ' + plural(ok, 'consumo', 'consumos') + '. ' +
-          (errores ? '<strong>' + plural(errores, 'consumo no se pudo registrar', 'consumos no se pudieron registrar') + '</strong>: revisa el motivo en "Mis consumos de hoy" y muéstralo al administrador.' : 'Quedan ' + pendientes + ' pendientes; vuelve a sincronizar.'),
-          [{ texto: 'Aceptar', clase: 'primario' }]);
-      }
-    }
-
     siguiente(0);
+  }
+
+  // ══════════════════════════════════════════
+  // CONSUMOS DE LA HISTORIA CLÍNICA (módulo 6, js/lite/hc-lite.js)
+  // ══════════════════════════════════════════
+  // Registra un consumo: en línea va directo al servidor; offline (o si se
+  // cae la red y el enfermero acepta) queda en la cola y sale con Sincronizar.
+  // cb({ ok: true, pendiente }) | cb({ error }) | cb({ cancelado: true })
+  function registrarConsumoHC(consumo, cb){
+    if(st.offline){
+      cb(encolarConsumo(consumo) ? { ok: true, pendiente: true } : { error: 'No hay espacio para guardar en esta tablet. El consumo NO se registró: sincroniza los pendientes.' });
+      return;
+    }
+    api('POST', '/api/movimientos/consumo', {
+      client_id: consumo.client_id, sub_sku_id: consumo.sub_sku_id, bodega_origen_id: consumo.bodega_origen_id,
+      cantidad: consumo.cantidad, cedula_paciente: consumo.cedula_paciente, hc_client_id: consumo.hc_client_id
+    }, function(err){
+      if(!err){ descontarLocal(consumo); guardarPaquete(); cb({ ok: true }); return; }
+      if(err.sinRed){
+        // Mismo client_id: si el envío sí había llegado, al sincronizar se ignora el repetido
+        modal('Sin conexión',
+          'No se pudo enviar el consumo. ¿Quieres <strong>guardarlo en esta tablet y pasar a modo offline</strong>?' +
+          '<ul><li>Lo subirás después con el botón <strong>Sincronizar</strong>.</li>' +
+          '<li>No compartas esta tablet con otro enfermero hasta sincronizar.</li></ul>',
+          [
+            { texto: 'No, intentar después', accion: function(){ cb({ cancelado: true }); } },
+            { texto: 'Guardar y trabajar offline', clase: 'primario', accion: function(){
+              if(!almacenamientoDisponible()){ cb({ error: 'Este navegador no permite guardar datos (¿navegación privada?). El consumo NO se registró.' }); return; }
+              st.offline = true;
+              guardar(claveUsuario('modo'), 'offline');
+              var ok = encolarConsumo(consumo);
+              renderModo();
+              cb(ok ? { ok: true, pendiente: true } : { error: 'No hay espacio para guardar en esta tablet. El consumo NO se registró.' });
+            } }
+          ]);
+        return;
+      }
+      if(sesionVencida(err)){ cb({ error: 'Tu sesión venció y el consumo NO se registró. Sal, vuelve a ingresar y regístralo de nuevo.' }); return; }
+      cb({ error: err.message + ' — el consumo NO se registró.' });
+    });
+  }
+
+  function encolarConsumo(consumo){
+    var cola = leerCola(st.usuario.id);
+    cola.push(consumo);
+    if(!guardarCola(cola)) return false;
+    descontarLocal(consumo);
+    guardarPaquete();
+    renderModo();
+    return true;
+  }
+
+  // Consumo todavía en la cola (sin sincronizar), o null
+  function consumoEnCola(clientId){ return buscarPor(leerCola(st.usuario.id), 'client_id', clientId); }
+
+  // Quita de la cola un consumo no sincronizado y devuelve el stock local
+  function quitarConsumoDeCola(clientId){
+    var cola = leerCola(st.usuario.id), resto = [], quitado = null;
+    for(var i = 0; i < cola.length; i++){
+      if(cola[i].client_id === clientId) quitado = cola[i]; else resto.push(cola[i]);
+    }
+    if(!quitado) return false;
+    guardarCola(resto);
+    devolverLocal(quitado);   // al encolarlo se había descontado del stock local
+    guardarPaquete();
+    renderModo();
+    return true;
+  }
+
+  function devolverLocal(consumo){
+    for(var i = 0; i < st.stock.length; i++){
+      var f = st.stock[i];
+      if(f.sub_sku_id === consumo.sub_sku_id && f.bodega_nombre === consumo.bodega_nombre){ f.cantidad += consumo.cantidad; break; }
+    }
+    guardarPaquete();
   }
 
   // Un consumo que el servidor rechazó (p. ej. stock insuficiente) se puede
@@ -641,24 +769,28 @@
     if(!st.usuario){ el.innerHTML = ''; return; }
     var cola = leerCola(st.usuario.id);
     var n = cola.length;
+    var nh = HCLite.contar(st.usuario.id).porEnviar;   // HC pendientes de envío
     var masViejo = null;
     for(var i = 0; i < n; i++){ if(!masViejo || cola[i].fecha_atencion < masViejo) masViejo = cola[i].fecha_atencion; }
     var viejos = masViejo && (new Date().getTime() - new Date(masViejo).getTime()) > HORAS_AVISO_PENDIENTES * 3600 * 1000;
-    var btnSync = n ? '<button type="button" class="lt-btn-sec primario" data-accion="sincronizar"' + (st.sincronizando ? ' disabled' : '') + '>' +
-      (st.sincronizando ? 'Sincronizando…' : 'Sincronizar (' + n + ')') + '</button>' : '';
+    var btnSync = (n + nh) ? '<button type="button" class="lt-btn-sec primario" data-accion="sincronizar"' + (st.sincronizando ? ' disabled' : '') + '>' +
+      (st.sincronizando ? 'Sincronizando…' : 'Sincronizar (' + (n + nh) + ')') + '</button>' : '';
     var aviso = viejos ? '<div class="lt-modo-detalle"><strong>Tienes consumos sin sincronizar desde el ' + fechaHoraCO(masViejo) + '.</strong> Sincroniza apenas tengas conexión.</div>' : '';
+    var partes = [];
+    if(n) partes.push(plural(n, 'consumo pendiente', 'consumos pendientes'));
+    if(nh) partes.push(plural(nh, 'historia clínica pendiente', 'historias clínicas pendientes') + ' de envío');
     var html;
     if(st.offline){
       html = '<div class="lt-modo-titulo">● Modo offline</div>' +
         '<div class="lt-modo-detalle">Datos descargados el ' + fechaHoraCO(st.preparadoAt) + ' · ' +
-        (n ? '<strong>' + plural(n, 'consumo pendiente', 'consumos pendientes') + '</strong> de sincronizar' : 'sin consumos pendientes') + '</div>' +
+        (partes.length ? '<strong>' + partes.join(' y ') + '</strong>' : 'nada pendiente de sincronizar') + '</div>' +
         '<div class="lt-modo-detalle">No compartas esta tablet hasta sincronizar.</div>' + aviso +
         '<div class="lt-modo-botones">' + btnSync +
         '<button type="button" class="lt-btn-sec" data-accion="en-linea">Volver a en línea</button></div>';
       el.className = 'lt-modo offline' + (viejos ? ' alerta' : '');
     } else {
       html = '<div class="lt-modo-titulo">● En línea</div>' +
-        (n ? '<div class="lt-modo-detalle"><strong>' + plural(n, 'consumo pendiente', 'consumos pendientes') + '</strong> de sincronizar.</div>' : '') + aviso +
+        (partes.length ? '<div class="lt-modo-detalle"><strong>' + partes.join(' y ') + '</strong>: pulsa Sincronizar.</div>' : '') + aviso +
         '<div class="lt-modo-botones">' + btnSync +
         '<button type="button" class="lt-btn-sec" data-accion="pedir-offline">Trabajar offline</button></div>';
       el.className = 'lt-modo online' + (viejos ? ' alerta' : '');
@@ -708,9 +840,10 @@
     mostrar('lt-panel', true);
     renderModo();
     renderHistorial();
+    HCLite.mostrarInicio();
+    // Sin bodegas puede diligenciar historias clínicas, pero no registrar consumos
     if(!bodegas.length){
-      estado('Este evento no tiene bodegas asignadas para ti.<br>Contacta al administrador.');
-      return;
+      errorEn('lt-consumo-error', 'No tienes bodegas asignadas en este evento: no puedes registrar consumos. Contacta al administrador.');
     }
     actualizarPaso2();
   }
@@ -941,7 +1074,7 @@
     if(ac && typeof ac.status === 'number'){
       on(ac, 'updateready', function(){
         try { ac.swapCache(); } catch(e){}
-        if(!st.item) window.location.reload();
+        if(!st.item && !HCLite.editando()) window.location.reload();
       });
       return;
     }
@@ -949,7 +1082,7 @@
       var habiaControlador = !!navigator.serviceWorker.controller;
       navigator.serviceWorker.register('/sw-enfermero.js', { scope: '/enfermero' })['catch'](function(){});
       on(navigator.serviceWorker, 'controllerchange', function(){
-        if(habiaControlador && !st.item) window.location.reload();
+        if(habiaControlador && !st.item && !HCLite.editando()) window.location.reload();
       });
     }
   }
@@ -973,6 +1106,17 @@
   }
 
   function conectar(){
+    // Historia clínica (js/lite/hc-lite.js): utilidades y estado compartidos
+    HCLite.conectar({
+      $: $, on: on, mostrar: mostrar, escHtml: escHtml, api: api, sesionVencida: sesionVencida,
+      modal: modal, toast: toast, leerJSON: leerJSON, guardarJSON: guardarJSON, claveUsuario: claveUsuario,
+      nuevoClientId: nuevoClientId, fechaCO: fechaCO, horaCO: horaCO, fmtFecha: fmtFecha,
+      closestData: closestData, renderModo: renderModo, estado: st,
+      // módulo 6
+      registrarConsumoHC: registrarConsumoHC, consumoEnCola: consumoEnCola,
+      quitarConsumoDeCola: quitarConsumoDeCola, devolverLocal: devolverLocal,
+      sincronizar: sincronizar, fechaHoraCO: fechaHoraCO, semHtml: semHtml
+    });
     on($('lt-login-form'), 'submit', enviarLogin);
     on($('lt-logout'), 'click', function(){ if(st.usuario) pedirSalir(); else cerrarSesion(); });
     on($('lt-bodega'), 'change', cambiarBodega);

@@ -19,10 +19,11 @@ const SUBGRUPOS = {
 };
 
 const NIVELES = {
-  1:{label:'Auditor',cls:'n1',nav:['dashboard','inventario','trazabilidad']},
+  // Médico: sin acceso a la app (solo se asigna a eventos para la historia clínica)
+  1:{label:'Médico',cls:'n1',nav:[]},
   2:{label:'Enfermero/a',cls:'n2',nav:['dashboard','inventario','movimientos','trazabilidad']},
   3:{label:'Supervisor',cls:'n3',nav:['dashboard','inventario','movimientos','registro','trazabilidad']},
-  4:{label:'Administrador',cls:'n4',nav:['dashboard','inventario','movimientos','registro','sku','usuarios','bodegas','eventos','segstock','reportes','trazabilidad']}
+  4:{label:'Administrador',cls:'n4',nav:['dashboard','inventario','movimientos','registro','sku','usuarios','bodegas','eventos','historias','segstock','reportes','trazabilidad']}
 };
 
 const NAV_CONFIG = [
@@ -34,6 +35,7 @@ const NAV_CONFIG = [
   {id:'usuarios',icon:'ti-users',label:'Usuarios',section:''},
   {id:'bodegas',icon:'ti-building-warehouse',label:'Ubicaciones',section:''},
   {id:'eventos',icon:'ti-calendar-event',label:'Eventos',section:''},
+  {id:'historias',icon:'ti-clipboard-heart',label:'Historias clínicas',section:''},
   {id:'reportes',icon:'ti-report-analytics',label:'Reportes',section:''},
   {id:'trazabilidad',icon:'ti-timeline',label:'Trazabilidad',section:''},
   {id:'segstock',icon:'ti-shield-check',label:'Stock de Seguridad',section:''},

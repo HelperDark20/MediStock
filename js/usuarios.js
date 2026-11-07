@@ -1,54 +1,65 @@
-function poblarSelectsFechaNac(){
-  ['u-nac-dia','edit-u-nac-dia'].forEach(id => {
-    const sel = document.getElementById(id);
-    if(!sel || sel.options.length > 1) return;
-    sel.innerHTML = '<option value="">Día</option>' +
-      Array.from({length:31},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}">${i+1}</option>`).join('');
-  });
-  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  ['u-nac-mes','edit-u-nac-mes'].forEach(id => {
-    const sel = document.getElementById(id);
-    if(!sel || sel.options.length > 1) return;
-    sel.innerHTML = '<option value="">Mes</option>' +
-      meses.map((m,i)=>`<option value="${String(i+1).padStart(2,'0')}">${m}</option>`).join('');
-  });
-  const añoActual = new Date().getFullYear();
-  ['u-nac-año','edit-u-nac-año'].forEach(id => {
-    const sel = document.getElementById(id);
-    if(!sel || sel.options.length > 1) return;
-    sel.innerHTML = '<option value="">Año</option>' +
-      Array.from({length:80},(_,i)=>`<option value="${añoActual-i}">${añoActual-i}</option>`).join('');
-  });
-}
-
 // NOTA: la ubicación de los enfermeros (Nivel 2) ya NO se asigna aquí.
 // Ahora se asigna de forma temporal desde el módulo "Eventos", donde el
-// administrador define ubicación + depósitos habilitados + enfermeros
-// para la duración del evento.
+// administrador define ubicación + depósitos habilitados + personal
+// (enfermeros y médicos) para la duración del evento.
+//
+// Nivel 1 = Médico: no tiene contraseña ni acceso a la app. Se asigna a los
+// eventos desde "Agregar personal" y sus datos (nombre y cédula, que hace
+// también de registro profesional) salen en la historia clínica. La fecha de nacimiento de los
+// usuarios ya no se pide.
+
+const NIVEL_MEDICO = 1;
+
+// Muestra/oculta los campos según el nivel elegido. prefijo: 'u' (crear) o
+// 'edit-u' (editar)
+function usuarioNivelCambio(prefijo){
+  const esMedico = parseInt(document.getElementById(`${prefijo}-nivel`).value) === NIVEL_MEDICO;
+  document.getElementById(`${prefijo}-medico-hint`).style.display = esMedico ? '' : 'none';
+  const etiqueta = document.getElementById(`${prefijo}-cedula-label`);
+  if(etiqueta) etiqueta.textContent = esMedico ? 'Cédula / Registro profesional' : 'Número de cédula';
+  if(prefijo === 'edit-u') _editSubtitulo();
+  document.getElementById(`${prefijo}-pass-wrap`).style.display = esMedico ? 'none' : '';
+  if(prefijo === 'edit-u') _editPassLabel();
+}
+
+// Al pasar un médico a otro nivel la contraseña es obligatoria (no tenía)
+function _editPassLabel(){
+  const id = parseInt(document.getElementById('edit-u-id').value);
+  const u = S.usuarios.find(x => x.id === id);
+  const eraMedico = u && u.nivel === NIVEL_MEDICO;
+  document.getElementById('edit-u-pass-label').innerHTML = eraMedico
+    ? 'Contraseña <span style="font-weight:400;color:#c0392b">(obligatoria: este usuario no tenía acceso a la app)</span>'
+    : 'Nueva contraseña <span style="font-weight:400;color:#aaa">(opcional)</span>';
+  document.getElementById('edit-u-pass').placeholder = eraMedico ? 'Ej. NB2026*Carlos' : 'Dejar vacío para no cambiar';
+}
+
+// Subtítulo del modal de edición: la cédula del médico es su registro profesional
+function _editSubtitulo(){
+  const id = parseInt(document.getElementById('edit-u-id').value);
+  const u = S.usuarios.find(x => x.id === id);
+  if(!u) return;
+  const esMedico = parseInt(document.getElementById('edit-u-nivel').value) === NIVEL_MEDICO;
+  document.getElementById('modal-edit-user-sub').textContent = `${esMedico ? 'Cédula / Registro profesional' : 'CC'}: ${u.cedula}`;
+}
 
 async function crearUsuario(){
-  poblarSelectsFechaNac();
   const nombre   = document.getElementById('u-nombre').value.trim();
   const cedula   = document.getElementById('u-cedula').value.trim();
   const nivel    = parseInt(document.getElementById('u-nivel').value);
   const genero   = document.getElementById('u-genero').value;
-  const nacTxt = document.getElementById('u-nacimiento-txt').value.trim();
-  const nacISO = fechaDMAaISO(nacTxt);
-  if(nacISO === null){ toastError('La fecha de nacimiento no es válida. Usa día/mes/año, ej. 15/03/1990'); return; }
-  const fecha_nacimiento = nacISO || null;
-  const password = document.getElementById('u-pass').value.trim();
+  const esMedico = nivel === NIVEL_MEDICO;
+  const password = esMedico ? '' : document.getElementById('u-pass').value.trim();
 
-  if(!nombre||!cedula||!password){
-    toast('Completa nombre, cédula y contraseña','error');
+  if(!nombre || !cedula || (!esMedico && !password)){
+    toast(esMedico ? 'Completa nombre y cédula' : 'Completa nombre, cédula y contraseña','error');
     return;
   }
   try {
-    await Usuarios.create({ nombre, cedula, nivel, genero, fecha_nacimiento, password, ubicacion_id: null });
+    await Usuarios.create({ nombre, cedula, nivel, genero, password: password || null, ubicacion_id: null });
     ['u-nombre','u-cedula','u-pass'].forEach(id => document.getElementById(id).value='');
-    document.getElementById('u-nacimiento-txt').value = '';
     S.usuarios = await Usuarios.getAll();
     renderUsuarios();
-    toast('✓ Usuario creado','success');
+    toast(esMedico ? '✓ Médico creado (sin acceso a la app)' : '✓ Usuario creado','success');
   } catch(err){
     toast(err.message,'error');
   }
@@ -63,7 +74,7 @@ function abrirEdicionUsuario(id){
   document.getElementById('edit-u-nombre').value = u.nombre;
   document.getElementById('edit-u-nivel').value  = u.nivel;
   document.getElementById('edit-u-pass').value   = '';
-  document.getElementById('modal-edit-user-sub').textContent = `CC: ${u.cedula}`;
+  usuarioNivelCambio('edit-u');
 
   document.getElementById('modal-edit-user').classList.add('open');
 }
@@ -72,12 +83,19 @@ async function guardarEdicionUsuario(){
   const id       = parseInt(document.getElementById('edit-u-id').value);
   const nombre   = document.getElementById('edit-u-nombre').value.trim();
   const nivel    = parseInt(document.getElementById('edit-u-nivel').value);
-  const password = document.getElementById('edit-u-pass').value.trim();
+  const esMedico = nivel === NIVEL_MEDICO;
+  const password = esMedico ? '' : document.getElementById('edit-u-pass').value.trim();
+  const anterior = S.usuarios.find(x => x.id === id);
 
   if(!nombre){ toast('El nombre no puede estar vacío','error'); return; }
+  if(!esMedico && anterior && anterior.nivel === NIVEL_MEDICO && !password){
+    toast('Asigna una contraseña: este usuario no tenía acceso a la app','error');
+    return;
+  }
+  // FIX: no se envía ubicacion_id — el formulario no la edita y enviarla en null la borraba
+  const datos = { nombre, nivel, password: password || null };
   try {
-    // FIX: no se envía ubicacion_id — el formulario no la edita y enviarla en null la borraba
-    await Usuarios.update(id, { nombre, nivel, password: password||null });
+    await Usuarios.update(id, datos);
     closeModal('modal-edit-user');
     S.usuarios = await Usuarios.getAll();
     renderUsuarios();
@@ -93,14 +111,19 @@ function renderUsuarios(){
     el.innerHTML='<div class="empty-state"><i class="ti ti-users"></i><p>Sin usuarios registrados</p></div>';
     return;
   }
-  el.innerHTML = S.usuarios.map(u=>`
+  el.innerHTML = S.usuarios.map(u=>{
+    const esMedico = u.nivel === NIVEL_MEDICO;
+    const extra = esMedico
+      ? ` · Cédula / Registro profesional · <span style="color:#999">sin acceso a la app</span>`
+      : ` · ${escHtml(u.genero||'—')}`;
+    return `
     <div class="user-card">
       <div class="user-avatar n${u.nivel}">
         ${escHtml((u.nombre||'').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase())}
       </div>
       <div class="user-info">
         <div class="user-name">${escHtml(u.nombre)}</div>
-        <div class="user-cedula">CC: ${escHtml(u.cedula)} · ${escHtml(u.genero||'—')}</div>
+        <div class="user-cedula">CC: ${escHtml(u.cedula)}${extra}</div>
       </div>
       <div class="user-card-meta">
         <span class="nivel-badge n${u.nivel}">N${u.nivel} · ${NIVELES[u.nivel]?.label}</span>
@@ -114,5 +137,6 @@ function renderUsuarios(){
             </button>
           </div>`:''}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }

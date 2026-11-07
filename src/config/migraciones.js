@@ -76,6 +76,87 @@ const MIGRACIONES = [
    )`,
   'CREATE INDEX IF NOT EXISTS sub_sku_cambios_sub_sku_idx ON sub_sku_cambios (sub_sku_id)',
 
+  // Municipios de Colombia (DIVIPOLA del DANE) para la ubicación: la historia
+  // clínica toma de ahí el municipio del lugar de atención. Los datos se
+  // cargan desde src/data/municipios.json (ver _cargarMunicipios).
+  `CREATE TABLE IF NOT EXISTS municipios (
+     codigo TEXT PRIMARY KEY,
+     nombre TEXT NOT NULL,
+     departamento TEXT NOT NULL
+   )`,
+  'ALTER TABLE ubicaciones ADD COLUMN IF NOT EXISTS municipio_codigo TEXT REFERENCES municipios(codigo)',
+
+  // Nivel 1 = Médico (antes "Auditor"): personal que se asigna a los eventos
+  // para la historia clínica, sin contraseña ni acceso a la app. Su cédula
+  // hace también de registro profesional.
+  'ALTER TABLE usuarios ALTER COLUMN password_hash DROP NOT NULL',
+
+  // Historia clínica prehospitalaria (panel de enfermero). La tablet la
+  // diligencia (también sin conexión) y la envía al terminar; el servidor le
+  // asigna el consecutivo HC-AAAA-NNNN al recibirla (sin huecos: el contador
+  // avanza en la misma transacción que la inserción).
+  //   client_id — id que genera la tablet; reenviar la misma HC no la duplica
+  //   datos     — contenido de los módulos (paciente, motivo, antecedentes…)
+  //   firmas    — imágenes PNG (data URL) de las firmas tomadas en la tablet
+  //   paciente_* — copiados de datos para buscar y filtrar
+  `CREATE TABLE IF NOT EXISTS historias_clinicas (
+     id SERIAL PRIMARY KEY,
+     client_id TEXT NOT NULL UNIQUE,
+     anio INTEGER NOT NULL,
+     numero INTEGER NOT NULL,
+     consecutivo TEXT NOT NULL UNIQUE,
+     estado TEXT NOT NULL CHECK (estado IN ('abierta', 'cerrada')),
+     evento_id INTEGER REFERENCES eventos(id),
+     ubicacion_id INTEGER REFERENCES ubicaciones(id),
+     usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
+     inicio_atencion TIMESTAMPTZ NOT NULL,
+     paciente_tipo_doc TEXT,
+     paciente_documento TEXT,
+     paciente_nombre TEXT,
+     datos JSONB NOT NULL,
+     firmas JSONB NOT NULL DEFAULT '{}'::jsonb,
+     recibida_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+     actualizada_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+     UNIQUE (anio, numero)
+   )`,
+  'CREATE INDEX IF NOT EXISTS hc_paciente_idx ON historias_clinicas (paciente_tipo_doc, paciente_documento)',
+  'CREATE INDEX IF NOT EXISTS hc_evento_idx ON historias_clinicas (evento_id)',
+  'CREATE INDEX IF NOT EXISTS hc_inicio_idx ON historias_clinicas (inicio_atencion)',
+  // Último número usado por año (el primero del año es 0000)
+  'CREATE TABLE IF NOT EXISTS hc_consecutivos (anio INTEGER PRIMARY KEY, ultimo INTEGER NOT NULL)',
+  // Rastro de cambios de las HC (módulo admin "Historias clínicas"): toda
+  // edición, entrega del paciente, firma médica tomada después o archivo
+  // adjunto queda registrado con quién, cuándo, motivo y valores antes/después
+  `CREATE TABLE IF NOT EXISTS hc_cambios (
+     id SERIAL PRIMARY KEY,
+     hc_id INTEGER NOT NULL REFERENCES historias_clinicas(id),
+     usuario_id INTEGER,
+     usuario_nombre TEXT,
+     accion TEXT NOT NULL,
+     motivo TEXT,
+     cambios JSONB NOT NULL DEFAULT '[]'::jsonb,
+     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   )`,
+  'CREATE INDEX IF NOT EXISTS hc_cambios_hc_idx ON hc_cambios (hc_id)',
+  // Archivos de la HC: foto o PDF del recibido de la IPS (máx. 5 MB)
+  `CREATE TABLE IF NOT EXISTS hc_adjuntos (
+     id SERIAL PRIMARY KEY,
+     hc_id INTEGER NOT NULL REFERENCES historias_clinicas(id),
+     tipo TEXT NOT NULL,
+     nombre TEXT,
+     mime TEXT NOT NULL,
+     tamano INTEGER NOT NULL,
+     contenido BYTEA NOT NULL,
+     subido_por INTEGER,
+     subido_por_nombre TEXT,
+     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   )`,
+  'CREATE INDEX IF NOT EXISTS hc_adjuntos_hc_idx ON hc_adjuntos (hc_id)',
+
+  // Consumos registrados dentro de una HC (módulo 6): id de la HC en la tablet
+  'ALTER TABLE movimientos ADD COLUMN IF NOT EXISTS hc_client_id TEXT',
+  'CREATE INDEX IF NOT EXISTS movimientos_hc_client_id_idx ON movimientos (hc_client_id) WHERE hc_client_id IS NOT NULL',
+
   // Registro de las migraciones que deben correr UNA sola vez
   'CREATE TABLE IF NOT EXISTS migraciones_aplicadas (nombre TEXT PRIMARY KEY, aplicada_at TIMESTAMPTZ NOT NULL DEFAULT NOW())',
 ];
@@ -84,6 +165,11 @@ const MIGRACIONES = [
 // migraciones_aplicadas). Repetirlas en cada arranque desharía cambios
 // hechos después por los usuarios.
 const MIGRACIONES_UNICAS = [
+  {
+    // Los antiguos auditores (nivel 1) pasan a ser médicos: pierden el acceso
+    nombre: 'nivel1_medicos_sin_acceso',
+    sql: 'UPDATE usuarios SET password_hash = NULL WHERE nivel = 1'
+  },
   {
     // Cada depósito recibe el grupo que le correspondía por patrón: el más
     // específico (más palabras) cuyas palabras están todas en el nombre del
@@ -122,9 +208,24 @@ async function _aplicarUnaVez({ nombre, sql }) {
   }
 }
 
+// Carga (o completa) la lista de municipios. Solo inserta los que falten,
+// así que en cada arranque normal no hace nada.
+async function _cargarMunicipios() {
+  const lista = require('../data/municipios.json');
+  const r = await pool.query('SELECT COUNT(*)::int AS n FROM municipios');
+  if (r.rows[0].n >= lista.length) return;
+  await pool.query(
+    `INSERT INTO municipios (codigo, nombre, departamento)
+     SELECT * FROM unnest($1::text[], $2::text[], $3::text[])
+     ON CONFLICT (codigo) DO NOTHING`,
+    [lista.map(m => m[0]), lista.map(m => m[1]), lista.map(m => m[2])]
+  );
+}
+
 async function aplicarMigraciones() {
   try {
     for (const sql of MIGRACIONES) await pool.query(sql);
+    await _cargarMunicipios();
     for (const m of MIGRACIONES_UNICAS) await _aplicarUnaVez(m);
     estado.migraciones = 'ok';
     console.log('Migraciones de base de datos al día');

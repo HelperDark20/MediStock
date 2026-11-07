@@ -277,6 +277,11 @@ async function _registrarConsumo(usuario, d) {
       const ya = await client.query('SELECT id FROM movimientos WHERE client_id = $1', [d.client_id]);
       if (ya.rows.length) { await client.query('ROLLBACK'); return { estado: 'duplicado' }; }
     }
+    // Una HC ya enviada no admite más consumos
+    if (d.hc_client_id) {
+      const hc = await client.query('SELECT 1 FROM historias_clinicas WHERE client_id = $1', [d.hc_client_id]);
+      if (hc.rows.length) { await client.query('ROLLBACK'); return { estado: 'hc_enviada' }; }
+    }
     if (!await _descontarStock(client, d.sub_sku_id, d.bodega_origen_id, d.cantidad)) {
       await client.query('ROLLBACK');
       return { estado: 'sin_stock' };
@@ -284,10 +289,10 @@ async function _registrarConsumo(usuario, d) {
     await client.query(
       `INSERT INTO movimientos
          (sub_sku_id, tipo, bodega_origen_id, cantidad, usuario_id, usuario_nombre, cedula_paciente,
-          client_id, es_offline, fecha_atencion, sincronizado_at)
-       VALUES ($1, 'consumo', $2, $3, $4, $5, $6, $7, $8, $9, CASE WHEN $8 THEN NOW() END)`,
+          client_id, es_offline, fecha_atencion, sincronizado_at, hc_client_id)
+       VALUES ($1, 'consumo', $2, $3, $4, $5, $6, $7, $8, $9, CASE WHEN $8 THEN NOW() END, $10)`,
       [d.sub_sku_id, d.bodega_origen_id, d.cantidad, usuario.id, usuario.nombre, d.cedula_paciente,
-       d.client_id, !!d.es_offline, d.fecha_atencion || null]
+       d.client_id, !!d.es_offline, d.fecha_atencion || null, d.hc_client_id || null]
     );
     await client.query('COMMIT');
     return { estado: 'ok' };
@@ -310,6 +315,25 @@ function _cedulaPaciente(v) {
   return /^\d{5,15}$/.test(s) ? s : null;
 }
 
+// Consumo dentro de una historia clínica (módulo 6): hc_client_id es el id de
+// la HC en la tablet. El paciente sale de la HC, así que su documento puede
+// tener letras (pasaporte) o no existir todavía (paciente NN); al enviarse la
+// HC se actualiza con el documento definitivo. Sin hc_client_id rige la regla
+// de siempre: cédula obligatoria, solo números.
+// Devuelve { hc_client_id, cedula_paciente } o { error }.
+function _pacienteDelConsumo(body) {
+  const hc = _clientIdValido(body.hc_client_id);
+  if (hc === undefined) return { error: 'Identificador de historia clínica inválido' };
+  if (!hc) {
+    const cedula = _cedulaPaciente(body.cedula_paciente);
+    return cedula ? { hc_client_id: null, cedula_paciente: cedula } : { error: CEDULA_ERROR };
+  }
+  const doc = String(body.cedula_paciente ?? '').toUpperCase().replace(/[^A-Z0-9-]/g, '');
+  if (doc && (doc.length < 3 || doc.length > 20)) return { error: 'Documento del paciente inválido' };
+  return { hc_client_id: hc, cedula_paciente: doc || null };
+}
+const ERROR_HC_ENVIADA = 'La historia clínica ya fue enviada: no se le pueden agregar consumos';
+
 router.post('/consumo', verificarToken, verificarNivel(2), async (req, res) => {
   const sub_sku_id = idValido(req.body.sub_sku_id);
   const bodega_origen_id = idValido(req.body.bodega_origen_id);
@@ -317,16 +341,17 @@ router.post('/consumo', verificarToken, verificarNivel(2), async (req, res) => {
   if (!sub_sku_id || !bodega_origen_id || !cantidad) {
     return res.status(400).json({ error: 'Faltan campos obligatorios o la cantidad no es un entero positivo' });
   }
-  const cedula_paciente = _cedulaPaciente(req.body.cedula_paciente);
-  if (!cedula_paciente) return res.status(400).json({ error: CEDULA_ERROR });
+  const paciente = _pacienteDelConsumo(req.body);
+  if (paciente.error) return res.status(400).json({ error: paciente.error });
   const client_id = _clientIdValido(req.body.client_id);
   if (client_id === undefined) return res.status(400).json({ error: 'Identificador de consumo inválido' });
 
   try {
     const r = await _registrarConsumo(req.usuario, {
-      sub_sku_id, bodega_origen_id, cantidad, client_id, cedula_paciente
+      sub_sku_id, bodega_origen_id, cantidad, client_id, ...paciente
     });
     if (r.estado === 'sin_stock') return res.status(400).json({ error: 'Stock insuficiente' });
+    if (r.estado === 'hc_enviada') return res.status(400).json({ error: ERROR_HC_ENVIADA });
     if (r.estado === 'duplicado') return res.json({ mensaje: 'Este consumo ya estaba registrado', duplicado: true });
     res.status(201).json({ mensaje: 'Consumo registrado correctamente' });
   } catch (err) {
@@ -365,8 +390,8 @@ router.post('/sincronizar', verificarToken, verificarNivel(2), async (req, res) 
       resultados.push({ client_id, estado: 'error', error: 'Faltan datos del consumo' });
       continue;
     }
-    const cedula_paciente = _cedulaPaciente(c.cedula_paciente);
-    if (!cedula_paciente) { resultados.push({ client_id, estado: 'error', error: CEDULA_ERROR }); continue; }
+    const paciente = _pacienteDelConsumo(c);
+    if (paciente.error) { resultados.push({ client_id, estado: 'error', error: paciente.error }); continue; }
     // Hora real de atención = reloj de la tablet. Si viene inválida o en el
     // futuro (reloj adelantado), se usa la hora de llegada al servidor.
     let fecha = c.fecha_atencion ? new Date(c.fecha_atencion) : null;
@@ -375,10 +400,11 @@ router.post('/sincronizar', verificarToken, verificarNivel(2), async (req, res) 
     try {
       const r = await _registrarConsumo(req.usuario, {
         sub_sku_id, bodega_origen_id, cantidad, client_id,
-        cedula_paciente,
+        ...paciente,
         es_offline: true, fecha_atencion: fecha.toISOString()
       });
       if (r.estado === 'sin_stock') resultados.push({ client_id, estado: 'error', error: 'Stock insuficiente en la bodega' });
+      else if (r.estado === 'hc_enviada') resultados.push({ client_id, estado: 'error', error: ERROR_HC_ENVIADA });
       else resultados.push({ client_id, estado: r.estado });
     } catch (err) {
       console.error('ERROR sincronizando consumo', client_id, err.message);
@@ -386,6 +412,65 @@ router.post('/sincronizar', verificarToken, verificarNivel(2), async (req, res) 
     }
   }
   res.json({ resultados });
+});
+
+// POST /api/movimientos/anular-consumo — nivel 2+ — el enfermero quita un
+// consumo de una historia clínica que todavía no envió (se equivocó de
+// producto o de cantidad). El stock vuelve a la bodega con un movimiento de
+// reversión, igual que cuando el administrador revierte un movimiento.
+// Es seguro repetirlo. body: { client_id }
+router.post('/anular-consumo', verificarToken, verificarNivel(2), async (req, res) => {
+  const clientId = _clientIdValido(req.body && req.body.client_id);
+  if (!clientId) return res.status(400).json({ error: 'Identificador de consumo inválido' });
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const r = await client.query('SELECT * FROM movimientos WHERE client_id = $1 FOR UPDATE', [clientId]);
+    const mov = r.rows[0];
+    if (!mov) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Ese consumo no está registrado en el servidor' });
+    }
+    if (mov.tipo !== 'consumo' || !mov.hc_client_id || mov.usuario_id !== req.usuario.id) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'Solo puedes quitar consumos de tus propias historias clínicas' });
+    }
+    if (mov.revertido) {
+      await client.query('ROLLBACK');
+      return res.json({ mensaje: 'Este consumo ya estaba anulado', ya_anulado: true });
+    }
+    const enviada = await client.query('SELECT 1 FROM historias_clinicas WHERE client_id = $1', [mov.hc_client_id]);
+    if (enviada.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'La historia clínica ya fue enviada: pide al administrador que corrija el consumo' });
+    }
+    await client.query(
+      `INSERT INTO stock (sub_sku_id, bodega_id, cantidad)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (sub_sku_id, bodega_id)
+       DO UPDATE SET cantidad = stock.cantidad + $3`,
+      [mov.sub_sku_id, mov.bodega_origen_id, mov.cantidad]
+    );
+    await client.query(
+      'UPDATE movimientos SET revertido = true, revertido_at = NOW(), revertido_por = $1 WHERE id = $2',
+      [req.usuario.id, mov.id]
+    );
+    await client.query(
+      `INSERT INTO movimientos
+         (sub_sku_id, tipo, bodega_origen_id, cantidad, usuario_id, usuario_nombre, movimiento_original_id)
+       VALUES ($1, 'reversion', $2, $3, $4, $5, $6)`,
+      [mov.sub_sku_id, mov.bodega_origen_id, mov.cantidad, req.usuario.id, req.usuario.nombre, mov.id]
+    );
+    await client.query('COMMIT');
+    res.json({ mensaje: 'Consumo anulado: el stock volvió a la bodega' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  } finally {
+    client.release();
+  }
 });
 
 // POST /api/movimientos/traslado — nivel 3 y 4

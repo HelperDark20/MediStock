@@ -1236,3 +1236,51 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 .rep-lote .sem-badge{ justify-self:start; }
 .rep-lote .sem-badge{ font-size:8px; padding:2px 7px; }
 @media print{ .rep-lote{ break-inside:avoid; } }
+
+/* ══ HISTORIAS CLÍNICAS (módulo admin, js/historias.js) ══ */
+.hc-filtros{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.hc-filtros-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.hc-filtros-btns .btn-cancel,.hc-filtros-btns .btn-confirm{flex:0 0 auto;padding:10px 22px}
+.hc-fila{cursor:pointer}
+.hc-sub{font-size:11px;color:#888;margin-top:2px}
+.hc-badge{display:inline-block;font-size:10px;font-weight:700;padding:3px 9px;border-radius:10px;font-family:var(--font-mono);margin:2px 4px 2px 0;white-space:nowrap}
+.hc-badge.abierta{background:var(--amber-bg);color:var(--amber)}
+.hc-badge.cerrada{background:var(--green-bg);color:var(--green)}
+.hc-badge.pendiente{background:var(--red-bg);color:var(--red2)}
+.hc-paginas{display:flex;gap:12px;align-items:center;justify-content:center;padding:12px;font-size:13px;color:#666}
+.hc-paginas:empty{display:none}
+.hc-paginas .btn-cancel{flex:0 0 auto;padding:8px 16px}
+.modal-sheet.hc-sheet{max-width:960px}
+.hc-cabecera{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;padding-top:6px;margin-bottom:12px}
+.hc-acciones{display:flex;gap:6px;flex-wrap:wrap}
+.hc-sec{border:1px solid var(--cream3);border-radius:var(--r-md);margin-bottom:10px;overflow:hidden}
+.hc-sec-t{background:var(--cream);padding:7px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#555;font-family:var(--font-mono);border-bottom:1px solid var(--cream3)}
+.hc-dato{display:inline-block;vertical-align:top;width:33.33%;padding:7px 12px}
+.hc-dato.ancho{width:100%}
+.hc-dato span{display:block;font-size:10px;color:#999;text-transform:uppercase;letter-spacing:.04em}
+.hc-dato b{font-weight:500;font-size:13px;color:var(--ink)}
+.hc-texto{padding:8px 12px;white-space:pre-wrap;font-size:13px;line-height:1.5}
+.hc-cita{font-style:italic;color:#555}
+.hc-nada{padding:8px 12px;font-size:13px;color:#999}
+.hc-grande{font-size:18px;font-weight:800}
+.hc-tabla th{position:static}
+.hc-tabla td{font-size:12.5px;vertical-align:top}
+.hc-firmas{display:flex;gap:16px;padding:10px 12px;flex-wrap:wrap}
+.hc-firma{flex:1;min-width:220px}
+.hc-firma-caja{height:90px;border-bottom:1.5px solid var(--ink);display:flex;align-items:flex-end;justify-content:center}
+.hc-firma-caja img{max-height:88px;max-width:100%}
+.hc-firma-caja em{color:#aaa;font-size:12px;padding-bottom:6px}
+.hc-firma-pie{font-size:11px;text-align:center;padding-top:4px;color:#555}
+.hc-adj{display:flex;align-items:center;gap:10px;padding:8px 12px;font-size:12.5px;border-top:1px solid var(--cream2)}
+.hc-adj span{flex:1}
+.hc-cambio{padding:8px 12px;border-top:1px solid var(--cream2);font-size:12.5px}
+.hc-cambio ul{margin:4px 0 0 18px}
+.hc-cambio code{font-family:var(--font-mono);font-size:11px;background:var(--cream);padding:1px 5px;border-radius:4px}
+.hc-ed-grupo{border:1px solid var(--cream3);border-radius:var(--r-md);margin-bottom:12px;overflow:hidden}
+.hc-ed-grupo .form-grid{padding:12px}
+.hc-ed-grupo textarea{width:100%}
+.hc-ed-med{padding-top:6px;border-top:1px dashed var(--cream3)}
+.hc-checks{display:flex;gap:14px;flex-wrap:wrap;padding-top:6px}
+.hc-checks label{display:flex;align-items:center;gap:5px;font-size:13px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--ink)}
+.hc-firma-canvas{display:block;width:100%;max-width:600px;height:auto;aspect-ratio:600/230;border:1.5px dashed var(--cream3);border-radius:var(--r-md);background:#fff;touch-action:none;margin:6px auto 4px;cursor:crosshair}
+@media(max-width:768px){.hc-filtros{grid-template-columns:1fr 1fr}.hc-dato{width:50%}}

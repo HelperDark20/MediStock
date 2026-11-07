@@ -29,7 +29,7 @@ app.get('/enfermero', (req, res) => res.sendFile(path.join(__dirname, 'enfermero
 const crypto = require('crypto');
 const fs = require('fs');
 const ARCHIVOS_PANEL = [
-  'enfermero.html', 'css/enfermero-lite.css', 'js/lite/enfermero-lite.js', 'js/lite/sw-enfermero.js',
+  'enfermero.html', 'css/enfermero-lite.css', 'js/lite/enfermero-lite.js', 'js/lite/hc-lite.js', 'js/lite/sw-enfermero.js',
   'fonts/METHANERSE_Free_Trial.woff2', 'fonts/METHANERSE_Free_Trial.woff', 'logo.png'
 ];
 const hashPanel = crypto.createHash('sha1');
@@ -42,6 +42,7 @@ app.get('/enfermero.appcache', (req, res) => {
     `# version ${VERSION_PANEL}`,
     'CACHE:',
     '/css/enfermero-lite.css',
+    '/js/lite/hc-lite.js',
     '/js/lite/enfermero-lite.js',
     '/fonts/METHANERSE_Free_Trial.woff',
     '/logo.png',
@@ -78,7 +79,9 @@ app.use((err, req, res, next) => {
   if (res.headersSent) return next(err);
   const status = err.status || err.statusCode || 500;
   res.status(status).json({
-    error: status === 400 ? 'Solicitud inválida' : 'Error del servidor. Intenta de nuevo.'
+    error: status === 400 ? 'Solicitud inválida'
+      : status === 413 ? 'El archivo o los datos enviados superan el tamaño máximo permitido'
+      : 'Error del servidor. Intenta de nuevo.'
   });
 });
 

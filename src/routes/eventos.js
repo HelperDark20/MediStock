@@ -8,11 +8,27 @@ const { fechaValida } = require('../utils/fechas');
 // :id, :usuarioId deben ser ids numéricos (si no, 400 en vez de error 500)
 validarParamsId(router, 'id', 'usuarioId');
 
+const NIVEL_MEDICO = 1;
+
+// Comprueba que el usuario se pueda agregar como personal del evento:
+// activo y enfermero (nivel 2) o médico (nivel 1). A un médico no se le
+// asignan depósitos. Devuelve un mensaje de error, o null si está bien.
+async function _validarPersonal(client, usuarioId, bodegas, alAgregar = true) {
+  const r = await client.query('SELECT nivel FROM usuarios WHERE id = $1 AND activo = true', [usuarioId]);
+  if (!r.rows.length) return 'El usuario no existe o está inactivo';
+  const nivel = r.rows[0].nivel;
+  // Al editar no se revalida el nivel: alguien agregado antes con otro
+  // nivel debe poder seguir editándose
+  if (alAgregar && nivel !== 2 && nivel !== NIVEL_MEDICO) return 'Solo se pueden agregar enfermeros o médicos al evento';
+  if (nivel === NIVEL_MEDICO && bodegas.length) return 'A un médico no se le asignan depósitos';
+  return null;
+}
+
 // ── Helper: arma personal + depósitos por evento (reutilizado en varias rutas) ──
 async function _cargarPersonal(eventoIds) {
   if (!eventoIds.length) return {};
   const usuarios = await pool.query(`
-    SELECT eu.evento_id, us.id, us.nombre
+    SELECT eu.evento_id, us.id, us.nombre, us.nivel, us.cedula
     FROM evento_usuarios eu
     JOIN usuarios us ON eu.usuario_id = us.id
     WHERE eu.evento_id = ANY($1::int[])
@@ -32,6 +48,11 @@ async function _cargarPersonal(eventoIds) {
     porEvento[u.evento_id].push({
       id: u.id,
       nombre: u.nombre,
+      // Personal del evento: enfermeros (con depósitos) y médicos (nivel 1,
+      // sin depósitos: solo para la historia clínica)
+      nivel: u.nivel,
+      es_medico: u.nivel === NIVEL_MEDICO,
+      cedula: u.cedula,   // en el médico es también su registro profesional
       bodegas: asignaciones.rows
         .filter(a => a.evento_id === u.evento_id && a.usuario_id === u.id)
         .map(a => ({ id: a.bodega_id, nombre: a.bodega_nombre }))
@@ -112,14 +133,18 @@ router.get('/activo', verificarToken, async (req, res) => {
 
 // GET /api/eventos/activos — TODOS los eventos en curso asignados al usuario,
 // cada uno con sus depósitos. Si hay más de uno, el panel del enfermero le
-// pide elegir en cuál va a trabajar.
+// pide elegir en cuál va a trabajar. Para la historia clínica trae además el
+// municipio de la ubicación y los médicos del evento (el panel los guarda
+// para trabajar sin conexión).
 router.get('/activos', verificarToken, async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT e.*, u.nombre AS ubicacion_nombre
+      SELECT e.*, u.nombre AS ubicacion_nombre, u.municipio_codigo,
+             m.nombre AS municipio_nombre, m.departamento AS municipio_departamento
       FROM eventos e
       JOIN evento_usuarios eu ON eu.evento_id = e.id
       LEFT JOIN ubicaciones u ON e.ubicacion_id = u.id
+      LEFT JOIN municipios m ON m.codigo = u.municipio_codigo
       WHERE eu.usuario_id = $1 AND e.estado = 'en_curso' AND e.activo = true
       ORDER BY e.iniciado_at DESC
     `, [req.usuario.id]);
@@ -133,10 +158,18 @@ router.get('/activos', verificarToken, async (req, res) => {
       WHERE eub.evento_id = ANY($1::int[]) AND eub.usuario_id = $2 AND b.activo = true
       ORDER BY b.nombre
     `, [ids, req.usuario.id]);
+    const medicos = await pool.query(`
+      SELECT eu.evento_id, us.id, us.nombre, us.cedula
+      FROM evento_usuarios eu
+      JOIN usuarios us ON us.id = eu.usuario_id
+      WHERE eu.evento_id = ANY($1::int[]) AND us.nivel = ${NIVEL_MEDICO} AND us.activo = true
+      ORDER BY us.nombre
+    `, [ids]);
 
     res.json(result.rows.map(e => ({
       ...e,
-      bodegas: bodegas.rows.filter(b => b.evento_id === e.id).map(b => ({ id: b.id, nombre: b.nombre }))
+      bodegas: bodegas.rows.filter(b => b.evento_id === e.id).map(b => ({ id: b.id, nombre: b.nombre })),
+      medicos: medicos.rows.filter(m => m.evento_id === e.id).map(m => ({ id: m.id, nombre: m.nombre, cedula: m.cedula }))
     })));
   } catch (err) {
     console.error(err);
@@ -261,11 +294,12 @@ router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
   }
 });
 
-// POST /api/eventos/:id/enfermeros — nivel 4 — agregar enfermero al evento
+// POST /api/eventos/:id/enfermeros — nivel 4 — agregar personal al evento
+// (enfermero con sus depósitos, o médico sin depósitos)
 // body: { usuario_id, bodega_ids?: [...] }
 router.post('/:id/enfermeros', verificarToken, verificarNivel(4), async (req, res) => {
   const usuario_id = idValido(req.body.usuario_id);
-  if (!usuario_id) return res.status(400).json({ error: 'Selecciona un enfermero' });
+  if (!usuario_id) return res.status(400).json({ error: 'Selecciona un enfermero o médico' });
   const bodegas = _bodegasDelBody(req.body);
   if (!bodegas) return res.status(400).json({ error: 'Depósitos inválidos' });
 
@@ -286,6 +320,11 @@ router.post('/:id/enfermeros', verificarToken, verificarNivel(4), async (req, re
       await client.query('ROLLBACK');
       return res.status(400).json({ error: `Estos depósitos ya no están en la ubicación del evento: ${fuera.join(', ')}. Recarga e intenta de nuevo.` });
     }
+    const invalido = await _validarPersonal(client, usuario_id, bodegas);
+    if (invalido) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: invalido });
+    }
 
     await client.query(
       'INSERT INTO evento_usuarios (evento_id, usuario_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
@@ -298,11 +337,11 @@ router.post('/:id/enfermeros', verificarToken, verificarNivel(4), async (req, re
       );
     }
     await client.query('COMMIT');
-    res.status(201).json({ mensaje: 'Enfermero agregado al evento' });
+    res.status(201).json({ mensaje: 'Personal agregado al evento' });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err);
-    res.status(500).json({ error: 'Error al agregar el enfermero' });
+    res.status(500).json({ error: 'Error al agregar el personal' });
   } finally {
     client.release();
   }
@@ -338,7 +377,12 @@ router.put('/:id/enfermeros/:usuarioId', verificarToken, verificarNivel(4), asyn
     );
     if (!miembro.rows.length) {
       await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Ese enfermero no pertenece a este evento' });
+      return res.status(404).json({ error: 'Esa persona no pertenece a este evento' });
+    }
+    const invalido = await _validarPersonal(client, req.params.usuarioId, bodegas, false);
+    if (invalido) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: invalido });
     }
 
     await client.query(

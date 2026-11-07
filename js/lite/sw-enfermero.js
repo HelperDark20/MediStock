@@ -10,6 +10,7 @@ var CACHE = 'enfermero-__VERSION__';
 var ARCHIVOS = [
   '/enfermero',
   '/css/enfermero-lite.css',
+  '/js/lite/hc-lite.js',
   '/js/lite/enfermero-lite.js',
   '/fonts/METHANERSE_Free_Trial.woff2',
   '/fonts/METHANERSE_Free_Trial.woff',

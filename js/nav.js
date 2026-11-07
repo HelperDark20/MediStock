@@ -61,7 +61,7 @@ function goTo(viewId){
     dashboard:'Dashboard', inventario:'Inventario',
     movimientos:'Movimientos', registro:'Registro de entradas',
     sku:'SKUs Globales', usuarios:'Usuarios',
-    bodegas:'Ubicaciones y Bodegas', eventos:'Eventos', reportes:'Reportes',
+    bodegas:'Ubicaciones y Bodegas', eventos:'Eventos', historias:'Historias clínicas', reportes:'Reportes',
     segstock:'Stock de Seguridad', trazabilidad:'Trazabilidad'
   };
   document.getElementById('page-title').textContent = titles[viewId]||viewId;
@@ -94,7 +94,7 @@ function goTo(viewId){
     dashboard:renderDash, inventario:renderInv,
     movimientos:renderMovimientos, registro:renderRegistro,
     sku:renderSKUs, usuarios:renderUsuarios,
-    bodegas:renderBodegas, eventos:renderEventos, reportes:renderReportes,
+    bodegas:renderBodegas, eventos:renderEventos, historias:renderHistorias, reportes:renderReportes,
     segstock:renderSegStock
   };
   renders[viewId]?.();

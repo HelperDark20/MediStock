@@ -12,6 +12,7 @@ const bodegasRoutes     = require('./routes/bodegas');
 const ubicacionesRoutes = require('./routes/ubicaciones');
 const eventosRoutes     = require('./routes/eventos');
 const stockSeguridadRoutes = require('./routes/stockSeguridad');
+const hcRoutes          = require('./routes/hc');
 const app = express();
 app.set('trust proxy', 1);
 
@@ -58,6 +59,13 @@ app.use(helmet({
 app.use(cors({
   origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()) : false
 }));
+// La historia clínica lleva firmas (imágenes) y puede pesar más que el
+// límite general de 100 KB. Este parser va primero y solo aplica a /api/hc.
+app.use('/api/hc', express.json({ limit: '2mb' }));
+// Recibido de la IPS (foto o PDF) que sube el administrador: el cuerpo es el
+// archivo tal cual. La ruta limita a 5 MB con un mensaje claro; por encima de
+// 6 MB lo corta este parser (413).
+app.use('/api/hc', express.raw({ type: ['image/jpeg', 'image/png', 'application/pdf'], limit: '6mb' }));
 app.use(express.json());
 
 // ── Rate limit login: 10 intentos / 15 min por IP (anti fuerza bruta) ──
@@ -130,6 +138,7 @@ app.use('/api/usuarios',     apiLimiterByIp, apiLimiterByUser, usuariosRoutes);
 app.use('/api/bodegas',      apiLimiterByIp, apiLimiterByUser, bodegasRoutes);
 app.use('/api/ubicaciones',  apiLimiterByIp, apiLimiterByUser, ubicacionesRoutes);
 app.use('/api/eventos',      apiLimiterByIp, apiLimiterByUser, eventosRoutes);
+app.use('/api/hc',           apiLimiterByIp, apiLimiterByUser, hcRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
