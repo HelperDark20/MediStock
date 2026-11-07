@@ -74,6 +74,8 @@ select.lt-input{ background:#fff url("data:image/svg+xml;utf8,<svg xmlns='http:/
   display:inline-block; width:30px; height:30px; line-height:30px; text-align:center;
   border-radius:50%; background:#1A5C8C; color:#fff; font-size:11px; font-weight:700; margin-right:8px;
 }
+.lt-avatar.foto{ width:32px; height:32px; line-height:normal; background:none; vertical-align:middle; }
+.lt-avatar.foto img{ display:block; width:32px; height:32px; }
 .lt-header-btn{ background:rgba(255,255,255,.12); border:none; color:rgba(255,255,255,.8); padding:7px 12px; border-radius:10px; font-size:13px; }
 
 /* ── Cuerpo ── */

@@ -31,7 +31,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const ARCHIVOS_PANEL = [
   'enfermero.html', 'css/enfermero-lite.css', 'js/lite/enfermero-lite.js', 'js/lite/hc-lite.js', 'js/lite/sw-enfermero.js',
-  'fonts/METHANERSE_Free_Trial.woff2', 'fonts/METHANERSE_Free_Trial.woff', 'logo.png'
+  'fonts/METHANERSE_Free_Trial.woff2', 'fonts/METHANERSE_Free_Trial.woff', 'logo.png', 'img/avatares/enfermero.svg'
 ];
 const hashPanel = crypto.createHash('sha1');
 ARCHIVOS_PANEL.forEach(f => hashPanel.update(fs.readFileSync(path.join(__dirname, f))));
@@ -47,6 +47,7 @@ app.get('/enfermero.appcache', (req, res) => {
     '/js/lite/enfermero-lite.js',
     '/fonts/METHANERSE_Free_Trial.woff',
     '/logo.png',
+    '/img/avatares/enfermero.svg',
     'NETWORK:',
     '*',
     ''

@@ -14,7 +14,8 @@ var ARCHIVOS = [
   '/js/lite/enfermero-lite.js',
   '/fonts/METHANERSE_Free_Trial.woff2',
   '/fonts/METHANERSE_Free_Trial.woff',
-  '/logo.png'
+  '/logo.png',
+  '/img/avatares/enfermero.svg'
 ];
 
 self.addEventListener('install', function(e){

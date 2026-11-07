@@ -257,6 +257,22 @@
     return { consumos: n, hc: h.total, hcPorEnviar: h.porEnviar, hcEnCurso: h.enCurso, porSubir: n + h.porEnviar };
   }
 
+  // Foto de perfil del nivel (la misma del panel admin). Si la imagen no
+  // carga, quedan las iniciales.
+  var AVATAR_NIVEL = { 1: 'medico', 2: 'enfermero', 3: 'supervisor', 4: 'admin' };
+  function ponerAvatar(usuario){
+    var av = $('lt-avatar');
+    var iniciales = String(usuario.nombre || 'EN').split(' ')
+      .slice(0, 2).map(function(w){ return w.charAt(0); }).join('').toUpperCase();
+    av.className = 'lt-avatar';
+    av.textContent = iniciales;
+    var img = document.createElement('img');
+    img.alt = '';
+    img.onload = function(){ av.className = 'lt-avatar foto'; av.innerHTML = ''; av.appendChild(img); };
+    img.onerror = function(){ av.className = 'lt-avatar'; av.textContent = iniciales; };
+    img.src = '/img/avatares/' + (AVATAR_NIVEL[usuario.nivel] || 'enfermero') + '.svg';
+  }
+
   // ── Pantallas ──
   function pantallaLogin(msg){
     cerrarModal();
@@ -344,8 +360,7 @@
     st.usuario = usuario;
     guardarJSON('nb_ultimo_usuario', { id: usuario.id, nombre: usuario.nombre, cedula: usuario.cedula, nivel: usuario.nivel });
     $('lt-nombre').textContent = usuario.nombre || 'Enfermero/a';
-    $('lt-avatar').textContent = String(usuario.nombre || 'EN').split(' ')
-      .slice(0, 2).map(function(w){ return w.charAt(0); }).join('').toUpperCase();
+    ponerAvatar(usuario);
     mostrar('lt-login', false);
     mostrar('lt-app', true);
     if(leer(claveUsuario('modo')) === 'offline') entrarOffline();
