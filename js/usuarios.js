@@ -19,6 +19,9 @@ function usuarioNivelCambio(prefijo){
   if(etiqueta) etiqueta.textContent = esMedico ? 'Cédula / Registro profesional' : 'Número de cédula';
   if(prefijo === 'edit-u') _editSubtitulo();
   document.getElementById(`${prefijo}-pass-wrap`).style.display = esMedico ? 'none' : '';
+  // PIN de asistencia: solo médicos (1) y enfermeros (2)
+  const nivelSel = parseInt(document.getElementById(`${prefijo}-nivel`).value);
+  document.getElementById(`${prefijo}-pin-wrap`).style.display = nivelSel === 1 || nivelSel === 2 ? '' : 'none';
   if(prefijo === 'edit-u') _editPassLabel();
 }
 
@@ -49,14 +52,16 @@ async function crearUsuario(){
   const genero   = document.getElementById('u-genero').value;
   const esMedico = nivel === NIVEL_MEDICO;
   const password = esMedico ? '' : document.getElementById('u-pass').value.trim();
+  const pin = (nivel === 1 || nivel === 2) ? document.getElementById('u-pin').value.trim() : '';
+  if(pin && !/^\d{4}$/.test(pin)){ toast('El PIN de asistencia debe tener 4 dígitos','error'); return; }
 
   if(!nombre || !cedula || (!esMedico && !password)){
     toast(esMedico ? 'Completa nombre y cédula' : 'Completa nombre, cédula y contraseña','error');
     return;
   }
   try {
-    await Usuarios.create({ nombre, cedula, nivel, genero, password: password || null, ubicacion_id: null });
-    ['u-nombre','u-cedula','u-pass'].forEach(id => document.getElementById(id).value='');
+    await Usuarios.create({ nombre, cedula, nivel, genero, password: password || null, ubicacion_id: null, pin_asistencia: pin || undefined });
+    ['u-nombre','u-cedula','u-pass','u-pin'].forEach(id => document.getElementById(id).value='');
     S.usuarios = await Usuarios.getAll();
     renderUsuarios();
     toast(esMedico ? '✓ Médico creado (sin acceso a la app)' : '✓ Usuario creado','success');
@@ -74,6 +79,8 @@ function abrirEdicionUsuario(id){
   document.getElementById('edit-u-nombre').value = u.nombre;
   document.getElementById('edit-u-nivel').value  = u.nivel;
   document.getElementById('edit-u-pass').value   = '';
+  document.getElementById('edit-u-pin').value    = '';
+  document.getElementById('edit-u-pin-estado').textContent = u.tiene_pin ? '(tiene PIN asignado)' : '(sin PIN: no puede marcar asistencia)';
   usuarioNivelCambio('edit-u');
 
   document.getElementById('modal-edit-user').classList.add('open');
@@ -86,6 +93,8 @@ async function guardarEdicionUsuario(){
   const esMedico = nivel === NIVEL_MEDICO;
   const password = esMedico ? '' : document.getElementById('edit-u-pass').value.trim();
   const anterior = S.usuarios.find(x => x.id === id);
+  const pin = (nivel === 1 || nivel === 2) ? document.getElementById('edit-u-pin').value.trim() : '';
+  if(pin && !/^\d{4}$/.test(pin)){ toast('El PIN de asistencia debe tener 4 dígitos','error'); return; }
 
   if(!nombre){ toast('El nombre no puede estar vacío','error'); return; }
   if(!esMedico && anterior && anterior.nivel === NIVEL_MEDICO && !password){
@@ -94,6 +103,7 @@ async function guardarEdicionUsuario(){
   }
   // FIX: no se envía ubicacion_id — el formulario no la edita y enviarla en null la borraba
   const datos = { nombre, nivel, password: password || null };
+  if(pin) datos.pin_asistencia = pin;
   try {
     await Usuarios.update(id, datos);
     closeModal('modal-edit-user');
@@ -113,9 +123,10 @@ function renderUsuarios(){
   }
   el.innerHTML = S.usuarios.map(u=>{
     const esMedico = u.nivel === NIVEL_MEDICO;
-    const extra = esMedico
+    const extra = (esMedico
       ? ` · Cédula / Registro profesional · <span style="color:#999">sin acceso a la app</span>`
-      : ` · ${escHtml(u.genero||'—')}`;
+      : ` · ${escHtml(u.genero||'—')}`) +
+      ((u.nivel === 1 || u.nivel === 2) && !u.tiene_pin ? ` · <span style="color:var(--amber2)">sin PIN de asistencia</span>` : '');
     return `
     <div class="user-card">
       <div class="user-avatar foto" title="${escHtml(NIVELES[u.nivel]?.label || '')}">

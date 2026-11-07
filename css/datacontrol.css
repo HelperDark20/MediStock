@@ -1,0 +1,126 @@
+/* Asistencia de personal en tablets (/datacontrol). Compatible con Safari de
+   iOS 12: flexbox con prefijos, sin grid ni variables CSS. */
+@font-face{ font-family:'Methanerse'; src:url('../fonts/METHANERSE_Free_Trial.woff') format('woff'); }
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body{ margin:0; padding:0; background:#F4F2EE; color:#0A1628; font-family:-apple-system,'Helvetica Neue',Arial,sans-serif; -webkit-text-size-adjust:100%; }
+button{ font-family:inherit; cursor:pointer; }
+.dc-oculto{ display:none !important; }
+.dc-pantalla{ display:none; min-height:100vh; }
+.dc-pantalla.on{ display:block; }
+
+/* ── Activación ── */
+.dc-activar{ background:#0A1628; }
+.dc-activar.on{ display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; -webkit-justify-content:center; justify-content:center; padding:20px; }
+.dc-activar-card{ background:#fff; border-radius:16px; padding:26px; width:100%; max-width:420px; }
+.dc-marca{ font-family:'Methanerse',sans-serif; font-size:22px; letter-spacing:.2em; text-align:center; }
+.dc-marca-sub{ font-family:'Methanerse',sans-serif; font-size:10px; letter-spacing:.35em; color:#2196D3; text-align:center; margin:4px 0 18px; }
+.dc-activar-tit{ display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; font-weight:800; font-size:17px; margin-bottom:14px; }
+.dc-activar-tit img{ width:30px; height:30px; margin-right:9px; }
+.dc-label{ display:block; font-size:12px; color:#777; margin:10px 0 5px; }
+.dc-input{ width:100%; border:1.5px solid #D8D4C8; border-radius:10px; padding:12px; font-size:16px; background:#fff; color:#0A1628; -webkit-appearance:none; }
+.dc-input:focus{ outline:none; border-color:#2196D3; }
+.dc-btn{ display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; -webkit-justify-content:center; justify-content:center;
+  width:100%; margin-top:14px; border:none; border-radius:11px; padding:14px; font-size:16px; font-weight:800; background:#2196D3; color:#fff; }
+.dc-btn img{ width:24px; height:24px; margin-right:9px; }
+.dc-btn[disabled]{ opacity:.45; }
+.dc-btn.verde{ background:#1A6B3C; } .dc-btn.azul{ background:#1A7FC0; }
+.dc-btn-sec{ background:#fff; color:#3E557C; border:1.5px solid #D8D4C8; }
+.dc-ayuda{ font-size:12px; color:#999; text-align:center; margin-top:10px; line-height:1.4; }
+.dc-error{ display:none; margin-top:10px; padding:10px 12px; border-radius:9px; background:#FDECEA; color:#C0392B; font-size:14px; font-weight:600; }
+.dc-error.on{ display:block; }
+
+/* ── Encabezado y barra de estado ── */
+.dc-cab{ display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; -webkit-justify-content:space-between; justify-content:space-between; background:#0A1628; color:#fff; padding:12px 18px; }
+.dc-cab-logo{ font-family:'Methanerse',sans-serif; font-size:16px; letter-spacing:.18em; }
+.dc-cab-logo small{ display:block; font-size:8px; color:#4DB8F0; letter-spacing:.3em; margin-top:2px; }
+.dc-cab-der{ font-size:12px; color:rgba(255,255,255,.75); }
+.dc-cab-btn{ margin-left:10px; background:rgba(255,255,255,.12); color:#fff; border:none; border-radius:9px; padding:7px 12px; font-size:13px; }
+.dc-modo{ display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; -webkit-justify-content:space-between; justify-content:space-between;
+  -webkit-flex-wrap:wrap; flex-wrap:wrap; padding:8px 18px; font-size:13px; background:#E8F5EE; color:#1A6B3C; }
+.dc-modo.offline{ background:#FFF3DC; color:#8A5A00; }
+.dc-modo-botones button{ margin-left:8px; border:none; border-radius:8px; padding:6px 11px; font-size:13px; font-weight:700; background:rgba(0,0,0,.08); color:inherit; }
+.dc-modo-botones button.primario{ background:#3E557C; color:#fff; }
+.dc-cuerpo{ padding:16px 18px; max-width:1000px; margin:0 auto; }
+.dc-estado{ display:none; text-align:center; color:#777; padding:50px 16px; font-size:16px; line-height:1.5; }
+.dc-estado.on{ display:block; }
+.dc-estado .dc-btn{ max-width:280px; margin:16px auto 0; }
+.dc-seccion{ display:none; }
+.dc-seccion.on{ display:block; }
+.dc-tit{ display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; font-weight:800; font-size:18px; margin:4px 0 14px; }
+.dc-tit img{ width:30px; height:30px; margin-right:10px; }
+.dc-tit-evento span{ -webkit-flex:1; flex:1; }
+.dc-link{ background:none; border:none; color:#1A7FC0; font-size:14px; font-weight:700; }
+
+/* ── Eventos ── */
+.dc-evento{ display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; width:100%; text-align:left; background:#fff; border:1.5px solid #E5E1D8;
+  border-radius:14px; padding:14px 16px; margin-bottom:10px; color:#0A1628; }
+.dc-evento:active{ border-color:#2196D3; }
+.dc-evento img{ width:40px; height:40px; margin-right:14px; }
+.dc-evento b{ display:block; font-size:17px; }
+.dc-evento span{ font-size:13px; color:#888; }
+.dc-evento .dc-evento-flecha{ margin-left:auto; font-size:24px; color:#9DB3DA; }
+
+/* ── Cédula + PIN ── */
+.dc-marcar{ display:-webkit-flex; display:flex; }
+.dc-marcar-izq{ -webkit-flex:1; flex:1; margin-right:18px; }
+.dc-campo{ min-height:58px; border:2px solid #D8D4C8; border-radius:12px; padding:12px 14px; background:#fff; font:700 26px Menlo,Consolas,monospace; letter-spacing:.08em; }
+.dc-campo.activo{ border-color:#2196D3; }
+.dc-persona{ display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; background:#fff; border:1px solid #E5E1D8; border-radius:12px; padding:10px 12px; margin-top:12px; }
+.dc-persona:empty{ display:none; }
+.dc-persona img{ width:48px; height:48px; margin-right:12px; }
+.dc-persona b{ display:block; font-size:17px; }
+.dc-persona span{ font-size:13px; color:#888; }
+.dc-persona-grande{ margin:0 0 12px; }
+.dc-pin{ display:-webkit-flex; display:flex; -webkit-justify-content:center; justify-content:center; padding:8px 0; }
+.dc-pin i{ display:block; width:20px; height:20px; border-radius:50%; background:#D8D4C8; margin:0 8px; }
+.dc-pin i.lleno{ background:#3E557C; }
+.dc-teclado{ width:300px; display:-webkit-flex; display:flex; -webkit-flex-wrap:wrap; flex-wrap:wrap; -webkit-justify-content:space-between; justify-content:space-between; }
+.dc-teclado button{ width:31.5%; height:66px; margin-bottom:9px; background:#fff; border:1px solid #E5E1D8; border-radius:12px; font-size:26px; font-weight:700; color:#0A1628; }
+.dc-teclado button:active{ background:#EEF3FB; }
+.dc-teclado .dc-tecla-sec{ color:#888; }
+.dc-teclado .dc-tecla-ok{ background:#2196D3; color:#fff; border-color:#2196D3; font-size:20px; }
+
+/* ── Foto ── */
+.dc-camara{ position:relative; background:#1f2a3a; border-radius:14px; height:300px; overflow:hidden; display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; -webkit-justify-content:center; justify-content:center; }
+.dc-camara video, .dc-camara img{ position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; }
+.dc-camara video{ -webkit-transform:scaleX(-1); transform:scaleX(-1); }
+.dc-camara img{ display:none; }
+.dc-camara.con-foto img{ display:block; }
+.dc-camara-marco{ position:absolute; top:24px; bottom:24px; left:50%; width:200px; margin-left:-100px; border:3px dashed rgba(255,255,255,.5); border-radius:50%; pointer-events:none; }
+.dc-camara-msg{ position:relative; color:#cfd8e6; font-size:14px; text-align:center; padding:0 30px; }
+.dc-foto-botones{ display:-webkit-flex; display:flex; margin-top:12px; }
+.dc-foto-botones .dc-btn{ margin-top:0; margin-left:10px; }
+.dc-foto-botones .dc-btn:first-child{ margin-left:0; -webkit-flex:0 0 30%; flex:0 0 30%; }
+
+/* ── Marca registrada ── */
+.dc-ok{ text-align:center; padding-top:40px; }
+.dc-ok-circ{ width:96px; height:96px; border-radius:50%; margin:0 auto 14px; display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; -webkit-justify-content:center; justify-content:center; background:#1A6B3C; color:#fff; font-size:50px; }
+.dc-ok-circ.salida{ background:#1A7FC0; }
+.dc-ok-tit{ font-size:28px; font-weight:800; }
+.dc-ok-txt{ font-size:18px; margin-top:8px; }
+.dc-ok-dur{ font-size:22px; font-weight:800; margin-top:10px; }
+.dc-ok-nota{ font-size:14px; color:#888; margin-top:10px; }
+.dc-ok-nota.pend{ color:#8A5A00; font-weight:700; }
+.dc-chip{ display:inline-block; background:#EEF3FB; color:#3E557C; border-radius:7px; padding:2px 8px; font:700 15px Menlo,Consolas,monospace; }
+
+/* ── Modal y aviso ── */
+.dc-modal{ display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(10,22,40,.55); z-index:50; -webkit-align-items:center; align-items:center; -webkit-justify-content:center; justify-content:center; padding:20px; }
+.dc-modal.on{ display:-webkit-flex; display:flex; }
+.dc-modal-card{ background:#fff; border-radius:14px; padding:20px; width:100%; max-width:460px; }
+.dc-modal-tit{ font-size:18px; font-weight:800; margin-bottom:8px; }
+.dc-modal-cuerpo{ font-size:15px; color:#444; line-height:1.45; }
+.dc-modal-cuerpo ul{ padding-left:18px; margin:8px 0 0; }
+.dc-modal-botones{ display:-webkit-flex; display:flex; -webkit-justify-content:flex-end; justify-content:flex-end; margin-top:16px; }
+.dc-modal-botones button{ margin-left:8px; border:1.5px solid #D8D4C8; background:#fff; border-radius:10px; padding:10px 16px; font-size:15px; font-weight:700; color:#3E557C; }
+.dc-modal-botones button.primario{ background:#2196D3; border-color:#2196D3; color:#fff; }
+.dc-modal-botones button.peligro{ background:#C0392B; border-color:#C0392B; color:#fff; }
+.dc-toast{ position:fixed; left:50%; bottom:24px; -webkit-transform:translateX(-50%); transform:translateX(-50%); background:#0A1628; color:#fff; border-radius:10px; padding:12px 18px; font-size:15px; opacity:0; -webkit-transition:opacity .2s; transition:opacity .2s; pointer-events:none; z-index:60; max-width:90%; text-align:center; }
+.dc-toast.on{ opacity:1; }
+.dc-toast.error{ background:#C0392B; }
+
+/* Tablet vertical o pantallas angostas */
+@media (max-width:760px){
+  .dc-marcar{ display:block; }
+  .dc-marcar-izq{ margin-right:0; margin-bottom:14px; }
+  .dc-teclado{ width:100%; }
+}

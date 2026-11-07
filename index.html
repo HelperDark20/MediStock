@@ -506,6 +506,11 @@
                 <div class="form-group fg-full" id="u-medico-hint" style="display:none">
                   <span class="hint">El médico no tiene contraseña ni ingresa a la app: se asigna a los eventos desde "Agregar personal" y su nombre y cédula / registro profesional salen en la historia clínica.</span>
                 </div>
+                <div class="form-group fg-full" id="u-pin-wrap">
+                  <label>PIN de asistencia <span style="font-weight:400;color:#aaa">(4 dígitos · médicos y enfermeros)</span></label>
+                  <input type="text" id="u-pin" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="Ej. 4821" style="font-family:var(--font-mono);max-width:160px">
+                  <span class="hint">Lo usa la persona para marcar entrada y salida en las tablets de /datacontrol.</span>
+                </div>
                 <div class="form-group fg-full" id="u-pass-wrap">
                   <label>Contraseña asignada</label>
                   <input type="text" id="u-pass" placeholder="Ej. NB2026*Carlos" style="font-family:var(--font-mono)">
@@ -545,6 +550,10 @@
             </div>
             <div class="form-group fg-full" id="edit-u-medico-hint" style="display:none">
               <span class="hint">Un médico no tiene contraseña ni acceso a la app.</span>
+            </div>
+            <div class="form-group fg-full" id="edit-u-pin-wrap">
+              <label>PIN de asistencia <span style="font-weight:400;color:#aaa" id="edit-u-pin-estado"></span></label>
+              <input type="text" id="edit-u-pin" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="Dejar vacío para no cambiar" style="font-family:var(--font-mono);max-width:220px">
             </div>
             <div class="form-group fg-full" id="edit-u-pass-wrap">
               <label id="edit-u-pass-label">Nueva contraseña <span style="font-weight:400;color:#aaa">(opcional)</span></label>
@@ -777,6 +786,41 @@
           <div class="sec-title">Eventos activos y programados</div>
         </div>
         <div class="grid-3" id="eventos-grid"></div>
+      </div>
+
+      <!-- ═══ ASISTENCIAS (Admin, js/asistencia.js) ═══ -->
+      <div class="view" id="view-asistencia">
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header"><img class="card-ico" src="img/iconos/asistencia.svg" alt=""><span class="card-title">Asistencia de personal</span>
+            <span class="asis-enlace">Tablets: <code>wms.novabridge.com.co/datacontrol</code></span></div>
+          <div class="card-body">
+            <div class="asis-filtros">
+              <div class="form-group"><label>Evento</label><select id="asis-evento" onchange="asisBuscar()"></select></div>
+              <div class="form-group"><label>Desde</label><input type="date" id="asis-desde" onchange="asisBuscar()"></div>
+              <div class="form-group"><label>Hasta</label><input type="date" id="asis-hasta" onchange="asisBuscar()"></div>
+              <div class="form-group"><label>Persona</label><select id="asis-persona" onchange="asisBuscar()"></select></div>
+              <div class="form-group"><label>Estado</label>
+                <select id="asis-estado" onchange="asisBuscar()">
+                  <option value="">Todas</option>
+                  <option value="abierta">En turno</option>
+                  <option value="cerrada">Completas</option>
+                  <option value="sin_salida">Sin salida</option>
+                  <option value="manual">Salida manual</option>
+                </select>
+              </div>
+              <div class="asis-filtros-btns"><button class="btn-cancel" onclick="asisLimpiar()"><img class="btn-ico" src="img/iconos/limpiar.svg" alt="">Limpiar</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="rep-stats asis-stats" id="asis-stats"></div>
+        <div class="card">
+          <div class="table-wrap">
+            <table class="asis-tabla">
+              <thead><tr><th>Fotos</th><th>Persona</th><th>Evento</th><th>Entrada</th><th>Salida</th><th>Horas</th><th>Estado</th><th></th></tr></thead>
+              <tbody id="asis-tbody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <!-- ═══ HISTORIAS CLÍNICAS (Admin, js/historias.js) ═══ -->
@@ -1213,6 +1257,50 @@
   </div>
 </div>
 
+<!-- ═══ MODALES DE ASISTENCIAS (js/asistencia.js) ═══ -->
+<div class="modal-overlay" id="modal-asis-salida">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Registrar salida manual</div>
+    <div class="modal-sub" id="asis-salida-sub"></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Fecha de salida</label><input type="date" id="asis-salida-fecha"></div>
+      <div class="form-group"><label>Hora de salida</label><input type="time" id="asis-salida-hora"></div>
+      <div class="form-group fg-full"><label>Motivo</label><input type="text" id="asis-salida-motivo" maxlength="300" placeholder="Ej. No marcó salida; confirmada con el coordinador"></div>
+      <div class="form-group fg-full"><span class="hint">Queda registrado quién la puso y cuándo. Debe ser después de la entrada y como máximo 24 horas después.</span></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-asis-salida')">Cancelar</button>
+      <button class="btn-confirm" onclick="asisGuardarSalida(this)">Registrar salida</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-asis-cuenta">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Cuenta de las tablets</div>
+    <div class="modal-sub" id="asis-cuenta-estado"></div>
+    <div class="form-grid">
+      <div class="form-group fg-full"><label>Usuario</label><input type="text" id="asis-cuenta-usuario" autocomplete="off" style="font-family:var(--font-mono)"></div>
+      <div class="form-group fg-full"><label>Contraseña <span style="font-weight:400;color:#aaa">(mín. 8 caracteres)</span></label><input type="text" id="asis-cuenta-pass" autocomplete="off" style="font-family:var(--font-mono)"></div>
+      <div class="form-group fg-full"><span class="hint">Con este usuario se activa cada tablet una sola vez en /datacontrol. Si cambias la contraseña, las tablets activadas se cierran y hay que activarlas de nuevo.</span></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-asis-cuenta')">Cancelar</button>
+      <button class="btn-confirm" onclick="asisGuardarCuenta(this)">Guardar</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-asis-foto">
+  <div class="modal-sheet" style="max-width:420px">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="asis-foto-titulo"></div>
+    <div class="modal-sub" id="asis-foto-sub"></div>
+    <img id="asis-foto-img" alt="Foto de la marca" style="width:100%;border-radius:12px;display:block">
+    <div class="modal-actions"><button class="btn-confirm" onclick="closeModal('modal-asis-foto')">Cerrar</button></div>
+  </div>
+</div>
+
 <!-- ═══ MODALES DE HISTORIAS CLÍNICAS (js/historias.js) ═══ -->
 <div class="modal-overlay" id="modal-hc">
   <div class="modal-sheet hc-sheet">
@@ -1474,6 +1562,7 @@
 <script src="js/usuarios.js"></script>
 <script src="js/municipios.js"></script>
 <script src="js/historias.js"></script>
+<script src="js/asistencia.js"></script>
 <script src="js/bodegas.js"></script>
 <script src="js/eventos.js"></script>
 <script src="js/reportes.js"></script>

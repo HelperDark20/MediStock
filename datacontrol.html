@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es" manifest="/datacontrol.appcache">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0A1628">
+<title>Nova Bridge — Asistencia</title>
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="stylesheet" href="css/datacontrol.css">
+</head>
+<body>
+<!--
+  Asistencia de personal en tablets (iPad con iOS 12, sin librerías externas,
+  JavaScript ES5: js/lite/datacontrol-lite.js). Funciona con y sin conexión:
+  las marcas se guardan en la tablet y se suben al sincronizar.
+-->
+
+<!-- ═══ ACTIVAR LA TABLET (una sola vez) ═══ -->
+<div class="dc-pantalla dc-activar" id="dc-activar">
+  <div class="dc-activar-card">
+    <div class="dc-marca">N O V A</div>
+    <div class="dc-marca-sub">DATACONTROL</div>
+    <div class="dc-activar-tit"><img src="img/iconos/asistencia.svg" alt="">Asistencia de personal</div>
+    <form id="dc-activar-form" autocomplete="off">
+      <label class="dc-label" for="dc-usuario">Usuario de la tablet</label>
+      <input class="dc-input" type="email" id="dc-usuario" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="datacontrol@novabridge.com.co">
+      <label class="dc-label" for="dc-pass">Contraseña</label>
+      <input class="dc-input" type="password" id="dc-pass" placeholder="••••••••">
+      <div class="dc-error" id="dc-activar-error"></div>
+      <button class="dc-btn" type="submit" id="dc-activar-btn">Activar tablet</button>
+      <div class="dc-ayuda">Queda activa hasta que se pulse "Salir" o el administrador cierre las sesiones.</div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div class="dc-pantalla" id="dc-app">
+  <div class="dc-cab">
+    <div class="dc-cab-logo">N O V A<small>DATACONTROL</small></div>
+    <div class="dc-cab-der"><span id="dc-cab-usuario"></span><button type="button" class="dc-cab-btn" data-accion="salir">Salir</button></div>
+  </div>
+  <div class="dc-modo" id="dc-modo"></div>
+  <div class="dc-cuerpo">
+    <!-- Mensajes (cargando, sin eventos…) -->
+    <div class="dc-estado" id="dc-estado"></div>
+
+    <!-- Elegir el evento -->
+    <div class="dc-seccion" id="dc-eventos">
+      <div class="dc-tit"><img src="img/iconos/asistencia.svg" alt="">¿En qué evento vas a marcar?</div>
+      <div id="dc-eventos-lista"></div>
+    </div>
+
+    <!-- Cédula + PIN -->
+    <div class="dc-seccion" id="dc-marcar">
+      <div class="dc-tit dc-tit-evento"><img src="img/iconos/cedula.svg" alt=""><span id="dc-marcar-evento"></span>
+        <button type="button" class="dc-link" data-accion="cambiar-evento">Cambiar evento</button></div>
+      <div class="dc-marcar">
+        <div class="dc-marcar-izq">
+          <div class="dc-label">Número de cédula</div>
+          <div class="dc-campo" id="dc-cedula"></div>
+          <div class="dc-persona" id="dc-persona"></div>
+          <div id="dc-pin-wrap" class="dc-oculto">
+            <div class="dc-label">PIN personal</div>
+            <div class="dc-pin" id="dc-pin"><i></i><i></i><i></i><i></i></div>
+          </div>
+          <div class="dc-error" id="dc-marcar-error"></div>
+        </div>
+        <div class="dc-teclado" id="dc-teclado">
+          <button type="button" data-tecla="1">1</button><button type="button" data-tecla="2">2</button><button type="button" data-tecla="3">3</button>
+          <button type="button" data-tecla="4">4</button><button type="button" data-tecla="5">5</button><button type="button" data-tecla="6">6</button>
+          <button type="button" data-tecla="7">7</button><button type="button" data-tecla="8">8</button><button type="button" data-tecla="9">9</button>
+          <button type="button" data-tecla="borrar" class="dc-tecla-sec">⌫</button><button type="button" data-tecla="0">0</button><button type="button" data-tecla="ok" class="dc-tecla-ok">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Foto y confirmación -->
+    <div class="dc-seccion" id="dc-foto">
+      <div class="dc-persona dc-persona-grande" id="dc-foto-persona"></div>
+      <div class="dc-camara" id="dc-camara">
+        <video id="dc-video" autoplay muted playsinline></video>
+        <img id="dc-foto-previa" alt="">
+        <div class="dc-camara-marco"></div>
+        <div class="dc-camara-msg" id="dc-camara-msg"></div>
+      </div>
+      <input type="file" id="dc-foto-input" accept="image/*" capture="user" class="dc-oculto">
+      <div class="dc-foto-botones">
+        <button type="button" class="dc-btn dc-btn-sec" data-accion="cancelar-marca">Cancelar</button>
+        <button type="button" class="dc-btn dc-btn-sec dc-oculto" id="dc-btn-tomar" data-accion="tomar-foto">Tomar foto</button>
+        <button type="button" class="dc-btn" id="dc-btn-marcar" data-accion="confirmar-marca"></button>
+      </div>
+      <div class="dc-ayuda" id="dc-foto-ayuda"></div>
+    </div>
+
+    <!-- Marca registrada -->
+    <div class="dc-seccion dc-ok" id="dc-ok"></div>
+  </div>
+</div>
+
+<!-- Ventana de confirmación -->
+<div class="dc-modal" id="dc-modal">
+  <div class="dc-modal-card">
+    <div class="dc-modal-tit" id="dc-modal-tit"></div>
+    <div class="dc-modal-cuerpo" id="dc-modal-cuerpo"></div>
+    <div class="dc-modal-botones" id="dc-modal-botones"></div>
+  </div>
+</div>
+<div class="dc-toast" id="dc-toast"></div>
+
+<canvas id="dc-canvas" class="dc-oculto"></canvas>
+<script src="js/lite/datacontrol-lite.js"></script>
+</body>
+</html>

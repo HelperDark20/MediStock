@@ -157,6 +157,48 @@ const MIGRACIONES = [
   'ALTER TABLE movimientos ADD COLUMN IF NOT EXISTS hc_client_id TEXT',
   'CREATE INDEX IF NOT EXISTS movimientos_hc_client_id_idx ON movimientos (hc_client_id) WHERE hc_client_id IS NOT NULL',
 
+  // Asistencia de personal (/datacontrol)
+  //   usuarios.pin_asistencia_*  — PIN de 4 dígitos (SHA-256 de "sal:pin")
+  //   asistencia_cuentas         — cuenta de las tablets; sesiones_desde
+  //                                invalida los tokens emitidos antes
+  //   asistencia_jornadas        — una fila por jornada (entrada → salida)
+  'ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS pin_asistencia_salt TEXT',
+  'ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS pin_asistencia_hash TEXT',
+  `CREATE TABLE IF NOT EXISTS asistencia_cuentas (
+     id SERIAL PRIMARY KEY,
+     usuario TEXT NOT NULL UNIQUE,
+     password_hash TEXT NOT NULL,
+     activo BOOLEAN NOT NULL DEFAULT true,
+     sesiones_desde TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+     actualizada_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   )`,
+  `CREATE TABLE IF NOT EXISTS asistencia_jornadas (
+     id SERIAL PRIMARY KEY,
+     evento_id INTEGER NOT NULL REFERENCES eventos(id),
+     usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
+     estado TEXT NOT NULL CHECK (estado IN ('abierta', 'cerrada', 'sin_salida')),
+     entrada_client_id TEXT NOT NULL UNIQUE,
+     entrada_at TIMESTAMPTZ NOT NULL,
+     entrada_recibida_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+     entrada_foto BYTEA,
+     entrada_offline BOOLEAN NOT NULL DEFAULT false,
+     salida_client_id TEXT UNIQUE,
+     salida_at TIMESTAMPTZ,
+     salida_recibida_at TIMESTAMPTZ,
+     salida_foto BYTEA,
+     salida_offline BOOLEAN NOT NULL DEFAULT false,
+     salida_manual BOOLEAN NOT NULL DEFAULT false,
+     salida_manual_por TEXT,
+     salida_manual_motivo TEXT,
+     salida_manual_at TIMESTAMPTZ,
+     reloj_desfase_seg INTEGER,
+     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   )`,
+  // Una sola jornada abierta por persona
+  "CREATE UNIQUE INDEX IF NOT EXISTS asistencia_una_abierta ON asistencia_jornadas (usuario_id) WHERE estado = 'abierta'",
+  'CREATE INDEX IF NOT EXISTS asistencia_evento_idx ON asistencia_jornadas (evento_id, entrada_at)',
+  'CREATE INDEX IF NOT EXISTS asistencia_entrada_idx ON asistencia_jornadas (entrada_at)',
+
   // Registro de las migraciones que deben correr UNA sola vez
   'CREATE TABLE IF NOT EXISTS migraciones_aplicadas (nombre TEXT PRIMARY KEY, aplicada_at TIMESTAMPTZ NOT NULL DEFAULT NOW())',
 ];

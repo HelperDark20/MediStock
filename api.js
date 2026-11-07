@@ -78,6 +78,23 @@ const Bodegas = {
 };
 
 // ── HISTORIAS CLÍNICAS (módulo admin, nivel 4) ──
+const Asistencia = {
+  listar: (filtros) => {
+    const q = Object.entries(filtros || {}).filter(([, v]) => v !== '' && v !== null && v !== undefined)
+      .map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+    return request('GET', '/api/asistencia' + (q ? '?' + q : ''));
+  },
+  salidaManual: (id, data) => request('POST', `/api/asistencia/${id}/salida`, data),
+  cuenta: () => request('GET', '/api/asistencia/cuenta'),
+  guardarCuenta: (data) => request('PUT', '/api/asistencia/cuenta', data),
+  cerrarSesiones: () => request('POST', '/api/asistencia/cuenta/cerrar-sesiones'),
+  async foto(id, tipo){
+    const res = await fetch(`${API_URL}/api/asistencia/${id}/foto/${tipo}`, { headers: { Authorization: 'Bearer ' + getToken() } });
+    if(!res.ok) throw new Error('No se pudo cargar la foto');
+    return res.blob();
+  }
+};
+
 const HistoriasClinicas = {
   listar: (filtros) => {
     const q = Object.entries(filtros || {}).filter(([, v]) => v !== '' && v !== null && v !== undefined)

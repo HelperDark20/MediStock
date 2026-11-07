@@ -60,6 +60,29 @@ app.get('/sw-enfermero.js', (req, res) => {
   res.type('application/javascript').set('Cache-Control', 'no-cache').send(swPanel);
 });
 
+// Asistencia de personal en tablets (/datacontrol): misma estrategia offline
+// que el panel de enfermero (AppCache en iOS 9–12, Service Worker en el resto)
+app.get('/datacontrol', (req, res) => res.sendFile(path.join(__dirname, 'datacontrol.html')));
+const ARCHIVOS_DC_CACHE = [
+  '/css/datacontrol.css', '/js/lite/datacontrol-lite.js', '/fonts/METHANERSE_Free_Trial.woff', '/logo.png',
+  '/img/avatares/enfermero.svg', '/img/avatares/medico.svg', '/img/iconos/asistencia.svg', '/img/iconos/ubicacion.svg',
+  '/img/iconos/temporales.svg', '/img/iconos/cedula.svg', '/img/iconos/iniciar-evento.svg', '/img/iconos/salir.svg'
+];
+const hashDc = crypto.createHash('sha1');
+['datacontrol.html', 'js/lite/sw-datacontrol.js'].concat(ARCHIVOS_DC_CACHE.map(f => f.slice(1)))
+  .forEach(f => hashDc.update(fs.readFileSync(path.join(__dirname, f))));
+const VERSION_DC = hashDc.digest('hex').slice(0, 12);
+app.get('/datacontrol.appcache', (req, res) => {
+  res.type('text/cache-manifest').set('Cache-Control', 'no-cache').send(
+    ['CACHE MANIFEST', `# version ${VERSION_DC}`, 'CACHE:'].concat(ARCHIVOS_DC_CACHE, ['NETWORK:', '*', '']).join('\n'));
+});
+const swDc = fs.readFileSync(path.join(__dirname, 'js/lite/sw-datacontrol.js'), 'utf8')
+  .replace(/__VERSION__/g, VERSION_DC)
+  .replace('__ARCHIVOS__', JSON.stringify(['/datacontrol'].concat(ARCHIVOS_DC_CACHE)));
+app.get('/sw-datacontrol.js', (req, res) => {
+  res.type('application/javascript').set('Cache-Control', 'no-cache').send(swDc);
+});
+
 // Fix #12: la versión anterior no llamaba next() cuando la ruta era /api,
 // dejando esas peticiones sin respuesta en Express 5 (timeout silencioso).
 // Ahora: rutas no-API → sirve index.html; rutas /api → pasa al siguiente

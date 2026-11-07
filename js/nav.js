@@ -69,7 +69,7 @@ function goTo(viewId){
     dashboard:'Dashboard', inventario:'Inventario',
     movimientos:'Movimientos', registro:'Registro de entradas',
     sku:'SKUs Globales', usuarios:'Usuarios',
-    bodegas:'Ubicaciones y Bodegas', eventos:'Eventos', historias:'Historias clínicas', reportes:'Reportes',
+    bodegas:'Ubicaciones y Bodegas', eventos:'Eventos', asistencia:'Asistencias', historias:'Historias clínicas', reportes:'Reportes',
     segstock:'Stock de Seguridad', trazabilidad:'Trazabilidad'
   };
   document.getElementById('page-title').textContent = titles[viewId]||viewId;
@@ -95,6 +95,12 @@ function goTo(viewId){
   if(viewId==='eventos'&&currentRole===4){
     ta.innerHTML=`<button class="tb-btn primary" onclick="abrirCrearEvento()"><img class="btn-ico" src="img/iconos/crear-evento.svg" alt="">Crear evento</button>`;
   }
+  if(viewId==='asistencia'&&currentRole===4){
+    ta.innerHTML=`<button class="tb-btn" onclick="asisExportExcel()"><img class="btn-ico" src="img/iconos/excel.svg" alt="">Excel nómina</button>`+
+      `<button class="tb-btn" onclick="asisExportPDF()"><img class="btn-ico" src="img/iconos/pdf.svg" alt="">PDF</button>`+
+      `<button class="tb-btn" onclick="asisAbrirCuenta()"><img class="btn-ico" src="img/iconos/cedula.svg" alt="">Cuenta de tablets</button>`+
+      `<button class="tb-btn" onclick="asisCerrarSesiones()"><img class="btn-ico" src="img/iconos/salir.svg" alt="">Cerrar sesión de tablets</button>`;
+  }
   if(viewId==='segstock'&&currentRole===4){
   ta.innerHTML=`<button class="tb-btn primary" onclick="abrirCrearGrupoSeg()"><img class="btn-ico" src="img/iconos/crear-grupo.svg" alt="">Crear grupo</button>`;
   }
@@ -102,7 +108,7 @@ function goTo(viewId){
     dashboard:renderDash, inventario:renderInv,
     movimientos:renderMovimientos, registro:renderRegistro,
     sku:renderSKUs, usuarios:renderUsuarios,
-    bodegas:renderBodegas, eventos:renderEventos, historias:renderHistorias, reportes:renderReportes,
+    bodegas:renderBodegas, eventos:renderEventos, asistencia:renderAsistencia, historias:renderHistorias, reportes:renderReportes,
     segstock:renderSegStock
   };
   renders[viewId]?.();

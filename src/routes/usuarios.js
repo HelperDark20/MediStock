@@ -4,6 +4,17 @@ const pool = require('../config/db');
 const bcrypt = require('bcryptjs');
 const { verificarToken, verificarNivel } = require('../middlewares/auth');
 const { validarParamsId } = require('../utils/validar');
+const { pinValido, nuevaSal, hashPin } = require('../utils/asistencia');
+
+// PIN de asistencia (4 dígitos) que viene en el cuerpo:
+//   undefined / '' → no se cambia · 'QUITAR' → se borra · 4 dígitos → se asigna
+function _pinDelCuerpo(v) {
+  if (v === undefined || v === null || v === '') return { cambia: false };
+  if (v === 'QUITAR') return { cambia: true, sal: null, hash: null };
+  if (!pinValido(String(v))) return { error: 'El PIN de asistencia debe tener 4 dígitos' };
+  const sal = nuevaSal();
+  return { cambia: true, sal, hash: hashPin(sal, String(v)) };
+}
 
 // :id debe ser un id numérico (si no, 400 en vez de error 500)
 validarParamsId(router, 'id');
@@ -39,7 +50,8 @@ router.get('/', verificarToken, verificarNivel(4), async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT u.id, u.nombre, u.cedula, u.nivel, u.genero,
-              u.activo, u.ubicacion_id, ub.nombre AS ubicacion_nombre
+              u.activo, u.ubicacion_id, ub.nombre AS ubicacion_nombre,
+              (u.pin_asistencia_hash IS NOT NULL) AS tiene_pin
        FROM usuarios u
        LEFT JOIN ubicaciones ub ON u.ubicacion_id = ub.id
        WHERE u.activo = true ORDER BY u.nombre`
@@ -56,6 +68,8 @@ router.get('/', verificarToken, verificarNivel(4), async (req, res) => {
 // tenía). El médico (nivel 1) se crea sin contraseña.
 router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
   const { nombre, cedula, nivel, genero, password, ubicacion_id } = req.body;
+  const pin = _pinDelCuerpo(req.body.pin_asistencia);
+  if (pin.error) return res.status(400).json({ error: pin.error });
   const nivelNum = parseInt(nivel);
   const esMedico = nivelNum === NIVEL_MEDICO;
   if (!nombre || !cedula || !nivel || (!esMedico && !password)) {
@@ -87,7 +101,10 @@ router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
         [nombre, cedula, nivelNum, genero, password_hash, ubicacion_id || null]
       );
     }
-    res.status(201).json(result.rows[0]);
+    if (pin.cambia) {
+      await pool.query('UPDATE usuarios SET pin_asistencia_salt = $2, pin_asistencia_hash = $3 WHERE id = $1', [result.rows[0].id, pin.sal, pin.hash]);
+    }
+    res.status(201).json({ ...result.rows[0], tiene_pin: !!(pin.cambia && pin.hash) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
@@ -99,6 +116,8 @@ router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
 // médico a otro nivel exige asignarle una contraseña.
 router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
   const { nombre, nivel, genero, password, ubicacion_id } = req.body;
+  const pin = _pinDelCuerpo(req.body.pin_asistencia);
+  if (pin.error) return res.status(400).json({ error: pin.error });
   // FIX SEGURIDAD: validar nivel si se está cambiando
   if (nivel !== undefined && !NIVELES_VALIDOS.includes(parseInt(nivel))) {
     return res.status(400).json({ error: 'Nivel inválido. Debe ser 1, 2, 3 o 4' });
@@ -138,6 +157,9 @@ router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
        esMedico]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
+    if (pin.cambia) {
+      await pool.query('UPDATE usuarios SET pin_asistencia_salt = $2, pin_asistencia_hash = $3 WHERE id = $1', [req.params.id, pin.sal, pin.hash]);
+    }
     // Un médico no maneja depósitos: se le quitan los de eventos abiertos
     // (los de eventos finalizados quedan como historial)
     if (esMedico) {
