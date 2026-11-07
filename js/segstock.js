@@ -133,8 +133,8 @@ function segRenderItems(){
         <div class="user-cedula">Cantidad esperada: <strong>${it.cantidad_esperada}</strong></div>
       </div>
       <div class="act-btn-group">
-        <button class="act-btn primary" title="Editar cantidad" onclick="segAbrirEditarItem(${it.id},${jsArg(it.item_nombre)},${it.cantidad_esperada})"><i class="ti ti-pencil"></i></button>
-        <button class="act-btn danger" title="Eliminar ítem" onclick="segConfirmEliminarItem(${it.id},${jsArg(it.item_nombre)})"><i class="ti ti-trash"></i></button>
+        <button class="act-btn primary" title="Editar cantidad" onclick="segAbrirEditarItem(${it.id},${jsArg(it.item_nombre)},${it.cantidad_esperada})"><img class="btn-ico" src="img/iconos/editar.svg" alt=""></button>
+        <button class="act-btn danger" title="Eliminar ítem" onclick="segConfirmEliminarItem(${it.id},${jsArg(it.item_nombre)})"><img class="btn-ico" src="img/iconos/eliminar.svg" alt=""></button>
       </div>
     </div>`).join('');
 }

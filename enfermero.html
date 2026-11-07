@@ -21,7 +21,7 @@
 <div class="lt-screen lt-login" id="lt-login">
   <div class="lt-login-card">
     <div class="lt-brand">N O V A</div>
-    <div class="lt-brand-sub">Registro de consumos</div>
+    <div class="lt-brand-sub">Historia clínica y consumos</div>
     <div class="lt-login-title">Iniciar sesión</div>
     <div class="lt-login-hint">Ingresa tu cédula y contraseña asignada</div>
     <form id="lt-login-form" autocomplete="off">
@@ -48,7 +48,7 @@
   </div>
 
   <div class="lt-body">
-    <div class="lt-banner">Herramienta oficial de registro de consumos — cada movimiento queda asociado a tu usuario. Úsala solo para registrar consumos reales de pacientes.</div>
+    <div class="lt-banner">Herramienta oficial de historia clínica y registro de consumos — cada registro queda asociado a tu usuario. Úsala solo para atenciones y consumos reales de pacientes.</div>
 
     <!-- Cargando / mensajes de estado -->
     <div class="lt-state" id="lt-state"></div>
@@ -71,6 +71,36 @@
         <button class="lt-link" type="button" id="lt-actualizar">Actualizar</button>
       </div>
 
+      <!-- ═══ HISTORIAS CLÍNICAS (js/lite/hc-lite.js) ═══ -->
+      <div class="lt-tabpanel on" id="lt-tab-hc">
+        <div id="lt-hc-inicio" class="on">
+          <button type="button" class="lt-btn lt-btn-nueva" data-hc="nueva">+ Nueva historia clínica</button>
+          <div class="lt-card">
+            <div class="lt-card-title">Mis historias clínicas</div>
+            <div id="lt-hc-lista"></div>
+          </div>
+        </div>
+
+        <div id="lt-hc-editor">
+          <div class="lt-hc-top">
+            <button type="button" class="lt-btn-sec" data-hc="volver">‹ Mis historias</button>
+            <div class="lt-hc-titulo" id="lt-hc-titulo"></div>
+          </div>
+          <div class="lt-hc-guardado" id="lt-hc-guardado"></div>
+          <div class="lt-pasos" id="lt-hc-pasos"></div>
+          <div class="lt-error" id="lt-hc-errores"></div>
+          <div id="lt-hc-modulo"></div>
+          <div class="lt-hc-nav">
+            <button type="button" class="lt-btn-sec lt-hc-anterior" id="lt-hc-anterior" data-hc="anterior">‹ Anterior</button>
+            <button type="button" class="lt-btn lt-hc-siguiente" id="lt-hc-siguiente" data-hc="siguiente">Siguiente ›</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ REGISTRO DE CONSUMOS ═══
+           Ya no se usa por fuera de la historia clínica (decisión del cliente):
+           queda oculto hasta que el módulo 6 de la HC lo reutilice. -->
+      <div class="lt-tabpanel" id="lt-tab-consumos">
       <div class="lt-cols">
         <div class="lt-col">
           <div class="lt-card">
@@ -109,6 +139,7 @@
           </div>
         </div>
       </div>
+      </div>
     </div>
   </div>
 </div>
@@ -122,8 +153,26 @@
   </div>
 </div>
 
+<!-- Firma táctil a pantalla completa (historia clínica) -->
+<div class="lt-firma-fondo" id="lt-firma">
+  <div class="lt-firma-barra">
+    <span class="lt-firma-titulo" id="lt-firma-titulo">Firma</span>
+    <span class="lt-firma-botones">
+      <button type="button" class="lt-btn-sec" data-firma="borrar">Borrar</button>
+      <button type="button" class="lt-btn-sec" data-firma="cancelar">Cancelar</button>
+      <button type="button" class="lt-btn-sec primario" data-firma="guardar">Guardar firma</button>
+    </span>
+  </div>
+  <div class="lt-firma-zona" id="lt-firma-zona">
+    <canvas id="lt-firma-canvas"></canvas>
+    <div class="lt-firma-linea">Firme aquí con el dedo</div>
+  </div>
+</div>
+
 <div class="lt-toast" id="lt-toast"></div>
 
+<!-- hc-lite.js va antes: enfermero-lite.js lo conecta al arrancar -->
+<script src="js/lite/hc-lite.js"></script>
 <script src="js/lite/enfermero-lite.js"></script>
 </body>
 </html>

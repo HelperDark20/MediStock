@@ -33,9 +33,11 @@ function renderEventos(){
       const deps = p.bodegas||[];
       const visibles = deps.slice(0,2).map(b=>`<span class="evt-dep-chip">${escHtml(b.nombre)}</span>`).join('');
       const extra = deps.length>2 ? `<span class="evt-dep-chip more">+${deps.length-2}</span>` : '';
-      const depsHtml = deps.length ? visibles+extra : '<span class="evt-dep-chip empty">sin depósitos</span>';
+      // El médico no maneja depósitos: se muestra su rol en lugar de "sin depósitos"
+      const depsHtml = p.es_medico ? '<span class="evt-dep-chip">Médico</span>'
+        : deps.length ? visibles+extra : '<span class="evt-dep-chip empty">sin depósitos</span>';
       return `<div class="evt-personal-row">
-        <i class="ti ti-user"></i>
+        <img class="evt-persona-foto" src="${avatarNivel(p.nivel || (p.es_medico ? 1 : 2))}" alt="">
         <div class="evt-personal-body">
           <div class="evt-personal-name">${escHtml(p.nombre)}</div>
           <div class="evt-personal-deps">${depsHtml}</div>
@@ -44,16 +46,20 @@ function renderEventos(){
     }).join('') || '<div class="evt-personal-row" style="color:#aaa">Sin personal asignado</div>';
 
     const estadoBadge = {
-      creado:     '<span class="evt-badge creado">Programado</span>',
-      en_curso:   '<span class="evt-badge en_curso">● En curso</span>',
-      finalizado: '<span class="evt-badge finalizado">Finalizado</span>'
+      creado:     '<span class="evt-badge creado"><img src="img/iconos/estado-programado.svg" alt="">Programado</span>',
+      en_curso:   '<span class="evt-badge en_curso"><img src="img/iconos/estado-en-curso.svg" alt="">En curso</span>',
+      finalizado: '<span class="evt-badge finalizado"><img src="img/iconos/estado-finalizado.svg" alt="">Finalizado</span>'
     }[e.estado] || '';
+
+    // Puntero de la ubicación del evento: el de sede o el de temporal
+    const ubEvt = (S.ubicaciones||[]).find(u => u.id === e.ubicacion_id);
+    const puntero = ubEvt && ubEvt.es_temporal ? 'temporales' : 'ubicacion';
 
     let accion = '';
     if(e.estado === 'creado' && currentRole === 4){
-      accion = `<button class="btn-submit" style="margin-top:12px" onclick="event.stopPropagation();iniciarEvento(${e.id})"><i class="ti ti-player-play"></i>Iniciar evento</button>`;
+      accion = `<button class="btn-submit" style="margin-top:12px" onclick="event.stopPropagation();iniciarEvento(${e.id})"><img class="btn-ico" src="img/iconos/iniciar-evento.svg" alt="">Iniciar evento</button>`;
     } else if(e.estado === 'en_curso' && currentRole === 4){
-      accion = `<button class="btn-submit" style="margin-top:12px;background:var(--red2)" onclick="event.stopPropagation();confirmFinalizarEvento(${e.id},${jsArg(e.nombre)})"><i class="ti ti-player-stop"></i>Finalizar evento</button>`;
+      accion = `<button class="btn-submit" style="margin-top:12px;background:var(--red2)" onclick="event.stopPropagation();confirmFinalizarEvento(${e.id},${jsArg(e.nombre)})"><img class="btn-ico" src="img/iconos/finalizar-evento.svg" alt="">Finalizar evento</button>`;
     }
 
     return `<div class="card evt-card" style="margin-bottom:0;cursor:pointer" onclick="abrirDetalleEvento(${e.id})">
@@ -63,11 +69,11 @@ function renderEventos(){
           ${estadoBadge}
         </div>
         <div style="font-size:12px;color:#888;margin-bottom:10px">
-          <i class="ti ti-map-pin" style="margin-right:3px"></i>${escHtml(e.ubicacion_nombre||'—')}
+          <img class="evt-mini-ico" src="img/iconos/${puntero}.svg" alt="">${escHtml(e.ubicacion_nombre||'—')}
         </div>
         <div style="margin-bottom:8px">${personalHTML}</div>
         <div style="font-size:11px;color:#aaa;font-family:var(--font-mono)">
-          <i class="ti ti-calendar" style="margin-right:3px"></i>
+          <img class="evt-mini-ico" src="img/iconos/mes.svg" alt="">
           ${fmtDate(e.fecha_inicio)} → ${fmtDate(e.fecha_fin)}
         </div>
         ${accion}
@@ -103,7 +109,7 @@ async function crearEvento(){
     S.eventos = await Eventos.getAll();
     renderEventos();
     buildNav();
-    toast('✓ Evento creado — agrega los enfermeros','success');
+    toast('✓ Evento creado — agrega el personal','success');
     abrirDetalleEvento(nuevo.id);
   } catch(err){
     toastError(err.message);
@@ -170,59 +176,66 @@ async function guardarDetalleEvento(){
   }
 }
 
-// ── LISTA DE ENFERMEROS DENTRO DEL DETALLE ──
+// ── LISTA DEL PERSONAL (ENFERMEROS Y MÉDICOS) DENTRO DEL DETALLE ──
+// Los médicos (nivel 1) no tienen depósitos: solo se asignan para la
+// historia clínica (responsable de la atención y firma). Van primero.
 function evtDetRenderEnfermeros(){
   const el = document.getElementById('evtdet-enfermeros-list');
   if(!el) return;
-  const personal = _evtDetalleEvento?.personal || [];
+  const personal = (_evtDetalleEvento?.personal || []).slice()
+    .sort((a, b) => (b.es_medico ? 1 : 0) - (a.es_medico ? 1 : 0));
 
   if(!personal.length){
-    el.innerHTML = '<div style="font-size:12px;color:#aaa;padding:8px 0">Aún no has agregado enfermeros a este evento</div>';
+    el.innerHTML = '<div style="font-size:12px;color:#aaa;padding:8px 0">Aún no has agregado personal a este evento</div>';
     return;
   }
+  const hayMedico = personal.some(p => p.es_medico);
 
-  el.innerHTML = personal.map(p => {
-    const deps = (p.bodegas||[]).map(b=>escHtml(b.nombre)).join(', ') || '<span style="color:var(--red2)">Sin depósitos asignados</span>';
+  el.innerHTML = (hayMedico ? '' : `<div style="font-size:12px;color:#B45309;padding:0 0 8px"><i class="ti ti-alert-triangle"></i> Este evento no tiene médico asignado: las historias clínicas saldrán sin médico responsable.</div>`) +
+    personal.map(p => {
+    const detalle = p.es_medico
+      ? `Médico · Cédula / RP: ${escHtml(p.cedula || '')}`
+      : ((p.bodegas||[]).map(b=>escHtml(b.nombre)).join(', ') || '<span style="color:var(--red2)">Sin depósitos asignados</span>');
     return `<div class="user-card" style="margin-bottom:8px">
-      <div class="user-avatar n2">${escHtml((p.nombre||'').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase())}</div>
+      <div class="user-avatar foto"><img src="${avatarNivel(p.nivel || (p.es_medico ? 1 : 2))}" alt=""></div>
       <div class="user-info">
         <div class="user-name">${escHtml(p.nombre)}</div>
-        <div class="user-cedula">${deps}</div>
+        <div class="user-cedula">${detalle}</div>
       </div>
       <div class="act-btn-group">
-        <button class="act-btn primary" title="Editar depósitos" onclick="evtAbrirAsignarDepositos(${p.id},${jsArg(p.nombre)})"><i class="ti ti-building-warehouse"></i></button>
-        <button class="act-btn danger" title="Quitar del evento" onclick="evtDetEnfRemove(${p.id},${jsArg(p.nombre)})"><i class="ti ti-trash"></i></button>
+        ${p.es_medico ? '' : `<button class="act-btn primary" title="Editar depósitos" onclick="evtAbrirAsignarDepositos(${p.id},${jsArg(p.nombre)})"><i class="ti ti-building-warehouse"></i></button>`}
+        <button class="act-btn danger" title="Quitar del evento" onclick="evtDetEnfRemove(${p.id},${jsArg(p.nombre)})"><img class="btn-ico" src="img/iconos/eliminar.svg" alt=""></button>
       </div>
     </div>`;
   }).join('');
 }
 
-// ── AUTOCOMPLETE PARA AGREGAR ENFERMERO ──
+// ── AUTOCOMPLETE PARA AGREGAR PERSONAL (enfermeros y médicos) ──
 function evtDetEnfFilter(){
   const drop = document.getElementById('evtdet-enf-drop');
   const q = (document.getElementById('evtdet-enf-input').value||'').toLowerCase().trim();
   const yaAsignados = new Set((_evtDetalleEvento?.personal||[]).map(p=>p.id));
-  const pool = (S.usuarios||[]).filter(u => u.nivel === 2 && !yaAsignados.has(u.id));
-  const results = pool.filter(u => !q || u.nombre.toLowerCase().includes(q)).slice(0, 8);
+  const pool = (S.usuarios||[]).filter(u => (u.nivel === 2 || u.nivel === 1) && !yaAsignados.has(u.id));
+  const results = pool.filter(u => !q || u.nombre.toLowerCase().includes(q) || String(u.cedula||'').includes(q)).slice(0, 8);
 
   if(!results.length){
-    drop.innerHTML = '<div class="ac-no-results">Sin enfermeros disponibles</div>';
+    drop.innerHTML = '<div class="ac-no-results">Sin enfermeros ni médicos disponibles</div>';
     drop.classList.add('open');
     return;
   }
 
   drop.innerHTML = results.map(u => `
-    <div class="ac-item" onmousedown="evtDetEnfSelect(${u.id},${jsArg(u.nombre)})">
-      <div class="ac-item-icon"><i class="ti ti-stethoscope"></i></div>
+    <div class="ac-item" onmousedown="evtDetEnfSelect(${u.id},${jsArg(u.nombre)},${u.nivel === 1})">
+      <div class="ac-item-icon"><i class="ti ${u.nivel === 1 ? 'ti-stethoscope' : 'ti-user'}"></i></div>
       <div class="ac-item-body">
         <div class="ac-item-name">${escHtml(u.nombre)}</div>
-        <div class="ac-item-meta">CC: ${escHtml(u.cedula||'')}</div>
+        <div class="ac-item-meta"><span>${u.nivel === 1 ? 'Médico' : 'Enfermero/a'}</span><span>CC: ${escHtml(u.cedula||'')}</span></div>
       </div>
     </div>`).join('');
   drop.classList.add('open');
 }
 
-async function evtDetEnfSelect(usuarioId, nombre){
+async function evtDetEnfSelect(usuarioId, nombre, esMedico){
   document.getElementById('evtdet-enf-input').value = '';
   document.getElementById('evtdet-enf-drop').classList.remove('open');
   try {
@@ -231,6 +244,10 @@ async function evtDetEnfSelect(usuarioId, nombre){
     evtDetRenderEnfermeros();
     S.eventos = await Eventos.getAll();
     renderEventos();
+    if(esMedico){
+      toast(`✓ ${nombre} agregado como médico del evento`,'success');
+      return;
+    }
     toast(`✓ ${nombre} agregado — asígnale sus depósitos`,'success');
     evtAbrirAsignarDepositos(usuarioId, nombre);
   } catch(err){
@@ -239,8 +256,11 @@ async function evtDetEnfSelect(usuarioId, nombre){
 }
 
 function evtDetEnfRemove(usuarioId, nombre){
-  document.getElementById('modal-title').textContent = 'Quitar enfermero';
-  document.getElementById('modal-sub').textContent = `¿Quitar a "${nombre}" de este evento? Perderá acceso a sus depósitos de inmediato.`;
+  const persona = (_evtDetalleEvento?.personal||[]).find(p => p.id === usuarioId);
+  document.getElementById('modal-title').textContent = persona?.es_medico ? 'Quitar médico' : 'Quitar enfermero';
+  document.getElementById('modal-sub').textContent = persona?.es_medico
+    ? `¿Quitar a "${nombre}" de este evento? Las historias clínicas nuevas ya no lo tendrán como médico responsable.`
+    : `¿Quitar a "${nombre}" de este evento? Perderá acceso a sus depósitos de inmediato.`;
   document.getElementById('modal-ok-btn').onclick = async ()=>{
     try {
       await Eventos.removeEnfermero(_evtDetalleId, usuarioId);
@@ -250,7 +270,7 @@ function evtDetEnfRemove(usuarioId, nombre){
       S.eventos = await Eventos.getAll();
       renderEventos();
       buildNav();
-      toast('Enfermero removido del evento');
+      toast(`${nombre} removido del evento`);
     } catch(err){ toastError(err.message); closeModal('modal-confirm'); }
   };
   document.getElementById('modal-confirm').classList.add('open');
@@ -323,7 +343,7 @@ function confirmEliminarEvento(){
   document.getElementById('modal-title').textContent = 'Eliminar evento';
   document.getElementById('modal-sub').textContent =
     `¿Eliminar el evento "${evento.nombre}"?` +
-    (nPersonal ? ` Se quitará la asignación de ${nPersonal} enfermero${nPersonal!==1?'s':''}.` : '') +
+    (nPersonal ? ` Se quitará la asignación de ${nPersonal} persona${nPersonal!==1?'s':''} del personal.` : '') +
     ' Los consumos ya registrados y los reportes no se verán afectados.';
   document.getElementById('modal-ok-btn').onclick = async ()=>{
     try {

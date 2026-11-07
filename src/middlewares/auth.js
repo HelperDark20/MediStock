@@ -23,7 +23,10 @@ const verificarToken = async (req, res, next) => {
 
   try {
     const result = await pool.query(
-      'SELECT id, cedula, nombre, nivel, genero, ubicacion_id FROM usuarios WHERE id = $1 AND activo = true',
+      // Los médicos (nivel 1) no tienen acceso a la app: un token suyo
+      // (p. ej. de cuando eran "auditores") deja de servir de inmediato.
+      `SELECT id, cedula, nombre, nivel, genero, ubicacion_id FROM usuarios
+       WHERE id = $1 AND activo = true AND nivel <> 1 AND password_hash IS NOT NULL`,
       [decoded.id]
     );
     if (!result.rows.length) {

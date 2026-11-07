@@ -28,6 +28,16 @@ async function _nombreOcupado(nombreUpper, excluirId = null) {
   return r.rows.length > 0;
 }
 
+// Municipio (código DIVIPOLA de 5 dígitos) que exista en la tabla municipios.
+// Devuelve el código, o null si no es válido.
+async function _municipioValido(codigo) {
+  const c = String(codigo || '').trim();
+  if (!/^\d{5}$/.test(c)) return null;
+  const r = await pool.query('SELECT codigo FROM municipios WHERE codigo = $1', [c]);
+  return r.rows.length ? c : null;
+}
+const ERROR_MUNICIPIO = 'Selecciona el municipio de la ubicación de la lista';
+
 function _idsValidos(lista) {
   if (!Array.isArray(lista)) return [];
   return [...new Set(lista.map(v => parseInt(v)).filter(n => n > 0))];
@@ -84,14 +94,28 @@ router.get('/', verificarToken, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT u.*,
+             m.nombre AS municipio_nombre, m.departamento AS municipio_departamento,
              COUNT(b.id) FILTER (WHERE b.activo = true) AS total_depositos
       FROM ubicaciones u
+      LEFT JOIN municipios m ON m.codigo = u.municipio_codigo
       LEFT JOIN bodegas b ON b.ubicacion_id = u.id
       WHERE u.activo = true ${incluirFinalizadas ? 'OR (u.es_temporal AND u.finalizada_at IS NOT NULL)' : ''}
-      GROUP BY u.id
+      GROUP BY u.id, m.codigo
       ORDER BY u.nombre
     `);
     res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// GET /api/ubicaciones/municipios — todos los niveles — los 1.122 municipios
+// de Colombia (DIVIPOLA del DANE) para el buscador del formulario.
+router.get('/municipios', verificarToken, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT codigo, nombre, departamento FROM municipios ORDER BY nombre, departamento');
+    res.set('Cache-Control', 'private, max-age=86400').json(result.rows);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
@@ -123,7 +147,7 @@ router.get('/depositos-prestables', verificarToken, verificarNivel(4), async (re
 });
 
 // POST /api/ubicaciones — nivel 4
-// body: { nombre, es_temporal?, bodega_ids? } — bodega_ids solo para temporales
+// body: { nombre, municipio_codigo, es_temporal?, bodega_ids? } — bodega_ids solo para temporales
 router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
   const { nombre } = req.body;
   const esTemporal = req.body.es_temporal === true;
@@ -131,14 +155,26 @@ router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
   const nombreUpper = String(nombre).trim().toUpperCase();
   const bodegaIds = esTemporal ? _idsValidos(req.body.bodega_ids) : [];
 
-  const client = await pool.connect();
+  // Validaciones antes de tomar la conexión de la transacción: así no se
+  // retiene una conexión mientras se consulta con otra
+  let municipio;
   try {
+    municipio = await _municipioValido(req.body.municipio_codigo);
+    if (!municipio) return res.status(400).json({ error: ERROR_MUNICIPIO });
     if (await _nombreOcupado(nombreUpper)) {
       return res.status(400).json({ error: 'Esta ubicación ya existe' });
     }
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Error del servidor' });
+  }
+
+  const client = await pool.connect();
+  try {
     await client.query('BEGIN');
     const result = await client.query(
-      'INSERT INTO ubicaciones (nombre, es_temporal) VALUES ($1, $2) RETURNING *', [nombreUpper, esTemporal]
+      'INSERT INTO ubicaciones (nombre, es_temporal, municipio_codigo) VALUES ($1, $2, $3) RETURNING *',
+      [nombreUpper, esTemporal, municipio]
     );
     if (bodegaIds.length) await _prestarDepositos(client, result.rows[0].id, bodegaIds);
     await client.query('COMMIT');
@@ -264,18 +300,22 @@ router.post('/:id/finalizar', verificarToken, verificarNivel(4), async (req, res
   }
 });
 
-// PUT /api/ubicaciones/:id — nivel 4 — renombrar. Todo lo demás (depósitos,
-// eventos, usuarios) referencia la ubicación por id, así que no se rompe nada.
+// PUT /api/ubicaciones/:id — nivel 4 — renombrar y/o cambiar el municipio.
+// Todo lo demás (depósitos, eventos, usuarios) referencia la ubicación por
+// id, así que no se rompe nada. body: { nombre, municipio_codigo }
 router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
   const { nombre } = req.body;
   if (!nombre || !String(nombre).trim()) return res.status(400).json({ error: 'Nombre requerido' });
   const nombreUpper = String(nombre).trim().toUpperCase();
   try {
+    const municipio = await _municipioValido(req.body.municipio_codigo);
+    if (!municipio) return res.status(400).json({ error: ERROR_MUNICIPIO });
     if (await _nombreOcupado(nombreUpper, parseInt(req.params.id) || 0)) {
       return res.status(400).json({ error: 'Ya existe una ubicación con ese nombre' });
     }
     const result = await pool.query(
-      'UPDATE ubicaciones SET nombre = $1 WHERE id = $2 AND activo = true RETURNING *', [nombreUpper, req.params.id]
+      'UPDATE ubicaciones SET nombre = $1, municipio_codigo = $3 WHERE id = $2 AND activo = true RETURNING *',
+      [nombreUpper, req.params.id, municipio]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Ubicación no encontrada' });
     res.json(result.rows[0]);

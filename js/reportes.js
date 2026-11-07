@@ -31,9 +31,29 @@ let _repCacheKey = null;
 let _repCedulaDebounce = null;
 let _repEstadosActivos = new Set(['N','P','R','A']);
 
+// Ilustración de cada indicador (mismo estilo que los íconos de los módulos).
+// "Faltantes" y "Críticos" comparten el ícono de alerta: se distinguen por el tono.
+const _REP_ILUSTRACION = {
+  'ti-package': 'img/iconos/unidades.svg',
+  'ti-coin': 'img/iconos/valor.svg',
+  'ti-building-warehouse': 'img/modulos/bodegas.png',
+  'ti-map-pin': 'img/modulos/bodegas.png',
+  'ti-alert-triangle': 'img/iconos/advertencia.svg',
+  'ti-id': 'img/iconos/cedula.svg',
+  'ti-users': 'img/modulos/usuarios.png',
+  'ti-calendar': 'img/iconos/calendario.svg',
+  'ti-list-numbers': 'img/modulos/reportes.png',
+  'ti-list-check': 'img/modulos/inventario.png',
+  'ti-alert-circle': 'img/iconos/faltante.svg',
+  'ti-scale': 'img/iconos/diferencia.svg',
+  'ti-x': 'img/iconos/vencidos.svg',
+  'ti-bell': 'img/iconos/alertas.svg',
+  'ti-clock': 'img/iconos/vencimiento.svg'
+};
 function _repStatPill(tono, icon, num, label){
+  const src = icon === 'ti-alert-circle' && tono === 'orange' ? 'img/iconos/critico.svg' : _REP_ILUSTRACION[icon];
   return `<div class="rep-stat">
-    <div class="rep-stat-icon ${tono}"><i class="ti ${icon}"></i></div>
+    ${src ? `<div class="rep-stat-icon ilustrado"><img src="${src}" alt=""></div>` : `<div class="rep-stat-icon ${tono}"><i class="ti ${icon}"></i></div>`}
     <div><div class="rep-stat-num">${num}</div><div class="rep-stat-label">${label}</div></div>
   </div>`;
 }
@@ -193,7 +213,7 @@ async function actualizarReporte(){
       const cedula = (document.getElementById('rep-cedula').value||'').replace(/\D/g,'').trim();
       if(printSub) printSub.textContent = cedula ? `Cédula ${cedula} · Generado el ${new Date().toLocaleDateString('es-CO')}` : '';
       if(!cedula){
-        contenido.innerHTML = '<div class="empty-state"><i class="ti ti-id"></i><p>Ingresa la cédula de un paciente para ver su historial de consumos</p></div>';
+        contenido.innerHTML = '<div class="empty-state"><img class="empty-ico" src="img/iconos/cedula.svg" alt=""><p>Ingresa la cédula de un paciente para ver su historial de consumos</p></div>';
         return;
       }
       const movs = await Movimientos.getReporte({ tipo:'consumo', cedula_paciente: cedula });
@@ -300,7 +320,7 @@ function _repRenderConsumos(movs){
       gruposHtml += `
         <div class="rep-group">
           <div class="rep-group-head">
-            <div class="rep-group-name"><i class="ti ti-map-pin"></i> ${escHtml(u.nombre)}</div>
+            <div class="rep-group-name"><img class="grp-ico" src="img/iconos/ubicacion.svg" alt=""> ${escHtml(u.nombre)}</div>
             <div class="rep-group-count">${fmtCOP(u.valor)} · ${u.unidades.toLocaleString('es-CO')} u.</div>
           </div>
           <div class="rep-cols" style="--rep-grid:1fr 140px 160px 80px"><div>Depósito</div><div class="rep-col-num">Unidades</div><div class="rep-col-num">Valor</div><div class="rep-col-num">%</div></div>
@@ -317,7 +337,7 @@ function _repRenderConsumos(movs){
       const items = Object.values(dep.items).sort((a,b)=>b.unidades-a.unidades);
       detalleHtml += `<div class="rep-group">
         <div class="rep-group-head">
-          <div class="rep-group-name"><i class="ti ti-building-warehouse"></i> ${escHtml(u.nombre)} / ${escHtml(depNombre)}</div>
+          <div class="rep-group-name"><img class="grp-ico" src="${_bodIcono(depNombre)}" alt=""> ${escHtml(u.nombre)} / ${escHtml(depNombre)}</div>
           <div class="rep-group-count">${items.length} ítem${items.length!==1?'s':''}</div>
         </div>
         <div class="rep-cols" style="--rep-grid:${gridItems}"><div>Ítem</div><div class="rep-col-num">Sub-SKU</div><div class="rep-col-num">Lote</div><div class="rep-col-num">Unidades</div><div class="rep-col-num">Valor</div></div>
@@ -463,7 +483,7 @@ function _repRenderPacientes(movs){
         <div class="rep-cedulas">${[...d.cedulas].sort().map(escHtml).join(', ')}</div>
       </div>`).join('');
       detalleHtml += `<div class="rep-group">
-        <div class="rep-group-head"><div class="rep-group-name"><i class="ti ti-map-pin"></i> ${escHtml(ub)}</div><div class="rep-group-count">${dias.length} día${dias.length!==1?'s':''}</div></div>
+        <div class="rep-group-head"><div class="rep-group-name"><img class="grp-ico" src="img/iconos/ubicacion.svg" alt=""> ${escHtml(ub)}</div><div class="rep-group-count">${dias.length} día${dias.length!==1?'s':''}</div></div>
         <div class="rep-cols" style="--rep-grid:${gridDia}"><div class="rep-col-num">Fecha</div><div class="rep-col-num">Pacientes</div><div>Cédulas atendidas</div></div>
         ${rows}
       </div>`;
@@ -475,7 +495,7 @@ function _repRenderPacientes(movs){
   const cedulasHtml = cedulas.length
     ? cedulas.map(c=>`<div class="rep-group">
         <div class="rep-group-head">
-          <div class="rep-group-name"><i class="ti ti-id"></i> Cédula ${escHtml(c.cedula)}</div>
+          <div class="rep-group-name"><img class="grp-ico" src="img/iconos/cedula.svg" alt=""> Cédula ${escHtml(c.cedula)}</div>
           <div class="rep-group-count">${c.consumos.length} consumo${c.consumos.length!==1?'s':''} · ${c.unidades.toLocaleString('es-CO')} u. · ${fmtCOP(c.valor)} · ${[...c.ubicaciones].map(escHtml).join(', ')}</div>
         </div>
         <div class="rep-cols" style="--rep-grid:${gridCed}"><div class="rep-col-num">Fecha</div><div>Ítem</div><div class="rep-col-num">Sub-SKU</div><div class="rep-col-num">Cantidad</div><div>Ubicación / Depósito</div><div>Registrado por</div></div>
@@ -488,7 +508,7 @@ function _repRenderPacientes(movs){
           <div style="font-size:11px">${escHtml(m.usuario_nombre||'—')}</div>
         </div>`).join('')}
       </div>`).join('')
-    : '<div class="empty-state"><i class="ti ti-id"></i><p>Sin pacientes registrados (con cédula) en este período</p></div>';
+    : '<div class="empty-state"><img class="empty-ico" src="img/iconos/cedula.svg" alt=""><p>Sin pacientes registrados (con cédula) en este período</p></div>';
 
   document.getElementById('rep-contenido').innerHTML = `
     ${stats}
@@ -641,7 +661,7 @@ function _repRenderSeguridad(depNombre){
   const lotesHtml = (lotes) => (lotes||[]).length
     ? `<div class="rep-lotes">${lotes.map(l=>`<div class="rep-lote">
         <span class="rep-lote-id">${l.lote ? 'Lote '+escHtml(l.lote) : 'Sin lote'} · ${escHtml(l.subSku)}</span>
-        <span>Vence ${fmtDate(l.caducidad)}</span>
+        <span>${l.caducidad ? 'Vence ' + fmtDate(l.caducidad) : ''}</span>
         ${l.caducidad ? `<span class="sem-badge ${getSem(l.caducidad)}">${semLabel(getSem(l.caducidad))}</span>` : '<span></span>'}
         <span class="rep-lote-cant">${l.cantidad} und</span>
       </div>`).join('')}</div>`
@@ -716,8 +736,8 @@ function _repExportSeguridadExcel(depNombre){
         primera ? it.nombre : '',
         l ? l.subSku : '—',
         l ? (l.lote || 'Sin lote') : '—',
-        l ? fmtDate(l.caducidad) : '—',
-        l && l.caducidad ? semLabel(getSem(l.caducidad)) : '—',
+        l && l.caducidad ? fmtDate(l.caducidad) : '',
+        l && l.caducidad ? semLabel(getSem(l.caducidad)) : '',
         l ? l.cantidad : 0,
         primera && conComparacion ? it.esperado : '',
         primera ? actual : '',
@@ -842,7 +862,7 @@ function _repRenderVencidos(){
           <div class="rep-col-num"><span class="sem-badge ${f.sem}">${semLabelLocal[f.sem]}</span></div>
           <div><div class="rep-item-name">${escHtml(f.s.nombre)}</div><div class="rep-item-code">${escHtml(f.skuG?.codigo||'')}</div></div>
           <div class="rep-cell-mono strong">${f.cantidad} ${escHtml(f.s.unidad)}</div>
-          <div class="rep-cell-mono">${fmtDate(f.s.caducidad)}</div>
+          <div class="rep-cell-mono">${f.s.caducidad ? fmtDate(f.s.caducidad) : ''}</div>
           <div class="rep-cell-mono" style="color:${diff<0?'var(--maroon)':'#888'}">${diasTxt}</div>
           <div class="rep-cell-mono" style="font-size:10px;color:#999">${escHtml(f.s.subSku)}</div>
           <div class="rep-cell-mono" style="font-size:10px;color:#999">${escHtml(f.s.lote||'—')}</div>
@@ -850,7 +870,7 @@ function _repRenderVencidos(){
       }).join('');
       gruposHtml += `<div class="rep-group">
         <div class="rep-group-head">
-          <div class="rep-group-name"><i class="ti ti-building-warehouse"></i> ${escHtml(g.ubNombre)} / ${escHtml(g.bodegaNombre)}</div>
+          <div class="rep-group-name"><img class="grp-ico" src="${_bodIcono(g.bodegaNombre)}" alt=""> ${escHtml(g.ubNombre)} / ${escHtml(g.bodegaNombre)}</div>
           <div class="rep-group-count">${g.items.length} ítem${g.items.length!==1?'s':''}</div>
         </div>
         <div class="rep-cols" style="--rep-grid:100px 1fr 90px 100px 90px 120px 100px"><div class="rep-col-num">Estado</div><div>Producto</div><div class="rep-col-num">Cantidad</div><div class="rep-col-num">Vencimiento</div><div class="rep-col-num">Restante</div><div class="rep-col-num">Sub-SKU</div><div class="rep-col-num">Lote</div></div>
@@ -872,14 +892,14 @@ function _repRenderVencidos(){
         v.existencias.map(e=>`<div class="rep-list-row"><div class="rep-list-dot ok"></div><div><div class="rep-list-name">${escHtml(v.nombre)} — ${escHtml(e.subSku)}</div><div class="rep-list-meta">${e.cantidad} ${escHtml(e.unidad)} · ${escHtml(e.bodegaNombre)}</div></div></div>`).join('')
       ).join('');
       almacenHtml += `<div class="rep-group">
-        <div class="rep-group-head tono-green"><div class="rep-group-name"><i class="ti ti-circle-check"></i> Con existencias en Almacén</div><div class="rep-group-count">${conExistencia.length} ítem${conExistencia.length!==1?'s':''}</div></div>
+        <div class="rep-group-head tono-green"><div class="rep-group-name"><img class="grp-ico" src="img/iconos/almacen-ok.svg" alt=""> Con existencias en Almacén</div><div class="rep-group-count">${conExistencia.length} ítem${conExistencia.length!==1?'s':''}</div></div>
         <div class="rep-list-simple" style="border:none;border-radius:0;margin-bottom:0">${filas1}</div>
       </div>`;
     }
     if(sinExistencia.length){
       const filas2 = sinExistencia.map(v=>`<div class="rep-list-row"><div class="rep-list-dot no"></div><div><div class="rep-list-name">${escHtml(v.nombre)}</div><div class="rep-list-meta">No hay existencias en Almacén</div></div></div>`).join('');
       almacenHtml += `<div class="rep-group">
-        <div class="rep-group-head tono-red"><div class="rep-group-name"><i class="ti ti-alert-circle"></i> Sin existencias en Almacén</div><div class="rep-group-count">${sinExistencia.length} ítem${sinExistencia.length!==1?'s':''}</div></div>
+        <div class="rep-group-head tono-red"><div class="rep-group-name"><img class="grp-ico" src="img/iconos/almacen-sin.svg" alt=""> Sin existencias en Almacén</div><div class="rep-group-count">${sinExistencia.length} ítem${sinExistencia.length!==1?'s':''}</div></div>
         <div class="rep-list-simple" style="border:none;border-radius:0;margin-bottom:0">${filas2}</div>
       </div>`;
     }
@@ -921,10 +941,10 @@ function _repExportVencidosExcel(){
   aoa.push(['Ubicación','Depósito','SKU','Ítem','Sub-SKU','Lote','Cantidad','Caducidad','Estado','Restante']);
   filas.forEach(f=>{
     const diff = f.s.caducidad ? Math.round((new Date(f.s.caducidad.split('T')[0]+'T00:00:00') - new Date(fechaColombia()+'T00:00:00')) / 864e5) : null;
-    const diasTxt = diff!==null ? (diff<0 ? `Vencido hace ${Math.abs(diff)}d` : `${diff}d`) : '—';
+    const diasTxt = diff!==null ? (diff<0 ? `Vencido hace ${Math.abs(diff)}d` : `${diff}d`) : '';
     aoa.push([
       f.ubNombre, f.bodegaNombre, f.skuG?.codigo||'', f.s.nombre, f.s.subSku, f.s.lote||'—',
-      f.cantidad, fmtDate(f.s.caducidad), semLabelLocal[f.sem], diasTxt
+      f.cantidad, f.s.caducidad ? fmtDate(f.s.caducidad) : '', semLabelLocal[f.sem], diasTxt
     ]);
   });
   aoa.push([]);

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <defs>
+    <linearGradient id="m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8AA6D3"/><stop offset="1" stop-color="#5A78AA"/></linearGradient>
+    <linearGradient id="p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6F9FE"/><stop offset="1" stop-color="#D3E0F3"/></linearGradient>
+    <linearGradient id="w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E4ECF8"/></linearGradient>
+  </defs>
+  <!-- etiqueta (borde blanco: va sobre el botón verde) -->
+  <path d="M34 12H78a8 8 0 0 1 8 8V58a8 8 0 0 1-8 8H34L10 39Z" fill="url(#m)" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round"/>
+  <circle cx="27" cy="39" r="5.5" fill="#34496D"/>
+  <rect x="40" y="23" width="36" height="32" rx="6" fill="url(#p)"/>
+  <g fill="#3E557C"><rect x="45" y="29" width="3.5" height="15" rx="1"/><rect x="51" y="29" width="2" height="15" rx="1"/><rect x="55.5" y="29" width="4" height="15" rx="1"/><rect x="62" y="29" width="2" height="15" rx="1"/><rect x="66.5" y="29" width="3.5" height="15" rx="1"/></g>
+  <!-- confirmar (blanco con check verde: contrasta con el botón verde) -->
+  <circle cx="70" cy="72" r="19" fill="url(#w)" stroke="#16804A" stroke-width="3.5"/>
+  <path d="M61 72.5l6.5 6.5L80 66" fill="none" stroke="#16804A" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

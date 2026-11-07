@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <defs>
+    <linearGradient id="m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7393C6"/><stop offset="1" stop-color="#4E6B9C"/></linearGradient>
+    <linearGradient id="t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9DB5DD"/><stop offset="1" stop-color="#7A98C9"/></linearGradient>
+    <linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4FB0E6"/><stop offset="1" stop-color="#1A7FC0"/></linearGradient>
+  </defs>
+  <!-- caja origen -->
+  <rect x="8" y="42" width="38" height="40" rx="8" fill="url(#m)"/>
+  <rect x="5" y="36" width="44" height="12" rx="6" fill="url(#t)"/>
+  <rect x="22" y="36" width="10" height="19" rx="2.5" fill="#DCE6F5"/>
+  <!-- caja destino -->
+  <rect x="54" y="18" width="34" height="34" rx="8" fill="url(#m)" opacity=".85"/>
+  <rect x="51" y="13" width="40" height="11" rx="5.5" fill="url(#t)"/>
+  <rect x="66" y="13" width="10" height="17" rx="2.5" fill="#DCE6F5"/>
+  <!-- traslado -->
+  <path d="M28 28C34 14 48 10 60 10" fill="none" stroke="#3E557C" stroke-width="5.5" stroke-linecap="round"/>
+  <circle cx="68" cy="72" r="20" fill="url(#b)" stroke="#FFFFFF" stroke-width="4.5"/>
+  <path d="M58 66h20M72 60l6 6-6 6M78 78H58M64 72l-6 6 6 6" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" transform="translate(0 -3)"/>
+</svg>

@@ -20,8 +20,10 @@ router.post('/login', async (req, res) => {
 
     // FIX: mismo mensaje sin importar si la cédula existe o no
     // (evita enumeración de usuarios registrados)
+    // Los médicos (nivel 1) no tienen contraseña ni acceso a la app
     const usuario = result.rows[0];
-    const passwordValida = usuario
+    const puedeIngresar = usuario && usuario.nivel !== 1 && usuario.password_hash;
+    const passwordValida = puedeIngresar
       ? await bcrypt.compare(password, usuario.password_hash)
       : false;
 
@@ -75,7 +77,8 @@ router.get('/me', async (req, res) => {
 
     // Verificar que el usuario sigue activo en la DB
     const result = await pool.query(
-      'SELECT id, nombre, cedula, nivel, genero, ubicacion_id FROM usuarios WHERE id = $1 AND activo = true',
+      `SELECT id, nombre, cedula, nivel, genero, ubicacion_id FROM usuarios
+       WHERE id = $1 AND activo = true AND nivel <> 1 AND password_hash IS NOT NULL`,
       [decoded.id]
     );
 

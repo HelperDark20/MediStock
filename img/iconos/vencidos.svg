@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <defs>
+    <linearGradient id="m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7896C8"/><stop offset="1" stop-color="#4C6898"/></linearGradient>
+    <linearGradient id="d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5A76A6"/><stop offset="1" stop-color="#3E557C"/></linearGradient>
+    <linearGradient id="p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6F9FE"/><stop offset="1" stop-color="#D3E0F3"/></linearGradient>
+    <linearGradient id="r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#EA5F57"/><stop offset="1" stop-color="#BD2E29"/></linearGradient>
+  </defs>
+  <!-- frasco de medicamento -->
+  <rect x="20" y="8" width="42" height="15" rx="5" fill="url(#d)"/>
+  <rect x="24" y="20" width="34" height="7" rx="2" fill="#34496D"/>
+  <rect x="14" y="25" width="54" height="62" rx="12" fill="url(#m)"/>
+  <rect x="21" y="41" width="40" height="30" rx="6" fill="url(#p)"/>
+  <path d="M37.5 47h7v5.5H50v7h-5.5V65h-7v-5.5H32v-7h5.5z" fill="#4C6898"/>
+  <!-- vencido -->
+  <circle cx="70" cy="70" r="20" fill="url(#r)" stroke="#FFFFFF" stroke-width="4.5"/>
+  <path d="M63 63l14 14M77 63L63 77" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round"/>
+</svg>

@@ -64,7 +64,7 @@
       <div class="topbar-right-group">
         <div class="topbar-right" id="topbar-actions"></div>
         <button class="tb-btn logout-btn" onclick="doLogout()" title="Cerrar sesión">
-          <i class="ti ti-logout"></i>Cerrar sesión
+          <img class="logout-ico" src="img/iconos/salir.svg" alt="">Cerrar sesión
         </button>
       </div>
     </div>
@@ -83,7 +83,7 @@
           <div class="card">
             <div class="card-header" style="justify-content:space-between">
               <div style="display:flex;align-items:center;gap:8px">
-                <i class="ti ti-coin card-title"></i>
+                <img class="card-ico" src="img/iconos/valor.svg" alt="">
                 <span class="card-title">Valor total del inventario</span>
               </div>
               <div style="display:flex;gap:4px">
@@ -92,12 +92,18 @@
               </div>
             </div>
             <div class="card-body">
-              <div id="dash-valor-total" style="font-family:var(--font-head);font-size:28px;font-weight:800;color:var(--ink);margin-bottom:2px">$0</div>
-              <div style="font-size:11px;color:#999;margin-bottom:14px">valorado al costo de compra</div>
-              <div style="position:relative;width:100%;height:220px">
-                <canvas id="dash-valor-chart" role="img" aria-label="Distribución del valor del inventario por sede"></canvas>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+                <div id="dash-valor-total" style="font-family:var(--font-head);font-size:28px;font-weight:800;color:var(--ink)">*****</div>
+                <button type="button" class="act-btn" id="dash-valor-ojo" onclick="dashValorVer()" title="Mostrar valor" aria-label="Mostrar valor" aria-pressed="false"><i class="ti ti-eye"></i></button>
               </div>
-              <div id="dash-valor-legend" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px"></div>
+              <div style="font-size:11px;color:#999;margin-bottom:14px">valorado al costo de compra</div>
+              <div class="dash-valor-graf" id="dash-valor-graf">
+                <div class="dash-valor-lienzo">
+                  <canvas id="dash-valor-chart" role="img" aria-label="Distribución del valor del inventario por sede"></canvas>
+                  <div class="dash-valor-centro" id="dash-valor-centro"><b></b><small></small></div>
+                </div>
+                <div class="dash-valor-ley" id="dash-valor-legend"></div>
+              </div>
             </div>
           </div>
 
@@ -105,10 +111,26 @@
           <div class="card">
             <div class="card-header" style="justify-content:space-between">
               <div style="display:flex;align-items:center;gap:8px">
-                <i class="ti ti-chart-bar card-title"></i>
+                <img class="card-ico" src="img/iconos/consumo.svg" alt="">
                 <span class="card-title">Consumo mensual por ubicación</span>
               </div>
-              <input type="month" id="dash-consumo-mes" onchange="dashConsumoMesChange()" style="font-size:12px;padding:5px 10px">
+              <!-- Selector de mes (reemplaza el control nativo del navegador) -->
+              <div class="mes-sel" id="dash-mes-sel">
+                <button type="button" class="mes-flecha" id="dash-mes-ant" onclick="dashMesMover(-1)" title="Mes anterior" aria-label="Mes anterior"><i class="ti ti-chevron-left"></i></button>
+                <button type="button" class="mes-actual" id="dash-mes-btn" onclick="dashMesAbrir()" aria-haspopup="true" aria-expanded="false">
+                  <img src="img/iconos/mes.svg" alt=""><span id="dash-mes-txt"></span>
+                </button>
+                <button type="button" class="mes-flecha" id="dash-mes-sig" onclick="dashMesMover(1)" title="Mes siguiente" aria-label="Mes siguiente"><i class="ti ti-chevron-right"></i></button>
+                <div class="mes-pop" id="dash-mes-pop" role="dialog" aria-label="Elegir mes" style="display:none">
+                  <div class="mes-pop-cab">
+                    <button type="button" class="mes-flecha" onclick="dashMesAnio(-1)" aria-label="Año anterior"><i class="ti ti-chevron-left"></i></button>
+                    <strong id="dash-mes-anio"></strong>
+                    <button type="button" class="mes-flecha" id="dash-mes-anio-sig" onclick="dashMesAnio(1)" aria-label="Año siguiente"><i class="ti ti-chevron-right"></i></button>
+                  </div>
+                  <div class="mes-grid" id="dash-mes-grid"></div>
+                </div>
+                <input type="hidden" id="dash-consumo-mes">
+              </div>
             </div>
             <div class="card-body">
               <div style="margin-bottom:12px;cursor:pointer" onclick="dashGoConsumoHistorial(null)" title="Ver historial de consumos">
@@ -128,14 +150,14 @@
         <div class="grid-2">
           <div>
             <div class="sec-header">
-              <div class="sec-title">Alertas de vencimiento</div>
-              <div class="sec-link" onclick="goTo('inventario')">Ver inventario →</div>
+              <div class="sec-title"><img class="card-ico" src="img/iconos/vencimiento.svg" alt="">Alertas de vencimiento</div>
+              <span class="dash-contador" id="dash-alerts-cont" style="display:none"></span>
             </div>
             <div id="dash-alerts"></div>
           </div>
           <div>
             <div class="sec-header">
-              <div class="sec-title">Eventos en curso</div>
+              <div class="sec-title"><img class="card-ico" src="img/modulos/eventos.png" alt="">Eventos en curso</div>
               <div class="sec-link" onclick="goTo('eventos')">Ver eventos →</div>
             </div>
             <div id="dash-eventos"></div>
@@ -202,7 +224,7 @@
       <div class="view" id="view-movimientos">
         <div id="mov-alert-banner" class="alert-banner"></div>
         <div class="card" id="mov-card">
-          <div class="card-header"><i class="ti ti-transfer card-title"></i><span class="card-title">Registrar movimiento</span></div>
+          <div class="card-header"><img class="card-ico" src="img/iconos/registrar-movimiento.svg" alt=""><span class="card-title">Registrar movimiento</span></div>
           <div class="card-body">
             <div id="mov-locked-msg"></div>
 
@@ -279,7 +301,7 @@
               <div style="background:var(--cream);border-radius:var(--r-md);padding:10px 14px;font-size:12px;font-family:var(--font-mono);color:#666;margin-bottom:12px" id="mov-stock-info">—</div>
             </div>
 
-            <button class="btn-submit" onclick="unaVez('movimiento', this, registrarMovimiento)"><i class="ti ti-check"></i>Confirmar movimiento</button>
+            <button class="btn-submit" onclick="unaVez('movimiento', this, registrarMovimiento)"><img class="btn-ico" src="img/iconos/confirmar-movimiento.svg" alt="">Confirmar movimiento</button>
           </div>
         </div>
         <div class="sec-header"><div class="sec-title">Historial de movimientos</div></div>
@@ -295,7 +317,7 @@
         <div id="reg-locked-msg"></div>
         <div id="reg-form-wrap">
           <div class="card">
-            <div class="card-header"><i class="ti ti-package-import card-title"></i><span class="card-title">Cargar entrada a SKU existente</span></div>
+            <div class="card-header"><img class="card-ico" src="img/iconos/cargar-entrada.svg" alt=""><span class="card-title">Cargar entrada a SKU existente</span></div>
             <div class="card-body">
 
               <!-- BUSCADOR SKU GLOBAL con autocomplete -->
@@ -387,7 +409,7 @@
       <div class="view" id="view-sku">
         <div class="grid-2" style="margin-bottom:16px">
           <div class="card">
-            <div class="card-header"><i class="ti ti-circle-plus card-title"></i><span class="card-title">Crear SKU Global</span></div>
+            <div class="card-header"><img class="card-ico" src="img/iconos/sku-global.svg" alt=""><span class="card-title">Crear SKU Global</span></div>
             <div class="card-body">
               <div class="sku-preview-box" style="margin-bottom:14px">
                 <div class="sku-preview-label">SKU Global</div>
@@ -430,7 +452,7 @@
                   <label class="campo-chip active" onclick="toggleCampo(this)"><input type="checkbox" value="invima" checked><i class="ti ti-check"></i>Reg. INVIMA</label>
                 </div>
               </div>
-              <button class="btn-submit green" onclick="crearSKUGlobal()"><i class="ti ti-check"></i>Crear SKU Global</button>
+              <button class="btn-submit green" onclick="crearSKUGlobal()"><img class="btn-ico" src="img/iconos/confirmar-sku.svg" alt="">Crear SKU Global</button>
             </div>
           </div>
           <div>
@@ -452,7 +474,7 @@
       <div class="view" id="view-usuarios">
         <div class="grid-2">
           <div class="card">
-            <div class="card-header"><i class="ti ti-user-plus card-title"></i><span class="card-title">Crear usuario</span></div>
+            <div class="card-header"><img class="card-ico" src="img/iconos/crear-usuario.svg" alt=""><span class="card-title">Crear usuario</span></div>
             <div class="card-body">
               <div class="form-grid" style="margin-bottom:12px">
                 <div class="form-group fg-full">
@@ -460,14 +482,8 @@
                   <input type="text" id="u-nombre" placeholder="Ej. María García López">
                 </div>
                 <div class="form-group">
-                  <label>Número de cédula</label>
+                  <label id="u-cedula-label">Número de cédula</label>
                   <input type="text" id="u-cedula" placeholder="Ej. 1006166884" style="font-family:var(--font-mono)">
-                </div>
-                <!-- DESPUÉS -->
-                <div class="form-group">
-                  <label>Fecha de nacimiento</label>
-                  <input type="text" id="u-nacimiento-txt" placeholder="DD/MM/AAAA" maxlength="10" oninput="formatFecha(this)">
-                  <span class="hint">Formato: día/mes/año — Ej. 15/03/1990</span>
                 </div>
                 <div class="form-group">
                   <label>Género</label>
@@ -478,22 +494,25 @@
                     <option>Otro</option>
                   </select>
                 </div>
-                <div class="form-group">
+                <div class="form-group fg-full">
                   <label>Nivel de acceso</label>
-                  <select id="u-nivel">
-                    <option value="1">Nivel 1 — Auditor</option>
-                    <option value="2">Nivel 2 — Enfermero/a</option>
+                  <select id="u-nivel" onchange="usuarioNivelCambio('u')">
+                    <option value="1">Nivel 1 — Médico</option>
+                    <option value="2" selected>Nivel 2 — Enfermero/a</option>
                     <option value="3">Nivel 3 — Supervisor</option>
                     <option value="4">Nivel 4 — Administrador</option>
                   </select>
                 </div>
-                <div class="form-group fg-full">
+                <div class="form-group fg-full" id="u-medico-hint" style="display:none">
+                  <span class="hint">El médico no tiene contraseña ni ingresa a la app: se asigna a los eventos desde "Agregar personal" y su nombre y cédula / registro profesional salen en la historia clínica.</span>
+                </div>
+                <div class="form-group fg-full" id="u-pass-wrap">
                   <label>Contraseña asignada</label>
                   <input type="text" id="u-pass" placeholder="Ej. NB2026*Carlos" style="font-family:var(--font-mono)">
                   <span class="hint">El usuario no puede cambiarla · Si el nivel es Enfermero/a, la asignación de ubicación y depósitos se hace desde el módulo Eventos</span>
                 </div>
               </div>
-              <button class="btn-submit" onclick="crearUsuario()"><i class="ti ti-user-check"></i>Crear usuario</button>
+              <button class="btn-submit" onclick="crearUsuario()"><img class="btn-ico" src="img/iconos/confirmar-usuario.svg" alt="">Crear usuario</button>
             </div>
           </div>
           <div>
@@ -517,15 +536,18 @@
             </div>
             <div class="form-group">
               <label>Nivel de acceso</label>
-              <select id="edit-u-nivel">
-                <option value="1">Nivel 1 — Auditor</option>
+              <select id="edit-u-nivel" onchange="usuarioNivelCambio('edit-u')">
+                <option value="1">Nivel 1 — Médico</option>
                 <option value="2">Nivel 2 — Enfermero/a</option>
                 <option value="3">Nivel 3 — Supervisor</option>
                 <option value="4">Nivel 4 — Administrador</option>
               </select>
             </div>
-            <div class="form-group fg-full">
-              <label>Nueva contraseña <span style="font-weight:400;color:#aaa">(opcional)</span></label>
+            <div class="form-group fg-full" id="edit-u-medico-hint" style="display:none">
+              <span class="hint">Un médico no tiene contraseña ni acceso a la app.</span>
+            </div>
+            <div class="form-group fg-full" id="edit-u-pass-wrap">
+              <label id="edit-u-pass-label">Nueva contraseña <span style="font-weight:400;color:#aaa">(opcional)</span></label>
               <input type="text" id="edit-u-pass" placeholder="Dejar vacío para no cambiar" style="font-family:var(--font-mono)">
             </div>
           </div>
@@ -585,6 +607,16 @@
             <label>Nombre de la ubicación</label>
             <input type="text" id="edit-ub-nombre" style="text-transform:uppercase">
           </div>
+          <div class="form-group" style="margin-bottom:12px">
+            <label>Municipio</label>
+            <div class="ac-wrap">
+              <i class="ti ti-map-2 ac-icon"></i>
+              <input type="text" class="ac-input" id="edit-ub-municipio" placeholder="Buscar municipio… Ej. Palmira" autocomplete="off"
+                oninput="muniFiltrar('edit-ub-municipio')" onfocus="muniFiltrar('edit-ub-municipio')" onblur="muniCerrar('edit-ub-municipio')" onkeydown="muniTecla(event,'edit-ub-municipio')">
+              <div class="ac-dropdown" id="edit-ub-municipio-drop"></div>
+            </div>
+            <span class="hint">La historia clínica toma de aquí el municipio del lugar de atención.</span>
+          </div>
           <div class="modal-actions">
             <button class="btn-cancel" onclick="closeModal('modal-edit-ubicacion')">Cancelar</button>
             <button class="btn-confirm" onclick="guardarEdicionUbicacion()">Guardar cambios</button>
@@ -632,6 +664,13 @@
           <div class="form-group" id="tmp-nombre-wrap" style="margin-bottom:12px">
             <label>Nombre de la ubicación temporal</label>
             <input type="text" id="tmp-nombre" placeholder="Ej. TEATRO LOS CRISTALES" style="text-transform:uppercase;font-family:var(--font-mono)">
+            <label style="margin-top:10px">Municipio</label>
+            <div class="ac-wrap">
+              <i class="ti ti-map-2 ac-icon"></i>
+              <input type="text" class="ac-input" id="tmp-municipio" placeholder="Buscar municipio… Ej. Palmira" autocomplete="off"
+                oninput="muniFiltrar('tmp-municipio')" onfocus="muniFiltrar('tmp-municipio')" onblur="muniCerrar('tmp-municipio')" onkeydown="muniTecla(event,'tmp-municipio')">
+              <div class="ac-dropdown" id="tmp-municipio-drop"></div>
+            </div>
           </div>
           <div class="search-wrap" style="margin-bottom:8px">
             <i class="ti ti-search si"></i>
@@ -655,7 +694,7 @@
           <!-- Card: Nueva ubicación (sede) -->
           <div class="card" style="margin-bottom:0">
             <div class="card-header">
-              <i class="ti ti-map-pin card-title"></i>
+              <img class="card-ico" src="img/iconos/nueva-ubicacion.svg" alt="">
               <span class="card-title">Nueva ubicación</span>
             </div>
             <div class="card-body">
@@ -667,9 +706,19 @@
                 <label>Nombre de la ubicación</label>
                 <input type="text" id="ub-nombre" placeholder="Ej. CAÑAVERALEJO" style="text-transform:uppercase;font-family:var(--font-mono)">
               </div>
+              <div class="form-group" style="margin:12px 0 0">
+                <label>Municipio</label>
+                <div class="ac-wrap">
+                  <i class="ti ti-map-2 ac-icon"></i>
+                  <input type="text" class="ac-input" id="ub-municipio" placeholder="Buscar municipio… Ej. Palmira" autocomplete="off"
+                    oninput="muniFiltrar('ub-municipio')" onfocus="muniFiltrar('ub-municipio')" onblur="muniCerrar('ub-municipio')" onkeydown="muniTecla(event,'ub-municipio')">
+                  <div class="ac-dropdown" id="ub-municipio-drop"></div>
+                </div>
+                <span class="hint">Lista oficial del DANE. La historia clínica toma de aquí el municipio del lugar de atención.</span>
+              </div>
               <div class="ub-crear-btns">
-                <button class="btn-submit" onclick="crearUbicacion()"><i class="ti ti-map-pin"></i>Crear ubicación permanente</button>
-                <button class="btn-submit amber" onclick="abrirCrearTemporal()"><i class="ti ti-clock-pin"></i>Crear ubicación temporal</button>
+                <button class="btn-submit" onclick="crearUbicacion()"><img class="btn-ico" src="img/iconos/crear-permanente.svg" alt="">Crear ubicación permanente</button>
+                <button class="btn-submit amber" onclick="abrirCrearTemporal()"><img class="btn-ico" src="img/iconos/crear-temporal.svg" alt="">Crear ubicación temporal</button>
               </div>
             </div>
           </div>
@@ -677,7 +726,7 @@
           <!-- Card: Nuevo depósito -->
           <div class="card" style="margin-bottom:0">
             <div class="card-header">
-              <i class="ti ti-building-warehouse card-title"></i>
+              <img class="card-ico" src="img/iconos/nuevo-deposito.svg" alt="">
               <span class="card-title">Nuevo depósito</span>
             </div>
             <div class="card-body">
@@ -706,7 +755,7 @@
                   <div style="padding:10px 14px;background:var(--ink);border-radius:var(--r-md);font-family:var(--font-mono);font-size:15px;font-weight:700;color:var(--blue2)" id="bodega-preview">-</div>
                 </div>
               </div>
-              <button class="btn-submit" onclick="crearBodega()"><i class="ti ti-plus"></i>Crear depósito</button>
+              <button class="btn-submit" onclick="crearBodega()"><img class="btn-ico" src="img/iconos/crear-deposito.svg" alt="">Crear depósito</button>
             </div>
           </div>
         </div>
@@ -715,8 +764,8 @@
         <div class="sec-header">
           <div class="sec-title">Ubicaciones y depósitos registrados</div>
           <div style="display:flex;gap:6px">
-            <button class="dash-valor-btn active" data-ubvista="permanentes" onclick="ubCambiarVista('permanentes')"><i class="ti ti-map-pin"></i> Permanentes <span id="ub-count-permanentes"></span></button>
-            <button class="dash-valor-btn" data-ubvista="temporales" onclick="ubCambiarVista('temporales')"><i class="ti ti-clock-pin"></i> Temporales <span id="ub-count-temporales"></span></button>
+            <button class="dash-valor-btn active" data-ubvista="permanentes" onclick="ubCambiarVista('permanentes')"><img class="tab-ico" src="img/iconos/permanentes.svg" alt=""> Permanentes <span id="ub-count-permanentes"></span></button>
+            <button class="dash-valor-btn" data-ubvista="temporales" onclick="ubCambiarVista('temporales')"><img class="tab-ico" src="img/iconos/temporales.svg" alt=""> Temporales <span id="ub-count-temporales"></span></button>
           </div>
         </div>
         <div id="bodegas-list"></div>
@@ -728,6 +777,46 @@
           <div class="sec-title">Eventos activos y programados</div>
         </div>
         <div class="grid-3" id="eventos-grid"></div>
+      </div>
+
+      <!-- ═══ HISTORIAS CLÍNICAS (Admin, js/historias.js) ═══ -->
+      <div class="view" id="view-historias">
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header"><img class="card-ico" src="img/iconos/buscar-hc.svg" alt=""><span class="card-title">Buscar historias clínicas</span></div>
+          <div class="card-body">
+            <div class="hc-filtros">
+              <div class="form-group"><label>Desde</label><input type="date" id="hcf-desde"></div>
+              <div class="form-group"><label>Hasta</label><input type="date" id="hcf-hasta"></div>
+              <div class="form-group"><label>Ubicación</label><select id="hcf-ubicacion"></select></div>
+              <div class="form-group"><label>Evento</label><select id="hcf-evento"></select></div>
+              <div class="form-group"><label>Estado</label>
+                <select id="hcf-estado">
+                  <option value="">Todas</option>
+                  <option value="abierta">Abiertas (falta la entrega)</option>
+                  <option value="cerrada">Cerradas</option>
+                  <option value="firma_pendiente">Con firma médica pendiente</option>
+                </select>
+              </div>
+              <div class="form-group"><label>Paciente o número de HC</label>
+                <input type="text" id="hcf-documento" placeholder="Documento, nombre o HC-2026-…" onkeydown="if(event.key==='Enter')hcBuscar(1)">
+              </div>
+            </div>
+            <div class="hc-filtros-btns">
+              <button class="btn-cancel" onclick="hcLimpiarFiltros()"><img class="btn-ico" src="img/iconos/limpiar.svg" alt="">Limpiar</button>
+              <button class="btn-confirm" onclick="hcBuscar(1)"><img class="btn-ico" src="img/iconos/buscar.svg" alt="">Buscar</button>
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <div class="table-toolbar" id="hc-resumen"></div>
+          <div style="overflow-x:auto">
+            <table>
+              <thead><tr><th>HC</th><th>Atención</th><th>Paciente</th><th>Evento · Lugar</th><th>Diligenció</th><th>Estado</th></tr></thead>
+              <tbody id="hc-tbody"></tbody>
+            </table>
+          </div>
+          <div class="hc-paginas" id="hc-paginas"></div>
+        </div>
       </div>
 
       <!-- ═══ STOCK DE SEGURIDAD (Admin) ═══ -->
@@ -742,7 +831,7 @@
       <div class="view" id="view-reportes">
 
         <div class="card no-print" style="margin-bottom:16px">
-          <div class="card-header"><i class="ti ti-report-analytics card-title"></i><span class="card-title">Selecciona el reporte a generar</span></div>
+          <div class="card-header"><img class="card-ico" src="img/iconos/rep-seleccionar.svg" alt=""><span class="card-title">Selecciona el reporte a generar</span></div>
           <div class="card-body">
             <div class="form-group fg-full" style="margin-bottom:0">
               <label>Tipo de reporte</label>
@@ -759,7 +848,7 @@
         </div>
 
         <div class="card no-print" style="margin-bottom:16px">
-          <div class="card-header"><i class="ti ti-filter card-title"></i><span class="card-title" id="rep-filtros-title">Filtros del reporte</span></div>
+          <div class="card-header"><img class="card-ico" src="img/iconos/filtros.svg" alt=""><span class="card-title" id="rep-filtros-title">Filtros del reporte</span></div>
           <div class="card-body">
             <div class="form-grid cols3">
               <div class="form-group" id="rep-fecha-desde-wrap">
@@ -802,8 +891,8 @@
               </div>
             </div>
             <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-              <button class="tb-btn primary" onclick="repExportExcel()"><i class="ti ti-file-spreadsheet"></i>Exportar Excel</button>
-              <button class="tb-btn" onclick="repExportPDF()"><i class="ti ti-file-type-pdf"></i>Exportar PDF</button>
+              <button class="tb-btn primary" onclick="repExportExcel()"><img class="btn-ico" src="img/iconos/excel.svg" alt="">Exportar Excel</button>
+              <button class="tb-btn" onclick="repExportPDF()"><img class="btn-ico" src="img/iconos/pdf.svg" alt="">Exportar PDF</button>
             </div>
           </div>
         </div>
@@ -837,7 +926,7 @@
       <!-- ═══ TRAZABILIDAD ═══ -->
       <div class="view" id="view-trazabilidad">
         <div class="card" style="margin-bottom:18px;overflow:visible">
-          <div class="card-header"><i class="ti ti-timeline card-title"></i><span class="card-title">Buscar trazabilidad</span></div>
+          <div class="card-header"><img class="card-ico" src="img/iconos/buscar-trazabilidad.svg" alt=""><span class="card-title">Buscar trazabilidad</span></div>
           <div class="card-body" style="overflow:visible">
             <div class="form-grid">
               <div class="form-group">
@@ -1094,7 +1183,7 @@
   <div class="modal-sheet" style="max-width:480px">
     <div class="modal-handle"></div>
     <div class="modal-title">Crear evento</div>
-    <div class="modal-sub">Después de crear el evento podrás agregar enfermeros y asignarles sus depósitos.</div>
+    <div class="modal-sub">Después de crear el evento podrás agregar el personal: enfermeros (con sus depósitos) y el médico del evento.</div>
 
     <div class="form-grid" style="margin-bottom:14px">
       <div class="form-group fg-full">
@@ -1124,12 +1213,77 @@
   </div>
 </div>
 
+<!-- ═══ MODALES DE HISTORIAS CLÍNICAS (js/historias.js) ═══ -->
+<div class="modal-overlay" id="modal-hc">
+  <div class="modal-sheet hc-sheet">
+    <div class="modal-handle"></div>
+    <div id="hc-detalle"></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-hc-entrega">
+  <div class="modal-sheet" style="max-width:560px">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Entrega del paciente</div>
+    <div class="modal-sub" id="hc-entrega-sub"></div>
+    <div class="form-grid" style="margin-bottom:10px">
+      <div class="form-group"><label>Fecha</label><input type="date" id="hce-fecha"></div>
+      <div class="form-group"><label>Hora</label><input type="time" id="hce-hora"></div>
+      <div class="form-group fg-full"><label>Institución</label><input type="text" id="hce-institucion" style="text-transform:uppercase" placeholder="Ej. HOSPITAL SAN VICENTE DE PAÚL"></div>
+      <div class="form-group"><label>Servicio receptor</label>
+        <select id="hce-servicio" onchange="document.getElementById('hce-servicio-otro-wrap').style.display=this.value==='OTRO'?'':'none'">
+          <option value="URGENCIAS">Urgencias</option><option value="OTRO">Otro</option>
+        </select>
+      </div>
+      <div class="form-group" id="hce-servicio-otro-wrap" style="display:none"><label>¿Cuál servicio?</label><input type="text" id="hce-servicio-otro" style="text-transform:uppercase"></div>
+      <div class="form-group"><label>Nombre de quien recibe</label><input type="text" id="hce-recibe-nombre" style="text-transform:uppercase"></div>
+      <div class="form-group"><label>Cargo</label><input type="text" id="hce-recibe-cargo" style="text-transform:uppercase" placeholder="Ej. MÉDICO DE URGENCIAS"></div>
+      <div class="form-group fg-full"><label>Recibido de la IPS <span style="font-weight:400;color:#aaa">(opcional · foto o PDF, máx. 5 MB)</span></label>
+        <input type="file" id="hce-archivo" accept="image/jpeg,image/png,application/pdf">
+        <span class="hint">Si la institución entregó un recibido firmado o sellado, adjunta su foto o escaneo.</span>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-hc-entrega')">Cancelar</button>
+      <button class="btn-confirm" id="hce-guardar" onclick="hcGuardarEntrega()">Registrar entrega y cerrar la HC</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-hc-firma">
+  <div class="modal-sheet" style="max-width:640px">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Firma del médico</div>
+    <div class="modal-sub" id="hc-firma-sub"></div>
+    <canvas id="hc-firma-canvas" class="hc-firma-canvas" width="600" height="230"></canvas>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="hcFirmaLimpiar()">Borrar</button>
+      <button class="btn-cancel" onclick="closeModal('modal-hc-firma')">Cancelar</button>
+      <button class="btn-confirm" onclick="hcGuardarFirmaMedico()">Guardar firma</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-hc-editar">
+  <div class="modal-sheet hc-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Editar historia clínica <span id="hc-editar-num"></span></div>
+    <div class="modal-sub">Cada cambio queda en el rastro con tu usuario, la fecha, el motivo y el valor anterior. Se validan las mismas reglas que en la tablet.</div>
+    <div id="hc-editar-form"></div>
+    <div class="form-group fg-full" style="margin-top:14px">
+      <label>Motivo de la corrección (obligatorio)</label>
+      <textarea id="hc-editar-motivo" rows="2" placeholder="Ej. Corrección de digitación informada por el enfermero"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-hc-editar')">Cancelar</button>
+      <button class="btn-confirm" id="hc-editar-guardar" onclick="hcGuardarEdicion()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL DETALLE DE EVENTO -->
 <div class="modal-overlay" id="modal-evento-detalle">
   <div class="modal-sheet" style="max-width:600px">
     <div class="modal-handle"></div>
     <div class="modal-title">Detalle del evento</div>
-    <div class="modal-sub">Edita los datos del evento y gestiona los enfermeros asignados.</div>
+    <div class="modal-sub">Edita los datos del evento y gestiona el personal asignado (enfermeros y médico).</div>
 
     <input type="hidden" id="evtdet-id">
     <div class="form-grid" style="margin-bottom:14px">
@@ -1159,15 +1313,15 @@
       <i class="ti ti-device-floppy"></i>Guardar cambios del evento
     </button>
 
-    <div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono);margin-bottom:8px">Agregar enfermero</div>
+    <div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono);margin-bottom:8px">Agregar personal</div>
     <div class="ac-wrap" id="evtdet-enf-wrap" style="margin-bottom:14px">
       <i class="ti ti-search ac-icon"></i>
-      <input type="text" class="ac-input" id="evtdet-enf-input" placeholder="Buscar enfermero por nombre…" autocomplete="off"
+      <input type="text" class="ac-input" id="evtdet-enf-input" placeholder="Buscar enfermero o médico por nombre o cédula…" autocomplete="off"
         oninput="evtDetEnfFilter()" onfocus="evtDetEnfFilter()">
       <div class="ac-dropdown" id="evtdet-enf-drop"></div>
     </div>
 
-    <div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono);margin-bottom:8px">Enfermeros asignados</div>
+    <div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono);margin-bottom:8px">Personal asignado</div>
     <div id="evtdet-enfermeros-list"></div>
 
     <div class="modal-actions">
@@ -1216,8 +1370,8 @@
     <div class="modal-sub" id="segdet-patron"></div>
     <input type="hidden" id="segdet-grupo-id">
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px">
-      <button class="act-btn primary" onclick="segAbrirEditarGrupo()" title="Editar grupo"><i class="ti ti-pencil"></i></button>
-      <button class="act-btn danger" onclick="segConfirmEliminarGrupo()" title="Eliminar grupo"><i class="ti ti-trash"></i></button>
+      <button class="act-btn primary" onclick="segAbrirEditarGrupo()" title="Editar grupo"><img class="btn-ico" src="img/iconos/editar.svg" alt=""></button>
+      <button class="act-btn danger" onclick="segConfirmEliminarGrupo()" title="Eliminar grupo"><img class="btn-ico" src="img/iconos/eliminar.svg" alt=""></button>
     </div>
     <div id="segdet-items-list"></div>
     <button class="btn-submit" style="margin-top:14px" onclick="segAbrirAgregarItem()">
@@ -1318,6 +1472,8 @@
 <script src="js/registro.js"></script>
 <script src="js/skus.js"></script>
 <script src="js/usuarios.js"></script>
+<script src="js/municipios.js"></script>
+<script src="js/historias.js"></script>
 <script src="js/bodegas.js"></script>
 <script src="js/eventos.js"></script>
 <script src="js/reportes.js"></script>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <defs>
+    <linearGradient id="m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7896C8"/><stop offset="1" stop-color="#4C6898"/></linearGradient>
+    <linearGradient id="mc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8AA6D3"/><stop offset="1" stop-color="#5A78AA"/></linearGradient>
+    <linearGradient id="d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5A76A6"/><stop offset="1" stop-color="#3E557C"/></linearGradient>
+    <linearGradient id="p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6F9FE"/><stop offset="1" stop-color="#D3E0F3"/></linearGradient>
+    <linearGradient id="t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9DB5DD"/><stop offset="1" stop-color="#7A98C9"/></linearGradient>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#36B571"/><stop offset="1" stop-color="#16804A"/></linearGradient>
+    <linearGradient id="a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F7BE55"/><stop offset="1" stop-color="#DB8B14"/></linearGradient>
+    <linearGradient id="r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#EA5F57"/><stop offset="1" stop-color="#BD2E29"/></linearGradient>
+    <linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4FB0E6"/><stop offset="1" stop-color="#1A7FC0"/></linearGradient>
+    <linearGradient id="gr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A3ABB8"/><stop offset="1" stop-color="#6E7787"/></linearGradient>
+  </defs>
+  <rect x="10" y="8" width="58" height="76" rx="10" fill="url(#p)" stroke="#3E557C" stroke-width="4.5"/>
+  <rect x="20" y="18" width="28" height="7" rx="3.5" fill="url(#d)"/>
+  <g fill="url(#m)"><rect x="20" y="48" width="9" height="22" rx="2.5"/><rect x="33" y="38" width="9" height="32" rx="2.5"/><rect x="46" y="54" width="9" height="16" rx="2.5"/></g>
+  <circle cx="70" cy="70" r="20" fill="url(#b)" stroke="#FFFFFF" stroke-width="4.5"/>
+  <path d="M63 60L79 71l-7 1.5 4 7.5-4 2-4-7.5-5 4.5z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round"/>
+</svg>

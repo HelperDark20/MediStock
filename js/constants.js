@@ -18,11 +18,29 @@ const SUBGRUPOS = {
   ASE:['ASEO']
 };
 
+// Foto de perfil por nivel (img/avatares): reemplaza las burbujas con
+// iniciales en Usuarios, el personal de los eventos y el menú lateral
+const AVATAR_NIVEL = { 1:'medico', 2:'enfermero', 3:'supervisor', 4:'admin' };
+function avatarNivel(nivel){ return `img/avatares/${AVATAR_NIVEL[nivel] || 'enfermero'}.svg`; }
+
+// Ícono del depósito según el prefijo de su nombre: almacenes (ALM),
+// enfermerías (ENF), botiquines (MEC, BTQ, BTK, BT, BOTIQUIN) y oficinas
+// (OF). Cualquier otro prefijo usa el de almacén.
+function _bodIcono(nombre){
+  const p = String(nombre || '').split('-')[0].trim().toUpperCase();
+  let tipo = 'almacen';
+  if(/^ENF/.test(p)) tipo = 'enfermeria';
+  else if(/^(MEC|BT|BOT)/.test(p)) tipo = 'botiquin';
+  else if(/^OF/.test(p)) tipo = 'oficina';
+  return `img/iconos/dep-${tipo}.svg`;
+}
+
 const NIVELES = {
-  1:{label:'Auditor',cls:'n1',nav:['dashboard','inventario','trazabilidad']},
+  // Médico: sin acceso a la app (solo se asigna a eventos para la historia clínica)
+  1:{label:'Médico',cls:'n1',nav:[]},
   2:{label:'Enfermero/a',cls:'n2',nav:['dashboard','inventario','movimientos','trazabilidad']},
   3:{label:'Supervisor',cls:'n3',nav:['dashboard','inventario','movimientos','registro','trazabilidad']},
-  4:{label:'Administrador',cls:'n4',nav:['dashboard','inventario','movimientos','registro','sku','usuarios','bodegas','eventos','segstock','reportes','trazabilidad']}
+  4:{label:'Administrador',cls:'n4',nav:['dashboard','inventario','movimientos','registro','sku','usuarios','bodegas','eventos','historias','segstock','reportes','trazabilidad']}
 };
 
 const NAV_CONFIG = [
@@ -34,6 +52,7 @@ const NAV_CONFIG = [
   {id:'usuarios',icon:'ti-users',label:'Usuarios',section:''},
   {id:'bodegas',icon:'ti-building-warehouse',label:'Ubicaciones',section:''},
   {id:'eventos',icon:'ti-calendar-event',label:'Eventos',section:''},
+  {id:'historias',icon:'ti-clipboard-heart',label:'Historias clínicas',section:''},
   {id:'reportes',icon:'ti-report-analytics',label:'Reportes',section:''},
   {id:'trazabilidad',icon:'ti-timeline',label:'Trazabilidad',section:''},
   {id:'segstock',icon:'ti-shield-check',label:'Stock de Seguridad',section:''},

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <defs>
+    <linearGradient id="m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7393C6"/><stop offset="1" stop-color="#4E6B9C"/></linearGradient>
+    <linearGradient id="t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9DB5DD"/><stop offset="1" stop-color="#7A98C9"/></linearGradient>
+  </defs>
+  <!-- caja inferior izquierda -->
+  <g>
+    <rect x="8" y="50" width="40" height="36" rx="7" fill="url(#m)"/>
+    <rect x="6" y="48" width="44" height="11" rx="5.5" fill="url(#t)"/>
+    <rect x="23" y="48" width="10" height="17" rx="2.5" fill="#DCE6F5"/>
+  </g>
+  <!-- caja inferior derecha -->
+  <g>
+    <rect x="48" y="50" width="40" height="36" rx="7" fill="url(#m)"/>
+    <rect x="46" y="48" width="44" height="11" rx="5.5" fill="url(#t)"/>
+    <rect x="63" y="48" width="10" height="17" rx="2.5" fill="#DCE6F5"/>
+  </g>
+  <!-- caja superior con cruz -->
+  <g>
+    <rect x="27" y="14" width="42" height="36" rx="7" fill="url(#m)" stroke="#F4F7FC" stroke-width="3"/>
+    <rect x="25" y="12" width="46" height="11" rx="5.5" fill="url(#t)"/>
+    <rect x="43" y="12" width="10" height="16" rx="2.5" fill="#DCE6F5"/>
+    <path d="M44.5 31h7v5h5v7h-5v5h-7v-5h-5v-7h5z" fill="#FFFFFF"/>
+  </g>
+</svg>

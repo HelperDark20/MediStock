@@ -1,3 +1,6 @@
+// Ilustración por tipo de movimiento (los demás tipos siguen con su ícono)
+const _TRAZ_ILUS = { compra:'mov-compra', reversion:'mov-reversion', destruccion:'mov-destruccion', traslado:'mover' };
+
 // ── AUTOCOMPLETE SKU GLOBAL EN TRAZABILIDAD ──
 let _trazAcFocusIdx = -1;
 
@@ -179,7 +182,7 @@ async function renderTrazabilidad(){
                  <div class="tl-card">
                    <div class="tl-header">
                      <div class="tl-tipo ${m.tipo}">
-                       <i class="ti ${tipoIcon[m.tipo]||'ti-arrow-right'}" style="margin-right:4px"></i>
+                       ${_TRAZ_ILUS[m.tipo] ? `<img class="tl-tipo-ico" src="img/iconos/${_TRAZ_ILUS[m.tipo]}.svg" alt="">` : `<i class="ti ${tipoIcon[m.tipo]||'ti-arrow-right'}" style="margin-right:4px"></i>`}
                        ${escHtml(m.tipo.toUpperCase())}
                      </div>
                      <div class="tl-fecha">

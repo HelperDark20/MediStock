@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <defs>
+    <linearGradient id="m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7896C8"/><stop offset="1" stop-color="#4C6898"/></linearGradient>
+    <linearGradient id="p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6F9FE"/><stop offset="1" stop-color="#D3E0F3"/></linearGradient>
+  </defs>
+  <!-- billete -->
+  <rect x="6" y="18" width="64" height="42" rx="9" fill="url(#m)" stroke="#3E557C" stroke-width="4"/>
+  <rect x="14" y="26" width="48" height="26" rx="5" fill="none" stroke="#B7C9E7" stroke-width="3"/>
+  <circle cx="38" cy="39" r="8" fill="#DCE6F5"/>
+  <!-- monedas -->
+  <g stroke="#3E557C" stroke-width="4">
+    <rect x="46" y="72" width="44" height="14" rx="7" fill="url(#p)"/>
+    <rect x="46" y="59" width="44" height="14" rx="7" fill="url(#p)"/>
+    <rect x="46" y="46" width="44" height="14" rx="7" fill="url(#p)"/>
+  </g>
+  <rect x="59" y="51" width="18" height="4" rx="2" fill="#7F9BCB"/>
+</svg>

@@ -1,3 +1,11 @@
+// Ícono ilustrado del módulo (img/modulos/<id>.png). Lleva dos versiones:
+// a color en estado normal y blanca al pasar el mouse o con el módulo
+// seleccionado (el CSS alterna cuál se ve).
+function iconoModulo(n){
+  return `<span class="nav-ico"><img class="ico-color" src="img/modulos/${n.id}.png" alt="">` +
+    `<img class="ico-blanco" src="img/modulos/${n.id}-blanco.png" alt=""></span>`;
+}
+
 function buildNav(){
   const niv = NIVELES[currentRole];
   const sb = document.getElementById('sb-nav');
@@ -14,7 +22,7 @@ function buildNav(){
     }
     const btn = document.createElement('button');
     btn.className = 'nav-item';
-    btn.innerHTML = `<i class="ti ${n.icon}"></i>${n.label}`;
+    btn.innerHTML = `${iconoModulo(n)}${n.label}`;
     // FIX: se quitó el badge de "Inventario" (contaba alertas con un criterio
     // distinto al del dashboard — resultaba visualmente inconsistente, ej.
     // dashboard mostraba 48 alertas y el nav mostraba 39). El dashboard ya
@@ -61,40 +69,40 @@ function goTo(viewId){
     dashboard:'Dashboard', inventario:'Inventario',
     movimientos:'Movimientos', registro:'Registro de entradas',
     sku:'SKUs Globales', usuarios:'Usuarios',
-    bodegas:'Ubicaciones y Bodegas', eventos:'Eventos', reportes:'Reportes',
+    bodegas:'Ubicaciones y Bodegas', eventos:'Eventos', historias:'Historias clínicas', reportes:'Reportes',
     segstock:'Stock de Seguridad', trazabilidad:'Trazabilidad'
   };
   document.getElementById('page-title').textContent = titles[viewId]||viewId;
   const ta = document.getElementById('topbar-actions');
   ta.innerHTML = '';
   if(viewId==='inventario'){
-    ta.innerHTML=`<button class="tb-btn" onclick="invExportExcel()"><i class="ti ti-file-spreadsheet"></i>Descargar Excel</button>`+
-      `<button class="tb-btn" onclick="invExportPDF()"><i class="ti ti-file-type-pdf"></i>Descargar PDF</button>`;
+    ta.innerHTML=`<button class="tb-btn" onclick="invExportExcel()"><img class="btn-ico" src="img/iconos/excel.svg" alt="">Descargar Excel</button>`+
+      `<button class="tb-btn" onclick="invExportPDF()"><img class="btn-ico" src="img/iconos/pdf.svg" alt="">Descargar PDF</button>`;
     if(currentRole>=3){
-      ta.innerHTML+=`<button class="tb-btn primary" onclick="goTo('registro')"><i class="ti ti-plus"></i>Nueva entrada</button>`;
+      ta.innerHTML+=`<button class="tb-btn primary" onclick="goTo('registro')"><img class="btn-ico" src="img/iconos/nueva-entrada.svg" alt="">Nueva entrada</button>`;
     }
   }
   if(viewId==='movimientos'&&currentRole===4){
-    ta.innerHTML=`<button class="tb-btn" onclick="abrirExportMovimientos()"><i class="ti ti-file-spreadsheet"></i>Descargar Excel</button>`+
-      `<button class="tb-btn" onclick="abrirContingencia()"><i class="ti ti-file-alert"></i>Registrar contingencia</button>`;
+    ta.innerHTML=`<button class="tb-btn" onclick="abrirExportMovimientos()"><img class="btn-ico" src="img/iconos/excel.svg" alt="">Descargar Excel</button>`+
+      `<button class="tb-btn" onclick="abrirContingencia()"><img class="btn-ico" src="img/iconos/contingencia.svg" alt="">Registrar contingencia</button>`;
   }
   if(viewId==='registro'&&currentRole===4){
-    ta.innerHTML=`<button class="tb-btn" onclick="abrirModificarSubSkus()"><i class="ti ti-edit"></i>Modificar Sub-SKUs</button>`;
+    ta.innerHTML=`<button class="tb-btn" onclick="abrirModificarSubSkus()"><img class="btn-ico" src="img/iconos/modificar-subskus.svg" alt="">Modificar Sub-SKUs</button>`;
   }
   if(viewId==='sku'&&currentRole===4){
-    ta.innerHTML=`<button class="tb-btn primary" onclick="document.getElementById('sku-nombre').focus()"><i class="ti ti-plus"></i>Crear SKU</button>`;
+    ta.innerHTML=`<button class="tb-btn primary" onclick="document.getElementById('sku-nombre').focus()"><img class="btn-ico" src="img/iconos/crear-sku.svg" alt="">Crear SKU</button>`;
   }
   if(viewId==='eventos'&&currentRole===4){
-    ta.innerHTML=`<button class="tb-btn primary" onclick="abrirCrearEvento()"><i class="ti ti-plus"></i>Crear evento</button>`;
+    ta.innerHTML=`<button class="tb-btn primary" onclick="abrirCrearEvento()"><img class="btn-ico" src="img/iconos/crear-evento.svg" alt="">Crear evento</button>`;
   }
   if(viewId==='segstock'&&currentRole===4){
-  ta.innerHTML=`<button class="tb-btn primary" onclick="abrirCrearGrupoSeg()"><i class="ti ti-plus"></i>Crear grupo</button>`;
+  ta.innerHTML=`<button class="tb-btn primary" onclick="abrirCrearGrupoSeg()"><img class="btn-ico" src="img/iconos/crear-grupo.svg" alt="">Crear grupo</button>`;
   }
   const renders = {
     dashboard:renderDash, inventario:renderInv,
     movimientos:renderMovimientos, registro:renderRegistro,
     sku:renderSKUs, usuarios:renderUsuarios,
-    bodegas:renderBodegas, eventos:renderEventos, reportes:renderReportes,
+    bodegas:renderBodegas, eventos:renderEventos, historias:renderHistorias, reportes:renderReportes,
     segstock:renderSegStock
   };
   renders[viewId]?.();

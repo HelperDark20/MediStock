@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <defs>
+    <linearGradient id="f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E0F0FA"/><stop offset="1" stop-color="#B5DBF2"/></linearGradient>
+    <linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3F95CF"/><stop offset="1" stop-color="#1F6FA6"/></linearGradient>
+    <linearGradient id="h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5A76A6"/><stop offset="1" stop-color="#3E557C"/></linearGradient>
+    <clipPath id="c"><circle cx="48" cy="48" r="48"/></clipPath>
+  </defs>
+  <g clip-path="url(#c)">
+    <rect width="96" height="96" fill="url(#f)"/>
+    <!-- camisa con cuello -->
+    <path d="M10 100c0-22 17-36 38-36s38 14 38 36z" fill="url(#s)"/>
+    <path d="M38 63l10 9 10-9-2 9-8 5-8-5z" fill="#FFFFFF"/>
+    <rect x="46.5" y="76" width="3" height="20" rx="1.5" fill="#1A5C8C" opacity=".5"/>
+    <!-- cara y cabello -->
+    <rect x="42" y="50" width="12" height="14" rx="5" fill="#C9D7EE"/>
+    <circle cx="48" cy="40" r="16" fill="#DCE6F5"/>
+    <path d="M31 43C29.5 28 37 20.5 48 20.5S66.5 28 65 43C63.5 37 61 34 58 32.5C52 36 43 36 37.5 31.5C34.5 34 32.5 38 31 43Z" fill="url(#h)"/>
+  </g>
+  <!-- insignia: supervisión (portapapeles con check) -->
+  <circle cx="76" cy="76" r="15" fill="#0D7FC2" stroke="#FFFFFF" stroke-width="3.5"/>
+  <rect x="69" y="68" width="14" height="17" rx="2.5" fill="#FFFFFF"/>
+  <path d="M72 77l3 3 5-6" fill="none" stroke="#0D7FC2" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

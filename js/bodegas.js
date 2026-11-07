@@ -10,9 +10,12 @@ function updateBodegaPreview(){
 async function crearUbicacion(){
   const nombre = (document.getElementById('ub-nombre').value||'').trim();
   if(!nombre){ toast('Ingresa el nombre de la ubicación','error'); return; }
+  const municipio = muniValor('ub-municipio');
+  if(!municipio){ toast('Elige el municipio de la lista','error'); return; }
   try {
-    await Ubicaciones.create(nombre);
+    await Ubicaciones.create(nombre, municipio);
     document.getElementById('ub-nombre').value = '';
+    muniFijar('ub-municipio', '');
     await loadState();
     populateSelects();
     ubCambiarVista('permanentes');
@@ -64,19 +67,18 @@ function ubCambiarVista(vista){
   renderBodegas();
 }
 
-const _BOD_ICONS = { BTQ:'ti-briefcase-medical', ENF:'ti-stethoscope', MEC:'ti-heart-rate-monitor', ALM:'ti-building-warehouse' };
+// Ícono de cada depósito: _bodIcono() en constants.js
 
 // El Administrador hace clic en cualquier depósito para editar su nombre y
 // su stock de seguridad. Los botones de la tarjeta no abren la edición.
 function _depositoCardHtml(b, acciones, meta, clase){
-  const prefix = b.nombre.split('-')[0];
   const admin = currentRole===4;
   const seg = b.stock_seguridad_nombre
     ? `<i class="ti ti-shield-check"></i> ${escHtml(b.stock_seguridad_nombre)}`
     : (admin ? '<span style="color:#bbb">Sin stock de seguridad</span>' : '');
   const metas = [meta, seg].filter(Boolean).join(' · ');
   return `<div class="deposito-card ${clase||''} ${admin?'clickable':''}" ${admin?`onclick="abrirEditarBodega(${b.id})" title="Editar depósito"`:''}>
-    <div class="deposito-icon"><i class="ti ${_BOD_ICONS[prefix]||'ti-map-pin'}"></i></div>
+    <div class="deposito-icon ilus"><img src="${_bodIcono(b.nombre)}" alt=""></div>
     <div class="deposito-info">
       <div class="deposito-name">${escHtml(b.nombre)}</div>
       ${metas?`<div class="deposito-meta">${metas}</div>`:''}
@@ -115,10 +117,10 @@ function _renderPermanentes(ubicaciones){
     const depositosHTML = depositos.map(b => _depositoCardHtml(b, currentRole===4?`
         <div class="act-btn-group">
           <button class="act-btn primary" title="Editar nombre" onclick="abrirEditarBodega(${b.id})">
-            <i class="ti ti-pencil"></i>
+            <img class="btn-ico" src="img/iconos/editar.svg" alt="">
           </button>
           <button class="act-btn danger" title="Eliminar" onclick="confirmDeleteBodega(${b.id})">
-            <i class="ti ti-trash"></i>
+            <img class="btn-ico" src="img/iconos/eliminar.svg" alt="">
           </button>
         </div>`:'')).join('') +
       prestados.map(b => _depositoCardHtml(b, '',
@@ -126,18 +128,18 @@ function _renderPermanentes(ubicaciones){
 
     return `<div class="ubicacion-card">
       <div class="ubicacion-header">
-        <div class="ubicacion-icon"><i class="ti ti-map-pin"></i></div>
+        <div class="ubicacion-icon ilus"><img src="img/iconos/ubicacion.svg" alt=""></div>
         <div class="ubicacion-info">
           <div class="ubicacion-name">${escHtml(u.nombre)}</div>
-          <div class="ubicacion-sub">${depositos.length} depósito${depositos.length!==1?'s':''}${prestados.length?` · ${prestados.length} prestado${prestados.length!==1?'s':''}`:''}</div>
+          <div class="ubicacion-sub">${_ubMunicipioHtml(u)}${depositos.length} depósito${depositos.length!==1?'s':''}${prestados.length?` · ${prestados.length} prestado${prestados.length!==1?'s':''}`:''}</div>
         </div>
         ${currentRole===4?`
           <div class="act-btn-group">
             <button class="act-btn primary" title="Editar nombre" onclick="abrirEditarUbicacion(${u.id})">
-              <i class="ti ti-pencil"></i>
+              <img class="btn-ico" src="img/iconos/editar.svg" alt="">
             </button>
             <button class="act-btn danger" title="Eliminar" onclick="confirmDeleteUbicacion(${u.id})">
-              <i class="ti ti-trash"></i>
+              <img class="btn-ico" src="img/iconos/eliminar.svg" alt="">
             </button>
           </div>`:''}
       </div>
@@ -165,16 +167,16 @@ function _renderTemporales(activas, finalizadas){
 
     return `<div class="ubicacion-card temporal">
       <div class="ubicacion-header">
-        <div class="ubicacion-icon"><i class="ti ti-clock-pin"></i></div>
+        <div class="ubicacion-icon ilus"><img src="img/iconos/temporales.svg" alt=""></div>
         <div class="ubicacion-info">
           <div class="ubicacion-name">${escHtml(u.nombre)}<span class="ub-badge">TEMPORAL</span></div>
-          <div class="ubicacion-sub">${depositos.length} depósito${depositos.length!==1?'s':''} prestado${depositos.length!==1?'s':''}${eventosAbiertos.length?` · ${eventosAbiertos.length} evento${eventosAbiertos.length!==1?'s':''} abierto${eventosAbiertos.length!==1?'s':''}`:''}</div>
+          <div class="ubicacion-sub">${_ubMunicipioHtml(u)}${depositos.length} depósito${depositos.length!==1?'s':''} prestado${depositos.length!==1?'s':''}${eventosAbiertos.length?` · ${eventosAbiertos.length} evento${eventosAbiertos.length!==1?'s':''} abierto${eventosAbiertos.length!==1?'s':''}`:''}</div>
         </div>
         ${admin?`
           <div class="act-btn-group" style="flex-wrap:wrap;justify-content:flex-end">
             <button class="ub-finalizar-btn sec" title="Agregar depósitos" onclick="abrirAgregarDepositosTemporal(${u.id})"><i class="ti ti-plus"></i>Depósitos</button>
             <button class="ub-finalizar-btn" title="Devolver todos los depósitos y cerrar la ubicación" onclick="confirmFinalizarTemporal(${u.id})"><i class="ti ti-flag-check"></i>Finalizar</button>
-            <button class="act-btn primary" title="Editar nombre" onclick="abrirEditarUbicacion(${u.id})"><i class="ti ti-pencil"></i></button>
+            <button class="act-btn primary" title="Editar nombre" onclick="abrirEditarUbicacion(${u.id})"><img class="btn-ico" src="img/iconos/editar.svg" alt=""></button>
           </div>`:''}
       </div>
       <div class="depositos-list">${depositosHTML}</div>
@@ -225,7 +227,16 @@ async function _tmpAbrir(ubicacionId){
 
 function abrirCrearTemporal(){
   document.getElementById('tmp-nombre').value = (document.getElementById('ub-nombre').value||'').trim();
+  muniFijar('tmp-municipio', muniValor('ub-municipio'));
   _tmpAbrir(null);
+}
+
+// Municipio en la tarjeta de la ubicación. Las creadas antes de este campo
+// quedan sin municipio: se avisa para que el admin lo complete (la HC lo usa).
+function _ubMunicipioHtml(u){
+  const m = muniDeUbicacion(u);
+  if(m) return `<i class="ti ti-map-2"></i> ${escHtml(m)} · `;
+  return `<span style="color:#B45309;font-weight:600" title="Edita la ubicación para elegir su municipio"><i class="ti ti-alert-triangle"></i> Sin municipio</span> · `;
 }
 
 function abrirAgregarDepositosTemporal(id){ _tmpAbrir(id); }
@@ -279,9 +290,12 @@ async function tmpConfirmar(){
     } else {
       const nombre = (document.getElementById('tmp-nombre').value||'').trim();
       if(!nombre){ toastError('Ingresa el nombre de la ubicación temporal'); return; }
+      const municipio = muniValor('tmp-municipio');
+      if(!municipio){ toastError('Elige el municipio de la lista'); return; }
       if(!ids.length){ toastError('Selecciona al menos un depósito para la ubicación temporal'); return; }
-      await Ubicaciones.createTemporal(nombre, ids);
+      await Ubicaciones.createTemporal(nombre, ids, municipio);
       document.getElementById('ub-nombre').value = '';
+      muniFijar('ub-municipio', '');
       toast(`✓ Ubicación temporal ${nombre.toUpperCase()} creada`, 'success');
     }
     closeModal('modal-temporal');
@@ -335,26 +349,33 @@ function confirmFinalizarTemporal(id){
   document.getElementById('modal-confirm').classList.add('open');
 }
 
-// ── EDITAR NOMBRE DE UBICACIÓN ──
-function abrirEditarUbicacion(id){
+// ── EDITAR NOMBRE Y MUNICIPIO DE UBICACIÓN ──
+async function abrirEditarUbicacion(id){
   const u = (S.ubicaciones||[]).find(x=>x.id===id);
   if(!u) return;
   document.getElementById('edit-ub-id').value = u.id;
   document.getElementById('edit-ub-nombre').value = u.nombre;
+  muniFijar('edit-ub-municipio', '');
   document.getElementById('modal-edit-ubicacion').classList.add('open');
+  try {
+    await municipiosCargar();
+    muniFijar('edit-ub-municipio', u.municipio_codigo || '');
+  } catch(err){ toastError('No se pudo cargar la lista de municipios'); }
 }
 
 async function guardarEdicionUbicacion(){
   const id = parseInt(document.getElementById('edit-ub-id').value)||0;
   const nombre = (document.getElementById('edit-ub-nombre').value||'').trim();
   if(!nombre){ toastError('Ingresa el nombre de la ubicación'); return; }
+  const municipio = muniValor('edit-ub-municipio');
+  if(!municipio){ toastError('Elige el municipio de la lista'); return; }
   try {
-    await Ubicaciones.update(id, nombre);
+    await Ubicaciones.update(id, nombre, municipio);
     closeModal('modal-edit-ubicacion');
     await loadState();
     populateSelects();
     renderBodegas();
-    toast(`✓ Ubicación renombrada a ${nombre.toUpperCase()}`, 'success');
+    toast(`✓ Ubicación ${nombre.toUpperCase()} actualizada`, 'success');
   } catch(err){ toastError(err.message); }
 }
 

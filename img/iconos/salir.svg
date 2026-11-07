@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <defs>
+    <linearGradient id="d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5A76A6"/><stop offset="1" stop-color="#3E557C"/></linearGradient>
+    <linearGradient id="m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7896C8"/><stop offset="1" stop-color="#4C6898"/></linearGradient>
+    <linearGradient id="r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#EA5F57"/><stop offset="1" stop-color="#BD2E29"/></linearGradient>
+  </defs>
+  <!-- marco de la puerta -->
+  <rect x="10" y="8" width="54" height="80" rx="10" fill="url(#d)"/>
+  <rect x="18" y="16" width="38" height="64" rx="5" fill="#DCE6F5"/>
+  <!-- hoja de la puerta entreabierta -->
+  <path d="M18 16l28 7v65L18 80z" fill="url(#m)" stroke="#3E557C" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="39" cy="52" r="3.5" fill="#DCE6F5"/>
+  <!-- salida -->
+  <circle cx="70" cy="62" r="21" fill="url(#r)" stroke="#FFFFFF" stroke-width="4.5"/>
+  <path d="M59 62h20M71 54l8 8-8 8" fill="none" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

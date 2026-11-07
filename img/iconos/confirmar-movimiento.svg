@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <defs>
+    <linearGradient id="m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8AA6D3"/><stop offset="1" stop-color="#5A78AA"/></linearGradient>
+    <linearGradient id="t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B3C6E6"/><stop offset="1" stop-color="#8EA9D6"/></linearGradient>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#36B571"/><stop offset="1" stop-color="#16804A"/></linearGradient>
+  </defs>
+  <!-- caja (borde blanco para que resalte sobre el botón azul) -->
+  <rect x="10" y="26" width="62" height="58" rx="10" fill="url(#m)" stroke="#FFFFFF" stroke-width="3.5"/>
+  <rect x="6" y="18" width="70" height="17" rx="8.5" fill="url(#t)" stroke="#FFFFFF" stroke-width="3"/>
+  <rect x="34" y="18" width="14" height="26" rx="3.5" fill="#EEF3FB"/>
+  <!-- confirmado -->
+  <circle cx="70" cy="70" r="20" fill="url(#g)" stroke="#FFFFFF" stroke-width="4.5"/>
+  <path d="M61 70.5l6.5 6.5L80 64" fill="none" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

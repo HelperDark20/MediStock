@@ -74,6 +74,8 @@ select.lt-input{ background:#fff url("data:image/svg+xml;utf8,<svg xmlns='http:/
   display:inline-block; width:30px; height:30px; line-height:30px; text-align:center;
   border-radius:50%; background:#1A5C8C; color:#fff; font-size:11px; font-weight:700; margin-right:8px;
 }
+.lt-avatar.foto{ width:32px; height:32px; line-height:normal; background:none; vertical-align:middle; }
+.lt-avatar.foto img{ display:block; width:32px; height:32px; }
 .lt-header-btn{ background:rgba(255,255,255,.12); border:none; color:rgba(255,255,255,.8); padding:7px 12px; border-radius:10px; font-size:13px; }
 
 /* ── Cuerpo ── */
@@ -201,3 +203,177 @@ select.lt-input{ background:#fff url("data:image/svg+xml;utf8,<svg xmlns='http:/
 .lt-modal-cuerpo li{ margin-bottom:8px; }
 .lt-modal-botones{ margin-top:18px; text-align:right; }
 .lt-modal-botones button{ margin:6px 0 0 8px; }
+
+/* ══ PESTAÑAS: historias clínicas / registro de consumos ══ */
+.lt-tabs{ margin-bottom:12px; border-bottom:2px solid #D8D4C8; white-space:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.lt-tab{
+  display:inline-block; background:none; border:none; border-bottom:3px solid transparent;
+  margin-bottom:-2px; padding:12px 16px; font-size:15px; font-weight:700; color:#888; -webkit-appearance:none;
+}
+.lt-tab.sel{ color:#0A1628; border-bottom-color:#2196D3; }
+.lt-tabpanel{ display:none; }
+.lt-tabpanel.on{ display:block; }
+.lt-body{ padding-bottom:70px; }
+
+/* ══ HISTORIA CLÍNICA ══ */
+#lt-hc-inicio, #lt-hc-editor{ display:none; }
+#lt-hc-inicio.on, #lt-hc-editor.on{ display:block; }
+.lt-btn-nueva{ margin:0 0 14px; font-size:17px; padding:16px; }
+
+/* Lista de HC */
+.lt-hc-item{ border-top:1px solid #EAE7DE; padding:12px 0; overflow:hidden; }
+.lt-hc-item:first-child{ border-top:none; }
+.lt-hc-item-txt{ float:left; max-width:62%; }
+.lt-hc-item-nombre{ font-weight:700; font-size:15px; }
+.lt-hc-item-meta{ font-size:12px; color:#888; margin-top:3px; }
+.lt-hc-item-btns{ float:right; text-align:right; }
+.lt-hc-item-btns button{ margin:0 0 6px 6px; min-height:44px; }
+.lt-hc-env{ font-size:13px; color:#555; padding:6px 0; border-top:1px solid #EAE7DE; }
+.lt-pend.borrador{ background:#EBF6FD; color:#1A5C8C; }
+.lt-subtitulo{ font-size:12px; font-weight:700; color:#666; text-transform:uppercase; letter-spacing:.07em; margin:16px 0 6px; }
+
+/* Encabezado del editor */
+.lt-hc-top{ display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; margin-bottom:6px; }
+.lt-hc-top .lt-btn-sec{ min-height:44px; -webkit-flex-shrink:0; flex-shrink:0; }
+.lt-hc-titulo{ margin-left:12px; min-width:0; }
+.lt-hc-paciente{ display:block; font-size:17px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lt-hc-sub{ display:block; font-size:12px; color:#888; margin-top:2px; }
+.lt-hc-guardado{ font-size:12px; color:#1A6B3C; margin:4px 0 10px; min-height:16px; }
+.lt-hc-guardado.error{ color:#C0392B; font-weight:700; }
+
+/* Barra de módulos */
+.lt-pasos{ white-space:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; margin-bottom:12px; padding-bottom:4px; }
+.lt-paso{
+  display:inline-block; vertical-align:top; margin-right:6px; padding:8px 12px 8px 8px;
+  border:1px solid #D8D4C8; border-radius:22px; background:#fff; color:#888; font-size:13px; font-weight:600; -webkit-appearance:none;
+}
+.lt-paso-n{ display:inline-block; width:24px; height:24px; line-height:24px; text-align:center; border-radius:50%; background:#EAE7DE; color:#666; font-weight:700; margin-right:6px; }
+.lt-paso.hecho{ color:#1A6B3C; border-color:#B9DEC8; }
+.lt-paso.hecho .lt-paso-n{ background:#1A6B3C; color:#fff; }
+.lt-paso.actual{ color:#0A1628; border-color:#2196D3; background:#EBF6FD; }
+.lt-paso.actual .lt-paso-n{ background:#2196D3; color:#fff; }
+.lt-paso.omitido{ text-decoration:line-through; opacity:.5; }
+.lt-paso[disabled]{ opacity:.55; }
+
+.lt-error ul{ margin:6px 0 0 18px; }
+
+/* Campos */
+.lt-campo{ margin-bottom:4px; }
+.lt-req{ color:#C0392B; }
+.lt-ayuda{ font-size:12px; color:#888; margin-top:4px; }
+.lt-mayus{ text-transform:uppercase; }
+.lt-area{ resize:vertical; line-height:1.4; font-family:inherit; }
+.lt-invalido .lt-input{ border-color:#C0392B; background:#FDF0EF; }
+.lt-invalido .lt-label{ color:#C0392B; }
+.lt-invalido .lt-chips{ border-left:3px solid #C0392B; padding-left:6px; }
+.lt-gris{ color:#888; font-weight:400; }
+.lt-error-txt{ color:#C0392B; font-weight:700; }
+.lt-edad{ padding:12px 0; font-size:17px; font-weight:700; }
+
+/* Dos columnas en pantallas anchas (iPad horizontal) */
+.lt-fila-col{ min-width:0; }
+@media (min-width:700px){
+  .lt-fila{ display:-webkit-flex; display:flex; }
+  .lt-fila-col{ -webkit-flex:1; flex:1; }
+  .lt-fila-col + .lt-fila-col{ margin-left:14px; }
+}
+
+/* Selección única: botones grandes (más fáciles de tocar que un checklist) */
+.lt-chips{ margin:0 -4px; }
+.lt-chip{
+  display:inline-block; vertical-align:top; min-height:46px; min-width:56px; margin:0 4px 8px;
+  padding:10px 16px; border:2px solid #D8D4C8; border-radius:12px; background:#fff;
+  color:#0A1628; font-size:15px; font-weight:600; -webkit-appearance:none;
+}
+.lt-chip.sel{ border-color:#2196D3; background:#2196D3; color:#fff; }
+
+/* Interruptor SÍ / NO */
+.lt-interruptor{ overflow:hidden; padding:10px 0; border-bottom:1px solid #EAE7DE; margin-bottom:8px; }
+.lt-interruptor-txt{ float:left; font-size:15px; font-weight:600; padding-top:12px; max-width:60%; }
+.lt-segmento{ float:right; border:2px solid #D8D4C8; border-radius:12px; overflow:hidden; }
+.lt-seg{
+  display:inline-block; min-width:68px; min-height:44px; padding:10px 14px; border:none; background:#fff;
+  color:#888; font-size:15px; font-weight:700; -webkit-appearance:none;
+}
+.lt-seg.sel{ background:#0A1628; color:#fff; }
+
+/* Datos automáticos (módulo 1, resumen) */
+.lt-dato{ overflow:hidden; padding:10px 0; border-top:1px solid #EAE7DE; }
+.lt-dato:first-of-type{ border-top:none; }
+.lt-dato-et{ display:block; font-size:11px; font-weight:700; color:#888; text-transform:uppercase; letter-spacing:.06em; }
+.lt-dato-v{ display:block; font-size:16px; margin-top:3px; }
+.lt-dato-v.aviso{ color:#B45309; font-weight:600; }
+
+.lt-aviso{ background:#FDF6EC; border:1px solid #F0C98A; color:#7A4E08; border-radius:10px; padding:10px 12px; font-size:13px; margin:8px 0 10px; }
+.lt-proximo{ background:#F4F2EE; border:1px dashed #C9C4B6; color:#666; border-radius:10px; padding:16px; font-size:14px; line-height:1.5; margin-bottom:10px; }
+.lt-consentimiento{
+  font-size:18px; line-height:1.55; padding:16px; margin-bottom:10px;
+  background:#F7FBFE; border-left:4px solid #2196D3; border-radius:6px; color:#0A1628;
+}
+.lt-consecutivo{ font-size:20px; }
+
+/* Navegación del editor */
+.lt-hc-nav{ overflow:hidden; margin:6px 0 20px; }
+.lt-hc-anterior{ float:left; min-height:52px; padding:12px 20px; }
+.lt-hc-siguiente{ float:right; width:auto; margin-top:0; min-width:180px; min-height:52px; }
+
+/* Firma */
+.lt-btn-firma{ min-height:52px; padding:12px 22px; }
+.lt-firma-img{ display:block; max-width:100%; height:110px; border:1px solid #D8D4C8; border-radius:10px; margin-bottom:8px; background:#fff; }
+.lt-firma-fondo{
+  display:none; position:fixed; top:0; left:0; right:0; bottom:0; z-index:10000; background:#fff;
+}
+.lt-firma-fondo.on{ display:block; }
+.lt-firma-barra{ position:absolute; top:0; left:0; right:0; height:64px; background:#0A1628; padding:10px 14px; overflow:hidden; }
+.lt-firma-titulo{ float:left; color:#fff; font-size:16px; font-weight:700; padding-top:10px; }
+.lt-firma-botones{ float:right; }
+.lt-firma-botones button{ margin-left:8px; min-height:44px; }
+.lt-firma-zona{ position:absolute; top:64px; left:0; right:0; bottom:0; }
+#lt-firma-canvas{ display:block; -ms-touch-action:none; touch-action:none; }
+.lt-firma-linea{
+  position:absolute; left:8%; right:8%; bottom:22%; border-top:2px solid #C9C4B6;
+  color:#aaa; font-size:13px; text-align:center; padding-top:6px; pointer-events:none;
+}
+
+/* ══ HC módulo 4: signos vitales y Glasgow ══ */
+.lt-hora{ max-width:160px; font-size:20px; letter-spacing:.05em; }
+.lt-signo .lt-input{ font-size:20px; font-weight:700; }
+.lt-signo-aviso{ font-size:12px; font-weight:700; min-height:16px; margin-top:3px; }
+.lt-signo.fuera .lt-input{ border-color:#C0392B; background:#FDF0EF; color:#C0392B; }
+.lt-signo.fuera .lt-signo-aviso{ color:#C0392B; }
+.lt-signo.imposible .lt-input{ border-color:#7A1F1F; background:#F5E6E5; }
+.lt-signo.imposible .lt-signo-aviso{ color:#7A1F1F; }
+.lt-glasgow-total{ font-size:18px; padding:12px 14px; margin:6px 0 4px; background:#F4F2EE; border-radius:10px; }
+.lt-glasgow-total strong{ font-size:26px; color:#0A1628; }
+
+/* ══ HC módulo 5: examen físico y procedimientos ══ */
+.lt-examen{
+  display:block; width:100%; text-align:left; overflow:hidden;
+  background:#fff; border:none; border-top:1px solid #EAE7DE; padding:12px 4px; min-height:52px; color:#0A1628; -webkit-appearance:none;
+}
+.lt-examen.abierto{ padding:4px 0 6px; }
+.lt-examen-seg{ float:left; font-size:15px; font-weight:700; }
+.lt-examen-ok{ float:left; clear:left; font-size:12px; color:#1A6B3C; font-weight:600; margin-top:2px; }
+.lt-examen-mas{ float:right; font-size:13px; color:#2196D3; font-weight:700; padding-top:8px; }
+.lt-proc{ border:1px solid #D8D4C8; border-radius:12px; padding:10px 12px; margin-bottom:10px; background:#FCFBF9; }
+.lt-proc-cab{ overflow:hidden; }
+.lt-proc-cab strong{ float:left; padding-top:6px; }
+.lt-proc-cab .lt-link{ float:right; color:#C0392B; }
+.lt-btn-agregar{ min-height:48px; margin-top:4px; }
+.lt-chip-multi.sel{ background:#1A6B3C; border-color:#1A6B3C; }
+
+/* ══ HC módulo 6: medicamentos e insumos ══ */
+.lt-med{ overflow:hidden; border-top:1px solid #EAE7DE; padding:10px 0; }
+.lt-med:first-of-type{ border-top:none; }
+.lt-med-txt{ float:left; max-width:72%; }
+.lt-med-nombre{ font-weight:700; font-size:15px; }
+.lt-med-meta{ font-size:13px; color:#555; margin-top:3px; }
+.lt-med-estado{ font-size:12px; color:#1A6B3C; font-weight:600; margin-top:3px; }
+.lt-med.pendiente .lt-med-estado{ color:#B7680A; }
+.lt-med.error .lt-med-estado{ color:#C0392B; }
+.lt-med-quitar{ float:right; min-height:44px; }
+.lt-ok{ background:#EDF7F1; border:1px solid #B9DEC8; color:#1A6B3C; border-radius:10px; padding:12px 14px; font-size:15px; margin-bottom:12px; }
+.lt-m6-siguiente .lt-btn-sec{ min-height:52px; margin-bottom:6px; }
+.lt-m6-siguiente .lt-btn{ margin-top:8px; }
+.lt-item-tipo{ font-size:12px; font-weight:700; color:#1A5C8C; margin-top:6px; }
+.lt-cantidad{ max-width:200px; font-size:20px; font-weight:700; }

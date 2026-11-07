@@ -77,18 +77,53 @@ const Bodegas = {
   delete: (id) => request('DELETE', `/api/bodegas/${id}`)
 };
 
+// ── HISTORIAS CLÍNICAS (módulo admin, nivel 4) ──
+const HistoriasClinicas = {
+  listar: (filtros) => {
+    const q = Object.entries(filtros || {}).filter(([, v]) => v !== '' && v !== null && v !== undefined)
+      .map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+    return request('GET', '/api/hc' + (q ? '?' + q : ''));
+  },
+  getOne: (id) => request('GET', `/api/hc/${id}`),
+  editar: (id, datos, motivo) => request('PUT', `/api/hc/${id}`, { datos, motivo }),
+  entrega: (id, data) => request('POST', `/api/hc/${id}/entrega`, data),
+  firmaMedico: (id, firma) => request('POST', `/api/hc/${id}/firma-medico`, { firma }),
+  // Sube el recibido de la IPS (foto o PDF) tal cual, sin JSON
+  async subirAdjunto(id, archivo){
+    let res;
+    try {
+      res = await fetch(`${API_URL}/api/hc/${id}/adjuntos`, {
+        method: 'POST',
+        headers: { 'Content-Type': archivo.type, 'Authorization': `Bearer ${getToken()}`, 'X-Nombre-Archivo': encodeURIComponent(archivo.name) },
+        body: archivo
+      });
+    } catch(e){ throw new Error('Sin conexión con el servidor. Revisa la red e intenta de nuevo.'); }
+    const data = await leerRespuesta(res);
+    if(!res.ok) throw new Error(data.error || 'Error del servidor');
+    return data;
+  },
+  // Descarga un adjunto (con la sesión) y devuelve un Blob
+  async descargarAdjunto(id, aid){
+    const res = await fetch(`${API_URL}/api/hc/${id}/adjuntos/${aid}`, { headers: { 'Authorization': `Bearer ${getToken()}` } });
+    if(!res.ok){ const data = await leerRespuesta(res); throw new Error(data.error || 'No se pudo descargar el archivo'); }
+    return res.blob();
+  }
+};
+
 // ── UBICACIONES ──
 const Ubicaciones = {
   getAll: () => request('GET', '/api/ubicaciones'),
   // Activas + temporales finalizadas (para los filtros de Reportes)
   getHistoricas: () => request('GET', '/api/ubicaciones?incluir_finalizadas=1'),
-  create: (nombre) => request('POST', '/api/ubicaciones', { nombre }),
-  createTemporal: (nombre, bodega_ids) => request('POST', '/api/ubicaciones', { nombre, es_temporal: true, bodega_ids }),
+  // Municipios de Colombia (DIVIPOLA) para el buscador de ubicaciones
+  municipios: () => request('GET', '/api/ubicaciones/municipios'),
+  create: (nombre, municipio_codigo) => request('POST', '/api/ubicaciones', { nombre, municipio_codigo }),
+  createTemporal: (nombre, bodega_ids, municipio_codigo) => request('POST', '/api/ubicaciones', { nombre, es_temporal: true, bodega_ids, municipio_codigo }),
   depositosPrestables: () => request('GET', '/api/ubicaciones/depositos-prestables'),
   agregarDepositos: (id, bodega_ids) => request('POST', `/api/ubicaciones/${id}/depositos`, { bodega_ids }),
   devolverDeposito: (id, bodegaId) => request('POST', `/api/ubicaciones/${id}/depositos/${bodegaId}/devolver`),
   finalizar: (id) => request('POST', `/api/ubicaciones/${id}/finalizar`),
-  update: (id, nombre) => request('PUT', `/api/ubicaciones/${id}`, { nombre }),
+  update: (id, nombre, municipio_codigo) => request('PUT', `/api/ubicaciones/${id}`, { nombre, municipio_codigo }),
   delete: (id) => request('DELETE', `/api/ubicaciones/${id}`)
 };
 
