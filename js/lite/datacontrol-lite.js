@@ -180,7 +180,7 @@
       var ab = {};
       for(var i = 0; i < (d.abiertas || []).length; i++){
         var a = d.abiertas[i];
-        ab[a.cedula] = { jornada_client_id: a.entrada_client_id, evento_id: a.evento_id, personal_id: a.personal_id, entrada_at: a.entrada_at };
+        ab[a.cedula] = { jornada_client_id: a.entrada_client_id, evento_id: a.evento_id, evento_nombre: a.evento_nombre, personal_id: a.personal_id, entrada_at: a.entrada_at };
       }
       for(var j = 0; j < st.cola.length; j++) aplicarMarcaLocal(ab, st.cola[j]);
       st.abiertas = ab;
@@ -189,6 +189,13 @@
       renderModo();
       cb(true);
     });
+  }
+
+  // Nombre del evento de una jornada abierta (puede ser otro evento distinto
+  // al elegido en la tablet: una persona tiene un solo turno abierto)
+  function eventoDeAbierta(ab){
+    var ev = buscarEvento(ab.evento_id);
+    return ab.evento_nombre || (ev ? ev.nombre : '');
   }
 
   function aplicarMarcaLocal(ab, m){
@@ -299,7 +306,8 @@
     $('dc-cedula').className = 'dc-campo' + (st.fase === 'cedula' ? ' activo' : '');
     var p = st.persona;
     $('dc-persona').innerHTML = p ? '<img src="img/avatares/personal.svg" alt=""><div><b>' + escHtml(p.nombre) + '</b><span>' +
-      (st.abierta ? 'Turno abierto desde ' + fechaHoraCO(st.abierta.entrada_at) + ' · marcará SALIDA' : 'Marcará ENTRADA') + '</span></div>' : '';
+      (st.abierta ? 'Turno abierto' + (st.evento && st.abierta.evento_id !== st.evento.id ? ' en ' + escHtml(eventoDeAbierta(st.abierta)) : '') +
+        ' desde ' + fechaHoraCO(st.abierta.entrada_at) + ' · marcará SALIDA' : 'Marcará ENTRADA') + '</span></div>' : '';
     $('dc-pin-wrap').className = st.fase === 'pin' ? '' : 'dc-oculto';
     var puntos = $('dc-pin').getElementsByTagName('i');
     for(var i = 0; i < puntos.length; i++) puntos[i].className = i < st.pin.length ? 'lleno' : '';
@@ -366,9 +374,9 @@
     clearTimeout(st.timerInactivo);
     st.timerInactivo = setTimeout(cancelarMarca, INACTIVIDAD_MS);
     var p = st.persona, salida = st.accion === 'salida';
-    var ev = salida ? buscarEvento(st.abierta.evento_id) : st.evento;
+    var evNombre = salida ? eventoDeAbierta(st.abierta) : (st.evento ? st.evento.nombre : '');
     $('dc-foto-persona').innerHTML = '<img src="img/avatares/personal.svg" alt=""><div><b>' + escHtml(p.nombre) + '</b><span>' +
-      escHtml(ev ? ev.nombre : '') + ' · ' + (salida ? 'entrada ' + fechaHoraCO(st.abierta.entrada_at) : fechaHoraCO(ahora())) + '</span></div>';
+      escHtml(evNombre) + ' · ' + (salida ? 'entrada ' + fechaHoraCO(st.abierta.entrada_at) : fechaHoraCO(ahora())) + '</span></div>';
     var btn = $('dc-btn-marcar');
     btn.className = 'dc-btn ' + (salida ? 'azul' : 'verde');
     btn.innerHTML = '<img src="img/iconos/' + (salida ? 'salir' : 'iniciar-evento') + '.svg" alt="">Marcar ' + (salida ? 'SALIDA' : 'ENTRADA');

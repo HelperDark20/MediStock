@@ -374,7 +374,7 @@ async function iniciarEvento(id){
 
 function confirmFinalizarEvento(id, nombre){
   document.getElementById('modal-title').textContent = 'Finalizar evento';
-  document.getElementById('modal-sub').textContent = `¿Finalizar el evento "${nombre}"? Los enfermeros asignados perderán acceso a sus depósitos de este evento de inmediato.`;
+  document.getElementById('modal-sub').textContent = `¿Finalizar el evento "${nombre}"? Los enfermeros asignados perderán acceso a sus depósitos de este evento de inmediato. En Asistencias, el personal cargado que no marcó ningún turno quedará como "No asistió".`;
   document.getElementById('modal-ok-btn').onclick = async ()=>{
     try {
       await Eventos.finalizar(id);

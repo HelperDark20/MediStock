@@ -85,10 +85,16 @@ router.post('/kiosco/login', async (req, res) => {
 });
 
 // Jornadas abiertas hace más de 16 h pasan a "sin salida"
+// Jornadas abiertas que ya no se pueden cerrar desde la tablet → "sin salida"
+// (la salida la registra el administrador):
+//   - más de 16 h desde la entrada
+//   - su evento ya finalizó (no se arrastran al siguiente evento de la persona)
 async function _vencerJornadas(db) {
   await db.query(
-    `UPDATE asistencia_jornadas SET estado = 'sin_salida'
-     WHERE estado = 'abierta' AND entrada_at < NOW() - INTERVAL '16 hours'`);
+    `UPDATE asistencia_jornadas j SET estado = 'sin_salida'
+     FROM eventos e
+     WHERE e.id = j.evento_id AND j.estado = 'abierta'
+       AND (j.entrada_at < NOW() - INTERVAL '16 hours' OR e.estado = 'finalizado')`);
 }
 
 router.get('/kiosco/datos', verificarKiosco, async (req, res) => {
@@ -114,8 +120,9 @@ router.get('/kiosco/datos', verificarKiosco, async (req, res) => {
       const cedulas = [...new Set(personal.map(p => p.cedula))];
       if (cedulas.length) {
         abiertas = (await pool.query(
-          `SELECT cedula, personal_id, evento_id, entrada_client_id, entrada_at
-           FROM asistencia_jornadas WHERE estado = 'abierta' AND cedula = ANY($1::text[])`, [cedulas])).rows;
+          `SELECT j.cedula, j.personal_id, j.evento_id, e.nombre AS evento_nombre, j.entrada_client_id, j.entrada_at
+           FROM asistencia_jornadas j JOIN eventos e ON e.id = j.evento_id
+           WHERE j.estado = 'abierta' AND j.cedula = ANY($1::text[])`, [cedulas])).rows;
       }
     }
     res.json({
@@ -378,27 +385,51 @@ router.get('/eventos', verificarToken, verificarNivel(4), async (req, res) => {
   }
 });
 
-// Personal cargado de un evento con su estado de hoy:
-//   en_turno (jornada abierta) · sin_salida · completa (cerró hoy) · sin_marcar
+// Personal cargado, agrupado por evento, con su estado en el evento. Se mide
+// por turnos (entrada → salida) y horas laboradas, no por día de calendario:
+// un turno que pasa la medianoche es un solo turno.
+//   en_turno   tiene un turno abierto en este evento
+//   sin_salida tiene un turno sin salida (pendiente de salida manual)
+//   completa   marcó al menos un turno completo
+//   sin_marcar aún no ha marcado (evento sin finalizar)
+//   no_asistio no marcó ningún turno y el evento ya finalizó
+// ?evento_id=N → solo ese evento. Sin evento_id → los eventos sin finalizar
+// y los finalizados en los últimos 30 días que tengan personal cargado.
 router.get('/personal', verificarToken, verificarNivel(4), async (req, res) => {
-  const eventoId = idValido(req.query.evento_id);
-  if (!eventoId) return res.status(400).json({ error: 'Elige el evento' });
+  const eventoId = req.query.evento_id ? idValido(req.query.evento_id) : null;
+  if (req.query.evento_id && !eventoId) return res.status(400).json({ error: 'Evento inválido' });
   try {
     await _vencerJornadas(pool);
-    const hoy = A.fechaCO(new Date());
-    const r = await pool.query(
-      `SELECT p.id, p.nombre, p.cedula, p.cargado_por, p.created_at,
-              (SELECT COUNT(*)::int FROM asistencia_jornadas j WHERE j.personal_id = p.id) AS jornadas,
-              (SELECT j.estado FROM asistencia_jornadas j WHERE j.cedula = p.cedula AND j.estado = 'abierta' LIMIT 1) AS abierta,
-              (SELECT j.estado FROM asistencia_jornadas j
-                WHERE j.personal_id = p.id AND ((j.entrada_at AT TIME ZONE 'UTC') - INTERVAL '5 hours')::date = $2::date
-                ORDER BY j.entrada_at DESC LIMIT 1) AS estado_hoy,
-              (SELECT MAX(j.entrada_at) FROM asistencia_jornadas j WHERE j.personal_id = p.id) AS ultima_entrada
-       FROM asistencia_personal p WHERE p.evento_id = $1 ORDER BY p.nombre`, [eventoId, hoy]);
-    res.json(r.rows.map(p => ({
-      id: p.id, nombre: p.nombre, cedula: p.cedula, cargado_por: p.cargado_por, created_at: p.created_at,
-      jornadas: p.jornadas, ultima_entrada: p.ultima_entrada,
-      estado: p.abierta ? 'en_turno' : p.estado_hoy === 'sin_salida' ? 'sin_salida' : p.estado_hoy === 'cerrada' ? 'completa' : 'sin_marcar'
+    const ev = await pool.query(
+      `SELECT e.id, e.nombre, e.estado, e.fecha_inicio::text AS fecha_inicio, e.fecha_fin::text AS fecha_fin, e.finalizado_at
+       FROM eventos e
+       WHERE e.activo = true AND EXISTS (SELECT 1 FROM asistencia_personal p WHERE p.evento_id = e.id)
+         AND ${eventoId ? 'e.id = $1' : "(e.estado <> 'finalizado' OR e.finalizado_at > NOW() - INTERVAL '30 days')"}
+       ORDER BY CASE e.estado WHEN 'en_curso' THEN 0 WHEN 'creado' THEN 1 ELSE 2 END, e.fecha_inicio DESC, e.nombre`,
+      eventoId ? [eventoId] : []);
+    const ids = ev.rows.map(e => e.id);
+    const r = ids.length ? await pool.query(
+      `SELECT p.id, p.evento_id, p.nombre, p.cedula, p.cargado_por, p.created_at,
+              COUNT(j.id)::int AS jornadas,
+              COUNT(j.id) FILTER (WHERE j.salida_at IS NOT NULL)::int AS turnos_completos,
+              COALESCE(SUM(ROUND(EXTRACT(EPOCH FROM (j.salida_at - j.entrada_at)) / 60)) FILTER (WHERE j.salida_at IS NOT NULL), 0)::int AS minutos,
+              MIN(j.entrada_at) FILTER (WHERE j.estado = 'abierta') AS en_turno_desde,
+              COUNT(j.id) FILTER (WHERE j.estado = 'sin_salida')::int AS sin_salida,
+              MAX(j.entrada_at) AS ultima_entrada
+       FROM asistencia_personal p
+       LEFT JOIN asistencia_jornadas j ON j.personal_id = p.id
+       WHERE p.evento_id = ANY($1::int[])
+       GROUP BY p.id
+       ORDER BY p.nombre`, [ids]) : { rows: [] };
+    res.json(ev.rows.map(e => ({
+      evento: { id: e.id, nombre: e.nombre, estado: e.estado, fecha_inicio: e.fecha_inicio, fecha_fin: e.fecha_fin, finalizado_at: e.finalizado_at },
+      personal: r.rows.filter(p => p.evento_id === e.id).map(p => ({
+        id: p.id, nombre: p.nombre, cedula: p.cedula, cargado_por: p.cargado_por, created_at: p.created_at,
+        jornadas: p.jornadas, turnos_completos: p.turnos_completos, minutos: p.minutos,
+        en_turno_desde: p.en_turno_desde, ultima_entrada: p.ultima_entrada,
+        estado: p.en_turno_desde ? 'en_turno' : p.sin_salida ? 'sin_salida' : p.turnos_completos ? 'completa'
+          : e.estado === 'finalizado' ? 'no_asistio' : 'sin_marcar'
+      }))
     })));
   } catch (err) {
     console.error(err);
@@ -454,6 +485,9 @@ router.delete('/personal/:id', verificarToken, verificarNivel(4), async (req, re
   try {
     const usado = await pool.query('SELECT 1 FROM asistencia_jornadas WHERE personal_id = $1 LIMIT 1', [id]);
     if (usado.rows.length) return res.status(400).json({ error: 'Esta persona ya marcó asistencia: no se puede quitar' });
+    const fin = await pool.query(
+      `SELECT 1 FROM asistencia_personal p JOIN eventos e ON e.id = p.evento_id WHERE p.id = $1 AND e.estado = 'finalizado'`, [id]);
+    if (fin.rows.length) return res.status(400).json({ error: 'El evento ya finalizó: su personal queda como registro (no asistió)' });
     const r = await pool.query('DELETE FROM asistencia_personal WHERE id = $1 RETURNING id', [id]);
     if (!r.rows.length) return res.status(404).json({ error: 'No encontrada' });
     res.json({ mensaje: 'Persona quitada del evento' });

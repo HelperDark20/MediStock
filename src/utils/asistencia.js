@@ -23,9 +23,14 @@ function normalizarCedula(v) {
   const s = String(v === undefined || v === null ? '' : v).replace(/[\s.,'-]/g, '');
   return /^\d{5,15}$/.test(s) ? s : null;
 }
-// Nombre completo: espacios simples, en MAYÚSCULAS, máx. 120 caracteres
+// Nombre completo: espacios simples, cada nombre y apellido con la primera
+// letra en mayúscula y el resto en minúscula (Carlos David Murcia Rodriguez),
+// máx. 120 caracteres
+function nombrePropio(s) {
+  return String(s).toLocaleLowerCase('es').replace(/(^|[\s'-])(\p{L})/gu, (m, sep, letra) => sep + letra.toLocaleUpperCase('es'));
+}
 function normalizarNombre(v) {
-  const s = String(v === undefined || v === null ? '' : v).replace(/\s+/g, ' ').trim().toUpperCase().slice(0, 120);
+  const s = nombrePropio(String(v === undefined || v === null ? '' : v).replace(/\s+/g, ' ').trim()).slice(0, 120);
   return s.length >= 3 ? s : null;
 }
 
@@ -72,9 +77,28 @@ function mimeFoto(buf) {
   return buf && buf[0] === 0x89 ? 'image/png' : 'image/jpeg';
 }
 
+// Un evento no se puede finalizar (ni eliminar) mientras tenga personal en
+// turno. Devuelve el mensaje de error, o null si no hay nadie en turno.
+// (Los turnos de más de 16 h ya no cuentan: quedan "sin salida".)
+async function bloqueoPorTurnosAbiertos(db, eventoId, accion) {
+  const r = await db.query(
+    `SELECT COALESCE(p.nombre, us.nombre) AS persona
+     FROM asistencia_jornadas j
+     LEFT JOIN asistencia_personal p ON p.id = j.personal_id
+     LEFT JOIN usuarios us ON us.id = j.usuario_id
+     WHERE j.evento_id = $1 AND j.estado = 'abierta' AND j.entrada_at > NOW() - INTERVAL '16 hours'
+     ORDER BY 1`, [eventoId]);
+  const n = r.rows.length;
+  if (!n) return null;
+  const nombres = r.rows.slice(0, 5).map(x => x.persona).join(', ') + (n > 5 ? ` y ${n - 5} más` : '');
+  return `No se puede ${accion} el evento: ${n === 1 ? 'hay 1 persona' : `hay ${n} personas`} en turno (${nombres}). ` +
+    'Deben marcar salida en la tablet, o registra la salida en Asistencias → "Registrar salida".';
+}
+
 module.exports = {
+  bloqueoPorTurnosAbiertos,
   MAX_JORNADA_MS, MAX_SALIDA_MANUAL_MS, TOLERANCIA_RELOJ_MS, AVISO_DATOS_VERSION,
-  pinValido, pinDeCedula, pinCoincide, normalizarCedula, normalizarNombre,
+  pinValido, pinDeCedula, pinCoincide, normalizarCedula, normalizarNombre, nombrePropio,
   fechaCO, desdeCO, fechaHoraCO, textoDuracion, minutosEntre,
   fotoDesdeDataUrl, mimeFoto
 };

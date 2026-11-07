@@ -252,12 +252,26 @@ const MIGRACIONES_UNICAS = [
             LIMIT 1)
           WHERE b.activo = true AND b.stock_seguridad_grupo_id IS NULL`
   },
+  {
+    // Personal ya cargado en MAYÚSCULAS → "Carlos David Murcia Rodriguez".
+    // En JavaScript (no initcap de Postgres) para que las tildes y la ñ
+    // queden bien sin depender de la configuración regional de la base.
+    nombre: 'asistencia_personal_nombre_propio',
+    fn: async (client) => {
+      const { normalizarNombre } = require('../utils/asistencia');
+      const r = await client.query('SELECT id, nombre FROM asistencia_personal');
+      for (const p of r.rows) {
+        const n = normalizarNombre(p.nombre);
+        if (n && n !== p.nombre) await client.query('UPDATE asistencia_personal SET nombre = $2 WHERE id = $1', [p.id, n]);
+      }
+    }
+  },
 ];
 
 // Lo informa GET /api/health, para comprobar tras desplegar que se aplicaron
 const estado = { migraciones: 'pendiente' };
 
-async function _aplicarUnaVez({ nombre, sql }) {
+async function _aplicarUnaVez({ nombre, sql, fn }) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -265,7 +279,7 @@ async function _aplicarUnaVez({ nombre, sql }) {
     const r = await client.query(
       'INSERT INTO migraciones_aplicadas (nombre) VALUES ($1) ON CONFLICT DO NOTHING RETURNING nombre', [nombre]
     );
-    if (r.rows.length) await client.query(sql);
+    if (r.rows.length) { if (fn) await fn(client); else await client.query(sql); }
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');

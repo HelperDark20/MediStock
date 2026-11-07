@@ -87,7 +87,8 @@ const Asistencia = {
   },
   salidaManual: (id, data) => request('POST', `/api/asistencia/${id}/salida`, data),
   eventos: () => request('GET', '/api/asistencia/eventos'),
-  personal: (eventoId) => request('GET', `/api/asistencia/personal?evento_id=${eventoId}`),
+  // Sin evento: todos los eventos con personal, agrupados
+  personal: (eventoId) => request('GET', '/api/asistencia/personal' + (eventoId ? `?evento_id=${eventoId}` : '')),
   cargarPersonal: (eventoId, personas) => request('POST', '/api/asistencia/personal', { evento_id: eventoId, personas }),
   quitarPersonal: (id) => request('DELETE', `/api/asistencia/personal/${id}`),
   cuenta: () => request('GET', '/api/asistencia/cuenta'),

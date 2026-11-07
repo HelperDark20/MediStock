@@ -9,7 +9,8 @@ let _asisSalidaId = null;
 const ASIS_ESTADOS = {
   abierta:    ['En turno', 'abierta'],
   cerrada:    ['Completa', 'ok'],
-  sin_salida: ['Sin salida (+16 h)', 'sin'],
+  // Más de 16 h sin salida, o su evento finalizó con el turno abierto
+  sin_salida: ['Sin salida', 'sin'],
 };
 
 function _asisFechaCO(iso){
@@ -112,30 +113,57 @@ function asisLimpiar(){
   asisBuscar();
 }
 
-// ── Personal del evento (cargado desde archivo) y su estado de hoy ──
+// ── Personal cargado (desde archivo), agrupado por evento ──
+// El estado se mide por turnos y horas laboradas en el evento (no por día de
+// calendario: un turno que pasa la medianoche es uno solo).
 const ASIS_ESTADO_PERSONAL = {
-  sin_marcar: ['Sin marcar hoy', 'gris'], en_turno: ['En turno', 'abierta'], completa: ['Completa', 'ok'], sin_salida: ['Sin salida', 'sin']
+  en_turno: ['En turno', 'abierta'], sin_salida: ['Sin salida', 'sin'], completa: ['Completa', 'ok'],
+  sin_marcar: ['Sin marcar', 'gris'], no_asistio: ['No asistió', 'no']
 };
+function _asisChipsEstado(lista){
+  const cuenta = {};
+  lista.forEach(p => { cuenta[p.estado] = (cuenta[p.estado] || 0) + 1; });
+  return Object.keys(ASIS_ESTADO_PERSONAL).filter(k => cuenta[k])
+    .map(k => `<span class="asis-est ${ASIS_ESTADO_PERSONAL[k][1]}">${cuenta[k]} · ${ASIS_ESTADO_PERSONAL[k][0]}</span>`).join('');
+}
+function _asisFilaPersonal(p, finalizado){
+  const turnos = p.turnos_completos ? `${p.turnos_completos} turno${p.turnos_completos !== 1 ? 's' : ''} · ${_asisDur(p.minutos)} laborados` : '';
+  const detalle = [`CC ${escHtml(p.cedula)}`, turnos, p.en_turno_desde ? 'en turno desde ' + _asisFechaCO(p.en_turno_desde) : ''].filter(Boolean).join(' · ');
+  return `<div class="asis-personal-fila">
+      <img src="img/avatares/personal.svg" alt="">
+      <div class="asis-personal-datos"><b>${escHtml(p.nombre)}</b><div class="asis-sub">${detalle}</div></div>
+      <span class="asis-est ${ASIS_ESTADO_PERSONAL[p.estado][1]}">${ASIS_ESTADO_PERSONAL[p.estado][0]}</span>
+      ${p.jornadas || finalizado ? '' : `<button class="act-btn danger" title="Quitar del evento (aún no ha marcado)" onclick="asisQuitarPersonal(${p.id})"><img class="btn-ico" src="img/iconos/eliminar.svg" alt=""></button>`}
+    </div>`;
+}
 async function _asisRenderPersonal(){
   const card = document.getElementById('asis-personal-card');
   const eventoId = document.getElementById('asis-evento').value;
-  if(!eventoId){ card.style.display = 'none'; return; }
-  let lista;
-  try { lista = await Asistencia.personal(eventoId); } catch(e){ card.style.display = 'none'; return; }
+  let grupos;
+  try { grupos = await Asistencia.personal(eventoId); } catch(e){ card.style.display = 'none'; return; }
+  // "Todos los eventos" sin ningún evento con personal: no se muestra la tarjeta
+  if(!eventoId && !grupos.length){ card.style.display = 'none'; return; }
   card.style.display = '';
-  const cuenta = {};
-  lista.forEach(p => { cuenta[p.estado] = (cuenta[p.estado] || 0) + 1; });
-  document.getElementById('asis-personal-titulo').textContent = `Personal del evento (${lista.length})`;
-  document.getElementById('asis-personal-resumen').innerHTML = Object.keys(ASIS_ESTADO_PERSONAL).filter(k => cuenta[k])
-    .map(k => `<span class="asis-est ${ASIS_ESTADO_PERSONAL[k][1]}">${cuenta[k]} · ${ASIS_ESTADO_PERSONAL[k][0]}</span>`).join('');
-  document.getElementById('asis-personal-lista').innerHTML = lista.length ? lista.map(p => `
-    <div class="asis-personal-fila">
-      <img src="img/avatares/personal.svg" alt="">
-      <div class="asis-personal-datos"><b>${escHtml(p.nombre)}</b><div class="asis-sub">CC ${escHtml(p.cedula)}${p.ultima_entrada ? ' · última entrada ' + _asisFechaCO(p.ultima_entrada) : ''}</div></div>
-      <span class="asis-est ${ASIS_ESTADO_PERSONAL[p.estado][1]}">${ASIS_ESTADO_PERSONAL[p.estado][0]}</span>
-      ${p.jornadas ? '' : `<button class="act-btn danger" title="Quitar del evento (aún no ha marcado)" onclick="asisQuitarPersonal(${p.id})"><img class="btn-ico" src="img/iconos/eliminar.svg" alt=""></button>`}
-    </div>`).join('')
-    : '<div class="empty-state" style="padding:18px"><img class="empty-ico" src="img/modulos/usuarios.png" alt=""><p>Este evento no tiene personal cargado: usa "Cargar personal"</p></div>';
+  const todas = grupos.reduce((a, g) => a.concat(g.personal), []);
+  document.getElementById('asis-personal-titulo').textContent = eventoId
+    ? `Personal del evento (${todas.length})`
+    : `Personal por evento (${grupos.length} evento${grupos.length !== 1 ? 's' : ''} · ${todas.length} personas)`;
+  document.getElementById('asis-personal-resumen').innerHTML = _asisChipsEstado(todas);
+  const lista = document.getElementById('asis-personal-lista');
+  if(!todas.length){
+    lista.innerHTML = '<div class="empty-state" style="padding:18px"><img class="empty-ico" src="img/modulos/usuarios.png" alt=""><p>Este evento no tiene personal cargado: usa "Cargar personal"</p></div>';
+    return;
+  }
+  // Un solo evento: la lista directa. Todos: cada evento con su personal debajo.
+  lista.innerHTML = grupos.map(g => {
+    const fin = g.evento.estado === 'finalizado';
+    const cabecera = eventoId ? '' : `<div class="asis-personal-grupo">
+        <b>${escHtml(g.evento.nombre)}</b>
+        <span class="asis-sub">${fmtDate(g.evento.fecha_inicio)} → ${fmtDate(g.evento.fecha_fin)} · ${g.personal.length} persona${g.personal.length !== 1 ? 's' : ''}${fin ? ' · finalizado' : ''}</span>
+        <span class="asis-personal-resumen">${_asisChipsEstado(g.personal)}</span>
+      </div>`;
+    return cabecera + g.personal.map(p => _asisFilaPersonal(p, fin)).join('');
+  }).join('');
 }
 function asisQuitarPersonal(id){
   document.getElementById('modal-title').textContent = 'Quitar del evento';
@@ -208,7 +236,10 @@ function asisLeerArchivo(){
     if(iCab < 0){ previa.innerHTML = '<div class="asis-carga-error">El archivo debe tener las columnas "Nombre completo" y "Cédula" (usa la plantilla).</div>'; return; }
     const cN = filas[iCab].findIndex(c => norm(c).indexOf('nombre') === 0), cC = filas[iCab].findIndex(c => norm(c).indexOf('cedula') === 0);
     for(let i = iCab + 1; i < filas.length; i++){
-      const nombre = String(filas[i][cN] || '').trim(), cedula = String(filas[i][cC] || '').trim();
+      // Mismo formato que guarda el servidor: "Carlos David Murcia Rodriguez"
+      const nombre = String(filas[i][cN] || '').replace(/\s+/g, ' ').trim().toLocaleLowerCase('es')
+        .replace(/(^|[\s'-])(\p{L})/gu, (m, sep, letra) => sep + letra.toLocaleUpperCase('es'));
+      const cedula = String(filas[i][cC] || '').trim();
       if(!nombre && !cedula) continue;
       _asisCargaPersonas.push({ fila: i + 1, nombre, cedula });
     }
