@@ -12,6 +12,7 @@
 const { fechaValida } = require('./fechas');
 
 const NO_REFIERE = 'NO REFIERE INFORMACIÓN';
+const NO_APLICA = 'NO APLICA';   // EPS / ARL sin diligenciar
 const TEXTO_CONSENTIMIENTO = 'Declaro que recibí información clara sobre mi condición de salud, procedimiento realizado, necesidad de traslado y posibles riesgos derivados de aceptar o rechazar la atención brindada.';
 
 const TIPOS_DOC = ['CC', 'TI', 'CE', 'PAS', 'RC', 'PPT', 'OTRO'];
@@ -57,10 +58,11 @@ function txt(v, max) {
   if (typeof v !== 'string') return '';
   return v.replace(/\s+/g, ' ').trim().slice(0, max);
 }
-// Texto largo: conserva los saltos de línea
+// Texto largo: conserva los saltos de línea. Todo el texto libre de la HC
+// queda en MAYÚSCULAS.
 function txtLargo(v, max) {
   if (typeof v !== 'string') return '';
-  return v.replace(/\r\n?/g, '\n').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim().slice(0, max);
+  return v.replace(/\r\n?/g, '\n').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim().slice(0, max).toUpperCase();
 }
 function mayus(v, max) { return txt(v, max).toUpperCase(); }
 function enumv(v, lista) { return lista.indexOf(v) >= 0 ? v : ''; }
@@ -114,8 +116,8 @@ function _paciente(p, fechaAtencion, errores) {
     telefono: digitos(p.telefono).slice(0, 15),
     estado_civil: enumv(p.estado_civil, ESTADOS_CIVILES),
     ocupacion: mayus(p.ocupacion, 80),
-    eps: mayus(p.eps, 80),
-    arl: mayus(p.arl, 80),
+    eps: mayus(p.eps, 80) || NO_APLICA,
+    arl: mayus(p.arl, 80) || NO_APLICA,
     otra_aseguradora: bool(p.otra_aseguradora),
     aseguradora: ''
   };
@@ -372,6 +374,14 @@ function _horaCO(fecha) {
   const d = new Date(new Date(fecha).getTime() - COLOMBIA_OFFSET_MS);
   return d.toISOString().slice(11, 16);
 }
+// ¿La familia del SKU es de medicamentos? Es texto libre: "MED",
+// "Medicamento", "MEDICAMENTOS", "Fármacos"… Lo demás es insumo (solo
+// cantidad). Igual que esMedicamento() de js/lite/hc-lite.js
+function esFamiliaMedicamento(familia) {
+  const f = String(familia || '').trim().toUpperCase().replace(/Á/g, 'A');
+  return f === 'MED' || f.startsWith('MEDICAMENT') || f.startsWith('FARMAC');
+}
+
 function normalizarMedicamentos(movs, enviados, enfermero) {
   const errores = [];
   const porId = {};
@@ -380,7 +390,7 @@ function normalizarMedicamentos(movs, enviados, enfermero) {
   const lista = movs.map(m => {
     registrados[m.client_id] = true;
     const e = porId[m.client_id] || {};
-    const esMed = m.familia === 'MED';
+    const esMed = esFamiliaMedicamento(m.familia);
     const out = {
       consumo_id: m.client_id,
       sub_sku_id: m.sub_sku_id,
@@ -391,7 +401,7 @@ function normalizarMedicamentos(movs, enviados, enfermero) {
       es_medicamento: esMed,
       bodega: m.bodega || '',
       cantidad: Number(m.cantidad),
-      dosis: esMed ? txt(e.dosis, 60) : '',
+      dosis: esMed ? mayus(e.dosis, 60) : '',
       via: esMed ? enumv(e.via, VIAS) : '',
       via_otra: '',
       hora: RE_HORA.test(e.hora) ? e.hora : _horaCO(m.fecha),
@@ -540,7 +550,7 @@ function estadoInicial(datos) {
 
 module.exports = {
   normalizarHC, normalizarMedicamentos, estadoInicial, calcularEdad, firmaValida, VIAS,
-  normalizarEntrega, aFormaDeEnvio, diferencias,
+  normalizarEntrega, aFormaDeEnvio, diferencias, esFamiliaMedicamento, NO_APLICA,
   CONDICIONES, DESTINOS, AMBULANCIAS,
   NO_REFIERE, ESTADO_ADECUADO, TEXTO_CONSENTIMIENTO, TIPOS_DOC, SEGMENTOS
 };

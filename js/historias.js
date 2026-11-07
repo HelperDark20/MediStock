@@ -22,9 +22,10 @@ const HC_TXT = {
   circulacion: { ADECUADA:'Adecuada', COMPROMETIDA:'Comprometida' },
   neuro: { ALERTA:'Alerta', SOMNOLIENTO:'Somnoliento', CONFUSO:'Confuso', INCONSCIENTE:'Inconsciente' },
   orientado: { PERSONA:'Persona', TIEMPO:'Tiempo', ESPACIO:'Espacio' },
-  ocular: { 4:'Espontánea (4)', 3:'Al estímulo verbal (3)', 2:'Al dolor (2)', 1:'Ninguna (1)' },
-  verbal: { 5:'Orientado (5)', 4:'Confuso (4)', 3:'Palabras incoherentes (3)', 2:'Sonidos (2)', 1:'Ninguna (1)' },
-  motora: { 6:'Obedece órdenes (6)', 5:'Localiza el dolor (5)', 4:'Retira al dolor (4)', 3:'Flexión (3)', 2:'Extensión (2)', 1:'Ninguna (1)' },
+  ocular: { 4:'Espontánea', 3:'Al estímulo verbal', 2:'Al dolor', 1:'Ninguna' },
+  verbal: { 5:'Orientado', 4:'Confuso', 3:'Palabras incoherentes', 2:'Sonidos', 1:'Ninguna' },
+  motora: { 6:'Obedece órdenes', 5:'Localiza el dolor', 4:'Retira al dolor', 3:'Flexión', 2:'Extensión', 1:'Ninguna' },
+  rh: { '+':'POSITIVO', '-':'NEGATIVO' },
   via: { VO:'Oral (VO)', IV:'Intravenosa (IV)', IM:'Intramuscular (IM)', SC:'Subcutánea (SC)', SL:'Sublingual (SL)', TOPICA:'Tópica', INHALADA:'Inhalada', OTRA:'Otra' },
   condicion: { ESTABLE:'Estable', MEJORADO:'Mejorado', SIN_CAMBIOS:'Sin cambios', DETERIORADO:'Deteriorado', FALLECIDO:'Fallecido' },
   destino: { ALTA_SITIO:'Alta en sitio', ENTREGA_FAMILIAR:'Entrega a familiar o acudiente', TRASLADO:'Traslado asistencial',
@@ -179,7 +180,7 @@ function hcHtml(h, imprimir){
     hcDato('Nombres y apellidos', hcV(`${p.nombres || ''} ${p.apellidos || ''}`.trim()), true) +
     hcDato('Tipo de documento', hcT('tipo_doc', p.tipo_doc)) + hcDato('Número', hcV(p.documento)) +
     hcDato('Fecha de nacimiento', hcFecha(p.fecha_nacimiento)) + hcDato('Edad', hcV(p.edad && p.edad.texto)) +
-    hcDato('Sexo', hcT('sexo', p.sexo)) + hcDato('RH', hcV(p.rh)) + hcDato('Grupo sanguíneo', hcV(p.grupo)) +
+    hcDato('Sexo', hcT('sexo', p.sexo)) + hcDato('RH', hcT('rh', p.rh)) + hcDato('Grupo sanguíneo', hcV(p.grupo)) +
     hcDato('Dirección', hcV(p.direccion)) + hcDato('Ciudad', hcV(p.ciudad)) + hcDato('Teléfono', hcV(p.telefono)) +
     hcDato('Estado civil', hcT('estado_civil', p.estado_civil)) + hcDato('Ocupación', hcV(p.ocupacion)) +
     hcDato('EPS', hcV(p.eps)) + hcDato('ARL', hcV(p.arl)) + hcDato('Otra aseguradora', p.otra_aseguradora ? hcV(p.aseguradora) : 'No'));
@@ -396,7 +397,7 @@ function hcAbrirEdicion(){
     f('paciente.nn', 'Paciente sin identificar (NN)', 'si-no') + f('paciente.nombres', 'Nombres') + f('paciente.apellidos', 'Apellidos') +
     f('paciente.tipo_doc', 'Tipo de documento', 'lista', HC_TXT.tipo_doc) + f('paciente.documento', 'Número de documento') +
     f('paciente.fecha_nacimiento', 'Fecha de nacimiento', 'fecha') + f('paciente.sexo', 'Sexo', 'lista', HC_TXT.sexo) +
-    f('paciente.rh', 'RH', 'lista', { '+':'Positivo (+)', '-':'Negativo (−)' }) + f('paciente.grupo', 'Grupo sanguíneo', 'lista', { A:'A', B:'B', AB:'AB', O:'O' }) +
+    f('paciente.rh', 'RH', 'lista', HC_TXT.rh) + f('paciente.grupo', 'Grupo sanguíneo', 'lista', { A:'A', B:'B', AB:'AB', O:'O' }) +
     f('paciente.direccion', 'Dirección') + f('paciente.ciudad', 'Ciudad') + f('paciente.telefono', 'Teléfono') +
     f('paciente.estado_civil', 'Estado civil', 'lista', HC_TXT.estado_civil) + f('paciente.ocupacion', 'Ocupación') +
     f('paciente.eps', 'EPS') + f('paciente.arl', 'ARL') + f('paciente.otra_aseguradora', '¿Otra aseguradora?', 'si-no') + f('paciente.aseguradora', 'Otra aseguradora'));

@@ -29,14 +29,14 @@ Login → verificación de evento → lista de **HC en curso** + **Nueva HC** �
 - **Edad**: automática a la fecha de atención (meses y días en menores de 1 año).
 - **Selección única**:
   - Sexo: Masculino / Femenino / Otro.
-  - RH: + / −.
+  - RH: + / −. En la vista admin y el PDF se muestra POSITIVO / NEGATIVO.
   - Grupo: A / B / AB / O.
   - Estado civil: Soltero / Casado / Divorciado / Viudo / Unión libre.
 - **Campos de texto**:
   - Dirección (alfanumérico).
   - Ciudad.
   - Teléfono (solo números).
-  - Ocupación, EPS, ARL.
+  - Ocupación, EPS, ARL. EPS o ARL vacías se registran "NO APLICA".
   - **Sin Barrio.**
 - **Otra aseguradora**: interruptor SÍ/NO; en SÍ, campo de texto.
 - **Acompañante**: interruptor SÍ/NO; en SÍ, nombre completo, parentesco y teléfono.
@@ -64,11 +64,11 @@ Login → verificación de evento → lista de **HC en curso** + **Nueva HC** �
 - **D. Estado neurológico**: Alerta / Somnoliento / Confuso / Inconsciente (una opción). Orientado en persona, tiempo y espacio (varias opciones).
 - **E. Exposición**: interruptor de hallazgos. En NO queda "NO REFIERE INFORMACIÓN"; en SÍ, campo de texto.
 - **Signos vitales**:
-  - Hora **manual** HH:MM (hora exacta de la toma).
+  - Hora HH:MM de la toma: se llena sola con la hora en que se entra al módulo 4 y se puede corregir.
   - TA sistólica / diastólica.
   - FC, FR, SpO₂, temperatura (con decimal), glucometría, EVA 0–10.
   - Fuera de rango clínico: en rojo, sin bloquear. Valores imposibles: se bloquean.
-- **Glasgow**: ocular 4–1, verbal 5–1, motora 6–1. Total automático /15. Aviso de incoherencia (p. ej. Inconsciente con 15).
+- **Glasgow**: ocular 4–1, verbal 5–1, motora 6–1 (las opciones no muestran el número; solo se muestra el puntaje total). Total automático /15. Aviso de incoherencia (p. ej. Inconsciente con 15).
 
 ## Módulo 5 · Examen físico, triage y procedimientos
 - **Examen cefalocaudal**: 11 segmentos (cabeza, cara, cuello, tórax, campos pulmonares, abdomen, pelvis, espalda, EESS, EEII, osteomuscular). Cada fila muestra "ESTADO ADECUADO"; al tocarla se escribe el hallazgo. Las no diligenciadas quedan "ESTADO ADECUADO". Sin piel ni órganos de los sentidos.
@@ -84,7 +84,7 @@ Login → verificación de evento → lista de **HC en curso** + **Nueva HC** �
 - El stock se descuenta al registrar, como hoy, y cada consumo queda vinculado a la HC (uuid). Sin conexión va a la cola actual (idempotente con client_id).
 - Quitar un consumo antes de enviar la HC genera una reversión.
 - **Implementación (Fase 4):**
-  - Medicamento = familia MED (dosis, vía y hora obligatorias). Cualquier otra familia = insumo (solo cantidad).
+  - Medicamento = familia del SKU "MED" o que empiece por "MEDICAMENT" o "FARMAC"/"FÁRMAC", sin importar mayúsculas (la familia es texto libre: "Medicamento", "MEDICAMENTOS"…). Dosis, vía y hora obligatorias. Cualquier otra familia = insumo (solo cantidad).
   - Cada consumo guarda `hc_client_id`. El documento del paciente sale del módulo 2: acepta pasaporte con letras o vacío si es NN. Al enviarse la HC, los consumos quedan con el documento definitivo.
   - La lista de medicamentos de la HC la arma el servidor con lo que realmente salió del inventario. De la tablet solo toma dosis, vía y hora.
   - No se acepta la HC si tiene consumos que no están en el inventario (pendientes o rechazados).
@@ -144,6 +144,15 @@ Login → verificación de evento → lista de **HC en curso** + **Nueva HC** �
 - **Registro de consumos**: ya no existe por fuera de la HC. El panel muestra solo "Historias clínicas"; los consumos se registran en el módulo 6.
 - **Campos obligatorios del paciente** (si no es NN): nombres, apellidos, tipo y número de documento, fecha de nacimiento y sexo. RH, grupo, dirección, EPS, etc. son opcionales.
 - **Consecutivo**: se asigna al enviar (una HC descartada no deja huecos). La HC vive solo en la tablet hasta enviarse.
+
+## Ajustes después de las pruebas en tablet (2026-11-06)
+- Todos los cuadros de texto quedan en MAYÚSCULAS (tablet al escribir; el servidor también lo aplica, incluidas las ediciones del admin).
+- EPS / ARL vacías → "NO APLICA".
+- Hora de la toma de signos automática al entrar al módulo 4.
+- Glasgow sin números en las opciones; solo el puntaje total.
+- RH como POSITIVO / NEGATIVO en la vista admin y el PDF.
+- Familia del SKU en texto libre reconocida como medicamento (antes solo "MED": "ACIDO ACETILSALICILICO 500 MG TAB" con familia "Medicamento" salía como insumo).
+- La barra de estado (en línea / offline) cuenta historias clínicas pendientes por sincronizar, no consumos: los consumos son parte de su HC.
 
 ## Decisiones de la Fase 3 (propuestas, pendientes de revisión del usuario)
 - **Signos vitales obligatorios**: hora, TA, FC, FR, SpO₂ y temperatura. Glucometría y EVA son opcionales.

@@ -85,12 +85,13 @@ var HCLite = (function(){
     eva:    { nombre: 'Dolor EVA', posible: [0, 10], normal: [0, 6], unidad: '/10' }
   };
   var GLASGOW = {
-    ocular: [['4','Espontánea (4)'],['3','Al estímulo verbal (3)'],['2','Al dolor (2)'],['1','Ninguna (1)']],
-    verbal: [['5','Orientado (5)'],['4','Confuso (4)'],['3','Palabras incoherentes (3)'],['2','Sonidos (2)'],['1','Ninguna (1)']],
-    motora: [['6','Obedece órdenes (6)'],['5','Localiza el dolor (5)'],['4','Retira al dolor (4)'],['3','Flexión (3)'],['2','Extensión (2)'],['1','Ninguna (1)']]
+    ocular: [['4','Espontánea'],['3','Al estímulo verbal'],['2','Al dolor'],['1','Ninguna']],
+    verbal: [['5','Orientado'],['4','Confuso'],['3','Palabras incoherentes'],['2','Sonidos'],['1','Ninguna']],
+    motora: [['6','Obedece órdenes'],['5','Localiza el dolor'],['4','Retira al dolor'],['3','Flexión'],['2','Extensión'],['1','Ninguna']]
   };
   // Módulo 5
   var ESTADO_ADECUADO = 'ESTADO ADECUADO';
+  var NO_APLICA = 'NO APLICA';
   var SEGMENTOS = [
     ['cabeza','Cabeza'],['cara','Cara'],['cuello','Cuello'],['torax','Tórax'],['campos_pulmonares','Campos pulmonares'],
     ['abdomen','Abdomen'],['pelvis','Pelvis'],['espalda','Espalda'],['eess','Extremidades superiores'],
@@ -121,6 +122,14 @@ var HCLite = (function(){
     var m = /(\d+(?:[.,]\d+)?)\s*(MCG|MG|MEQ|ML|UI|G)(?![A-Z])/.exec(String(nombre || '').toUpperCase());
     if(!m) return null;
     return { n: parseFloat(m[1].replace(',', '.')), unidad: m[2], coma: m[1].indexOf(',') >= 0 };
+  }
+
+  // ¿Es medicamento? La familia del SKU es texto libre: "MED", "Medicamento",
+  // "MEDICAMENTOS", "Fármacos"… Lo demás es insumo. (Igual que
+  // esFamiliaMedicamento() de src/utils/hc.js)
+  function esMedicamento(item){
+    var f = String((item && item.familia) || '').toUpperCase().replace(/^\s+|\s+$/g, '').replace(/Á/g, 'A');
+    return f === 'MED' || f.indexOf('MEDICAMENT') === 0 || f.indexOf('FARMAC') === 0;
   }
 
   // Dosis sugerida = concentración × cantidad (2 tabletas de 500 MG → 1000 MG)
@@ -323,7 +332,7 @@ var HCLite = (function(){
       ' autocomplete="off" autocorrect="off" spellcheck="false"';
     var html = '<div class="lt-campo" data-envoltura="' + ruta + '">' + etiqueta(texto, opts.req);
     if(opts.tipo === 'area'){
-      html += '<textarea class="lt-input lt-area" rows="' + (opts.filas || 3) + '"' + attrs + '>' + U.escHtml(v) + '</textarea>';
+      html += '<textarea class="lt-input lt-area lt-mayus" autocapitalize="characters" rows="' + (opts.filas || 3) + '"' + attrs + '>' + U.escHtml(v) + '</textarea>';
     } else if(opts.tipo === 'digitos'){
       html += '<input class="lt-input" type="tel" pattern="[0-9]*" data-solo="digitos"' + attrs + ' value="' + U.escHtml(v) + '">';
     } else if(opts.tipo === 'hora'){
@@ -337,9 +346,7 @@ var HCLite = (function(){
           ' data-campo="' + ruta + '" value="' + U.escHtml(v ? U.fmtFecha(v) : '') + '">';
       }
     } else {
-      html += '<input class="lt-input' + (opts.mayus ? ' lt-mayus' : '') + '" type="text"' +
-        (opts.tipo === 'alfanum' ? ' autocapitalize="characters"' : (opts.mayus ? ' autocapitalize="words"' : '')) +
-        attrs + ' value="' + U.escHtml(v) + '">';
+      html += '<input class="lt-input lt-mayus" type="text" autocapitalize="characters"' + attrs + ' value="' + U.escHtml(v) + '">';
     }
     if(opts.ayuda) html += '<div class="lt-ayuda">' + opts.ayuda + '</div>';
     return html + '</div>';
@@ -440,8 +447,9 @@ var HCLite = (function(){
       campo('paciente.telefono', 'Teléfono', { tipo: 'digitos', max: 15, ph: 'Ej. 3001234567' }) +
       chips('paciente.estado_civil', 'Estado civil', ESTADOS_CIVILES) +
       campo('paciente.ocupacion', 'Ocupación', { max: 80, mayus: true }) +
-      fila([campo('paciente.eps', 'EPS', { max: 80, mayus: true }),
-            campo('paciente.arl', 'ARL', { max: 80, mayus: true })]) +
+      fila([campo('paciente.eps', 'EPS', { max: 80, mayus: true, ph: NO_APLICA }),
+            campo('paciente.arl', 'ARL', { max: 80, mayus: true, ph: NO_APLICA })]) +
+      '<div class="lt-muted">Si el paciente no tiene EPS o ARL, deja el campo vacío: se registra "' + NO_APLICA + '".</div>' +
       interruptor('paciente.otra_aseguradora', '¿Tiene otra aseguradora?') +
       (p.otra_aseguradora ? campo('paciente.aseguradora', 'Nombre de la otra aseguradora', { req: true, max: 80, mayus: true }) : ''));
 
@@ -770,7 +778,7 @@ var HCLite = (function(){
       return seccion('Registrar consumo', cuerpo);
     }
 
-    var esMed = item.familia === 'MED', f = _m6.form;
+    var esMed = esMedicamento(item), f = _m6.form;
     cuerpo += '<div class="lt-card lt-item on">' +
         '<div class="lt-item-name">' + U.escHtml(item.nombre) + '</div>' +
         '<div class="lt-item-sub">' + U.escHtml((item.sku_global || '') + ' · ' + (item.sub_sku || '')) + (item.lote ? ' · Lote ' + U.escHtml(item.lote) : '') +
@@ -785,7 +793,7 @@ var HCLite = (function(){
     if(esMed){
       cuerpo += fila([
           '<label class="lt-label">Dosis administrada <span class="lt-req">*</span></label>' +
-            '<input class="lt-input" type="text" data-m6="dosis" maxlength="60" value="' + U.escHtml(f.dosis || '') + '" placeholder="Ej. 500 mg, 1 g, 10 mL">' +
+            '<input class="lt-input lt-mayus" type="text" autocapitalize="characters" data-m6="dosis" maxlength="60" value="' + U.escHtml(f.dosis || '') + '" placeholder="Ej. 500 mg, 1 g, 10 mL">' +
             (_m6.conc ? '<div class="lt-ayuda">Sugerida según el medicamento (' + U.escHtml(dosisSugerida(_m6.conc, 1)) + ' por ' + U.escHtml((item.unidad || 'unidad').toLowerCase()) + ' × cantidad). Corrígela si administraste otra dosis.</div>' : ''),
           '<label class="lt-label">Hora de administración <span class="lt-req">*</span></label>' +
             '<input class="lt-input lt-hora" type="tel" pattern="[0-9]*" maxlength="5" data-m6="hora" data-solo="hora" value="' + U.escHtml(f.hora || '') + '" placeholder="HH:MM">'
@@ -795,7 +803,7 @@ var HCLite = (function(){
         cuerpo += '<button type="button" class="lt-chip' + (f.via === VIAS[v][0] ? ' sel' : '') + '" data-hc="m6-via" data-v="' + VIAS[v][0] + '">' + VIAS[v][1] + '</button>';
       }
       cuerpo += '</div>' + (f.via === 'OTRA'
-        ? '<label class="lt-label">¿Cuál vía? <span class="lt-req">*</span></label><input class="lt-input lt-mayus" type="text" data-m6="via_otra" maxlength="60" value="' + U.escHtml(f.via_otra || '') + '">' : '');
+        ? '<label class="lt-label">¿Cuál vía? <span class="lt-req">*</span></label><input class="lt-input lt-mayus" type="text" autocapitalize="characters" data-m6="via_otra" maxlength="60" value="' + U.escHtml(f.via_otra || '') + '">' : '');
     }
     cuerpo += '<div class="lt-error' + (_m6.error ? ' on' : '') + '" id="lt-m6-error">' + U.escHtml(_m6.error) + '</div>' +
       '<button type="button" class="lt-btn" data-hc="m6-registrar"' + (_m6.enviando ? ' disabled' : '') + '>' + (_m6.enviando ? 'Registrando…' : 'Registrar consumo') + '</button>';
@@ -820,7 +828,7 @@ var HCLite = (function(){
       html += '<button type="button" class="lt-res" data-hc="m6-item" data-idx="' + i + '">' +
         '<span class="lt-res-cant">' + r.cantidad + ' ' + U.escHtml(r.unidad || '') + '</span>' +
         '<span class="lt-res-name">' + U.escHtml(r.nombre) + '</span>' +
-        '<span class="lt-res-meta">' + (r.familia === 'MED' ? 'Medicamento' : 'Insumo') + ' · ' + U.escHtml(r.sku_global || '') +
+        '<span class="lt-res-meta">' + (esMedicamento(r) ? 'Medicamento' : 'Insumo') + ' · ' + U.escHtml(r.sku_global || '') +
         (r.lote ? ' · Lote ' + U.escHtml(r.lote) : '') + ' · Vence ' + U.fmtFecha(r.caducidad) + U.semHtml(r.caducidad) + '</span></button>';
     }
     return html || '<div class="lt-vacio">Sin resultados para "' + U.escHtml(q) + '"</div>';
@@ -834,7 +842,7 @@ var HCLite = (function(){
 
   function alEscribirM6(el){
     var campo = el.getAttribute('data-m6');
-    var v = el.value;
+    var v = campo === 'buscar' ? el.value : enMayusculas(el);
     if(el.getAttribute('data-solo') === 'digitos'){ var dg = digitos(v); if(dg !== v) el.value = dg; v = dg; }
     if(el.getAttribute('data-solo') === 'hora'){
       var d4 = digitos(v).slice(0, 4);
@@ -855,7 +863,7 @@ var HCLite = (function(){
   function registrarM6(){
     var b = bodegaM6(), item = _m6.idx !== null ? st.stock[_m6.idx] : null, f = _m6.form;
     if(!b || !item) return;
-    var esMed = item.familia === 'MED';
+    var esMed = esMedicamento(item);
     var cant = parseInt(digitos(f.cantidad), 10) || 0;
     var err = '';
     if(cant <= 0) err = 'Ingresa la cantidad suministrada';
@@ -1198,6 +1206,7 @@ var HCLite = (function(){
 
   function irA(n, sinScroll){
     if(n !== hc.paso) _m6 = null;
+    if(n === 4 && !hc.datos.signos.hora) hc.datos.signos.hora = horaActual();
     hc.paso = n;
     if(n > hc.max_paso) hc.max_paso = n;
     guardarHC();
@@ -1258,11 +1267,24 @@ var HCLite = (function(){
     abrir(hc.client_id);
   }
 
+  // Cuadros de texto: lo escrito queda en MAYÚSCULAS (sin mover el cursor)
+  function enMayusculas(el){
+    var v = el.value;
+    var esTexto = el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && el.type === 'text');
+    if(!esTexto) return v;
+    var up = v.toUpperCase();
+    if(up === v) return v;
+    var ini = el.selectionStart, fin = el.selectionEnd;
+    el.value = up;
+    try { if(typeof ini === 'number' && document.activeElement === el) el.setSelectionRange(ini, fin); } catch(e){}
+    return up;
+  }
+
   // Valor escrito en un campo → HC (con las transformaciones del campo)
   function alEscribir(el){
     var ruta = el.getAttribute('data-campo');
     if(!ruta || !hc) return;
-    var v = el.value;
+    var v = enMayusculas(el);
     if(el.getAttribute('data-solo') === 'digitos'){
       var limpio = digitos(v);
       if(limpio !== v) el.value = limpio;
@@ -1720,7 +1742,7 @@ var HCLite = (function(){
       _m6.form = { hora: horaActual() };
       // Dosis sugerida por el nombre (editable); se recalcula con la cantidad
       // mientras el enfermero no la cambie a mano
-      _m6.conc = it && it.familia === 'MED' ? concentracion(it.nombre) : null;
+      _m6.conc = it && esMedicamento(it) ? concentracion(it.nombre) : null;
       _m6.dosisAuto = !!_m6.conc;
       if(_m6.conc) _m6.form.dosis = dosisSugerida(_m6.conc, 1);
       _m6.error = '';
@@ -1798,6 +1820,20 @@ var HCLite = (function(){
     // ¿Hay una HC abierta en el editor? (no recargar la página en ese caso)
     editando: function(){ return !!hc; },
     contar: contar,
+    // Historias clínicas con algo por subir: por enviar, o con consumos en la
+    // cola de la tablet. consumosSueltos: consumos de la cola sin HC.
+    porSincronizar: function(idUsuario, cola){
+      var lista = leerTodas(idUsuario), ids = {}, n = 0, sueltos = 0, i;
+      for(i = 0; i < lista.length; i++){
+        if(lista[i].estado === 'por_enviar' && !ids[lista[i].client_id]){ ids[lista[i].client_id] = true; n++; }
+      }
+      for(i = 0; i < (cola || []).length; i++){
+        var h = cola[i].hc_client_id;
+        if(!h) sueltos++;
+        else if(!ids[h]){ ids[h] = true; n++; }
+      }
+      return { hc: n, consumosSueltos: sueltos };
+    },
     sincronizar: sincronizar,
     // Al cerrar sesión: cierra el editor sin perder nada
     salir: function(){

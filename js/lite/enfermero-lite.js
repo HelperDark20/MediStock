@@ -560,7 +560,8 @@
   // Volver a en línea: requiere no tener pendientes
   function volverEnLinea(){
     if(leerCola(st.usuario.id).length){
-      modal('Primero sincroniza', 'Tienes consumos pendientes. Sincronízalos antes de volver al modo en línea.',
+      var ps = HCLite.porSincronizar(st.usuario.id, leerCola(st.usuario.id));
+      modal('Primero sincroniza', 'Tienes <strong>' + plural(ps.hc || 1, 'historia clínica pendiente', 'historias clínicas pendientes') + ' por sincronizar</strong>. Sincronízalas antes de volver al modo en línea.',
         [{ texto: 'Cancelar' }, { texto: 'Sincronizar', clase: 'primario', accion: sincronizar }]);
       return;
     }
@@ -769,16 +770,20 @@
     if(!st.usuario){ el.innerHTML = ''; return; }
     var cola = leerCola(st.usuario.id);
     var n = cola.length;
-    var nh = HCLite.contar(st.usuario.id).porEnviar;   // HC pendientes de envío
+    // Lo que se muestra son las historias clínicas con algo por subir (por
+    // enviar, o con consumos guardados en la tablet); los consumos son parte
+    // de su HC. Solo se cuentan aparte consumos sin HC (versiones anteriores).
+    var ps = HCLite.porSincronizar(st.usuario.id, cola);
     var masViejo = null;
     for(var i = 0; i < n; i++){ if(!masViejo || cola[i].fecha_atencion < masViejo) masViejo = cola[i].fecha_atencion; }
     var viejos = masViejo && (new Date().getTime() - new Date(masViejo).getTime()) > HORAS_AVISO_PENDIENTES * 3600 * 1000;
-    var btnSync = (n + nh) ? '<button type="button" class="lt-btn-sec primario" data-accion="sincronizar"' + (st.sincronizando ? ' disabled' : '') + '>' +
-      (st.sincronizando ? 'Sincronizando…' : 'Sincronizar (' + (n + nh) + ')') + '</button>' : '';
-    var aviso = viejos ? '<div class="lt-modo-detalle"><strong>Tienes consumos sin sincronizar desde el ' + fechaHoraCO(masViejo) + '.</strong> Sincroniza apenas tengas conexión.</div>' : '';
+    var total = ps.hc + ps.consumosSueltos;
+    var btnSync = total ? '<button type="button" class="lt-btn-sec primario" data-accion="sincronizar"' + (st.sincronizando ? ' disabled' : '') + '>' +
+      (st.sincronizando ? 'Sincronizando…' : 'Sincronizar (' + total + ')') + '</button>' : '';
+    var aviso = viejos ? '<div class="lt-modo-detalle"><strong>Tienes información sin sincronizar desde el ' + fechaHoraCO(masViejo) + '.</strong> Sincroniza apenas tengas conexión.</div>' : '';
     var partes = [];
-    if(n) partes.push(plural(n, 'consumo pendiente', 'consumos pendientes'));
-    if(nh) partes.push(plural(nh, 'historia clínica pendiente', 'historias clínicas pendientes') + ' de envío');
+    if(ps.hc) partes.push(plural(ps.hc, 'historia clínica pendiente', 'historias clínicas pendientes') + ' por sincronizar');
+    if(ps.consumosSueltos) partes.push(plural(ps.consumosSueltos, 'consumo pendiente', 'consumos pendientes'));
     var html;
     if(st.offline){
       html = '<div class="lt-modo-titulo">● Modo offline</div>' +
