@@ -213,7 +213,7 @@ async function actualizarReporte(){
       const cedula = (document.getElementById('rep-cedula').value||'').replace(/\D/g,'').trim();
       if(printSub) printSub.textContent = cedula ? `Cédula ${cedula} · Generado el ${new Date().toLocaleDateString('es-CO')}` : '';
       if(!cedula){
-        contenido.innerHTML = '<div class="empty-state"><i class="ti ti-id"></i><p>Ingresa la cédula de un paciente para ver su historial de consumos</p></div>';
+        contenido.innerHTML = '<div class="empty-state"><img class="empty-ico" src="img/iconos/cedula.svg" alt=""><p>Ingresa la cédula de un paciente para ver su historial de consumos</p></div>';
         return;
       }
       const movs = await Movimientos.getReporte({ tipo:'consumo', cedula_paciente: cedula });
@@ -320,7 +320,7 @@ function _repRenderConsumos(movs){
       gruposHtml += `
         <div class="rep-group">
           <div class="rep-group-head">
-            <div class="rep-group-name"><i class="ti ti-map-pin"></i> ${escHtml(u.nombre)}</div>
+            <div class="rep-group-name"><img class="grp-ico" src="img/iconos/ubicacion.svg" alt=""> ${escHtml(u.nombre)}</div>
             <div class="rep-group-count">${fmtCOP(u.valor)} · ${u.unidades.toLocaleString('es-CO')} u.</div>
           </div>
           <div class="rep-cols" style="--rep-grid:1fr 140px 160px 80px"><div>Depósito</div><div class="rep-col-num">Unidades</div><div class="rep-col-num">Valor</div><div class="rep-col-num">%</div></div>
@@ -337,7 +337,7 @@ function _repRenderConsumos(movs){
       const items = Object.values(dep.items).sort((a,b)=>b.unidades-a.unidades);
       detalleHtml += `<div class="rep-group">
         <div class="rep-group-head">
-          <div class="rep-group-name"><i class="ti ti-building-warehouse"></i> ${escHtml(u.nombre)} / ${escHtml(depNombre)}</div>
+          <div class="rep-group-name"><img class="grp-ico" src="${_bodIcono(depNombre)}" alt=""> ${escHtml(u.nombre)} / ${escHtml(depNombre)}</div>
           <div class="rep-group-count">${items.length} ítem${items.length!==1?'s':''}</div>
         </div>
         <div class="rep-cols" style="--rep-grid:${gridItems}"><div>Ítem</div><div class="rep-col-num">Sub-SKU</div><div class="rep-col-num">Lote</div><div class="rep-col-num">Unidades</div><div class="rep-col-num">Valor</div></div>
@@ -483,7 +483,7 @@ function _repRenderPacientes(movs){
         <div class="rep-cedulas">${[...d.cedulas].sort().map(escHtml).join(', ')}</div>
       </div>`).join('');
       detalleHtml += `<div class="rep-group">
-        <div class="rep-group-head"><div class="rep-group-name"><i class="ti ti-map-pin"></i> ${escHtml(ub)}</div><div class="rep-group-count">${dias.length} día${dias.length!==1?'s':''}</div></div>
+        <div class="rep-group-head"><div class="rep-group-name"><img class="grp-ico" src="img/iconos/ubicacion.svg" alt=""> ${escHtml(ub)}</div><div class="rep-group-count">${dias.length} día${dias.length!==1?'s':''}</div></div>
         <div class="rep-cols" style="--rep-grid:${gridDia}"><div class="rep-col-num">Fecha</div><div class="rep-col-num">Pacientes</div><div>Cédulas atendidas</div></div>
         ${rows}
       </div>`;
@@ -495,7 +495,7 @@ function _repRenderPacientes(movs){
   const cedulasHtml = cedulas.length
     ? cedulas.map(c=>`<div class="rep-group">
         <div class="rep-group-head">
-          <div class="rep-group-name"><i class="ti ti-id"></i> Cédula ${escHtml(c.cedula)}</div>
+          <div class="rep-group-name"><img class="grp-ico" src="img/iconos/cedula.svg" alt=""> Cédula ${escHtml(c.cedula)}</div>
           <div class="rep-group-count">${c.consumos.length} consumo${c.consumos.length!==1?'s':''} · ${c.unidades.toLocaleString('es-CO')} u. · ${fmtCOP(c.valor)} · ${[...c.ubicaciones].map(escHtml).join(', ')}</div>
         </div>
         <div class="rep-cols" style="--rep-grid:${gridCed}"><div class="rep-col-num">Fecha</div><div>Ítem</div><div class="rep-col-num">Sub-SKU</div><div class="rep-col-num">Cantidad</div><div>Ubicación / Depósito</div><div>Registrado por</div></div>
@@ -508,7 +508,7 @@ function _repRenderPacientes(movs){
           <div style="font-size:11px">${escHtml(m.usuario_nombre||'—')}</div>
         </div>`).join('')}
       </div>`).join('')
-    : '<div class="empty-state"><i class="ti ti-id"></i><p>Sin pacientes registrados (con cédula) en este período</p></div>';
+    : '<div class="empty-state"><img class="empty-ico" src="img/iconos/cedula.svg" alt=""><p>Sin pacientes registrados (con cédula) en este período</p></div>';
 
   document.getElementById('rep-contenido').innerHTML = `
     ${stats}
@@ -870,7 +870,7 @@ function _repRenderVencidos(){
       }).join('');
       gruposHtml += `<div class="rep-group">
         <div class="rep-group-head">
-          <div class="rep-group-name"><i class="ti ti-building-warehouse"></i> ${escHtml(g.ubNombre)} / ${escHtml(g.bodegaNombre)}</div>
+          <div class="rep-group-name"><img class="grp-ico" src="${_bodIcono(g.bodegaNombre)}" alt=""> ${escHtml(g.ubNombre)} / ${escHtml(g.bodegaNombre)}</div>
           <div class="rep-group-count">${g.items.length} ítem${g.items.length!==1?'s':''}</div>
         </div>
         <div class="rep-cols" style="--rep-grid:100px 1fr 90px 100px 90px 120px 100px"><div class="rep-col-num">Estado</div><div>Producto</div><div class="rep-col-num">Cantidad</div><div class="rep-col-num">Vencimiento</div><div class="rep-col-num">Restante</div><div class="rep-col-num">Sub-SKU</div><div class="rep-col-num">Lote</div></div>
@@ -892,14 +892,14 @@ function _repRenderVencidos(){
         v.existencias.map(e=>`<div class="rep-list-row"><div class="rep-list-dot ok"></div><div><div class="rep-list-name">${escHtml(v.nombre)} — ${escHtml(e.subSku)}</div><div class="rep-list-meta">${e.cantidad} ${escHtml(e.unidad)} · ${escHtml(e.bodegaNombre)}</div></div></div>`).join('')
       ).join('');
       almacenHtml += `<div class="rep-group">
-        <div class="rep-group-head tono-green"><div class="rep-group-name"><i class="ti ti-circle-check"></i> Con existencias en Almacén</div><div class="rep-group-count">${conExistencia.length} ítem${conExistencia.length!==1?'s':''}</div></div>
+        <div class="rep-group-head tono-green"><div class="rep-group-name"><img class="grp-ico" src="img/iconos/almacen-ok.svg" alt=""> Con existencias en Almacén</div><div class="rep-group-count">${conExistencia.length} ítem${conExistencia.length!==1?'s':''}</div></div>
         <div class="rep-list-simple" style="border:none;border-radius:0;margin-bottom:0">${filas1}</div>
       </div>`;
     }
     if(sinExistencia.length){
       const filas2 = sinExistencia.map(v=>`<div class="rep-list-row"><div class="rep-list-dot no"></div><div><div class="rep-list-name">${escHtml(v.nombre)}</div><div class="rep-list-meta">No hay existencias en Almacén</div></div></div>`).join('');
       almacenHtml += `<div class="rep-group">
-        <div class="rep-group-head tono-red"><div class="rep-group-name"><i class="ti ti-alert-circle"></i> Sin existencias en Almacén</div><div class="rep-group-count">${sinExistencia.length} ítem${sinExistencia.length!==1?'s':''}</div></div>
+        <div class="rep-group-head tono-red"><div class="rep-group-name"><img class="grp-ico" src="img/iconos/almacen-sin.svg" alt=""> Sin existencias en Almacén</div><div class="rep-group-count">${sinExistencia.length} ítem${sinExistencia.length!==1?'s':''}</div></div>
         <div class="rep-list-simple" style="border:none;border-radius:0;margin-bottom:0">${filas2}</div>
       </div>`;
     }

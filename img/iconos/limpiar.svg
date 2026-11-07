@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <defs>
+    <linearGradient id="m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7896C8"/><stop offset="1" stop-color="#4C6898"/></linearGradient>
+    <linearGradient id="mc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8AA6D3"/><stop offset="1" stop-color="#5A78AA"/></linearGradient>
+    <linearGradient id="d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5A76A6"/><stop offset="1" stop-color="#3E557C"/></linearGradient>
+    <linearGradient id="p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6F9FE"/><stop offset="1" stop-color="#D3E0F3"/></linearGradient>
+    <linearGradient id="t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9DB5DD"/><stop offset="1" stop-color="#7A98C9"/></linearGradient>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#36B571"/><stop offset="1" stop-color="#16804A"/></linearGradient>
+    <linearGradient id="a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F7BE55"/><stop offset="1" stop-color="#DB8B14"/></linearGradient>
+    <linearGradient id="r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#EA5F57"/><stop offset="1" stop-color="#BD2E29"/></linearGradient>
+    <linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4FB0E6"/><stop offset="1" stop-color="#1A7FC0"/></linearGradient>
+    <linearGradient id="gr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A3ABB8"/><stop offset="1" stop-color="#6E7787"/></linearGradient>
+  </defs>
+  <g transform="rotate(-40 48 48)">
+    <rect x="18" y="30" width="60" height="34" rx="9" fill="url(#p)" stroke="#3E557C" stroke-width="4"/>
+    <path d="M48 30h21a9 9 0 0 1 9 9v16a9 9 0 0 1-9 9H48z" fill="url(#r)" stroke="#3E557C" stroke-width="4" stroke-linejoin="round"/>
+  </g>
+  <rect x="8" y="80" width="54" height="6" rx="3" fill="#B3C6E6"/>
+  <g stroke="#7F9BCB" stroke-width="4" stroke-linecap="round"><path d="M76 66l10 3M72 78l8 7M80 54l10-2"/></g>
+</svg>

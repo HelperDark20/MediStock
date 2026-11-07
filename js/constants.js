@@ -23,6 +23,18 @@ const SUBGRUPOS = {
 const AVATAR_NIVEL = { 1:'medico', 2:'enfermero', 3:'supervisor', 4:'admin' };
 function avatarNivel(nivel){ return `img/avatares/${AVATAR_NIVEL[nivel] || 'enfermero'}.svg`; }
 
+// Ícono del depósito según el prefijo de su nombre: almacenes (ALM),
+// enfermerías (ENF), botiquines (MEC, BTQ, BTK, BT, BOTIQUIN) y oficinas
+// (OF). Cualquier otro prefijo usa el de almacén.
+function _bodIcono(nombre){
+  const p = String(nombre || '').split('-')[0].trim().toUpperCase();
+  let tipo = 'almacen';
+  if(/^ENF/.test(p)) tipo = 'enfermeria';
+  else if(/^(MEC|BT|BOT)/.test(p)) tipo = 'botiquin';
+  else if(/^OF/.test(p)) tipo = 'oficina';
+  return `img/iconos/dep-${tipo}.svg`;
+}
+
 const NIVELES = {
   // Médico: sin acceso a la app (solo se asigna a eventos para la historia clínica)
   1:{label:'Médico',cls:'n1',nav:[]},

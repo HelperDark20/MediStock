@@ -37,7 +37,7 @@ function renderEventos(){
       const depsHtml = p.es_medico ? '<span class="evt-dep-chip">Médico</span>'
         : deps.length ? visibles+extra : '<span class="evt-dep-chip empty">sin depósitos</span>';
       return `<div class="evt-personal-row">
-        <i class="ti ${p.es_medico?'ti-stethoscope':'ti-user'}"></i>
+        <img class="evt-persona-foto" src="${avatarNivel(p.nivel || (p.es_medico ? 1 : 2))}" alt="">
         <div class="evt-personal-body">
           <div class="evt-personal-name">${escHtml(p.nombre)}</div>
           <div class="evt-personal-deps">${depsHtml}</div>
@@ -46,16 +46,20 @@ function renderEventos(){
     }).join('') || '<div class="evt-personal-row" style="color:#aaa">Sin personal asignado</div>';
 
     const estadoBadge = {
-      creado:     '<span class="evt-badge creado">Programado</span>',
-      en_curso:   '<span class="evt-badge en_curso">● En curso</span>',
-      finalizado: '<span class="evt-badge finalizado">Finalizado</span>'
+      creado:     '<span class="evt-badge creado"><img src="img/iconos/estado-programado.svg" alt="">Programado</span>',
+      en_curso:   '<span class="evt-badge en_curso"><img src="img/iconos/estado-en-curso.svg" alt="">En curso</span>',
+      finalizado: '<span class="evt-badge finalizado"><img src="img/iconos/estado-finalizado.svg" alt="">Finalizado</span>'
     }[e.estado] || '';
+
+    // Puntero de la ubicación del evento: el de sede o el de temporal
+    const ubEvt = (S.ubicaciones||[]).find(u => u.id === e.ubicacion_id);
+    const puntero = ubEvt && ubEvt.es_temporal ? 'temporales' : 'ubicacion';
 
     let accion = '';
     if(e.estado === 'creado' && currentRole === 4){
-      accion = `<button class="btn-submit" style="margin-top:12px" onclick="event.stopPropagation();iniciarEvento(${e.id})"><i class="ti ti-player-play"></i>Iniciar evento</button>`;
+      accion = `<button class="btn-submit" style="margin-top:12px" onclick="event.stopPropagation();iniciarEvento(${e.id})"><img class="btn-ico" src="img/iconos/iniciar-evento.svg" alt="">Iniciar evento</button>`;
     } else if(e.estado === 'en_curso' && currentRole === 4){
-      accion = `<button class="btn-submit" style="margin-top:12px;background:var(--red2)" onclick="event.stopPropagation();confirmFinalizarEvento(${e.id},${jsArg(e.nombre)})"><i class="ti ti-player-stop"></i>Finalizar evento</button>`;
+      accion = `<button class="btn-submit" style="margin-top:12px;background:var(--red2)" onclick="event.stopPropagation();confirmFinalizarEvento(${e.id},${jsArg(e.nombre)})"><img class="btn-ico" src="img/iconos/finalizar-evento.svg" alt="">Finalizar evento</button>`;
     }
 
     return `<div class="card evt-card" style="margin-bottom:0;cursor:pointer" onclick="abrirDetalleEvento(${e.id})">
@@ -65,11 +69,11 @@ function renderEventos(){
           ${estadoBadge}
         </div>
         <div style="font-size:12px;color:#888;margin-bottom:10px">
-          <i class="ti ti-map-pin" style="margin-right:3px"></i>${escHtml(e.ubicacion_nombre||'—')}
+          <img class="evt-mini-ico" src="img/iconos/${puntero}.svg" alt="">${escHtml(e.ubicacion_nombre||'—')}
         </div>
         <div style="margin-bottom:8px">${personalHTML}</div>
         <div style="font-size:11px;color:#aaa;font-family:var(--font-mono)">
-          <i class="ti ti-calendar" style="margin-right:3px"></i>
+          <img class="evt-mini-ico" src="img/iconos/mes.svg" alt="">
           ${fmtDate(e.fecha_inicio)} → ${fmtDate(e.fecha_fin)}
         </div>
         ${accion}

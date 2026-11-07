@@ -782,7 +782,7 @@
       <!-- ═══ HISTORIAS CLÍNICAS (Admin, js/historias.js) ═══ -->
       <div class="view" id="view-historias">
         <div class="card" style="margin-bottom:16px">
-          <div class="card-header"><i class="ti ti-clipboard-heart card-title"></i><span class="card-title">Buscar historias clínicas</span></div>
+          <div class="card-header"><img class="card-ico" src="img/iconos/buscar-hc.svg" alt=""><span class="card-title">Buscar historias clínicas</span></div>
           <div class="card-body">
             <div class="hc-filtros">
               <div class="form-group"><label>Desde</label><input type="date" id="hcf-desde"></div>
@@ -802,8 +802,8 @@
               </div>
             </div>
             <div class="hc-filtros-btns">
-              <button class="btn-cancel" onclick="hcLimpiarFiltros()">Limpiar</button>
-              <button class="btn-confirm" onclick="hcBuscar(1)"><i class="ti ti-search"></i> Buscar</button>
+              <button class="btn-cancel" onclick="hcLimpiarFiltros()"><img class="btn-ico" src="img/iconos/limpiar.svg" alt="">Limpiar</button>
+              <button class="btn-confirm" onclick="hcBuscar(1)"><img class="btn-ico" src="img/iconos/buscar.svg" alt="">Buscar</button>
             </div>
           </div>
         </div>
@@ -831,7 +831,7 @@
       <div class="view" id="view-reportes">
 
         <div class="card no-print" style="margin-bottom:16px">
-          <div class="card-header"><i class="ti ti-report-analytics card-title"></i><span class="card-title">Selecciona el reporte a generar</span></div>
+          <div class="card-header"><img class="card-ico" src="img/iconos/rep-seleccionar.svg" alt=""><span class="card-title">Selecciona el reporte a generar</span></div>
           <div class="card-body">
             <div class="form-group fg-full" style="margin-bottom:0">
               <label>Tipo de reporte</label>
@@ -848,7 +848,7 @@
         </div>
 
         <div class="card no-print" style="margin-bottom:16px">
-          <div class="card-header"><i class="ti ti-filter card-title"></i><span class="card-title" id="rep-filtros-title">Filtros del reporte</span></div>
+          <div class="card-header"><img class="card-ico" src="img/iconos/filtros.svg" alt=""><span class="card-title" id="rep-filtros-title">Filtros del reporte</span></div>
           <div class="card-body">
             <div class="form-grid cols3">
               <div class="form-group" id="rep-fecha-desde-wrap">
@@ -891,8 +891,8 @@
               </div>
             </div>
             <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-              <button class="tb-btn primary" onclick="repExportExcel()"><i class="ti ti-file-spreadsheet"></i>Exportar Excel</button>
-              <button class="tb-btn" onclick="repExportPDF()"><i class="ti ti-file-type-pdf"></i>Exportar PDF</button>
+              <button class="tb-btn primary" onclick="repExportExcel()"><img class="btn-ico" src="img/iconos/excel.svg" alt="">Exportar Excel</button>
+              <button class="tb-btn" onclick="repExportPDF()"><img class="btn-ico" src="img/iconos/pdf.svg" alt="">Exportar PDF</button>
             </div>
           </div>
         </div>
@@ -926,7 +926,7 @@
       <!-- ═══ TRAZABILIDAD ═══ -->
       <div class="view" id="view-trazabilidad">
         <div class="card" style="margin-bottom:18px;overflow:visible">
-          <div class="card-header"><i class="ti ti-timeline card-title"></i><span class="card-title">Buscar trazabilidad</span></div>
+          <div class="card-header"><img class="card-ico" src="img/iconos/buscar-trazabilidad.svg" alt=""><span class="card-title">Buscar trazabilidad</span></div>
           <div class="card-body" style="overflow:visible">
             <div class="form-grid">
               <div class="form-group">

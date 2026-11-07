@@ -67,17 +67,7 @@ function ubCambiarVista(vista){
   renderBodegas();
 }
 
-// Ícono del depósito según el prefijo de su nombre: almacenes (ALM),
-// enfermerías (ENF), botiquines (MEC, BTQ, BTK, BT, BOTIQUIN) y oficinas
-// (OF). Cualquier otro prefijo usa el de almacén.
-function _bodIcono(nombre){
-  const p = String(nombre || '').split('-')[0].trim().toUpperCase();
-  let tipo = 'almacen';
-  if(/^ENF/.test(p)) tipo = 'enfermeria';
-  else if(/^(MEC|BT|BOT)/.test(p)) tipo = 'botiquin';
-  else if(/^OF/.test(p)) tipo = 'oficina';
-  return `img/iconos/dep-${tipo}.svg`;
-}
+// Ícono de cada depósito: _bodIcono() en constants.js
 
 // El Administrador hace clic en cualquier depósito para editar su nombre y
 // su stock de seguridad. Los botones de la tarjeta no abren la edición.

@@ -93,10 +93,10 @@ function goTo(viewId){
     ta.innerHTML=`<button class="tb-btn primary" onclick="document.getElementById('sku-nombre').focus()"><img class="btn-ico" src="img/iconos/crear-sku.svg" alt="">Crear SKU</button>`;
   }
   if(viewId==='eventos'&&currentRole===4){
-    ta.innerHTML=`<button class="tb-btn primary" onclick="abrirCrearEvento()"><i class="ti ti-plus"></i>Crear evento</button>`;
+    ta.innerHTML=`<button class="tb-btn primary" onclick="abrirCrearEvento()"><img class="btn-ico" src="img/iconos/crear-evento.svg" alt="">Crear evento</button>`;
   }
   if(viewId==='segstock'&&currentRole===4){
-  ta.innerHTML=`<button class="tb-btn primary" onclick="abrirCrearGrupoSeg()"><i class="ti ti-plus"></i>Crear grupo</button>`;
+  ta.innerHTML=`<button class="tb-btn primary" onclick="abrirCrearGrupoSeg()"><img class="btn-ico" src="img/iconos/crear-grupo.svg" alt="">Crear grupo</button>`;
   }
   const renders = {
     dashboard:renderDash, inventario:renderInv,
