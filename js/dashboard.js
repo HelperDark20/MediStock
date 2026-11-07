@@ -251,6 +251,7 @@ function renderConsumoChart(){
 
   if(!mesInput.value) mesInput.value = fechaColombia().slice(0,7);
   const mes = mesInput.value;
+  if(document.getElementById('dash-mes-txt')) _dashMesPintar();
 
   const { totalGeneral, porUbicacion } = calcConsumoMensual(mes);
   const totalEl = document.getElementById('dash-consumo-total');
@@ -324,6 +325,76 @@ function renderConsumoChart(){
 function dashConsumoMesChange(){
   renderConsumoChart();
 }
+
+// ── Selector de mes de "Consumo mensual" ──
+// El valor sigue en el input oculto #dash-consumo-mes (AAAA-MM). No se puede
+// pasar del mes actual: los meses futuros no tienen consumos.
+const _MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+let _dashMesAnioVista = null;
+function _dashMesActual(){
+  const el = document.getElementById('dash-consumo-mes');
+  if(!el.value) el.value = fechaColombia().slice(0,7);
+  return el.value;
+}
+function _dashMesFijar(valor){
+  document.getElementById('dash-consumo-mes').value = valor;
+  _dashMesPintar();
+  dashConsumoMesChange();
+}
+function _dashMesPintar(){
+  const [y, m] = _dashMesActual().split('-').map(Number);
+  const hoy = fechaColombia().slice(0,7);
+  document.getElementById('dash-mes-txt').textContent = `${_MESES[m-1]} ${y}`;
+  document.getElementById('dash-mes-sig').disabled = _dashMesActual() >= hoy;
+}
+function dashMesMover(delta){
+  const [y, m] = _dashMesActual().split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + delta, 1));
+  const valor = d.toISOString().slice(0,7);
+  if(valor > fechaColombia().slice(0,7)) return;
+  _dashMesFijar(valor);
+}
+function _dashMesGrid(){
+  const hoy = fechaColombia().slice(0,7);
+  const actual = _dashMesActual();
+  const y = _dashMesAnioVista;
+  document.getElementById('dash-mes-anio').textContent = y;
+  document.getElementById('dash-mes-anio-sig').disabled = y >= Number(hoy.slice(0,4));
+  document.getElementById('dash-mes-grid').innerHTML = _MESES.map((nombre, i) => {
+    const valor = `${y}-${String(i+1).padStart(2,'0')}`;
+    const futuro = valor > hoy;
+    return `<button type="button" class="mes-op${valor === actual ? ' sel' : ''}${valor === hoy ? ' hoy' : ''}"${futuro ? ' disabled' : ''} onclick="dashMesElegir('${valor}')">${nombre.slice(0,3)}</button>`;
+  }).join('');
+}
+function dashMesAbrir(){
+  const pop = document.getElementById('dash-mes-pop');
+  const abierto = pop.style.display !== 'none';
+  if(abierto){ _dashMesCerrar(); return; }
+  _dashMesAnioVista = Number(_dashMesActual().slice(0,4));
+  _dashMesGrid();
+  pop.style.display = '';
+  document.getElementById('dash-mes-btn').setAttribute('aria-expanded', 'true');
+}
+function _dashMesCerrar(){
+  const pop = document.getElementById('dash-mes-pop');
+  if(!pop) return;
+  pop.style.display = 'none';
+  document.getElementById('dash-mes-btn').setAttribute('aria-expanded', 'false');
+}
+function dashMesAnio(delta){
+  _dashMesAnioVista += delta;
+  _dashMesGrid();
+}
+function dashMesElegir(valor){
+  _dashMesCerrar();
+  _dashMesFijar(valor);
+}
+// Cerrar el panel al hacer clic afuera o con Escape
+document.addEventListener('click', e => {
+  const sel = document.getElementById('dash-mes-sel');
+  if(sel && !sel.contains(e.target)) _dashMesCerrar();
+});
+document.addEventListener('keydown', e => { if(e.key === 'Escape') _dashMesCerrar(); });
 // ── Ir al inventario con el filtro de Alertas/Vencidos ya aplicado ──
 function dashGoInventarioFiltro(tipo){
   goTo('inventario');

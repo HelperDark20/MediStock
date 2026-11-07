@@ -64,7 +64,7 @@
       <div class="topbar-right-group">
         <div class="topbar-right" id="topbar-actions"></div>
         <button class="tb-btn logout-btn" onclick="doLogout()" title="Cerrar sesión">
-          <i class="ti ti-logout"></i>Cerrar sesión
+          <img class="logout-ico" src="img/iconos/salir.svg" alt="">Cerrar sesión
         </button>
       </div>
     </div>
@@ -111,7 +111,23 @@
                 <img class="card-ico" src="img/iconos/consumo.svg" alt="">
                 <span class="card-title">Consumo mensual por ubicación</span>
               </div>
-              <input type="month" id="dash-consumo-mes" onchange="dashConsumoMesChange()" style="font-size:12px;padding:5px 10px">
+              <!-- Selector de mes (reemplaza el control nativo del navegador) -->
+              <div class="mes-sel" id="dash-mes-sel">
+                <button type="button" class="mes-flecha" id="dash-mes-ant" onclick="dashMesMover(-1)" title="Mes anterior" aria-label="Mes anterior"><i class="ti ti-chevron-left"></i></button>
+                <button type="button" class="mes-actual" id="dash-mes-btn" onclick="dashMesAbrir()" aria-haspopup="true" aria-expanded="false">
+                  <img src="img/iconos/mes.svg" alt=""><span id="dash-mes-txt"></span>
+                </button>
+                <button type="button" class="mes-flecha" id="dash-mes-sig" onclick="dashMesMover(1)" title="Mes siguiente" aria-label="Mes siguiente"><i class="ti ti-chevron-right"></i></button>
+                <div class="mes-pop" id="dash-mes-pop" role="dialog" aria-label="Elegir mes" style="display:none">
+                  <div class="mes-pop-cab">
+                    <button type="button" class="mes-flecha" onclick="dashMesAnio(-1)" aria-label="Año anterior"><i class="ti ti-chevron-left"></i></button>
+                    <strong id="dash-mes-anio"></strong>
+                    <button type="button" class="mes-flecha" id="dash-mes-anio-sig" onclick="dashMesAnio(1)" aria-label="Año siguiente"><i class="ti ti-chevron-right"></i></button>
+                  </div>
+                  <div class="mes-grid" id="dash-mes-grid"></div>
+                </div>
+                <input type="hidden" id="dash-consumo-mes">
+              </div>
             </div>
             <div class="card-body">
               <div style="margin-bottom:12px;cursor:pointer" onclick="dashGoConsumoHistorial(null)" title="Ver historial de consumos">

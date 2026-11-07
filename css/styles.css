@@ -1039,6 +1039,25 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 /* ── Grupo del topbar: acciones de la vista + botón de cerrar sesión ── */
 .topbar-right-group{display:flex;align-items:center;gap:10px}
 .logout-btn{color:#888}
+.logout-ico{width:20px;height:20px;flex-shrink:0;transition:transform .15s}
+.logout-btn:hover .logout-ico{transform:translateX(2px)}
+/* ── Selector de mes (dashboard) ── */
+.mes-sel{position:relative;display:flex;align-items:center;gap:2px;background:var(--cream);border:1px solid var(--cream3);border-radius:var(--r-md);padding:3px}
+.mes-flecha{width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:none;background:none;border-radius:6px;color:#5A76A6;cursor:pointer;font-size:15px;transition:background .15s}
+.mes-flecha:hover:not(:disabled){background:var(--white)}
+.mes-flecha:disabled{opacity:.3;cursor:default}
+.mes-actual{display:flex;align-items:center;gap:7px;border:none;background:var(--white);border-radius:6px;padding:4px 10px;height:28px;cursor:pointer;font-family:var(--font-head);font-size:13px;font-weight:700;color:var(--ink);box-shadow:0 1px 2px rgba(10,22,40,.08);min-width:150px;justify-content:center}
+.mes-actual img{width:18px;height:18px}
+.mes-actual:hover{box-shadow:0 0 0 2px rgba(62,85,124,.18)}
+.mes-pop{position:absolute;top:calc(100% + 6px);right:0;z-index:50;background:var(--white);border:1px solid var(--cream3);border-radius:var(--r-lg);box-shadow:0 10px 30px rgba(10,22,40,.14);padding:10px;width:236px}
+.mes-pop-cab{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.mes-pop-cab strong{font-family:var(--font-head);font-size:14px;color:var(--ink)}
+.mes-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.mes-op{border:1px solid var(--cream3);background:var(--white);border-radius:8px;padding:8px 0;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;transition:all .12s}
+.mes-op:hover:not(:disabled){border-color:#7F9BCB;background:#EEF3FB}
+.mes-op.hoy{border-color:#7F9BCB}
+.mes-op.sel{background:linear-gradient(#5A76A6,#3E557C);border-color:#3E557C;color:#fff}
+.mes-op:disabled{opacity:.35;cursor:default}
 .logout-btn:hover{background:var(--red-bg);border-color:var(--red2);color:var(--red2)}
 /* ══════════════════════════════════════════
    MOBILE — nav inferior, tarjetas en vez de
