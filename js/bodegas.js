@@ -118,10 +118,10 @@ function _renderPermanentes(ubicaciones){
     const depositosHTML = depositos.map(b => _depositoCardHtml(b, currentRole===4?`
         <div class="act-btn-group">
           <button class="act-btn primary" title="Editar nombre" onclick="abrirEditarBodega(${b.id})">
-            <i class="ti ti-pencil"></i>
+            <img class="btn-ico" src="img/iconos/editar.svg" alt="">
           </button>
           <button class="act-btn danger" title="Eliminar" onclick="confirmDeleteBodega(${b.id})">
-            <i class="ti ti-trash"></i>
+            <img class="btn-ico" src="img/iconos/eliminar.svg" alt="">
           </button>
         </div>`:'')).join('') +
       prestados.map(b => _depositoCardHtml(b, '',
@@ -137,10 +137,10 @@ function _renderPermanentes(ubicaciones){
         ${currentRole===4?`
           <div class="act-btn-group">
             <button class="act-btn primary" title="Editar nombre" onclick="abrirEditarUbicacion(${u.id})">
-              <i class="ti ti-pencil"></i>
+              <img class="btn-ico" src="img/iconos/editar.svg" alt="">
             </button>
             <button class="act-btn danger" title="Eliminar" onclick="confirmDeleteUbicacion(${u.id})">
-              <i class="ti ti-trash"></i>
+              <img class="btn-ico" src="img/iconos/eliminar.svg" alt="">
             </button>
           </div>`:''}
       </div>
@@ -177,7 +177,7 @@ function _renderTemporales(activas, finalizadas){
           <div class="act-btn-group" style="flex-wrap:wrap;justify-content:flex-end">
             <button class="ub-finalizar-btn sec" title="Agregar depósitos" onclick="abrirAgregarDepositosTemporal(${u.id})"><i class="ti ti-plus"></i>Depósitos</button>
             <button class="ub-finalizar-btn" title="Devolver todos los depósitos y cerrar la ubicación" onclick="confirmFinalizarTemporal(${u.id})"><i class="ti ti-flag-check"></i>Finalizar</button>
-            <button class="act-btn primary" title="Editar nombre" onclick="abrirEditarUbicacion(${u.id})"><i class="ti ti-pencil"></i></button>
+            <button class="act-btn primary" title="Editar nombre" onclick="abrirEditarUbicacion(${u.id})"><img class="btn-ico" src="img/iconos/editar.svg" alt=""></button>
           </div>`:''}
       </div>
       <div class="depositos-list">${depositosHTML}</div>

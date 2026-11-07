@@ -136,8 +136,8 @@ function renderInv(){
       <td data-label="Estado">${s.agotado?'<span class="sem N">Agotado</span>':`<span class="sem ${st}">${semLabel(st)}</span>`}</td>
       <td data-label="">
         <div class="act-btn-group">
-          ${canAct?`<button class="act-btn primary" onclick="quickMov(${s.id},${jsArg(ubicacion)})" title="Movimiento"><i class="ti ti-transfer"></i></button>`:''}
-          ${currentRole>=4?`<button class="act-btn danger" onclick="confirmDelete(${s.id})" title="Eliminar"><i class="ti ti-trash"></i></button>`:''}
+          ${canAct?`<button class="act-btn primary" onclick="quickMov(${s.id},${jsArg(ubicacion)})" title="Movimiento"><img class="btn-ico" src="img/iconos/mover.svg" alt=""></button>`:''}
+          ${currentRole>=4?`<button class="act-btn danger" onclick="confirmDelete(${s.id})" title="Eliminar"><img class="btn-ico" src="img/iconos/eliminar.svg" alt=""></button>`:''}
         </div>
       </td>
     </tr>`).join('');

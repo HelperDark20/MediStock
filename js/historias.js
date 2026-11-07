@@ -140,7 +140,7 @@ function hcRenderDetalle(){
   const acciones = [
     traslado && !d.entrega ? `<button class="tb-btn primary" onclick="hcAbrirEntrega()"><i class="ti ti-building-hospital"></i>Registrar entrega</button>` : '',
     r.medico && r.medico_firma_pendiente ? `<button class="tb-btn" onclick="hcAbrirFirmaMedico()"><i class="ti ti-signature"></i>Firma del médico</button>` : '',
-    `<button class="tb-btn" onclick="hcAbrirEdicion()"><i class="ti ti-pencil"></i>Editar</button>`,
+    `<button class="tb-btn" onclick="hcAbrirEdicion()"><img class="btn-ico" src="img/iconos/editar.svg" alt="">Editar</button>`,
     `<button class="tb-btn" onclick="hcImprimir()"><i class="ti ti-printer"></i>Imprimir / PDF</button>`
   ].join('');
   document.getElementById('hc-detalle').innerHTML = `

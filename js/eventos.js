@@ -200,7 +200,7 @@ function evtDetRenderEnfermeros(){
       </div>
       <div class="act-btn-group">
         ${p.es_medico ? '' : `<button class="act-btn primary" title="Editar depósitos" onclick="evtAbrirAsignarDepositos(${p.id},${jsArg(p.nombre)})"><i class="ti ti-building-warehouse"></i></button>`}
-        <button class="act-btn danger" title="Quitar del evento" onclick="evtDetEnfRemove(${p.id},${jsArg(p.nombre)})"><i class="ti ti-trash"></i></button>
+        <button class="act-btn danger" title="Quitar del evento" onclick="evtDetEnfRemove(${p.id},${jsArg(p.nombre)})"><img class="btn-ico" src="img/iconos/eliminar.svg" alt=""></button>
       </div>
     </div>`;
   }).join('');
