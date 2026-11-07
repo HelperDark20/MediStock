@@ -31,9 +31,29 @@ let _repCacheKey = null;
 let _repCedulaDebounce = null;
 let _repEstadosActivos = new Set(['N','P','R','A']);
 
+// Ilustración de cada indicador (mismo estilo que los íconos de los módulos).
+// "Faltantes" y "Críticos" comparten el ícono de alerta: se distinguen por el tono.
+const _REP_ILUSTRACION = {
+  'ti-package': 'img/iconos/unidades.svg',
+  'ti-coin': 'img/iconos/valor.svg',
+  'ti-building-warehouse': 'img/modulos/bodegas.png',
+  'ti-map-pin': 'img/modulos/bodegas.png',
+  'ti-alert-triangle': 'img/iconos/advertencia.svg',
+  'ti-id': 'img/iconos/cedula.svg',
+  'ti-users': 'img/modulos/usuarios.png',
+  'ti-calendar': 'img/iconos/calendario.svg',
+  'ti-list-numbers': 'img/modulos/reportes.png',
+  'ti-list-check': 'img/modulos/inventario.png',
+  'ti-alert-circle': 'img/iconos/faltante.svg',
+  'ti-scale': 'img/iconos/diferencia.svg',
+  'ti-x': 'img/iconos/vencidos.svg',
+  'ti-bell': 'img/iconos/alertas.svg',
+  'ti-clock': 'img/iconos/vencimiento.svg'
+};
 function _repStatPill(tono, icon, num, label){
+  const src = icon === 'ti-alert-circle' && tono === 'orange' ? 'img/iconos/critico.svg' : _REP_ILUSTRACION[icon];
   return `<div class="rep-stat">
-    <div class="rep-stat-icon ${tono}"><i class="ti ${icon}"></i></div>
+    ${src ? `<div class="rep-stat-icon ilustrado"><img src="${src}" alt=""></div>` : `<div class="rep-stat-icon ${tono}"><i class="ti ${icon}"></i></div>`}
     <div><div class="rep-stat-num">${num}</div><div class="rep-stat-label">${label}</div></div>
   </div>`;
 }

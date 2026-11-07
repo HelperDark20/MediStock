@@ -83,7 +83,7 @@
           <div class="card">
             <div class="card-header" style="justify-content:space-between">
               <div style="display:flex;align-items:center;gap:8px">
-                <i class="ti ti-coin card-title"></i>
+                <img class="card-ico" src="img/iconos/valor.svg" alt="">
                 <span class="card-title">Valor total del inventario</span>
               </div>
               <div style="display:flex;gap:4px">
@@ -108,7 +108,7 @@
           <div class="card">
             <div class="card-header" style="justify-content:space-between">
               <div style="display:flex;align-items:center;gap:8px">
-                <i class="ti ti-chart-bar card-title"></i>
+                <img class="card-ico" src="img/iconos/consumo.svg" alt="">
                 <span class="card-title">Consumo mensual por ubicación</span>
               </div>
               <input type="month" id="dash-consumo-mes" onchange="dashConsumoMesChange()" style="font-size:12px;padding:5px 10px">
@@ -131,14 +131,14 @@
         <div class="grid-2">
           <div>
             <div class="sec-header">
-              <div class="sec-title">Alertas de vencimiento</div>
+              <div class="sec-title"><img class="card-ico" src="img/iconos/vencimiento.svg" alt="">Alertas de vencimiento</div>
               <div class="sec-link" onclick="goTo('inventario')">Ver inventario →</div>
             </div>
             <div id="dash-alerts"></div>
           </div>
           <div>
             <div class="sec-header">
-              <div class="sec-title">Eventos en curso</div>
+              <div class="sec-title"><img class="card-ico" src="img/modulos/eventos.png" alt="">Eventos en curso</div>
               <div class="sec-link" onclick="goTo('eventos')">Ver eventos →</div>
             </div>
             <div id="dash-eventos"></div>

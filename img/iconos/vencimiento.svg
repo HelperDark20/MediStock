@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <defs>
+    <linearGradient id="d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5A76A6"/><stop offset="1" stop-color="#3E557C"/></linearGradient>
+    <linearGradient id="p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6F9FE"/><stop offset="1" stop-color="#D3E0F3"/></linearGradient>
+    <linearGradient id="a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F7BE55"/><stop offset="1" stop-color="#DB8B14"/></linearGradient>
+  </defs>
+  <!-- reloj de arena -->
+  <path d="M30 18h36c0 16-12 22-12 30s12 14 12 30H30c0-16 12-22 12-30S30 34 30 18z" fill="url(#p)" stroke="#3E557C" stroke-width="4.5" stroke-linejoin="round"/>
+  <path d="M38 30h20c-2 6-8 9-10 13-2-4-8-7-10-13z" fill="url(#a)"/>
+  <path d="M48 56c4 4 11 8 12 16H36c1-8 8-12 12-16z" fill="url(#a)"/>
+  <rect x="22" y="8" width="52" height="12" rx="6" fill="url(#d)"/>
+  <rect x="22" y="76" width="52" height="12" rx="6" fill="url(#d)"/>
+</svg>
