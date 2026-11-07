@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <defs>
+    <linearGradient id="m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8AA6D3"/><stop offset="1" stop-color="#5A78AA"/></linearGradient>
+    <linearGradient id="d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5A76A6"/><stop offset="1" stop-color="#3E557C"/></linearGradient>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#36B571"/><stop offset="1" stop-color="#16804A"/></linearGradient>
+  </defs>
+  <!-- persona (borde blanco: va sobre el botón azul) -->
+  <path d="M6 86c0-18 15-32 34-32s34 14 34 32z" fill="url(#m)" stroke="#FFFFFF" stroke-width="3.5" stroke-linejoin="round"/>
+  <circle cx="40" cy="30" r="19" fill="#EEF3FB" stroke="#FFFFFF" stroke-width="3.5"/>
+  <path d="M21.5 33C19.5 16 28 9 40 9S60.5 16 58.5 33C57 26 54 22.5 50.5 21C43.5 25 33.5 25 27 19.5C24 22.5 22.5 27 21.5 33Z" fill="url(#d)"/>
+  <!-- confirmado -->
+  <circle cx="72" cy="70" r="19" fill="url(#g)" stroke="#FFFFFF" stroke-width="4.5"/>
+  <path d="M63 70.5l6.5 6.5L82 64" fill="none" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

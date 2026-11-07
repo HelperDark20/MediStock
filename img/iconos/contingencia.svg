@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <defs>
+    <linearGradient id="d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5A76A6"/><stop offset="1" stop-color="#3E557C"/></linearGradient>
+    <linearGradient id="p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6F9FE"/><stop offset="1" stop-color="#D3E0F3"/></linearGradient>
+    <linearGradient id="a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F7BE55"/><stop offset="1" stop-color="#DB8B14"/></linearGradient>
+  </defs>
+  <!-- portapapeles -->
+  <rect x="10" y="14" width="60" height="74" rx="11" fill="url(#d)"/>
+  <rect x="18" y="24" width="44" height="56" rx="6" fill="url(#p)"/>
+  <rect x="26" y="8" width="28" height="15" rx="6" fill="#DCE6F5" stroke="#3E557C" stroke-width="4"/>
+  <g fill="#7F9BCB">
+    <rect x="25" y="34" width="30" height="5" rx="2.5"/>
+    <rect x="25" y="45" width="22" height="5" rx="2.5"/>
+    <rect x="25" y="56" width="16" height="5" rx="2.5"/>
+  </g>
+  <!-- contingencia -->
+  <circle cx="70" cy="70" r="20" fill="url(#a)" stroke="#FFFFFF" stroke-width="4.5"/>
+  <path d="M73.5 57L63 72h8l-3.5 12L78 68h-8z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round"/>
+</svg>

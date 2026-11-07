@@ -71,8 +71,8 @@ async function setupApp(user){
 
   // Resto de niveles → app normal
   const av = document.getElementById('sb-avatar');
-  av.textContent = (user.nombre||'U').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
-  av.className = 'sb-avatar ' + niv.cls;
+  av.innerHTML = `<img src="${avatarNivel(currentRole)}" alt="">`;
+  av.className = 'sb-avatar foto';
   document.getElementById('sb-name').textContent = user.nombre || 'Usuario';
   document.getElementById('sb-nivel').textContent = `NIVEL ${currentRole} · ${niv.label.toUpperCase()}`;
   await loadState();

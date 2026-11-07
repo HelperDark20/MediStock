@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <defs>
+    <linearGradient id="m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7393C6"/><stop offset="1" stop-color="#4E6B9C"/></linearGradient>
+    <linearGradient id="t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B3C6E6"/><stop offset="1" stop-color="#8EA9D6"/></linearGradient>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#36B571"/><stop offset="1" stop-color="#16804A"/></linearGradient>
+  </defs>
+  <!-- caja abierta -->
+  <path d="M12 44h72v32a10 10 0 0 1-10 10H22a10 10 0 0 1-10-10z" fill="url(#m)"/>
+  <path d="M12 44L4 30h30l8 14zM84 44l8-14H62l-8 14z" fill="url(#t)" stroke="#3E557C" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M38.5 60h7v6h6v7h-6v6h-7v-6h-6v-7h6z" fill="#FFFFFF" opacity=".95"/>
+  <!-- entra a la caja -->
+  <circle cx="48" cy="26" r="19" fill="url(#g)" stroke="#FFFFFF" stroke-width="4.5"/>
+  <path d="M48 16v18M40.5 27.5L48 35l7.5-7.5" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

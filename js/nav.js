@@ -76,21 +76,21 @@ function goTo(viewId){
   const ta = document.getElementById('topbar-actions');
   ta.innerHTML = '';
   if(viewId==='inventario'){
-    ta.innerHTML=`<button class="tb-btn" onclick="invExportExcel()"><i class="ti ti-file-spreadsheet"></i>Descargar Excel</button>`+
-      `<button class="tb-btn" onclick="invExportPDF()"><i class="ti ti-file-type-pdf"></i>Descargar PDF</button>`;
+    ta.innerHTML=`<button class="tb-btn" onclick="invExportExcel()"><img class="btn-ico" src="img/iconos/excel.svg" alt="">Descargar Excel</button>`+
+      `<button class="tb-btn" onclick="invExportPDF()"><img class="btn-ico" src="img/iconos/pdf.svg" alt="">Descargar PDF</button>`;
     if(currentRole>=3){
-      ta.innerHTML+=`<button class="tb-btn primary" onclick="goTo('registro')"><i class="ti ti-plus"></i>Nueva entrada</button>`;
+      ta.innerHTML+=`<button class="tb-btn primary" onclick="goTo('registro')"><img class="btn-ico" src="img/iconos/nueva-entrada.svg" alt="">Nueva entrada</button>`;
     }
   }
   if(viewId==='movimientos'&&currentRole===4){
-    ta.innerHTML=`<button class="tb-btn" onclick="abrirExportMovimientos()"><i class="ti ti-file-spreadsheet"></i>Descargar Excel</button>`+
-      `<button class="tb-btn" onclick="abrirContingencia()"><i class="ti ti-file-alert"></i>Registrar contingencia</button>`;
+    ta.innerHTML=`<button class="tb-btn" onclick="abrirExportMovimientos()"><img class="btn-ico" src="img/iconos/excel.svg" alt="">Descargar Excel</button>`+
+      `<button class="tb-btn" onclick="abrirContingencia()"><img class="btn-ico" src="img/iconos/contingencia.svg" alt="">Registrar contingencia</button>`;
   }
   if(viewId==='registro'&&currentRole===4){
-    ta.innerHTML=`<button class="tb-btn" onclick="abrirModificarSubSkus()"><i class="ti ti-edit"></i>Modificar Sub-SKUs</button>`;
+    ta.innerHTML=`<button class="tb-btn" onclick="abrirModificarSubSkus()"><img class="btn-ico" src="img/iconos/modificar-subskus.svg" alt="">Modificar Sub-SKUs</button>`;
   }
   if(viewId==='sku'&&currentRole===4){
-    ta.innerHTML=`<button class="tb-btn primary" onclick="document.getElementById('sku-nombre').focus()"><i class="ti ti-plus"></i>Crear SKU</button>`;
+    ta.innerHTML=`<button class="tb-btn primary" onclick="document.getElementById('sku-nombre').focus()"><img class="btn-ico" src="img/iconos/crear-sku.svg" alt="">Crear SKU</button>`;
   }
   if(viewId==='eventos'&&currentRole===4){
     ta.innerHTML=`<button class="tb-btn primary" onclick="abrirCrearEvento()"><i class="ti ti-plus"></i>Crear evento</button>`;

@@ -193,7 +193,7 @@ function evtDetRenderEnfermeros(){
       ? `Médico · Cédula / RP: ${escHtml(p.cedula || '')}`
       : ((p.bodegas||[]).map(b=>escHtml(b.nombre)).join(', ') || '<span style="color:var(--red2)">Sin depósitos asignados</span>');
     return `<div class="user-card" style="margin-bottom:8px">
-      <div class="user-avatar n${p.es_medico ? 1 : 2}">${escHtml((p.nombre||'').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase())}</div>
+      <div class="user-avatar foto"><img src="${avatarNivel(p.nivel || (p.es_medico ? 1 : 2))}" alt=""></div>
       <div class="user-info">
         <div class="user-name">${escHtml(p.nombre)}</div>
         <div class="user-cedula">${detalle}</div>

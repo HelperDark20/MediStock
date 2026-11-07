@@ -160,8 +160,8 @@ function renderSKUs(){
       <td data-label="Campos" style="display:flex;gap:3px;flex-wrap:wrap;align-items:center">${camposBadges||'—'}</td>
       <td data-label="">
         ${currentRole===4?`<div class="act-btn-group">
-          <button class="act-btn primary" onclick="abrirEditarSKU(${g.id})" title="Editar"><i class="ti ti-pencil"></i></button>
-          <button class="act-btn danger" onclick="confirmDeleteSKU(${g.id})" title="Eliminar"><i class="ti ti-trash"></i></button>
+          <button class="act-btn primary" onclick="abrirEditarSKU(${g.id})" title="Editar"><img class="btn-ico" src="img/iconos/editar.svg" alt=""></button>
+          <button class="act-btn danger" onclick="confirmDeleteSKU(${g.id})" title="Eliminar"><img class="btn-ico" src="img/iconos/eliminar.svg" alt=""></button>
         </div>`:''}
       </td>
     </tr>`;

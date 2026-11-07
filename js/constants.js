@@ -18,6 +18,11 @@ const SUBGRUPOS = {
   ASE:['ASEO']
 };
 
+// Foto de perfil por nivel (img/avatares): reemplaza las burbujas con
+// iniciales en Usuarios, el personal de los eventos y el menú lateral
+const AVATAR_NIVEL = { 1:'medico', 2:'enfermero', 3:'supervisor', 4:'admin' };
+function avatarNivel(nivel){ return `img/avatares/${AVATAR_NIVEL[nivel] || 'enfermero'}.svg`; }
+
 const NIVELES = {
   // Médico: sin acceso a la app (solo se asigna a eventos para la historia clínica)
   1:{label:'Médico',cls:'n1',nav:[]},

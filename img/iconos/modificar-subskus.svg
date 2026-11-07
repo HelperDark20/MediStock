@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <defs>
+    <linearGradient id="m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7896C8"/><stop offset="1" stop-color="#4C6898"/></linearGradient>
+    <linearGradient id="p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6F9FE"/><stop offset="1" stop-color="#D3E0F3"/></linearGradient>
+    <linearGradient id="a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F7BE55"/><stop offset="1" stop-color="#DB8B14"/></linearGradient>
+  </defs>
+  <!-- dos etiquetas (sub-SKUs) -->
+  <path d="M30 8H70a7 7 0 0 1 7 7V44a7 7 0 0 1-7 7H30L12 29.5Z" fill="#B3C6E6" stroke="#3E557C" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M26 30H66a7 7 0 0 1 7 7V70a7 7 0 0 1-7 7H26L6 53.5Z" fill="url(#m)" stroke="#3E557C" stroke-width="4" stroke-linejoin="round"/>
+  <circle cx="21" cy="53.5" r="5" fill="#34496D"/>
+  <rect x="34" y="40" width="30" height="27" rx="5" fill="url(#p)"/>
+  <g fill="#3E557C"><rect x="38" y="45" width="3" height="13" rx="1"/><rect x="43.5" y="45" width="2" height="13" rx="1"/><rect x="48" y="45" width="3.5" height="13" rx="1"/><rect x="54" y="45" width="2" height="13" rx="1"/><rect x="58" y="45" width="3" height="13" rx="1"/></g>
+  <!-- lápiz -->
+  <circle cx="72" cy="72" r="20" fill="url(#a)" stroke="#FFFFFF" stroke-width="4.5"/>
+  <g transform="rotate(45 72 72)"><rect x="68" y="57" width="8" height="22" rx="2" fill="#FFFFFF"/><path d="M68 81h8l-4 7z" fill="#FFFFFF"/></g>
+</svg>

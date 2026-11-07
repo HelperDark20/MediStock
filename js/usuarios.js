@@ -118,8 +118,8 @@ function renderUsuarios(){
       : ` · ${escHtml(u.genero||'—')}`;
     return `
     <div class="user-card">
-      <div class="user-avatar n${u.nivel}">
-        ${escHtml((u.nombre||'').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase())}
+      <div class="user-avatar foto" title="${escHtml(NIVELES[u.nivel]?.label || '')}">
+        <img src="${avatarNivel(u.nivel)}" alt="">
       </div>
       <div class="user-info">
         <div class="user-name">${escHtml(u.nombre)}</div>
@@ -130,10 +130,10 @@ function renderUsuarios(){
         ${currentRole===4?`
           <div class="act-btn-group">
             <button class="act-btn primary" onclick="abrirEdicionUsuario(${u.id})" title="Editar">
-              <i class="ti ti-pencil"></i>
+              <img class="btn-ico" src="img/iconos/editar.svg" alt="">
             </button>
             <button class="act-btn danger" onclick="confirmDeleteUser(${u.id})" title="Eliminar">
-              <i class="ti ti-trash"></i>
+              <img class="btn-ico" src="img/iconos/eliminar.svg" alt="">
             </button>
           </div>`:''}
       </div>
