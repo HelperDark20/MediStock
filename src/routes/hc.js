@@ -23,6 +23,7 @@ const pool = require('../config/db');
 const { verificarToken, verificarNivel } = require('../middlewares/auth');
 const { idValido, validarParamsId } = require('../utils/validar');
 const { fechaValida } = require('../utils/fechas');
+const clasificador = require('../utils/clasificador-hc');
 const {
   normalizarHC, normalizarMedicamentos, estadoInicial, normalizarEntrega, diferencias,
   firmaValida, TIPOS_DOC, responsableProcedimientos, MAX_TOMAS_EXTRA,
@@ -159,6 +160,10 @@ router.post('/enviar', verificarToken, verificarNivel(2), async (req, res) => {
       departamento: evento.municipio_departamento || ''
     };
     datos.enfermero = { id: req.usuario.id, nombre: req.usuario.nombre, cedula: req.usuario.cedula };
+    // Ubicación dentro del evento asignada al enfermero (para el reporte): se
+    // guarda como estaba al atender, aunque después la cambien
+    const ubic = await pool.query('SELECT ubicacion FROM evento_usuarios WHERE evento_id = $1 AND usuario_id = $2', [evento.id, req.usuario.id]);
+    datos.servicio.ubicacion_asignada = (ubic.rows[0] && ubic.rows[0].ubicacion) || '';
 
     const p = datos.paciente;
     const anio = Number(fechaAtencion.slice(0, 4));
@@ -193,6 +198,7 @@ router.post('/enviar', verificarToken, verificarNivel(2), async (req, res) => {
         [clientId, p.documento || null]
       );
       await client.query('COMMIT');
+      clasificador.pronto();   // clasificación para el reporte (en segundo plano)
       return res.status(201).json(r.rows[0]);
     } catch (err) {
       await client.query('ROLLBACK');
@@ -321,6 +327,130 @@ router.get('/', verificarToken, verificarNivel(4), async (req, res) => {
       params
     );
     res.json({ total: total.rows[0].n, pagina, por_pagina: POR_PAGINA, filas: filas.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// ══════════════════════════════════════════
+// REPORTE DE ATENCIONES (Excel) — una fila por historia clínica
+// ══════════════════════════════════════════
+const TXT_TIPO = { ARTISTA: 'Artista', DEPORTISTA: 'Deportista', DIRECTORES: 'Directores', ESPECTADOR: 'Espectador', LOGISTICA: 'Logística',
+  POLICIA: 'Policía', AUTORIDAD_PMU: 'Autoridad PMU', PROVEEDOR: 'Proveedor', ADMINISTRACION: 'Administración', NOVA: 'Nova',
+  PRODUCTOR: 'Productor', EXTERNO: 'Externo' };
+const TXT_SEXO = { M: 'Masculino', F: 'Femenino', O: 'Otro' };
+
+const { jornada: _jornada, edadReporte: _edadReporte, rangoEdad: _rangoEdad } = require('../utils/hc-reporte');
+function _fechaDMA(iso) { return iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : ''; }
+
+// GET /api/hc/reporte?evento_id&desde&hasta — filas del reporte (el Excel lo
+// arma el navegador). Nombre e ID salen como CONFIDENCIAL.
+router.get('/reporte', verificarToken, verificarNivel(4), async (req, res) => {
+  const q = req.query, cond = [], params = [];
+  const p = v => { params.push(v); return '$' + params.length; };
+  if (q.evento_id) {
+    const e = idValido(q.evento_id);
+    if (!e) return res.status(400).json({ error: 'Evento inválido' });
+    cond.push(`h.evento_id = ${p(e)}::int`);
+  }
+  if (q.desde) {
+    if (!fechaValida(q.desde)) return res.status(400).json({ error: 'Fecha "desde" inválida' });
+    cond.push(`h.inicio_atencion >= ${p(new Date(_inicioDiaCO(q.desde)).toISOString())}::timestamptz`);
+  }
+  if (q.hasta) {
+    if (!fechaValida(q.hasta)) return res.status(400).json({ error: 'Fecha "hasta" inválida' });
+    cond.push(`h.inicio_atencion < ${p(new Date(_inicioDiaCO(q.hasta) + 864e5).toISOString())}::timestamptz`);
+  }
+  try {
+    const r = await pool.query(
+      `SELECT h.id, h.consecutivo, h.inicio_atencion, h.datos, h.clasificacion,
+              e.nombre AS evento_nombre, e.fecha_inicio::text AS fecha_inicio, e.fecha_fin::text AS fecha_fin,
+              e.hora_inicio, e.hora_fin, eu.ubicacion AS ubicacion_actual
+       FROM historias_clinicas h
+       LEFT JOIN eventos e ON e.id = h.evento_id
+       LEFT JOIN evento_usuarios eu ON eu.evento_id = h.evento_id AND eu.usuario_id = h.usuario_id
+       ${cond.length ? 'WHERE ' + cond.join(' AND ') : ''}
+       ORDER BY h.inicio_atencion, h.id
+       LIMIT 20000`, params);
+    let pendientes = 0;
+    const filas = r.rows.map(h => {
+      const d = h.datos || {}, pac = d.paciente || {}, s = d.servicio || {}, c = h.clasificacion;
+      if (!c) pendientes++;
+      const fecha = _fechaCO(new Date(h.inicio_atencion));
+      const hora = new Date(new Date(h.inicio_atencion).getTime() - COLOMBIA_OFFSET_MS).toISOString().slice(11, 16);
+      const edad = _edadReporte(pac.edad);
+      return {
+        consecutivo: h.consecutivo,
+        evento: (s.evento && s.evento.nombre) || h.evento_nombre || '',
+        fecha: _fechaDMA(fecha),
+        hora_inicial: h.hora_inicio || '',
+        hora_final: h.hora_fin || '',
+        hora_atencion: hora,
+        jornada: _jornada(fecha, hora, h),
+        ubicacion: s.ubicacion_asignada || h.ubicacion_actual || '',
+        nombre: 'CONFIDENCIAL',
+        id: 'CONFIDENCIAL',
+        edad: edad.texto,
+        rango_edad: _rangoEdad(edad.anios),
+        ubicacion_paciente: pac.procedencia === 'INTERNO' ? 'Interno' : pac.procedencia === 'EXTERNO' ? 'Externo' : '',
+        diagnostico: c ? c.diagnostico : 'Pendiente de clasificar',
+        categoria: c ? c.categoria : '',
+        procedimiento: c ? (c.procedimientos || []).join(' + ') : '',
+        genero: TXT_SEXO[pac.sexo] || '',
+        tipo: TXT_TIPO[pac.tipo_paciente] || '',
+        traslado: d.cierre && d.cierre.destino === 'TRASLADO' ? 'SI' : 'NO',
+        triage: c ? c.triage : ''
+      };
+    });
+    res.json({ filas, pendientes });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// Catálogos de la clasificación (para que el admin corrija una HC)
+router.get('/catalogos', verificarToken, verificarNivel(4), async (req, res) => {
+  try {
+    const d = await pool.query('SELECT nombre, categoria, origen FROM hc_diagnosticos ORDER BY nombre');
+    const p = await pool.query('SELECT nombre, origen FROM hc_procedimientos_catalogo ORDER BY nombre');
+    res.json({ diagnosticos: d.rows, procedimientos: p.rows, ia: clasificador.proveedor() });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// PUT /api/hc/:id/clasificacion — { diagnostico, procedimientos: [], triage }
+// El admin corrige la clasificación (queda marcada como corregida a mano)
+router.put('/:id/clasificacion', verificarToken, verificarNivel(4), async (req, res) => {
+  const b = req.body || {};
+  const triage = ['I', 'II', 'III', 'IV', 'V'].indexOf(b.triage) >= 0 ? b.triage : null;
+  const procs = Array.isArray(b.procedimientos) ? b.procedimientos.map(x => String(x || '').trim().slice(0, 100)).filter(Boolean).slice(0, 4) : [];
+  if (!triage || !procs.length || !b.diagnostico) return res.status(400).json({ error: 'Elige el diagnóstico, al menos un procedimiento y el nivel de triage' });
+  try {
+    const d = await pool.query('SELECT nombre, categoria FROM hc_diagnosticos WHERE clave = $1', [require('../data/hc-catalogos').clave(b.diagnostico)]);
+    if (!d.rows.length) return res.status(400).json({ error: 'Ese diagnóstico no está en el catálogo' });
+    const r = await pool.query('SELECT clasificacion FROM historias_clinicas WHERE id = $1', [req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Historia clínica no encontrada' });
+    const antes = r.rows[0].clasificacion;
+    const c = { diagnostico: d.rows[0].nombre, categoria: d.rows[0].categoria, procedimientos: procs, triage,
+                corregida_por: req.usuario.nombre, corregida_at: new Date().toISOString(), modelo: antes && antes.modelo, version: antes && antes.version };
+    await pool.query('UPDATE historias_clinicas SET clasificacion = $2, clasificada_at = NOW(), clasificacion_error = NULL WHERE id = $1', [req.params.id, JSON.stringify(c)]);
+    res.json({ mensaje: 'Clasificación corregida', clasificacion: c });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// POST /api/hc/:id/clasificacion/rehacer — volver a clasificar con la IA
+router.post('/:id/clasificacion/rehacer', verificarToken, verificarNivel(4), async (req, res) => {
+  if (!clasificador.proveedor()) return res.status(400).json({ error: 'La IA no está configurada (falta OPENAI_API_KEY)' });
+  try {
+    await clasificador.reclasificar(pool, req.params.id);
+    res.json({ mensaje: 'Se volverá a clasificar en unos segundos' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
@@ -597,6 +727,7 @@ router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
     const g = await _guardarConRastro(hc, datos, req.usuario, 'edicion', motivo);
     if (g.sinCambios) return res.status(400).json({ error: 'No hay cambios para guardar' });
     if (g.conflicto) return res.status(409).json({ error: 'La historia clínica cambió mientras la editabas (entrega, firma, novedad u otra corrección). Vuelve a abrirla y repite el cambio.' });
+    clasificador.reclasificar(pool, hc.id).catch(e => console.error('Reclasificar HC', e.message));
     res.json({ mensaje: 'Historia clínica actualizada', cambios: g.cambios, estado: g.estado });
   } catch (err) {
     console.error(err);
@@ -655,6 +786,7 @@ router.post('/:id/consumos', verificarToken, verificarNivel(4), async (req, res)
     await _registrarCambio(client, hc.id, req.usuario, 'consumo', 'Medicamento o insumo agregado desde "Editar historias clínicas"',
       [{ campo: 'medicamentos', antes: null, despues: [nuevo.nombre, `${nuevo.cantidad} ${(nuevo.unidad || '').toLowerCase()}`.trim(), nuevo.dosis, nuevo.via].filter(Boolean).join(' · ') }]);
     await client.query('COMMIT');
+    clasificador.reclasificar(pool, hc.id).catch(e => console.error('Reclasificar HC', e.message));
     res.status(201).json({ mensaje: 'Consumo registrado en la historia clínica', medicamento: nuevo });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -697,6 +829,7 @@ router.post('/:id/consumos/anular', verificarToken, verificarNivel(4), async (re
     await _registrarCambio(client, hc.id, req.usuario, 'consumo', 'Medicamento o insumo quitado desde "Editar historias clínicas" (el stock volvió al depósito)',
       [{ campo: 'medicamentos', antes: quitado ? `${quitado.cantidad} ${quitado.unidad || ''} ${quitado.nombre}`.replace(/\s+/g, ' ') : clientId, despues: null }]);
     await client.query('COMMIT');
+    clasificador.reclasificar(pool, hc.id).catch(e => console.error('Reclasificar HC', e.message));
     res.json({ mensaje: 'Consumo quitado: el stock volvió al depósito' });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -791,6 +924,7 @@ router.post('/novedad', verificarToken, verificarNivel(2), async (req, res) => {
     } finally {
       client.release();
     }
+    if (cambios.length) clasificador.reclasificar(pool, hc.id).catch(e => console.error('Reclasificar HC', e.message));
     res.status(201).json({ consecutivo: hc.consecutivo, estado, datos, cambios: cambios.length });
   } catch (err) {
     console.error('ERROR registrando novedad de HC', err.message);

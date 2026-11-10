@@ -242,6 +242,33 @@ const MIGRACIONES = [
   'ALTER TABLE asistencia_jornadas ADD COLUMN IF NOT EXISTS entrada_cuenta_id INTEGER REFERENCES asistencia_cuentas(id)',
   'ALTER TABLE asistencia_jornadas ADD COLUMN IF NOT EXISTS salida_cuenta_id INTEGER REFERENCES asistencia_cuentas(id)',
 
+  // Horas del evento (reporte de HC: atención PRE / IN / POST) y ubicación de
+  // cada enfermero dentro del evento (texto que escribe el administrador)
+  'ALTER TABLE eventos ADD COLUMN IF NOT EXISTS hora_inicio TEXT',
+  'ALTER TABLE eventos ADD COLUMN IF NOT EXISTS hora_fin TEXT',
+  'ALTER TABLE evento_usuarios ADD COLUMN IF NOT EXISTS ubicacion TEXT',
+  // Clasificación de cada HC para el reporte (diagnóstico, categoría,
+  // procedimientos y triage, por IA) y catálogos que la IA usa y amplía
+  'ALTER TABLE historias_clinicas ADD COLUMN IF NOT EXISTS clasificacion JSONB',
+  'ALTER TABLE historias_clinicas ADD COLUMN IF NOT EXISTS clasificada_at TIMESTAMPTZ',
+  'ALTER TABLE historias_clinicas ADD COLUMN IF NOT EXISTS clasificacion_error TEXT',
+  'ALTER TABLE historias_clinicas ADD COLUMN IF NOT EXISTS clasificacion_intentos INTEGER NOT NULL DEFAULT 0',
+  `CREATE TABLE IF NOT EXISTS hc_diagnosticos (
+     id SERIAL PRIMARY KEY,
+     nombre TEXT NOT NULL,
+     clave TEXT NOT NULL UNIQUE,
+     categoria TEXT NOT NULL,
+     origen TEXT NOT NULL DEFAULT 'tabla',
+     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   )`,
+  `CREATE TABLE IF NOT EXISTS hc_procedimientos_catalogo (
+     id SERIAL PRIMARY KEY,
+     nombre TEXT NOT NULL,
+     clave TEXT NOT NULL UNIQUE,
+     origen TEXT NOT NULL DEFAULT 'tabla',
+     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   )`,
+
   // Novedades de la HC desde la tablet (signos, procedimientos, consumos,
   // evolución): el client_id evita aplicar dos veces la misma
   `CREATE TABLE IF NOT EXISTS hc_novedades (
@@ -354,6 +381,8 @@ async function aplicarMigraciones() {
     try {
       for (const sql of MIGRACIONES) await pool.query(sql);
       await _cargarMunicipios();
+      // Catálogos de diagnósticos y procedimientos del reporte (solo agrega los que falten)
+      await require('../utils/clasificador-hc').cargarCatalogos(pool);
       for (const m of MIGRACIONES_UNICAS) await _aplicarUnaVez(m);
       estado.migraciones = 'ok';
       console.log('Migraciones de base de datos al día');

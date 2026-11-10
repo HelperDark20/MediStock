@@ -21,6 +21,11 @@ const SEXOS = ['M', 'F', 'O'];
 const RH = ['+', '-'];
 const GRUPOS = ['A', 'B', 'AB', 'O'];
 const ESTADOS_CIVILES = ['SOLTERO', 'CASADO', 'DIVORCIADO', 'VIUDO', 'UNION_LIBRE'];
+// Ubicación del paciente: interno (está en el evento) o externo (ajeno al
+// evento). El tipo solo se elige si es interno; si es externo queda EXTERNO.
+const PROCEDENCIAS = ['INTERNO', 'EXTERNO'];
+const TIPOS_PACIENTE = ['ARTISTA', 'DEPORTISTA', 'DIRECTORES', 'ESPECTADOR', 'LOGISTICA', 'POLICIA', 'AUTORIDAD_PMU',
+  'PROVEEDOR', 'ADMINISTRACION', 'NOVA', 'PRODUCTOR'];
 const DECISIONES = ['acepta', 'rechaza', 'urgencia_vital'];
 const ANTECEDENTES = ['patologicos', 'quirurgicos', 'farmacologicos', 'alergicos', 'toxicos', 'traumaticos', 'hospitalarios', 'otros'];
 
@@ -167,8 +172,13 @@ function _paciente(p, fechaAtencion, errores) {
     eps: mayus(p.eps, 80) || NO_APLICA,
     arl: mayus(p.arl, 80) || NO_APLICA,
     otra_aseguradora: bool(p.otra_aseguradora),
-    aseguradora: ''
+    aseguradora: '',
+    procedencia: enumv(p.procedencia, PROCEDENCIAS),
+    tipo_paciente: ''
   };
+  out.tipo_paciente = out.procedencia === 'EXTERNO' ? 'EXTERNO' : enumv(p.tipo_paciente, TIPOS_PACIENTE);
+  if (!out.procedencia) errores.push('Indica si el paciente es interno (está en el evento) o externo (ajeno al evento)');
+  else if (!out.tipo_paciente) errores.push('Selecciona el tipo de paciente');
   out.documento = TIPOS_DOC_ALFANUMERICOS.indexOf(out.tipo_doc) >= 0
     ? mayus(p.documento, 20).replace(/[^A-Z0-9-]/g, '')
     : digitos(p.documento).slice(0, 15);
@@ -625,7 +635,7 @@ function estadoInicial(datos) {
 
 module.exports = {
   normalizarHC, normalizarMedicamentos, estadoInicial, calcularEdad, firmaValida, VIAS,
-  textoDeRelleno, telefonoValido, documentoDeRelleno, responsableProcedimientos, MAX_TOMAS_EXTRA,
+  textoDeRelleno, telefonoValido, documentoDeRelleno, responsableProcedimientos, MAX_TOMAS_EXTRA, TIPOS_PACIENTE,
   // Para las novedades de la tablet (src/routes/hc.js)
   signosNovedad: (s, errores, prefijo) => _signos(obj(s), errores, prefijo),
   procedimientosNovedad: (lista, responsable, errores) => _procedimientos(lista, responsable, errores),

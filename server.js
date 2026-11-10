@@ -115,7 +115,10 @@ app.use((err, req, res, next) => {
 // Un error no controlado se registra en el log en vez de tumbar la app
 process.on('unhandledRejection', err => console.error('Promesa rechazada sin controlar:', err));
 
-require('./src/config/migraciones').aplicarMigraciones();
+// Al terminar las migraciones arranca la clasificación de HC (reporte con IA)
+require('./src/config/migraciones').aplicarMigraciones()
+  .then(() => require('./src/utils/clasificador-hc').iniciar())
+  .catch(err => console.error('Clasificación de HC:', err.message));
 
 app.listen(PORT, () => {
   console.log(`MediStock corriendo en puerto ${PORT}`);

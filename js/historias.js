@@ -16,6 +16,10 @@ const HC_TXT = {
   tipo_doc: { CC:'CC', TI:'TI', CE:'CE', PAS:'Pasaporte', RC:'RC', PPT:'PPT', OTRO:'Otro' },
   sexo: { M:'Masculino', F:'Femenino', O:'Otro' },
   estado_civil: { SOLTERO:'Soltero/a', CASADO:'Casado/a', DIVORCIADO:'Divorciado/a', VIUDO:'Viudo/a', UNION_LIBRE:'Unión libre' },
+  procedencia: { INTERNO:'Interno', EXTERNO:'Externo' },
+  tipo_paciente: { ARTISTA:'Artista', DEPORTISTA:'Deportista', DIRECTORES:'Directores', ESPECTADOR:'Espectador', LOGISTICA:'Logística',
+    POLICIA:'Policía', AUTORIDAD_PMU:'Autoridad PMU', PROVEEDOR:'Proveedor', ADMINISTRACION:'Administración', NOVA:'Nova',
+    PRODUCTOR:'Productor', EXTERNO:'Externo' },
   decision: { acepta:'Acepta la atención', rechaza:'Rechaza la atención', urgencia_vital:'Urgencia vital: sin capacidad de consentir' },
   via_aerea: { ADECUADA:'Adecuada', PERMEABLE:'Permeable', OBSTRUIDA:'Obstruida', INSTRUMENTADA:'Instrumentada' },
   respiracion: { ADECUADA:'Adecuada', DIFICULTAD:'Dificultad respiratoria', AUSENTE:'Ausente' },
@@ -153,6 +157,7 @@ function hcRenderDetalle(){
       <div class="hc-acciones">${acciones}</div>
     </div>
     ${hcHtml(h, false)}
+    ${hcHtmlClasificacion(h)}
     ${hcHtmlAdjuntos(h)}
     ${hcHtmlCambios(h)}
     <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-hc')">Cerrar</button></div>`;
@@ -177,6 +182,7 @@ function hcHtml(h, imprimir){
     hcDato('Evento', hcV(s.evento && s.evento.nombre)));
   html += hcSec('Identificación del paciente',
     (p.nn ? hcDato('Paciente', 'Sin identificar (NN)') : '') +
+    hcDato('Ubicación del paciente', hcT('procedencia', p.procedencia)) + hcDato('Tipo de paciente', hcT('tipo_paciente', p.tipo_paciente)) +
     hcDato('Nombres y apellidos', hcV(`${p.nombres || ''} ${p.apellidos || ''}`.trim()), true) +
     hcDato('Tipo de documento', hcT('tipo_doc', p.tipo_doc)) + hcDato('Número', hcV(p.documento)) +
     hcDato('Fecha de nacimiento', hcFecha(p.fecha_nacimiento)) + hcDato('Edad', hcV(p.edad && p.edad.texto)) +
@@ -299,7 +305,7 @@ const HC_ETIQUETAS = {
   ta_sis: 'TA sistólica', ta_dia: 'TA diastólica', fc: 'FC', fr: 'FR', spo2: 'SpO₂', temp: 'temperatura', gluco: 'glucometría', eva: 'dolor EVA',
   ocular: 'ocular', verbal: 'verbal', motora: 'motora', total: 'total', relato: 'relato', evolucion: 'evolución', condicion: 'condición',
   destino: 'destino', ambulancia: 'ambulancia', recibe_nombre: 'quien recibe', recibe_cargo: 'cargo de quien recibe', servicio_otro: 'otro servicio',
-  medico_firma_pendiente: 'firma médica pendiente', campos_pulmonares: 'campos pulmonares', eess: 'extremidades superiores',
+  medico_firma_pendiente: 'firma médica pendiente', procedencia: 'ubicación del paciente', tipo_paciente: 'tipo de paciente', campos_pulmonares: 'campos pulmonares', eess: 'extremidades superiores',
   eeii: 'extremidades inferiores', torax: 'tórax', gestacion: 'gestación', semanas: 'semanas de gestación', motivo_rechazo: 'motivo del rechazo'
 };
 function _hcValorCambio(k, v){
@@ -530,6 +536,105 @@ async function hcGuardarFirmaMedico(){
     toast('✓ Firma del médico registrada', 'success');
     await hcRecargar();
   } catch(err){ toastError(err.message); }
+}
+
+// ══════════════════════════════════════════
+// CLASIFICACIÓN PARA EL REPORTE (IA) — se ve en el detalle de cada HC
+// ══════════════════════════════════════════
+function hcHtmlClasificacion(h){
+  const c = h.clasificacion;
+  let cuerpo;
+  if(c){
+    cuerpo = hcDato('Diagnóstico', escHtml(c.diagnostico)) + hcDato('Categoría', escHtml(c.categoria)) +
+      hcDato('Nivel de triage', `<strong>${escHtml(c.triage)}</strong>${h.datos && h.datos.triage ? ` <span class="hc-sub" style="display:inline;padding:0">(el enfermero marcó ${escHtml(h.datos.triage)})</span>` : ''}`) +
+      hcDato('Procedimiento', escHtml((c.procedimientos || []).join(' + ')), true) +
+      `<div class="hc-sub">${c.corregida_por ? `Corregida por ${escHtml(c.corregida_por)} el ${hcFechaHora(c.corregida_at)}` : `Clasificada por IA${c.modelo ? ' (' + escHtml(c.modelo) + ')' : ''} el ${hcFechaHora(h.clasificada_at)}`}</div>`;
+  } else {
+    cuerpo = `<div class="hc-nada">${h.clasificacion_error ? 'No se pudo clasificar: ' + escHtml(h.clasificacion_error) : 'Pendiente: la IA la clasifica en unos minutos (si está configurada).'}</div>`;
+  }
+  return hcSec('Clasificación para el reporte (IA)', cuerpo +
+    `<div class="hc-clas-acciones"><button class="tb-btn" onclick="hcAbrirClasificacion()"><img class="btn-ico" src="img/iconos/editar.svg" alt="">Corregir</button>
+     <button class="tb-btn" onclick="hcRehacerClasificacion()">Volver a clasificar con IA</button></div>`);
+}
+
+let _hcCatalogos = null;
+async function hcAbrirClasificacion(){
+  try {
+    _hcCatalogos = await HistoriasClinicas.catalogos();
+    const c = _hcActual.clasificacion || {};
+    document.getElementById('hcclas-diagnostico').innerHTML = '<option value="">Elegir…</option>' +
+      _hcCatalogos.diagnosticos.map(d => `<option value="${escHtml(d.nombre)}"${d.nombre === c.diagnostico ? ' selected' : ''}>${escHtml(d.nombre)} · ${escHtml(d.categoria)}${d.origen === 'ia' ? ' (nuevo por IA)' : ''}</option>`).join('');
+    const sel = new Set(c.procedimientos || []);
+    document.getElementById('hcclas-procedimientos').innerHTML = _hcCatalogos.procedimientos.map(p =>
+      `<label class="evt-check-item"><input type="checkbox" value="${escHtml(p.nombre)}"${sel.has(p.nombre) ? ' checked' : ''}> <span>${escHtml(p.nombre)}${p.origen === 'ia' ? ' <em>(nuevo por IA)</em>' : ''}</span></label>`).join('');
+    document.getElementById('hcclas-triage').value = c.triage || '';
+    document.getElementById('modal-hc-clasif').classList.add('open');
+  } catch(err){ toastError(err.message); }
+}
+async function hcGuardarClasificacion(btn){
+  const diagnostico = document.getElementById('hcclas-diagnostico').value;
+  const procedimientos = [...document.querySelectorAll('#hcclas-procedimientos input:checked')].map(x => x.value);
+  const triage = document.getElementById('hcclas-triage').value;
+  if(!diagnostico || !procedimientos.length || !triage) return toastError('Elige el diagnóstico, al menos un procedimiento y el nivel de triage');
+  if(procedimientos.length > 4) return toastError('Máximo 4 procedimientos');
+  await unaVez('hc-clas', btn, async () => {
+    try {
+      await HistoriasClinicas.corregirClasificacion(_hcActual.id, { diagnostico, procedimientos, triage });
+      closeModal('modal-hc-clasif');
+      toast('✓ Clasificación corregida', 'success');
+      await hcRecargar();
+    } catch(err){ toastError(err.message); }
+  });
+}
+async function hcRehacerClasificacion(){
+  try {
+    const r = await HistoriasClinicas.rehacerClasificacion(_hcActual.id);
+    toast('✓ ' + r.mensaje, 'success');
+    setTimeout(() => { if(_hcActual) hcRecargar(); }, 6000);
+  } catch(err){ toastError(err.message); }
+}
+
+// ══════════════════════════════════════════
+// REPORTE DE ATENCIONES (solo Excel)
+// Una fila por historia clínica, columnas en el orden que pidió el cliente.
+// Nombre e ID salen como CONFIDENCIAL. Diagnóstico, categoría, procedimiento
+// y triage salen de la clasificación por IA de cada HC.
+// ══════════════════════════════════════════
+const HC_REPORTE_COLS = [
+  ['evento', 'Evento', 28], ['fecha', 'Fecha', 12], ['hora_inicial', 'Hora Inicial', 11], ['hora_final', 'Hora Final', 10],
+  ['hora_atencion', 'Hora Atención', 12], ['jornada', 'Jornada Atención', 15], ['ubicacion', 'Ubicación', 22],
+  ['nombre', 'Nombre Paciente', 16], ['id', 'ID', 14], ['edad', 'Edad', 10], ['rango_edad', 'Rango Edad', 16],
+  ['ubicacion_paciente', 'Ubicación del Paciente', 20], ['diagnostico', 'Diagnóstico', 26], ['categoria', 'Categoría', 28],
+  ['procedimiento', 'Procedimiento', 40], ['genero', 'Género', 11], ['tipo', 'Tipo', 16], ['traslado', 'Traslado', 9], ['triage', 'Nivel Triage', 11]
+];
+function hcAbrirReporte(){
+  const sel = document.getElementById('hcrep-evento');
+  sel.innerHTML = '<option value="">Todos los eventos</option>' + (S.eventos || []).map(e => `<option value="${e.id}">${escHtml(e.nombre)}</option>`).join('');
+  sel.value = document.getElementById('hcf-evento').value;
+  document.getElementById('hcrep-desde').value = document.getElementById('hcf-desde').value;
+  document.getElementById('hcrep-hasta').value = document.getElementById('hcf-hasta').value;
+  document.getElementById('hcrep-aviso').innerHTML = '';
+  document.getElementById('modal-hc-reporte').classList.add('open');
+}
+async function hcDescargarReporte(btn){
+  if(typeof XLSX === 'undefined') return toastError('No se pudo cargar el generador de Excel. Revisa la conexión.');
+  const f = { evento_id: document.getElementById('hcrep-evento').value, desde: document.getElementById('hcrep-desde').value, hasta: document.getElementById('hcrep-hasta').value };
+  await unaVez('hc-reporte', btn, async () => {
+    try {
+      const r = await HistoriasClinicas.reporte(f);
+      if(!r.filas.length){ toastError('No hay historias clínicas con esos filtros'); return; }
+      const tabla = [HC_REPORTE_COLS.map(c => c[1])].concat(r.filas.map(x => HC_REPORTE_COLS.map(c => x[c[0]] === null || x[c[0]] === undefined ? '' : x[c[0]])));
+      const ws = XLSX.utils.aoa_to_sheet(tabla);
+      ws['!cols'] = HC_REPORTE_COLS.map(c => ({ wch: c[2] }));
+      ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: tabla.length - 1, c: HC_REPORTE_COLS.length - 1 } }) };
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Atenciones');
+      XLSX.writeFile(wb, `reporte_atenciones_${fechaColombia()}.xlsx`);
+      document.getElementById('hcrep-aviso').innerHTML = r.pendientes
+        ? `<div class="asis-carga-aviso">Se descargaron ${r.filas.length} atenciones. <b>${r.pendientes}</b> aún no tienen la clasificación de la IA (diagnóstico, categoría, procedimiento y triage): salen como "Pendiente de clasificar". Vuelve a descargar en unos minutos.</div>`
+        : `<div class="asis-carga-ok">✓ Se descargaron ${r.filas.length} atenciones.</div>`;
+    } catch(err){ toastError(err.message); }
+  });
 }
 
 // ══════════════════════════════════════════

@@ -105,7 +105,8 @@ function goTo(viewId){
   }
   if(viewId==='historias'&&currentRole===4){
     // Página aparte: el editor de la tablet con todas las historias clínicas
-    ta.innerHTML=`<button class="tb-btn primary" onclick="window.open('/hc-editor','_blank')"><img class="btn-ico" src="img/iconos/editar.svg" alt="">Editar Historias Clínicas</button>`;
+    ta.innerHTML=`<button class="tb-btn" onclick="hcAbrirReporte()"><img class="btn-ico" src="img/iconos/excel.svg" alt="">Reporte Excel</button>`+
+      `<button class="tb-btn primary" onclick="window.open('/hc-editor','_blank')"><img class="btn-ico" src="img/iconos/editar.svg" alt="">Editar Historias Clínicas</button>`;
   }
   if(viewId==='segstock'&&currentRole===4){
   ta.innerHTML=`<button class="tb-btn primary" onclick="abrirCrearGrupoSeg()"><img class="btn-ico" src="img/iconos/crear-grupo.svg" alt="">Crear grupo</button>`;

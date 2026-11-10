@@ -59,6 +59,12 @@ var HCLite = (function(){
   var RH = [['+','Positivo (+)'],['-','Negativo (−)']];
   var GRUPOS = [['A','A'],['B','B'],['AB','AB'],['O','O']];
   var ESTADOS_CIVILES = [['SOLTERO','Soltero/a'],['CASADO','Casado/a'],['DIVORCIADO','Divorciado/a'],['VIUDO','Viudo/a'],['UNION_LIBRE','Unión libre']];
+  // Ubicación del paciente y tipo (obligatorios; mismas listas que src/utils/hc.js).
+  // Si es externo (ajeno al evento) el tipo no se pregunta: queda EXTERNO.
+  var PROCEDENCIAS = [['INTERNO','Interno (está en el evento)'],['EXTERNO','Externo (ajeno al evento)']];
+  var TIPOS_PACIENTE = [['ARTISTA','Artista'],['DEPORTISTA','Deportista'],['DIRECTORES','Directores'],['ESPECTADOR','Espectador'],
+    ['LOGISTICA','Logística'],['POLICIA','Policía'],['AUTORIDAD_PMU','Autoridad PMU'],['PROVEEDOR','Proveedor'],
+    ['ADMINISTRACION','Administración'],['NOVA','Nova'],['PRODUCTOR','Productor']];
   var ANTECEDENTES = [
     ['patologicos','Patológicos'],['quirurgicos','Quirúrgicos'],['farmacologicos','Farmacológicos'],
     ['alergicos','Alérgicos'],['toxicos','Tóxicos'],['traumaticos','Traumáticos'],
@@ -526,6 +532,8 @@ var HCLite = (function(){
     var req = true;
     var html = seccion('Identificación del paciente',
       '<div class="lt-muted">Todos los datos son obligatorios (menos EPS y ARL). Pídelos al paciente o a su acompañante: no se aceptan datos de relleno como "NNNN" o "0000000".</div>' +
+      chips('paciente.procedencia', 'El paciente es', PROCEDENCIAS, true) +
+      (p.procedencia === 'INTERNO' ? chips('paciente.tipo_paciente', 'Tipo de paciente', TIPOS_PACIENTE, true) : '') +
       fila([campo('paciente.nombres', 'Nombres', { req: req, mayus: true, max: 80, ph: 'Ej. PABLO ANDRÉS' }),
             campo('paciente.apellidos', 'Apellidos', { req: req, mayus: true, max: 80, ph: 'Ej. PÉREZ GÓMEZ' })]) +
       chips('paciente.tipo_doc', 'Tipo de documento', TIPOS_DOC, req) +
@@ -1247,6 +1255,8 @@ var HCLite = (function(){
       // Todo obligatorio (menos EPS y ARL), sin datos de relleno
       var p = d.paciente;
       var nom = mayus(p.nombres), ape = mayus(p.apellidos), doc = String(p.documento || '');
+      if(!p.procedencia) err('paciente.procedencia', 'Indica si el paciente es interno (está en el evento) o externo (ajeno al evento)');
+      else if(p.procedencia === 'INTERNO' && !p.tipo_paciente) err('paciente.tipo_paciente', 'Selecciona el tipo de paciente');
       if(nom.length < 2 || !RE_NOMBRE.test(nom) || textoDeRelleno(nom)) err('paciente.nombres', 'Escribe los nombres del paciente (solo letras, sin datos de relleno)');
       if(ape.length < 2 || !RE_NOMBRE.test(ape) || textoDeRelleno(ape)) err('paciente.apellidos', 'Escribe los apellidos del paciente (solo letras, sin datos de relleno)');
       if(!p.tipo_doc) err('paciente.tipo_doc', 'Selecciona el tipo de documento');
@@ -1567,6 +1577,7 @@ var HCLite = (function(){
     }
     var anterior = leerCampo(ruta);
     fijarCampo(ruta, valor);
+    if(ruta === 'paciente.procedencia') fijarCampo('paciente.tipo_paciente', valor === 'EXTERNO' ? 'EXTERNO' : '');
     if(ruta === 'paciente.tipo_doc' && TIPOS_ALFANUM[anterior] && !TIPOS_ALFANUM[valor]){
       fijarCampo('paciente.documento', digitos(hc.datos.paciente.documento));   // pasa a solo números
     }

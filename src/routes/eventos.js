@@ -29,7 +29,7 @@ async function _validarPersonal(client, usuarioId, bodegas, alAgregar = true) {
 async function _cargarPersonal(eventoIds) {
   if (!eventoIds.length) return {};
   const usuarios = await pool.query(`
-    SELECT eu.evento_id, us.id, us.nombre, us.nivel, us.cedula
+    SELECT eu.evento_id, us.id, us.nombre, us.nivel, us.cedula, eu.ubicacion
     FROM evento_usuarios eu
     JOIN usuarios us ON eu.usuario_id = us.id
     WHERE eu.evento_id = ANY($1::int[])
@@ -54,6 +54,7 @@ async function _cargarPersonal(eventoIds) {
       nivel: u.nivel,
       es_medico: u.nivel === NIVEL_MEDICO,
       cedula: u.cedula,   // en el médico es también su registro profesional
+      ubicacion: u.ubicacion || '',   // lugar del evento asignado al enfermero (texto)
       bodegas: asignaciones.rows
         .filter(a => a.evento_id === u.evento_id && a.usuario_id === u.id)
         .map(a => ({ id: a.bodega_id, nombre: a.bodega_nombre }))
@@ -212,12 +213,20 @@ function _bodegasDelBody(body) {
 // Valida y normaliza el cuerpo de crear/editar evento. Las fechas llegan de
 // un <input type="date"> (AAAA-MM-DD); con otro formato o una fecha que no
 // existe, antes fallaba la base de datos con error 500.
+// Horas del evento (para el reporte: atención PRE / IN / POST). Formato
+// 24 h HH:MM; si la final es menor que la inicial el evento pasa la medianoche.
+const RE_HORA_EVENTO = /^([01]\d|2[0-3]):[0-5]\d$/;
 function _datosEvento(body) {
   const nombre = texto(body.nombre);
   const { fecha_inicio, fecha_fin } = body;
   if (!nombre || !fecha_inicio || !fecha_fin || !body.ubicacion_id) {
     return { error: 'Nombre, fechas y ubicación son obligatorios' };
   }
+  const hora_inicio = String(body.hora_inicio || ''), hora_fin = String(body.hora_fin || '');
+  if (!RE_HORA_EVENTO.test(hora_inicio) || !RE_HORA_EVENTO.test(hora_fin)) {
+    return { error: 'Indica la hora de inicio y la hora final del evento' };
+  }
+  if (hora_inicio === hora_fin) return { error: 'La hora final debe ser distinta a la de inicio' };
   if (!fechaValida(fecha_inicio) || !fechaValida(fecha_fin)) {
     return { error: 'Las fechas del evento no son válidas' };
   }
@@ -226,22 +235,22 @@ function _datosEvento(body) {
   }
   const ubicacion_id = idValido(body.ubicacion_id);
   if (!ubicacion_id) return { error: 'Ubicación inválida' };
-  return { nombre, fecha_inicio, fecha_fin, ubicacion_id };
+  return { nombre, fecha_inicio, fecha_fin, ubicacion_id, hora_inicio, hora_fin };
 }
 
 // POST /api/eventos — nivel 4 — SOLO datos del evento, sin enfermeros
 router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
   const datos = _datosEvento(req.body);
   if (datos.error) return res.status(400).json({ error: datos.error });
-  const { nombre, fecha_inicio, fecha_fin, ubicacion_id } = datos;
+  const { nombre, fecha_inicio, fecha_fin, ubicacion_id, hora_inicio, hora_fin } = datos;
   try {
     if (!await _ubicacionActiva(ubicacion_id)) {
       return res.status(400).json({ error: 'La ubicación seleccionada ya no está activa' });
     }
     const evento = await pool.query(
-      `INSERT INTO eventos (nombre, fecha_inicio, fecha_fin, ubicacion_id, creado_por)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [nombre, fecha_inicio, fecha_fin, ubicacion_id, req.usuario.id]
+      `INSERT INTO eventos (nombre, fecha_inicio, fecha_fin, ubicacion_id, creado_por, hora_inicio, hora_fin)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [nombre, fecha_inicio, fecha_fin, ubicacion_id, req.usuario.id, hora_inicio, hora_fin]
     );
     res.status(201).json(evento.rows[0]);
   } catch (err) {
@@ -256,7 +265,7 @@ router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
 router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
   const datos = _datosEvento(req.body);
   if (datos.error) return res.status(400).json({ error: datos.error });
-  const { nombre, fecha_inicio, fecha_fin, ubicacion_id } = datos;
+  const { nombre, fecha_inicio, fecha_fin, ubicacion_id, hora_inicio, hora_fin } = datos;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -280,9 +289,9 @@ router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
     }
 
     const result = await client.query(
-      `UPDATE eventos SET nombre = $1, fecha_inicio = $2, fecha_fin = $3, ubicacion_id = $4
+      `UPDATE eventos SET nombre = $1, fecha_inicio = $2, fecha_fin = $3, ubicacion_id = $4, hora_inicio = $6, hora_fin = $7
        WHERE id = $5 RETURNING *`,
-      [nombre, fecha_inicio, fecha_fin, ubicacion_id, req.params.id]
+      [nombre, fecha_inicio, fecha_fin, ubicacion_id, req.params.id, hora_inicio, hora_fin]
     );
 
     if (cambioUbicacion) {
@@ -365,11 +374,13 @@ router.post('/:id/enfermeros', verificarToken, verificarNivel(4), async (req, re
 });
 
 // PUT /api/eventos/:id/enfermeros/:usuarioId — nivel 4 — reemplaza los
-// depósitos asignados a ESE enfermero dentro del evento
-// body: { bodega_ids: [...] }
+// depósitos asignados a ESE enfermero dentro del evento y su ubicación
+// (lugar del evento donde estará, texto libre; obligatoria para enfermeros)
+// body: { bodega_ids: [...], ubicacion }
 router.put('/:id/enfermeros/:usuarioId', verificarToken, verificarNivel(4), async (req, res) => {
   const bodegas = _bodegasDelBody(req.body);
   if (!bodegas) return res.status(400).json({ error: 'Depósitos inválidos' });
+  const ubicacion = texto(req.body.ubicacion || '').toUpperCase().slice(0, 120);
 
   const client = await pool.connect();
   try {
@@ -401,6 +412,14 @@ router.put('/:id/enfermeros/:usuarioId', verificarToken, verificarNivel(4), asyn
       await client.query('ROLLBACK');
       return res.status(400).json({ error: invalido });
     }
+    const nivel = (await client.query('SELECT nivel FROM usuarios WHERE id = $1', [req.params.usuarioId])).rows[0].nivel;
+    if (nivel !== NIVEL_MEDICO) {
+      if (ubicacion.length < 2) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Escribe la ubicación asignada al enfermero dentro del evento' });
+      }
+      await client.query('UPDATE evento_usuarios SET ubicacion = $3 WHERE evento_id = $1 AND usuario_id = $2', [req.params.id, req.params.usuarioId, ubicacion]);
+    }
 
     await client.query(
       'DELETE FROM evento_usuario_bodegas WHERE evento_id = $1 AND usuario_id = $2',
@@ -413,7 +432,7 @@ router.put('/:id/enfermeros/:usuarioId', verificarToken, verificarNivel(4), asyn
       );
     }
     await client.query('COMMIT');
-    res.json({ mensaje: 'Depósitos actualizados' });
+    res.json({ mensaje: 'Depósitos y ubicación actualizados' });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err);
