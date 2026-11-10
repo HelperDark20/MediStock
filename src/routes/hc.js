@@ -653,7 +653,7 @@ router.post('/:id/consumos', verificarToken, verificarNivel(4), async (req, res)
     const datos = { ...hc.datos, medicamentos: lista };
     await client.query('UPDATE historias_clinicas SET datos = $2, actualizada_at = NOW() WHERE id = $1', [hc.id, JSON.stringify(datos)]);
     await _registrarCambio(client, hc.id, req.usuario, 'consumo', 'Medicamento o insumo agregado desde "Editar historias clínicas"',
-      [{ campo: 'medicamentos', antes: null, despues: `${nuevo.cantidad} ${nuevo.unidad || ''} ${nuevo.nombre}${nuevo.lote ? ' (lote ' + nuevo.lote + ')' : ''} de ${nuevo.bodega}`.replace(/\s+/g, ' ') }]);
+      [{ campo: 'medicamentos', antes: null, despues: [nuevo.nombre, `${nuevo.cantidad} ${(nuevo.unidad || '').toLowerCase()}`.trim(), nuevo.dosis, nuevo.via].filter(Boolean).join(' · ') }]);
     await client.query('COMMIT');
     res.status(201).json({ mensaje: 'Consumo registrado en la historia clínica', medicamento: nuevo });
   } catch (err) {

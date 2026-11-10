@@ -226,7 +226,7 @@ function hcHtml(h, imprimir){
       : '<div class="hc-nada">Ninguno</div>');
     html += hcSec('Medicamentos e insumos administrados', (d.medicamentos || []).length
       ? `<table class="hc-tabla"><thead><tr><th>Hora</th><th>Medicamento / insumo</th><th>Cantidad</th><th>Dosis</th><th>Vía</th><th>Responsable</th></tr></thead><tbody>` +
-        d.medicamentos.map(m => `<tr><td>${hcV(m.hora)}</td><td>${hcV(m.nombre)}${m.lote ? `<div class="hc-sub">Lote ${escHtml(m.lote)} · ${escHtml(m.bodega)}</div>` : ''}</td>
+        d.medicamentos.map(m => `<tr><td>${hcV(m.hora)}</td><td>${hcV(m.nombre)}</td>
           <td>${m.cantidad} ${escHtml(m.unidad || '')}</td><td>${m.es_medicamento ? hcV(m.dosis) : 'Insumo'}</td>
           <td>${m.es_medicamento ? (m.via === 'OTRA' ? hcV(m.via_otra) : hcT('via', m.via)) : '—'}</td><td>${hcV(m.responsable && m.responsable.nombre)}</td></tr>`).join('') + '</tbody></table>'
       : '<div class="hc-nada">Ninguno</div>');
@@ -276,30 +276,143 @@ function hcHtmlAdjuntos(h){
       <button class="act-btn primary" title="Ver" onclick="hcVerAdjunto(${a.id})"><i class="ti ti-eye"></i></button></div>`).join(''));
 }
 
+// ── Cambios resumidos: una línea por módulo ──
+// El rastro guarda cada campo (antes → después). Para leerlo se resume:
+//   novedad de la tablet → "ENFERMERA agregó signos vitales (Durante 14:40)"
+//   edición del admin    → "Glasgow: ocular Espontánea → Ninguna; total 15 → 3"
+const HC_MODULOS = {
+  paciente: ['Identificación del paciente', 'la identificación del paciente'], acompanante: ['Acompañante', 'el acompañante'],
+  motivo: ['Motivo de consulta', 'el motivo de consulta'], antecedentes: ['Antecedentes', 'los antecedentes'],
+  consentimiento: ['Consentimiento', 'el consentimiento'], valoracion: ['Valoración ABCDE', 'la valoración ABCDE'],
+  signos: ['Signos vitales', 'los signos vitales'], signos_tomas: ['Signos vitales', 'signos vitales'],
+  glasgow: ['Glasgow', 'el Glasgow'], examen: ['Examen físico', 'el examen físico'], triage: ['Triage', 'el triage'],
+  procedimientos: ['Procedimientos', 'procedimientos'], medicamentos: ['Medicamentos e insumos', 'medicamentos e insumos'],
+  cierre: ['Evolución y cierre', 'la evolución y el cierre'], responsables: ['Responsables', 'los responsables'],
+  entrega: ['Entrega del paciente', 'la entrega del paciente'], estado: ['Estado de la HC', 'el estado de la HC'],
+  adjuntos: ['Archivos adjuntos', 'archivos adjuntos'], firmas: ['Firmas', 'las firmas']
+};
+const HC_ETIQUETAS = {
+  nombres: 'nombres', apellidos: 'apellidos', tipo_doc: 'tipo de documento', documento: 'documento', fecha_nacimiento: 'fecha de nacimiento',
+  rh: 'RH', grupo: 'grupo sanguíneo', direccion: 'dirección', ocupacion: 'ocupación', movil: 'móvil', telefono: 'teléfono', estado_civil: 'estado civil', otra_aseguradora: 'otra aseguradora',
+  via_aerea: 'vía aérea', respiracion: 'respiración', circulacion: 'circulación', neuro: 'estado neurológico', orientado: 'orientado en', exposicion_si: 'hallazgos en la exposición',
+  via_aerea_obs: 'observaciones vía aérea', respiracion_obs: 'observaciones respiración', circulacion_obs: 'observaciones circulación',
+  ta_sis: 'TA sistólica', ta_dia: 'TA diastólica', fc: 'FC', fr: 'FR', spo2: 'SpO₂', temp: 'temperatura', gluco: 'glucometría', eva: 'dolor EVA',
+  ocular: 'ocular', verbal: 'verbal', motora: 'motora', total: 'total', relato: 'relato', evolucion: 'evolución', condicion: 'condición',
+  destino: 'destino', ambulancia: 'ambulancia', recibe_nombre: 'quien recibe', recibe_cargo: 'cargo de quien recibe', servicio_otro: 'otro servicio',
+  medico_firma_pendiente: 'firma médica pendiente', campos_pulmonares: 'campos pulmonares', eess: 'extremidades superiores',
+  eeii: 'extremidades inferiores', torax: 'tórax', gestacion: 'gestación', semanas: 'semanas de gestación', motivo_rechazo: 'motivo del rechazo'
+};
+function _hcValorCambio(k, v){
+  if(v === null || v === undefined || v === '' || v === '[]' || v === '{}') return 'vacío';
+  if(v === true) return 'Sí';
+  if(v === false) return 'No';
+  const t = HC_TXT[k] && HC_TXT[k][v];
+  const s = String(t || v);
+  return s.length > 90 ? s.slice(0, 87) + '…' : s;
+}
+function _hcEtiquetaCampo(partes){
+  const ult = partes[partes.length - 1];
+  const base = HC_ETIQUETAS[ult] || ult.replace(/_/g, ' ');
+  return partes.length > 2 && !/^\d+$/.test(partes[1]) ? (HC_ETIQUETAS[partes[1]] || partes[1].replace(/_/g, ' ')) + ' ' + base : base;
+}
+// Texto corto de un elemento de una lista (procedimiento, medicamento, toma)
+function _hcItem(modulo, o, i, h){
+  if(modulo === 'procedimientos') return `${(o.descripcion || '').trim() || '—'}${o.hora ? ' ' + o.hora : ''}`;
+  if(modulo === 'medicamentos'){
+    const via = o.via ? (o.via === 'OTRA' ? o.via_otra : hcT('via', o.via)) : '';
+    return [o.nombre, o.cantidad !== undefined && o.cantidad !== null ? `${o.cantidad} ${(o.unidad || '').toLowerCase()}`.trim() : '', o.dosis || '', via].filter(Boolean).join(' · ');
+  }
+  // Toma de signos: rótulo según cuántas tomas tiene hoy la HC
+  const total = 1 + ((h.datos && h.datos.signos_tomas) || []).length;
+  const et = total === 2 ? ['Inicio', 'Final'] : ['Inicio', 'Durante', 'Final'];
+  return `${et[i + 1] || 'Toma ' + (i + 2)}${o.hora ? ' ' + o.hora : ''}`;
+}
+function hcResumenCambios(c, h){
+  const porModulo = {}, orden = [];
+  (c.cambios || []).forEach(x => {
+    const partes = String(x.campo).split('.');
+    const m = partes[0];
+    if(!porModulo[m]){ porModulo[m] = []; orden.push(m); }
+    porModulo[m].push({ partes, antes: x.antes, despues: x.despues });
+  });
+  const novedad = c.accion === 'novedad';
+  const quien = c.usuario_nombre || '—';
+  const lineas = [];
+  orden.forEach(m => {
+    const [titulo, nombre] = HC_MODULOS[m] || [m, m];
+    const filas = porModulo[m];
+    if(['procedimientos', 'medicamentos', 'signos_tomas'].indexOf(m) >= 0){
+      // Listas: elementos agregados, quitados o cambiados
+      const items = {}, sueltos = [];
+      filas.forEach(f => {
+        if(/^\d+$/.test(f.partes[1] || '')){
+          const it = items[f.partes[1]] || (items[f.partes[1]] = { antes: {}, despues: {}, cambios: [] });
+          const k = f.partes.slice(2).join('.');
+          it.antes[k] = f.antes; it.despues[k] = f.despues;
+          it.cambios.push(f);
+        } else if(typeof f.despues === 'string' && f.despues !== '[]') sueltos.push(f.despues);
+        else if(typeof f.antes === 'string' && f.antes !== '[]' && (f.despues === null || f.despues === undefined)) sueltos.push('quitó ' + f.antes);
+      });
+      const agregados = [], quitados = [], cambiados = [];
+      Object.keys(items).sort((a, b) => a - b).forEach(idx => {
+        const it = items[idx];
+        const vacio = o => Object.values(o).every(v => v === null || v === undefined || v === '');
+        if(vacio(it.antes)) agregados.push(_hcItem(m, it.despues, +idx, h));
+        else if(vacio(it.despues)) quitados.push(_hcItem(m, it.antes, +idx, h));
+        else cambiados.push(`${_hcItem(m, { ...it.antes, ...it.despues }, +idx, h)}: ` +
+          it.cambios.map(f => `${_hcEtiquetaCampo(f.partes.slice(1))} ${_hcValorCambio(f.partes[f.partes.length - 1], f.antes)} → ${_hcValorCambio(f.partes[f.partes.length - 1], f.despues)}`).join(', '));
+      });
+      const partes = [];
+      if(agregados.length) partes.push(`agregó ${novedad ? nombre + ' ' : ''}(${agregados.join('; ')})`);
+      if(quitados.length) partes.push(`quitó ${novedad ? nombre + ' ' : ''}(${quitados.join('; ')})`);
+      if(cambiados.length) partes.push(`cambió ${novedad ? nombre + ' ' : ''}(${cambiados.join('; ')})`);
+      sueltos.forEach(t => partes.push(/^quitó /.test(t) ? t : 'agregó ' + t));
+      if(partes.length) lineas.push(novedad ? `${quien} ${partes.join('; ')}` : `${titulo}: ${partes.join('; ')}`);
+      return;
+    }
+    // Campos sueltos: "campo antes → después" (las listas como "orientado en" se juntan)
+    const grupos = {}, gOrden = [];
+    filas.forEach(f => {
+      let partes = f.partes;
+      if(/^\d+$/.test(partes[partes.length - 1])) partes = partes.slice(0, -1);
+      const k = partes.join('.');
+      if(!grupos[k]){ grupos[k] = { partes, antes: [], despues: [], lista: partes !== f.partes }; gOrden.push(k); }
+      const g = grupos[k];
+      if(f.antes !== null && f.antes !== undefined && f.antes !== '[]' && f.antes !== '{}') g.antes.push(f.antes);
+      if(f.despues !== null && f.despues !== undefined && f.despues !== '[]' && f.despues !== '{}') g.despues.push(f.despues);
+    });
+    const textos = gOrden.map(k => {
+      const g = grupos[k], ult = g.partes[g.partes.length - 1];
+      const v = arr => arr.length ? arr.map(x => _hcValorCambio(ult, x)).join(', ') : 'vacío';
+      if(g.lista && !g.antes.length && !g.despues.length) return '';
+      if(g.partes.length === 1) return `${v(g.antes)} → ${v(g.despues)}`;
+      return `${_hcEtiquetaCampo(g.partes)} ${v(g.antes)} → ${v(g.despues)}`;
+    }).filter(Boolean);
+    if(!textos.length) return;
+    lineas.push(novedad ? `${quien} actualizó ${nombre} (${textos.join('; ')})` : `${titulo}: ${textos.join('; ')}`);
+  });
+  return lineas;
+}
+function _hcCambioHtml(c, h, i){
+  const lineas = hcResumenCambios(c, h);
+  return `<div class="hc-cambio" style="padding:4px 6px;${i ? 'border-top:1px dashed #bbb' : ''}">
+      <div><strong>${i !== null ? (i + 1) + '. ' : ''}${escHtml(hcT('accion', c.accion))}</strong> · ${escHtml(c.usuario_nombre || '—')} · ${hcFechaHora(c.created_at)}</div>
+      ${c.motivo && c.accion !== 'novedad' ? `<div>Motivo: ${escHtml(c.motivo)}</div>` : ''}
+      ${lineas.map(l => `<div class="hc-cambio-l">${escHtml(l)}</div>`).join('')}
+    </div>`;
+}
+
 // Para el PDF: cada corrección posterior a la recepción, en orden, con quién,
-// cuándo, el motivo y el antes → después (nota aclaratoria, Res. 1995/1999)
+// cuándo, el motivo y lo que cambió (nota aclaratoria, Res. 1995/1999)
 function hcNotasAclaratorias(h){
   const lista = (h.cambios || []).slice().sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
   if(!lista.length) return '';
-  const fmt = x => x === null || x === undefined || x === '' ? '<em>vacío</em>' : escHtml(typeof x === 'object' ? JSON.stringify(x) : String(x));
-  const campo = c => escHtml(String(c).split('.').join(' › ').replace(/_/g, ' '));
-  return hcSec('Notas aclaratorias (correcciones posteriores)', lista.map((c, i) => `
-    <div class="hc-cambio" style="padding:4px 6px;border-top:${i ? '1px dashed #bbb' : '0'}">
-      <div><strong>${i + 1}. ${escHtml(hcT('accion', c.accion))}</strong> · ${escHtml(c.usuario_nombre || '—')} · ${hcFechaHora(c.created_at)}</div>
-      ${c.motivo ? `<div>Motivo: ${escHtml(c.motivo)}</div>` : ''}
-      ${(c.cambios || []).length ? `<ul style="margin:3px 0 0 16px;padding:0">${c.cambios.slice(0, 80).map(x => `<li>${campo(x.campo)}: ${fmt(x.antes)} → ${fmt(x.despues)}</li>`).join('')}</ul>` : ''}
-    </div>`).join(''));
+  return hcSec('Notas aclaratorias (correcciones posteriores)', lista.map((c, i) => _hcCambioHtml(c, h, i)).join(''));
 }
 
 function hcHtmlCambios(h){
   if(!(h.cambios || []).length) return hcSec('Historial de cambios', '<div class="hc-nada">Sin cambios desde que se recibió de la tablet.</div>');
-  const fmt = x => x === null || x === undefined || x === '' ? '<em>vacío</em>' : escHtml(typeof x === 'object' ? JSON.stringify(x) : String(x));
-  return hcSec('Historial de cambios', h.cambios.map(c => `
-    <div class="hc-cambio">
-      <div><strong>${escHtml(hcT('accion', c.accion))}</strong> · ${escHtml(c.usuario_nombre || '—')} · ${hcFechaHora(c.created_at)}</div>
-      ${c.motivo ? `<div class="hc-sub">Motivo: ${escHtml(c.motivo)}</div>` : ''}
-      <ul>${(c.cambios || []).slice(0, 60).map(x => `<li><code>${escHtml(x.campo)}</code>: ${fmt(x.antes)} → ${fmt(x.despues)}</li>`).join('')}</ul>
-    </div>`).join(''));
+  return hcSec('Historial de cambios', h.cambios.map(c => _hcCambioHtml(c, h, null)).join(''));
 }
 
 async function hcVerAdjunto(aid){
@@ -408,7 +521,7 @@ function hcImprimir(){
   .enc .num{ font-size:15px; font-weight:bold }
   /* Logos: no más altos que los datos de la cabecera */
   .enc-lado{ display:flex; align-items:center; gap:10px }
-  .enc-logo{ height:40px; width:auto; display:block }
+  .enc-logo{ height:60px; width:auto; display:block }
   .hc-sec{ border:1px solid #111; margin-bottom:5px; page-break-inside:avoid }
   .hc-sec-t{ background:#e6e6e6; font-weight:bold; text-transform:uppercase; padding:3px 6px; border-bottom:1px solid #111; font-size:10px }
   .hc-sec > .hc-dato, .hc-sec > div:not(.hc-sec-t){ }
