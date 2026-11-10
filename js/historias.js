@@ -35,7 +35,7 @@ const HC_TXT = {
   servicio: { URGENCIAS:'Urgencias', OTRO:'Otro' },
   gestacion: { si:'Sí', no:'No', no_aplica:'No aplica' },
   accion: { edicion:'Edición', entrega:'Entrega del paciente', firma_medico:'Firma del médico', adjunto:'Archivo adjunto',
-            novedad:'Novedad (tablet)', consumo:'Medicamento / insumo (administrador)' }
+            novedad:'Novedad (enfermero)', consumo:'Medicamento / insumo (administrador)' }
 };
 const HC_ANTECEDENTES = [['patologicos','Patológicos'],['quirurgicos','Quirúrgicos'],['farmacologicos','Farmacológicos'],['alergicos','Alérgicos'],
   ['toxicos','Tóxicos'],['traumaticos','Traumáticos'],['hospitalarios','Hospitalarios'],['otros','Otros']];
@@ -327,6 +327,14 @@ function _hcItem(modulo, o, i, h){
   const et = total === 2 ? ['Inicio', 'Final'] : ['Inicio', 'Durante', 'Final'];
   return `${et[i + 1] || 'Toma ' + (i + 2)}${o.hora ? ' ' + o.hora : ''}`;
 }
+// "1 Tabletas DESLORATADINA 5 MG TAB (lote F00393A) de MEC-B 2 MED" (formato
+// anterior) → "DESLORATADINA 5 MG TAB · 1 tabletas": sin lote ni depósito
+function _hcSoloItem(t){
+  let x = String(t).replace(/\s*\(lote [^)]*\)/i, '').replace(/ de [^·]*$/, '').trim();
+  const m = /^(\d+)\s+(\S+)\s+(.+)$/.exec(x);
+  if(m && x.indexOf(' · ') < 0) x = `${m[3]} · ${m[1]} ${m[2].toLowerCase()}`;
+  return x;
+}
 function hcResumenCambios(c, h){
   const porModulo = {}, orden = [];
   (c.cambios || []).forEach(x => {
@@ -350,8 +358,8 @@ function hcResumenCambios(c, h){
           const k = f.partes.slice(2).join('.');
           it.antes[k] = f.antes; it.despues[k] = f.despues;
           it.cambios.push(f);
-        } else if(typeof f.despues === 'string' && f.despues !== '[]') sueltos.push(f.despues);
-        else if(typeof f.antes === 'string' && f.antes !== '[]' && (f.despues === null || f.despues === undefined)) sueltos.push('quitó ' + f.antes);
+        } else if(typeof f.despues === 'string' && f.despues !== '[]') sueltos.push(_hcSoloItem(f.despues));
+        else if(typeof f.antes === 'string' && f.antes !== '[]' && (f.despues === null || f.despues === undefined)) sueltos.push('quitó ' + _hcSoloItem(f.antes));
       });
       const agregados = [], quitados = [], cambiados = [];
       Object.keys(items).sort((a, b) => a - b).forEach(idx => {
@@ -393,6 +401,27 @@ function hcResumenCambios(c, h){
   });
   return lineas;
 }
+// Los consumos que el administrador agrega o quita en el editor y la edición
+// que guarda después son una sola corrección: se juntan en un punto
+// "Edición" con el motivo que él escribió (si son seguidos, del mismo usuario
+// y dentro de 2 horas)
+function _hcAgruparCambios(lista){
+  const grupos = [];
+  lista.forEach(c => {
+    const ult = grupos[grupos.length - 1];
+    const deAdmin = c.accion === 'edicion' || c.accion === 'consumo';
+    if(deAdmin && ult && ult.deAdmin && ult.usuario_nombre === c.usuario_nombre &&
+       Math.abs(new Date(c.created_at) - new Date(ult.ultimo_at)) <= 2 * 3600e3){
+      ult.cambios = ult.cambios.concat(c.cambios || []);
+      if(c.accion === 'edicion'){ ult.accion = 'edicion'; ult.motivo = c.motivo; }
+      ult.ultimo_at = c.created_at;
+      return;
+    }
+    grupos.push({ ...c, deAdmin, accion: deAdmin ? 'edicion' : c.accion, motivo: c.accion === 'consumo' ? '' : c.motivo,
+                  cambios: (c.cambios || []).slice(), ultimo_at: c.created_at });
+  });
+  return grupos;
+}
 function _hcCambioHtml(c, h, i){
   const lineas = hcResumenCambios(c, h);
   return `<div class="hc-cambio" style="padding:4px 6px;${i ? 'border-top:1px dashed #bbb' : ''}">
@@ -405,14 +434,15 @@ function _hcCambioHtml(c, h, i){
 // Para el PDF: cada corrección posterior a la recepción, en orden, con quién,
 // cuándo, el motivo y lo que cambió (nota aclaratoria, Res. 1995/1999)
 function hcNotasAclaratorias(h){
-  const lista = (h.cambios || []).slice().sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+  const lista = _hcAgruparCambios((h.cambios || []).slice().sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)) || a.id - b.id));
   if(!lista.length) return '';
   return hcSec('Notas aclaratorias (correcciones posteriores)', lista.map((c, i) => _hcCambioHtml(c, h, i)).join(''));
 }
 
 function hcHtmlCambios(h){
   if(!(h.cambios || []).length) return hcSec('Historial de cambios', '<div class="hc-nada">Sin cambios desde que se recibió de la tablet.</div>');
-  return hcSec('Historial de cambios', h.cambios.map(c => _hcCambioHtml(c, h, null)).join(''));
+  const lista = _hcAgruparCambios(h.cambios.slice().sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)) || a.id - b.id));
+  return hcSec('Historial de cambios', lista.reverse().map(c => _hcCambioHtml(c, h, null)).join(''));
 }
 
 async function hcVerAdjunto(aid){
