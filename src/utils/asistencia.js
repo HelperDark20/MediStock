@@ -36,7 +36,7 @@ function normalizarNombre(v) {
 
 // Versión del aviso de protección de datos que muestra la tablet; queda
 // guardada en cada marca como evidencia de qué texto se mostró
-const AVISO_DATOS_VERSION = 'ley1581-v1-2026-11-07';
+const AVISO_DATOS_VERSION = 'ley1581-v2-2026-11-09';
 
 // Fecha AAAA-MM-DD en hora de Colombia
 function fechaCO(d) {

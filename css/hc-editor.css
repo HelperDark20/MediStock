@@ -1,0 +1,13 @@
+/* Editar historias clínicas (hc-editor.html): usa los estilos del panel de
+   enfermero (css/enfermero-lite.css) más el listado con filtros */
+.lt-screen#lt-app{ display:block; }
+.lt-body{ max-width:1100px; margin:0 auto; }
+.hce-filtros{ display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:10px 14px; margin-top:12px; }
+.hce-filtros label{ display:block; font-size:12px; color:#666; font-weight:600; }
+.hce-filtros .lt-input{ margin-top:4px; }
+.hce-botones{ display:flex; gap:10px; margin-top:12px; }
+.hce-botones .lt-btn, .hce-botones .lt-btn-sec{ width:auto; min-width:140px; margin:0; }
+.hce-paginas{ display:flex; gap:12px; align-items:center; justify-content:center; margin-top:12px; font-size:13px; color:#666; }
+.hce-paginas .lt-btn-sec{ width:auto; }
+.lt-state a.lt-btn{ display:block; margin-top:14px; text-decoration:none; text-align:center; }
+.lt-hc-item .lt-pend{ margin-left:6px; }

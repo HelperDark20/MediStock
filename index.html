@@ -1292,19 +1292,53 @@
   </div>
 </div>
 <div class="modal-overlay" id="modal-asis-cuenta">
-  <div class="modal-sheet">
+  <div class="modal-sheet" style="max-width:640px">
     <div class="modal-handle"></div>
-    <div class="modal-title">Cuenta de las tablets</div>
-    <div class="modal-sub" id="asis-cuenta-estado"></div>
-    <div class="form-grid">
-      <div class="form-group fg-full"><label>Usuario</label><input type="text" id="asis-cuenta-usuario" autocomplete="off" style="font-family:var(--font-mono)"></div>
-      <div class="form-group fg-full"><label>Contraseña <span style="font-weight:400;color:#aaa">(mín. 8 caracteres)</span></label><input type="text" id="asis-cuenta-pass" autocomplete="off" style="font-family:var(--font-mono)"></div>
-      <div class="form-group fg-full"><span class="hint">Con este usuario se activa cada tablet una sola vez en /datacontrol. Si cambias la contraseña, las tablets activadas se cierran y hay que activarlas de nuevo.</span></div>
+    <div class="modal-title">Cuentas de las tablets</div>
+    <div class="modal-sub">Con estas cuentas se activa cada tablet en /datacontrol (una sola vez). Puedes crear las que necesites. La contraseña no se puede ver: si alguien la olvida, asígnale una nueva (las tablets de esa cuenta se cierran y se activan con la nueva).</div>
+    <div class="asis-cuentas-lista" id="asis-cuentas-lista"></div>
+    <div class="asis-cuenta-form">
+      <div class="asis-cuenta-form-t" id="asis-cuenta-form-t">Nueva cuenta</div>
+      <input type="hidden" id="asis-cuenta-id">
+      <div class="form-grid">
+        <div class="form-group"><label>Usuario</label><input type="text" id="asis-cuenta-usuario" autocomplete="off" style="font-family:var(--font-mono)" placeholder="Ej. tablet2@novabridge.com.co"></div>
+        <div class="form-group"><label id="asis-cuenta-pass-lbl">Contraseña <span style="font-weight:400;color:#aaa">(mín. 8 caracteres)</span></label><input type="text" id="asis-cuenta-pass" autocomplete="off" style="font-family:var(--font-mono)"></div>
+      </div>
     </div>
     <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeModal('modal-asis-cuenta')">Cancelar</button>
-      <button class="btn-confirm" onclick="asisGuardarCuenta(this)">Guardar</button>
+      <button class="btn-cancel" onclick="closeModal('modal-asis-cuenta')">Cerrar</button>
+      <button class="btn-cancel" id="asis-cuenta-cancelar-ed" style="display:none" onclick="asisNuevaCuenta()">Cancelar edición</button>
+      <button class="btn-confirm" id="asis-cuenta-guardar" onclick="asisGuardarCuenta(this)">Crear cuenta</button>
     </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-asis-dispositivos">
+  <div class="modal-sheet" style="max-width:1100px">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Dispositivos e IP</div>
+    <div class="modal-sub">Desde qué tablet (y con qué IP) marcó cada persona. Se resaltan las marcas desde una IP distinta a la más usada en el evento y desde dispositivos sin nombre (no registrados). Las marcas hechas sin conexión llevan la IP del momento en que se sincronizaron.</div>
+    <div class="form-grid asis-disp-filtros">
+      <div class="form-group"><label>Evento</label><select id="asis-disp-evento"></select></div>
+      <div class="form-group"><label>Desde</label><input type="date" id="asis-disp-desde"></div>
+      <div class="form-group"><label>Hasta</label><input type="date" id="asis-disp-hasta"></div>
+      <div class="form-group asis-disp-btns"><button class="tb-btn primary" onclick="asisBuscarMarcasIp()"><img class="btn-ico" src="img/iconos/buscar.svg" alt="">Buscar</button>
+        <button class="tb-btn" onclick="asisExcelMarcasIp()"><img class="btn-ico" src="img/iconos/excel.svg" alt="">Descargar Excel</button></div>
+    </div>
+    <div class="asis-disp-resumen" id="asis-disp-resumen"></div>
+    <div class="asis-disp-tabla" id="asis-disp-tabla"></div>
+    <div class="asis-cuenta-form-t" style="margin-top:16px">Tablets registradas</div>
+    <div class="hint" style="margin-bottom:6px">Ponle un nombre a cada tablet (ej. "Tablet 1 – Entrada principal"). Un dispositivo sin nombre que aparezca marcando puede ser alguien marcando desde otro lugar.</div>
+    <div id="asis-disp-lista"></div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-asis-dispositivos')">Cerrar</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-asis-lista">
+  <div class="modal-sheet" style="max-width:640px">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="asis-lista-titulo"></div>
+    <div class="modal-sub" id="asis-lista-sub"></div>
+    <div class="asis-personal-lista" id="asis-lista-cuerpo"></div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-asis-lista')">Cerrar</button></div>
   </div>
 </div>
 <div class="modal-overlay" id="modal-asis-foto">
@@ -1365,23 +1399,6 @@
     </div>
   </div>
 </div>
-<div class="modal-overlay" id="modal-hc-editar">
-  <div class="modal-sheet hc-sheet">
-    <div class="modal-handle"></div>
-    <div class="modal-title">Editar historia clínica <span id="hc-editar-num"></span></div>
-    <div class="modal-sub">Cada cambio queda en el rastro con tu usuario, la fecha, el motivo y el valor anterior. Se validan las mismas reglas que en la tablet.</div>
-    <div id="hc-editar-form"></div>
-    <div class="form-group fg-full" style="margin-top:14px">
-      <label>Motivo de la corrección (obligatorio)</label>
-      <textarea id="hc-editar-motivo" rows="2" placeholder="Ej. Corrección de digitación informada por el enfermero"></textarea>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeModal('modal-hc-editar')">Cancelar</button>
-      <button class="btn-confirm" id="hc-editar-guardar" onclick="hcGuardarEdicion()">Guardar cambios</button>
-    </div>
-  </div>
-</div>
-
 <!-- MODAL DETALLE DE EVENTO -->
 <div class="modal-overlay" id="modal-evento-detalle">
   <div class="modal-sheet" style="max-width:600px">

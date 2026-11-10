@@ -331,6 +331,17 @@ router.post('/:id/enfermeros', verificarToken, verificarNivel(4), async (req, re
       await client.query('ROLLBACK');
       return res.status(400).json({ error: invalido });
     }
+    // Máximo un médico por evento (regla del cliente): es el responsable de
+    // las historias clínicas, sus procedimientos y medicamentos
+    const otroMedico = await client.query(
+      `SELECT us.nombre FROM evento_usuarios eu JOIN usuarios us ON us.id = eu.usuario_id
+       WHERE eu.evento_id = $1 AND us.nivel = $3 AND us.id <> $2
+         AND (SELECT nivel FROM usuarios WHERE id = $2) = $3`,
+      [req.params.id, usuario_id, NIVEL_MEDICO]);
+    if (otroMedico.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `Este evento ya tiene un médico asignado (${otroMedico.rows[0].nombre}). Solo puede haber un médico por evento: quítalo primero si lo vas a cambiar.` });
+    }
 
     await client.query(
       'INSERT INTO evento_usuarios (evento_id, usuario_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',

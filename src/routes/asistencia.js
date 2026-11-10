@@ -18,12 +18,19 @@
 //   GET    /api/asistencia                      jornadas con filtros + resumen
 //   GET    /api/asistencia/:id/foto/:tipo       foto de la entrada o la salida
 //   POST   /api/asistencia/:id/salida           salida manual (fecha, hora, motivo)
-//   GET/PUT /api/asistencia/cuenta              cuenta de las tablets
+//   GET/POST /api/asistencia/cuentas            cuentas de las tablets (sin límite)
+//   PUT/DELETE /api/asistencia/cuentas/:id      editar (usuario, contraseña nueva) / eliminar
 //   POST   /api/asistencia/cuenta/cerrar-sesiones   invalida todas las tablets
+//   GET    /api/asistencia/dispositivos         tablets que han marcado (con nombre)
+//   PUT    /api/asistencia/dispositivos/:id     nombre de una tablet
+//   GET    /api/asistencia/marcas-ip            consolidado de marcas con IP y dispositivo
 //
-// Reglas: entrada dentro de las fechas del evento (hora de Colombia); jornada
-// = entrada → salida aunque la salida caiga otro día; máximo 16 h (si no, "sin
-// salida" y la salida la pone el admin); una sola jornada abierta por cédula.
+// Reglas: se marca solo con el evento EN CURSO (entre "Iniciar" y "Finalizar"
+// evento; sin conexión cuenta la hora en que se marcó); jornada = entrada →
+// salida aunque la salida caiga otro día; máximo 16 h (si no, "sin salida" y
+// la salida la pone el admin); una sola jornada abierta por cédula.
+// Cada marca guarda la IP, el dispositivo (identificador propio de cada
+// tablet) y la cuenta con que se hizo: solo para identificar, no bloquea.
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
@@ -46,6 +53,21 @@ const idValido = v => { const n = Number(v); return Number.isInteger(n) && n > 0
 // Token de la tablet: { kiosco: id }. Sin vencimiento: deja de servir si la
 // cuenta se desactiva o si el admin pulsa "Cerrar sesión de tablets"
 // (sesiones_desde posterior a la emisión del token).
+// Identificador propio de cada tablet (lo genera la tablet y lo guarda en su
+// navegador): se registra la primera vez y se actualiza en cada uso
+const RE_DISPOSITIVO = /^[A-Za-z0-9_-]{12,64}$/;
+async function _dispositivo(req, cuentaId, codigo) {
+  codigo = String(codigo || req.headers['x-dispositivo'] || '');
+  if (!RE_DISPOSITIVO.test(codigo)) return null;
+  const ua = String(req.headers['user-agent'] || '').slice(0, 300);
+  const r = await pool.query(
+    `INSERT INTO asistencia_dispositivos (codigo, cuenta_id, ultima_ip, navegador)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (codigo) DO UPDATE SET ultima_vez_at = NOW(), cuenta_id = $2, ultima_ip = $3, navegador = $4
+     RETURNING id`, [codigo, cuentaId, req.ip || null, ua]);
+  return r.rows[0].id;
+}
+
 async function verificarKiosco(req, res, next) {
   const token = (req.headers.authorization || '').split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Esta tablet no está activada' });
@@ -76,6 +98,8 @@ router.post('/kiosco/login', async (req, res) => {
     if (!c || !(await bcrypt.compare(password, c.password_hash))) {
       return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
     }
+    await pool.query('UPDATE asistencia_cuentas SET ultimo_ingreso_at = NOW() WHERE id = $1', [c.id]);
+    await _dispositivo(req, c.id, req.body && req.body.dispositivo);
     const token = jwt.sign({ kiosco: c.id }, process.env.JWT_SECRET);   // sin vencimiento
     res.json({ token, usuario: c.usuario });
   } catch (err) {
@@ -101,16 +125,15 @@ router.get('/kiosco/datos', verificarKiosco, async (req, res) => {
   try {
     await _vencerJornadas(pool);
     const hoy = A.fechaCO(new Date());
-    // Eventos vigentes hoy, más los que terminaron ayer (para cerrar turnos
-    // que pasan la medianoche del último día), con personal cargado
+    // Eventos EN CURSO (entre "Iniciar" y "Finalizar" evento) con personal cargado
     const ev = await pool.query(
-      `SELECT e.id, e.nombre, e.fecha_inicio::text AS fecha_inicio, e.fecha_fin::text AS fecha_fin,
+      `SELECT e.id, e.nombre, e.fecha_inicio::text AS fecha_inicio, e.fecha_fin::text AS fecha_fin, e.iniciado_at,
               u.nombre AS ubicacion_nombre, COALESCE(u.es_temporal, false) AS es_temporal
        FROM eventos e LEFT JOIN ubicaciones u ON u.id = e.ubicacion_id
-       WHERE e.activo = true AND e.estado <> 'finalizado'
-         AND e.fecha_inicio <= $1::date AND e.fecha_fin >= ($1::date - 1)
+       WHERE e.activo = true AND e.estado = 'en_curso'
          AND EXISTS (SELECT 1 FROM asistencia_personal p WHERE p.evento_id = e.id)
-       ORDER BY e.fecha_inicio, e.nombre`, [hoy]);
+       ORDER BY e.iniciado_at, e.nombre`);
+    await _dispositivo(req, req.kiosco.id);
     const ids = ev.rows.map(e => e.id);
     let personal = [], abiertas = [];
     if (ids.length) {
@@ -131,7 +154,7 @@ router.get('/kiosco/datos', verificarKiosco, async (req, res) => {
       aviso_datos_version: A.AVISO_DATOS_VERSION,
       eventos: ev.rows.map(e => ({
         ...e,
-        permite_entrada: e.fecha_fin >= hoy,
+        permite_entrada: true,
         personal: personal.filter(p => p.evento_id === e.id).map(p => ({ id: p.id, nombre: p.nombre, cedula: p.cedula }))
       })),
       abiertas
@@ -194,7 +217,9 @@ async function _validarPersona(db, eventoId, personalId, pin) {
 
 // Una marca (entrada o salida) dentro de su propia transacción.
 // Devuelve { estado: 'ok' | 'duplicado' | 'error', error?, jornada_id? }
-async function _procesarMarca(m, fecha, desfaseSeg) {
+// origen: { ip, dispositivo_id, cuenta_id }
+async function _procesarMarca(m, fecha, desfaseSeg, origen) {
+  origen = origen || {};
   const foto = m.foto ? A.fotoDesdeDataUrl(m.foto) : null;
   if (m.foto && !foto) return { estado: 'error', error: 'La foto no es válida' };
   const client = await pool.connect();
@@ -205,13 +230,13 @@ async function _procesarMarca(m, fecha, desfaseSeg) {
       if (ya.rows.length) { await client.query('ROLLBACK'); return { estado: 'duplicado', jornada_id: ya.rows[0].id }; }
       const persona = await _validarPersona(client, m.evento_id, m.personal_id, m.pin);
       if (persona.error) { await client.query('ROLLBACK'); return { estado: 'error', error: persona.error }; }
-      const ev = await client.query(
-        `SELECT fecha_inicio::text AS ini, fecha_fin::text AS fin, estado, finalizado_at
-         FROM eventos WHERE id = $1 AND activo = true`, [m.evento_id]);
+      // Solo entre "Iniciar" y "Finalizar" evento (hora en que se marcó)
+      const ev = await client.query('SELECT estado, iniciado_at, finalizado_at FROM eventos WHERE id = $1 AND activo = true', [m.evento_id]);
       const e = ev.rows[0];
-      const dia = A.fechaCO(fecha);
-      if (!e || dia < e.ini || dia > e.fin) { await client.query('ROLLBACK'); return { estado: 'error', error: 'Fuera de las fechas del evento' }; }
-      if (e.estado === 'finalizado' && e.finalizado_at && fecha.getTime() > new Date(e.finalizado_at).getTime() + 10 * 60000) {
+      if (!e || !e.iniciado_at || e.estado === 'creado' || fecha.getTime() < new Date(e.iniciado_at).getTime()) {
+        await client.query('ROLLBACK'); return { estado: 'error', error: 'El evento aún no había iniciado (se marca desde que el administrador lo inicia)' };
+      }
+      if (e.estado === 'finalizado' && e.finalizado_at && fecha.getTime() > new Date(e.finalizado_at).getTime()) {
         await client.query('ROLLBACK'); return { estado: 'error', error: 'El evento ya finalizó' };
       }
       // Jornadas abiertas de más de 16 h (respecto a esta entrada) → sin salida
@@ -228,9 +253,11 @@ async function _procesarMarca(m, fecha, desfaseSeg) {
       }
       const ins = await client.query(
         `INSERT INTO asistencia_jornadas
-           (evento_id, personal_id, cedula, estado, entrada_client_id, entrada_at, entrada_foto, entrada_offline, reloj_desfase_seg, aviso_datos)
-         VALUES ($1, $2, $3, 'abierta', $4, $5, $6, $7, $8, $9) RETURNING id`,
-        [m.evento_id, m.personal_id, persona.cedula, m.client_id, fecha.toISOString(), foto, !!m.offline, desfaseSeg, A.AVISO_DATOS_VERSION]);
+           (evento_id, personal_id, cedula, estado, entrada_client_id, entrada_at, entrada_foto, entrada_offline, reloj_desfase_seg, aviso_datos,
+            entrada_ip, entrada_dispositivo_id, entrada_cuenta_id)
+         VALUES ($1, $2, $3, 'abierta', $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+        [m.evento_id, m.personal_id, persona.cedula, m.client_id, fecha.toISOString(), foto, !!m.offline, desfaseSeg, A.AVISO_DATOS_VERSION,
+         origen.ip || null, origen.dispositivo_id || null, origen.cuenta_id || null]);
       await client.query('COMMIT');
       return { estado: 'ok', jornada_id: ins.rows[0].id, foto };
     }
@@ -255,9 +282,10 @@ async function _procesarMarca(m, fecha, desfaseSeg) {
     await client.query(
       `UPDATE asistencia_jornadas SET estado = 'cerrada', salida_client_id = $2, salida_at = $3, salida_recibida_at = NOW(),
               salida_foto = $4, salida_offline = $5,
-              reloj_desfase_seg = CASE WHEN ABS(COALESCE($6::int, 0)) > ABS(COALESCE(reloj_desfase_seg, 0)) THEN $6::int ELSE reloj_desfase_seg END
+              reloj_desfase_seg = CASE WHEN ABS(COALESCE($6::int, 0)) > ABS(COALESCE(reloj_desfase_seg, 0)) THEN $6::int ELSE reloj_desfase_seg END,
+              salida_ip = $7, salida_dispositivo_id = $8, salida_cuenta_id = $9
        WHERE id = $1`,
-      [j.id, m.client_id, fecha.toISOString(), foto, !!m.offline, desfaseSeg]);
+      [j.id, m.client_id, fecha.toISOString(), foto, !!m.offline, desfaseSeg, origen.ip || null, origen.dispositivo_id || null, origen.cuenta_id || null]);
     await client.query('COMMIT');
     return { estado: 'ok', jornada_id: j.id, foto };
   } catch (err) {
@@ -283,6 +311,10 @@ router.post('/kiosco/marcas', verificarKiosco, async (req, res) => {
   const corregir = Math.abs(desfase) > A.TOLERANCIA_RELOJ_MS;
   const desfaseSeg = corregir ? Math.round(desfase / 1000) : null;
 
+  let dispositivoId = null;
+  try { dispositivoId = await _dispositivo(req, req.kiosco.id, req.body.dispositivo); }
+  catch (err) { console.error('ERROR registrando dispositivo de asistencia', err.message); }
+  const origen = { ip: req.ip || null, dispositivo_id: dispositivoId, cuenta_id: req.kiosco.id };
   const resultados = [];
   for (const m0 of marcas) {
     const m = m0 && typeof m0 === 'object' ? m0 : {};
@@ -302,7 +334,7 @@ router.post('/kiosco/marcas', verificarKiosco, async (req, res) => {
     if (fecha.getTime() > ahora + 10 * 60000) fecha = new Date(ahora);
     try {
       const r = await _procesarMarca({ client_id, tipo, evento_id, personal_id, pin, jornada_client_id, foto: m.foto, offline: !!m.offline },
-        fecha, desfaseSeg);
+        fecha, desfaseSeg, origen);
       resultados.push({ client_id, estado: r.estado, error: r.error, jornada_id: r.jornada_id });
       if (r.estado === 'ok') {
         const j = await _datosAviso(pool, r.jornada_id);
@@ -319,37 +351,162 @@ router.post('/kiosco/marcas', verificarKiosco, async (req, res) => {
 // ══════════════════════════════════════════
 // ADMIN (nivel 4)
 // ══════════════════════════════════════════
-router.get('/cuenta', verificarToken, verificarNivel(4), async (req, res) => {
+// Cuentas de las tablets: sin límite. La contraseña no se puede ver (se
+// guarda cifrada de una sola vía): se asigna una nueva cuando se necesite.
+const RE_USUARIO_TABLET = /^[a-z0-9._@-]{4,80}$/;
+router.get('/cuentas', verificarToken, verificarNivel(4), async (req, res) => {
   try {
-    const r = await pool.query('SELECT usuario, activo, sesiones_desde, actualizada_at FROM asistencia_cuentas ORDER BY id LIMIT 1');
-    res.json(r.rows[0] ? { existe: true, ...r.rows[0] } : { existe: false });
+    const r = await pool.query(
+      `SELECT c.id, c.usuario, c.created_at, c.actualizada_at, c.ultimo_ingreso_at, c.sesiones_desde,
+              (SELECT COUNT(*)::int FROM asistencia_dispositivos d WHERE d.cuenta_id = c.id) AS dispositivos
+       FROM asistencia_cuentas c WHERE c.activo = true ORDER BY c.id`);
+    res.json(r.rows);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
 
-// Crea o actualiza la cuenta de las tablets. La contraseña es obligatoria al
-// crearla; al editar, solo si se quiere cambiar (mín. 8 caracteres).
-router.put('/cuenta', verificarToken, verificarNivel(4), async (req, res) => {
-  const usuario = String((req.body && req.body.usuario) || '').trim().toLowerCase();
-  const password = typeof (req.body && req.body.password) === 'string' ? req.body.password : '';
-  if (!/^[a-z0-9._@-]{4,80}$/.test(usuario)) return res.status(400).json({ error: 'Usuario inválido (letras, números, punto, guion o @)' });
-  if (password && password.length < 8) return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' });
+function _datosCuenta(body, nueva) {
+  const usuario = String((body && body.usuario) || '').trim().toLowerCase();
+  const password = typeof (body && body.password) === 'string' ? body.password : '';
+  if (!RE_USUARIO_TABLET.test(usuario)) return { error: 'Usuario inválido (4 a 80 caracteres: letras, números, punto, guion o @)' };
+  if (nueva && !password) return { error: 'Asigna una contraseña a la cuenta' };
+  if (password && password.length < 8) return { error: 'La contraseña debe tener al menos 8 caracteres' };
+  return { usuario, password };
+}
+
+router.post('/cuentas', verificarToken, verificarNivel(4), async (req, res) => {
+  const d = _datosCuenta(req.body, true);
+  if (d.error) return res.status(400).json({ error: d.error });
   try {
-    const actual = await pool.query('SELECT id FROM asistencia_cuentas ORDER BY id LIMIT 1');
-    if (!actual.rows.length) {
-      if (!password) return res.status(400).json({ error: 'Asigna una contraseña a la cuenta de las tablets' });
-      await pool.query('INSERT INTO asistencia_cuentas (usuario, password_hash) VALUES ($1, $2)', [usuario, await bcrypt.hash(password, 10)]);
-    } else {
-      await pool.query(
-        `UPDATE asistencia_cuentas SET usuario = $2, actualizada_at = NOW(),
-                password_hash = COALESCE($3, password_hash),
-                sesiones_desde = CASE WHEN $3::text IS NULL THEN sesiones_desde ELSE NOW() END
-         WHERE id = $1`,
-        [actual.rows[0].id, usuario, password ? await bcrypt.hash(password, 10) : null]);
-    }
-    res.json({ mensaje: password && actual.rows.length ? 'Cuenta actualizada: las tablets deben activarse con la contraseña nueva' : 'Cuenta guardada' });
+    const r = await pool.query('INSERT INTO asistencia_cuentas (usuario, password_hash) VALUES ($1, $2) RETURNING id',
+      [d.usuario, await bcrypt.hash(d.password, 10)]);
+    res.status(201).json({ id: r.rows[0].id, mensaje: 'Cuenta creada' });
+  } catch (err) {
+    if (err.code === '23505') return res.status(400).json({ error: 'Ya existe una cuenta con ese usuario' });
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// Editar usuario y, si se escribe, contraseña nueva (cierra la sesión de las
+// tablets de esa cuenta: se activan con la contraseña nueva)
+router.put('/cuentas/:id', verificarToken, verificarNivel(4), async (req, res) => {
+  const id = idValido(req.params.id);
+  if (!id) return res.status(400).json({ error: 'Solicitud inválida' });
+  const d = _datosCuenta(req.body, false);
+  if (d.error) return res.status(400).json({ error: d.error });
+  try {
+    const r = await pool.query(
+      `UPDATE asistencia_cuentas SET usuario = $2, actualizada_at = NOW(),
+              password_hash = COALESCE($3, password_hash),
+              sesiones_desde = CASE WHEN $3::text IS NULL THEN sesiones_desde ELSE NOW() + INTERVAL '1 second' END
+       WHERE id = $1 AND activo = true RETURNING id`,
+      [id, d.usuario, d.password ? await bcrypt.hash(d.password, 10) : null]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Cuenta no encontrada' });
+    res.json({ mensaje: d.password ? 'Cuenta actualizada: sus tablets deben activarse con la contraseña nueva' : 'Cuenta actualizada' });
+  } catch (err) {
+    if (err.code === '23505') return res.status(400).json({ error: 'Ya existe una cuenta con ese usuario' });
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// Eliminar: la cuenta deja de servir y sus tablets quedan fuera (se conserva
+// para el registro de las marcas que hizo)
+router.delete('/cuentas/:id', verificarToken, verificarNivel(4), async (req, res) => {
+  const id = idValido(req.params.id);
+  if (!id) return res.status(400).json({ error: 'Solicitud inválida' });
+  try {
+    const r = await pool.query(
+      "UPDATE asistencia_cuentas SET activo = false, sesiones_desde = NOW() + INTERVAL '1 second', actualizada_at = NOW() WHERE id = $1 AND activo = true RETURNING usuario",
+      [id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Cuenta no encontrada' });
+    res.json({ mensaje: `Cuenta ${r.rows[0].usuario} eliminada: sus tablets quedaron fuera` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// ── Dispositivos e IP ──
+router.get('/dispositivos', verificarToken, verificarNivel(4), async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT d.id, d.codigo, d.nombre, d.primera_vez_at, d.ultima_vez_at, d.ultima_ip, d.navegador, c.usuario AS cuenta,
+              (SELECT COUNT(*)::int FROM asistencia_jornadas j WHERE j.entrada_dispositivo_id = d.id OR j.salida_dispositivo_id = d.id) AS jornadas
+       FROM asistencia_dispositivos d LEFT JOIN asistencia_cuentas c ON c.id = d.cuenta_id
+       ORDER BY d.ultima_vez_at DESC`);
+    res.json(r.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+router.put('/dispositivos/:id', verificarToken, verificarNivel(4), async (req, res) => {
+  const id = idValido(req.params.id);
+  if (!id) return res.status(400).json({ error: 'Solicitud inválida' });
+  const nombre = String((req.body && req.body.nombre) || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  try {
+    const r = await pool.query('UPDATE asistencia_dispositivos SET nombre = $2 WHERE id = $1 RETURNING id', [id, nombre || null]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Dispositivo no encontrado' });
+    res.json({ mensaje: nombre ? 'Nombre guardado' : 'Nombre quitado' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// Consolidado: una fila por marca (entrada y salida) con la IP, el
+// dispositivo y la cuenta. Señala las IP distintas a la más usada en el
+// evento y los dispositivos sin nombre (no registrados por el admin).
+// Filtros: evento_id, desde, hasta (fecha de la marca, hora de Colombia)
+router.get('/marcas-ip', verificarToken, verificarNivel(4), async (req, res) => {
+  const q = req.query, cond = ['1=1'], params = [];
+  const p = v => { params.push(v); return `$${params.length}`; };
+  if (q.evento_id) { const id = idValido(q.evento_id); if (!id) return res.status(400).json({ error: 'Evento inválido' }); cond.push(`m.evento_id = ${p(id)}`); }
+  if (q.desde) { if (!fechaValida(q.desde)) return res.status(400).json({ error: 'Fecha "desde" inválida' }); cond.push(`m.fecha >= ${p(A.desdeCO(q.desde, '00:00').toISOString())}`); }
+  if (q.hasta) { if (!fechaValida(q.hasta)) return res.status(400).json({ error: 'Fecha "hasta" inválida' }); cond.push(`m.fecha < ${p(new Date(A.desdeCO(q.hasta, '00:00').getTime() + 864e5).toISOString())}`); }
+  try {
+    const r = await pool.query(
+      `WITH m AS (
+         SELECT j.id AS jornada_id, j.evento_id, 'Entrada' AS tipo, j.entrada_at AS fecha, j.entrada_offline AS offline,
+                j.entrada_ip AS ip, j.entrada_dispositivo_id AS dispositivo_id, j.entrada_cuenta_id AS cuenta_id, j.personal_id, j.usuario_id, j.cedula
+         FROM asistencia_jornadas j
+         UNION ALL
+         SELECT j.id, j.evento_id, 'Salida', j.salida_at, j.salida_offline, j.salida_ip, j.salida_dispositivo_id, j.salida_cuenta_id,
+                j.personal_id, j.usuario_id, j.cedula
+         FROM asistencia_jornadas j WHERE j.salida_at IS NOT NULL AND j.salida_manual = false
+       )
+       SELECT m.*, e.nombre AS evento, COALESCE(pe.nombre, us.nombre) AS persona,
+              d.nombre AS dispositivo_nombre, d.codigo AS dispositivo_codigo, c.usuario AS cuenta
+       FROM m
+       JOIN eventos e ON e.id = m.evento_id
+       LEFT JOIN asistencia_personal pe ON pe.id = m.personal_id
+       LEFT JOIN usuarios us ON us.id = m.usuario_id
+       LEFT JOIN asistencia_dispositivos d ON d.id = m.dispositivo_id
+       LEFT JOIN asistencia_cuentas c ON c.id = m.cuenta_id
+       WHERE ${cond.join(' AND ')}
+       ORDER BY m.fecha DESC
+       LIMIT 10000`, params);
+    // IP más usada en cada evento (la "habitual")
+    const conteo = {};
+    r.rows.forEach(x => { if (!x.ip) return; const k = x.evento_id + '|' + x.ip; conteo[k] = (conteo[k] || 0) + 1; });
+    const habitual = {};
+    Object.keys(conteo).forEach(k => {
+      const [ev, ip] = [k.slice(0, k.indexOf('|')), k.slice(k.indexOf('|') + 1)];
+      if (!habitual[ev] || conteo[k] > conteo[ev + '|' + habitual[ev]]) habitual[ev] = ip;
+    });
+    res.json(r.rows.map(x => ({
+      jornada_id: x.jornada_id, evento_id: x.evento_id, evento: x.evento, persona: x.persona, cedula: x.cedula,
+      tipo: x.tipo, fecha: x.fecha, offline: x.offline, ip: x.ip, cuenta: x.cuenta,
+      dispositivo: x.dispositivo_nombre || (x.dispositivo_codigo ? 'Sin nombre · ' + x.dispositivo_codigo.slice(-6).toUpperCase() : null),
+      dispositivo_sin_nombre: !!x.dispositivo_codigo && !x.dispositivo_nombre,
+      ip_habitual: habitual[String(x.evento_id)] || null,
+      ip_distinta: !!x.ip && !!habitual[String(x.evento_id)] && x.ip !== habitual[String(x.evento_id)]
+    })));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
@@ -536,13 +693,20 @@ router.get('/', verificarToken, verificarNivel(4), async (req, res) => {
       cargadas = (await pool.query('SELECT COUNT(*)::int AS n FROM asistencia_personal WHERE evento_id = $1', [idValido(q.evento_id)])).rows[0].n;
     }
     const filas = r.rows;
+    // Turno más corto y más largo (de todas las personas, turnos completos)
+    const completos = filas.filter(f => f.minutos !== null && f.minutos !== undefined);
+    const turno = x => x ? { minutos: x.minutos, persona: x.persona, cedula: x.cedula, evento: x.evento, entrada_at: x.entrada_at } : null;
+    const masCorto = completos.reduce((a, f) => (!a || f.minutos < a.minutos ? f : a), null);
+    const masLargo = completos.reduce((a, f) => (!a || f.minutos > a.minutos ? f : a), null);
     res.json({
       jornadas: filas,
       resumen: {
         personas_cargadas: cargadas,
         en_turno: filas.filter(f => f.estado === 'abierta').length,
         sin_salida: filas.filter(f => f.estado === 'sin_salida').length,
-        minutos: filas.reduce((s, f) => s + (f.minutos || 0), 0)
+        minutos: filas.reduce((s, f) => s + (f.minutos || 0), 0),
+        turno_mas_corto: turno(masCorto),
+        turno_mas_largo: turno(masLargo)
       }
     });
   } catch (err) {

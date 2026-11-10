@@ -20,8 +20,15 @@
    - Al enviarla se sube a POST /api/hc/enviar, que asigna el consecutivo
      HC-AAAA-NNNN. Sin señal queda "pendiente de envío" y sale con el botón
      Sincronizar. Reenviar la misma HC no la duplica (client_id).
-   - Al confirmarse el envío, la HC (con los datos del paciente) se borra de
-     la tablet; solo queda el consecutivo y la hora en "Enviadas hoy".
+   - Al confirmarse el envío, la HC sale de la lista "en curso". Mientras el
+     evento siga activo queda una copia en la tablet para registrar
+     NOVEDADES (solo quien la diligenció): tomas de signos (hasta 3 en
+     total), procedimientos, consumos y la evolución / cierre. Se guardan con
+     o sin conexión y suben con Sincronizar (POST /api/hc/novedad). Cuando el
+     evento finaliza, la copia se borra.
+   - Modo administrador (hc-editor.html): el mismo editor abre una HC del
+     servidor para corregir cualquier dato (con motivo); los consumos que
+     agrega descuentan del inventario en el momento.
    Reglas de validación: las mismas de src/utils/hc.js (servidor).
    ══════════════════════════════════════════ */
 var HCLite = (function(){
@@ -64,9 +71,15 @@ var HCLite = (function(){
   ];
   var RE_NOMBRE = /^[A-ZÁÉÍÓÚÜÑ][A-ZÁÉÍÓÚÜÑ .'\-]*$/;
   var RE_HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
+  // Menores de esta edad: no se pregunta el estado civil (queda SOLTERO/A)
+  var EDAD_ESTADO_CIVIL = 15;
+  // Tomas de signos: la de la atención + hasta 2 más (novedades)
+  var MAX_TOMAS_EXTRA = 2;
+  var ERROR_TELEFONO = 'escribe un número colombiano de 10 dígitos (celular 3XX XXX XXXX o fijo 60X XXX XXXX)';
 
   // Módulo 4 — valoración primaria ABCDE
-  var VIA_AEREA = [['ADECUADA','Adecuada'],['PERMEABLE','Permeable'],['OBSTRUIDA','Obstruida'],['INSTRUMENTADA','Instrumentada']];
+  // "Permeable" se quitó: técnicamente es lo mismo que "Adecuada"
+  var VIA_AEREA = [['ADECUADA','Adecuada'],['OBSTRUIDA','Obstruida'],['INSTRUMENTADA','Instrumentada']];
   var RESPIRACION = [['ADECUADA','Adecuada'],['DIFICULTAD','Dificultad respiratoria'],['AUSENTE','Ausente']];
   var CIRCULACION = [['ADECUADA','Adecuada'],['COMPROMETIDA','Comprometida']];
   var NEURO = [['ALERTA','Alerta'],['SOMNOLIENTO','Somnoliento'],['CONFUSO','Confuso'],['INCONSCIENTE','Inconsciente']];
@@ -82,7 +95,7 @@ var HCLite = (function(){
     spo2:   { nombre: 'SpO₂', posible: [30, 100], normal: [94, 100], req: true, unidad: '%' },
     temp:   { nombre: 'Temperatura', posible: [25, 45], normal: [36, 37.9], req: true, unidad: '°C', decimal: true },
     gluco:  { nombre: 'Glucometría', posible: [10, 1000], normal: [70, 180], unidad: 'mg/dL' },
-    eva:    { nombre: 'Dolor EVA', posible: [0, 10], normal: [0, 6], unidad: '/10' }
+    eva:    { nombre: 'Dolor EVA', posible: [0, 10], normal: [0, 6], unidad: '/10', req: true }
   };
   var GLASGOW = {
     ocular: [['4','Espontánea'],['3','Al estímulo verbal'],['2','Al dolor'],['1','Ninguna']],
@@ -148,12 +161,32 @@ var HCLite = (function(){
   function leerTodas(idUsuario){ return U.leerJSON(U.claveUsuario('hc', idUsuario)) || []; }
   function guardarTodas(lista){ return U.guardarJSON(U.claveUsuario('hc'), lista.length ? lista : null) || !lista.length; }
   function leerEnviadas(){ return U.leerJSON(U.claveUsuario('hcenv')) || []; }
+  function guardarEnviadas(env){ return U.guardarJSON(U.claveUsuario('hcenv'), env.length ? env : null); }
+  // Novedades de HC ya enviadas (nb_hcnov_U): en curso o pendientes de envío
+  function leerNovedades(idUsuario){ return U.leerJSON(U.claveUsuario('hcnov', idUsuario)) || []; }
+  function guardarNovedades(lista){ return U.guardarJSON(U.claveUsuario('hcnov'), lista.length ? lista : null) || !lista.length; }
+  function buscarNov(lista, novId){
+    for(var i = 0; i < lista.length; i++) if(lista[i].nov_id === novId) return i;
+    return -1;
+  }
+  function novedadDe(hcClientId){
+    var l = leerNovedades();
+    for(var i = 0; i < l.length; i++) if(l[i].client_id === hcClientId) return l[i];
+    return null;
+  }
+  function enviadaDe(hcClientId){
+    var env = leerEnviadas();
+    for(var i = 0; i < env.length; i++) if(env[i].client_id === hcClientId) return env[i];
+    return null;
+  }
 
-  // Pendientes de envío / en curso (para avisos del panel y el login)
+  // Pendientes de envío / en curso (para avisos del panel y el login).
+  // porEnviar incluye las novedades pendientes de envío.
   function contar(idUsuario){
-    var lista = leerTodas(idUsuario), porEnviar = 0;
-    for(var i = 0; i < lista.length; i++) if(lista[i].estado === 'por_enviar') porEnviar++;
-    return { total: lista.length, porEnviar: porEnviar, enCurso: lista.length - porEnviar };
+    var lista = leerTodas(idUsuario), porEnviar = 0, novs = leerNovedades(idUsuario), novPend = 0, i;
+    for(i = 0; i < lista.length; i++) if(lista[i].estado === 'por_enviar') porEnviar++;
+    for(i = 0; i < novs.length; i++) if(novs[i].estado === 'por_enviar') novPend++;
+    return { total: lista.length, porEnviar: porEnviar + novPend, enCurso: lista.length - porEnviar, novedades: novPend };
   }
 
   function buscarHC(lista, clientId){
@@ -164,7 +197,15 @@ var HCLite = (function(){
   // Guarda la HC abierta (reemplaza su versión en la lista)
   function guardarHC(){
     if(!hc) return true;
+    if(hc.modo === 'admin'){
+      // Editor del administrador: los cambios quedan en memoria hasta "Guardar cambios"
+      hc.sucio = true;
+      var g = U.$('lt-hc-guardado');
+      if(g){ g.className = 'lt-hc-guardado'; g.textContent = 'Cambios sin guardar · se guardan con "Guardar cambios" (módulo 7)'; }
+      return true;
+    }
     hc.actualizada_at = new Date().toISOString();
+    if(hc.modo === 'novedad') return guardarNovedadLocal();
     var lista = leerTodas();
     var i = buscarHC(lista, hc.client_id);
     if(i >= 0) lista[i] = hc; else lista.push(hc);
@@ -173,6 +214,19 @@ var HCLite = (function(){
     if(el){
       el.className = 'lt-hc-guardado' + (ok ? '' : ' error');
       el.textContent = ok ? 'Guardado en la tablet · ' + U.horaCO(hc.actualizada_at) : 'No hay espacio en la tablet: envía o sincroniza tus HC';
+    }
+    return ok;
+  }
+
+  function guardarNovedadLocal(){
+    var lista = leerNovedades();
+    var i = buscarNov(lista, hc.nov_id);
+    if(i >= 0) lista[i] = hc; else lista.push(hc);
+    var ok = guardarNovedades(lista);
+    var el = U.$('lt-hc-guardado');
+    if(el){
+      el.className = 'lt-hc-guardado' + (ok ? '' : ' error');
+      el.textContent = ok ? 'Novedad guardada en la tablet · ' + U.horaCO(hc.actualizada_at) : 'No hay espacio en la tablet: sincroniza tus pendientes';
     }
     return ok;
   }
@@ -195,6 +249,8 @@ var HCLite = (function(){
     if(!d.cierre) d.cierre = { traslado: {} };
     if(!d.cierre.traslado) d.cierre.traslado = {};
     if(!d.responsables) d.responsables = {};
+    if(d.paciente) d.paciente.nn = false;   // ya no hay paciente NN
+    if(!d.signos_tomas) d.signos_tomas = [];
     // Un solo médico en el evento: queda elegido
     var meds = h.servicio.medicos || [];
     if(meds.length === 1 && !d.responsables.medico_id) d.responsables.medico_id = String(meds[0].id);
@@ -262,6 +318,35 @@ var HCLite = (function(){
   }
 
   function txt(v){ return typeof v === 'string' ? v.replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '') : ''; }
+
+  // ── Datos de relleno ("NNNNN", "0000000", "1234567"): mismas reglas que
+  // src/utils/hc.js. Texto: un solo carácter repetido o 3+ letras iguales
+  // seguidas (en la dirección 4+). Teléfono: colombiano de 10 dígitos.
+  function secuencia(d, largo){
+    var sube = 1, baja = 1;
+    for(var i = 1; i < d.length; i++){
+      var a = +d.charAt(i - 1), b = +d.charAt(i);
+      sube = b === a + 1 ? sube + 1 : 1;
+      baja = b === a - 1 ? baja + 1 : 1;
+      if(sube >= largo || baja >= largo) return true;
+    }
+    return false;
+  }
+  function textoDeRelleno(v, repetidas){
+    var s = String(v || '').toUpperCase();
+    var solo = s.replace(/[^A-ZÁÉÍÓÚÜÑ0-9]/g, '');
+    if(solo.length >= 2 && /^(.)\1*$/.test(solo)) return true;
+    return new RegExp('([A-ZÁÉÍÓÚÜÑ])\\1{' + ((repetidas || 3) - 1) + '}').test(s);
+  }
+  function telefonoValido(v){
+    var d = String(v === undefined || v === null ? '' : v).replace(/\D/g, '');
+    return /^(3\d{9}|60\d{8})$/.test(d) && !/(\d)\1{6}/.test(d) && !secuencia(d, 7);
+  }
+  function documentoDeRelleno(v){
+    var d = String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if(d.length < 3) return false;
+    return /^(.)\1*$/.test(d) || (/^\d+$/.test(d) && secuencia(d, d.length));
+  }
   function digitos(v){ return String(v === undefined || v === null ? '' : v).replace(/\D/g, ''); }
   function mayus(v){ return txt(v).toUpperCase(); }
 
@@ -311,8 +396,21 @@ var HCLite = (function(){
   function nombrePaciente(h){
     var p = h.datos.paciente || {};
     var n = mayus((p.nombres || '') + ' ' + (p.apellidos || ''));
-    if(p.nn && (!n || n === 'NN NN')) return 'Paciente sin identificar (NN)';
     return n || 'Paciente sin nombre aún';
+  }
+
+  // Quien diligencia la HC: en la tablet el usuario; en el editor del
+  // administrador, el enfermero que la hizo
+  function diligencia(){ return hc && hc.diligencia ? hc.diligencia : st.usuario; }
+  // Responsable de procedimientos y medicamentos: el médico del evento (uno
+  // como máximo) o, si no hay, quien diligencia
+  function responsableTexto(){
+    var meds = hc.servicio.medicos || [];
+    return meds.length ? meds[0].nombre + ' (médico del evento)' : diligencia().nombre + ' (quien diligencia)';
+  }
+  function esMenorEstadoCivil(){
+    var e = edadAnios();
+    return e !== null && e < EDAD_ESTADO_CIVIL;
   }
 
   // ══════════════════════════════════════════
@@ -340,7 +438,7 @@ var HCLite = (function(){
         ' data-campo="' + ruta + '" value="' + U.escHtml(v) + '" autocomplete="off">';
     } else if(opts.tipo === 'fecha'){
       if(soportaFecha()){
-        html += '<input class="lt-input" type="date" max="' + fechaAtencion() + '" min="1900-01-01"' + attrs + ' value="' + U.escHtml(v) + '">';
+        html += '<input class="lt-input" type="date"' + (opts.sinMax ? '' : ' max="' + fechaAtencion() + '"') + ' min="1900-01-01"' + attrs + ' value="' + U.escHtml(v) + '">';
       } else {
         html += '<input class="lt-input" type="tel" data-fecha-dma="1" placeholder="DD/MM/AAAA" maxlength="10"' +
           ' data-campo="' + ruta + '" value="' + U.escHtml(v ? U.fmtFecha(v) : '') + '">';
@@ -417,36 +515,39 @@ var HCLite = (function(){
       dato('Municipio', s.municipio ? U.escHtml(s.municipio) + ' <span class="lt-gris">· ' + U.escHtml(s.departamento) + '</span>'
         : 'Sin municipio: avisa al administrador para que lo registre en la ubicación', !s.municipio) +
       dato('Evento', U.escHtml(s.evento || '—')) +
-      dato('Diligencia', U.escHtml(st.usuario.nombre) + ' <span class="lt-gris">· CC ' + U.escHtml(st.usuario.cedula || '') + '</span>') +
+      dato('Diligencia', U.escHtml(diligencia().nombre) + ' <span class="lt-gris">· CC ' + U.escHtml(diligencia().cedula || '') + '</span>') +
       dato('Médico del evento', medicos.length ? medicos.join('<br>') : 'Sin médico asignado', !medicos.length));
   }
 
   function modulo2(){
-    var p = hc.datos.paciente, nn = p.nn === true;
+    var p = hc.datos.paciente;
     var alfanum = TIPOS_ALFANUM[p.tipo_doc];
     var edad = calcularEdad(p.fecha_nacimiento, fechaAtencion());
-    var req = !nn;
+    var req = true;
     var html = seccion('Identificación del paciente',
-      interruptor('paciente.nn', 'Paciente sin identificar (NN)') +
-      (nn ? '<div class="lt-aviso">Llena lo que se sepa. Si no hay nombre se registra como <strong>NN</strong> y el administrador completa los datos después.</div>' : '') +
+      '<div class="lt-muted">Todos los datos son obligatorios (menos EPS y ARL). Pídelos al paciente o a su acompañante: no se aceptan datos de relleno como "NNNN" o "0000000".</div>' +
       fila([campo('paciente.nombres', 'Nombres', { req: req, mayus: true, max: 80, ph: 'Ej. PABLO ANDRÉS' }),
             campo('paciente.apellidos', 'Apellidos', { req: req, mayus: true, max: 80, ph: 'Ej. PÉREZ GÓMEZ' })]) +
       chips('paciente.tipo_doc', 'Tipo de documento', TIPOS_DOC, req) +
       campo('paciente.documento', 'Número de documento', {
         req: req, tipo: alfanum ? 'alfanum' : 'digitos', max: alfanum ? 20 : 15,
         ph: alfanum ? 'Letras y números' : 'Solo números',
-        ayuda: navigator.onLine !== false && !st.offline ? 'Si el paciente ya fue atendido antes, se ofrecerá cargar sus datos.' : ''
+        ayuda: navigator.onLine !== false && !st.offline && !hc.modo ? 'Si el paciente ya fue atendido antes, se ofrecerá cargar sus datos.' : ''
       }) +
       fila([campo('paciente.fecha_nacimiento', 'Fecha de nacimiento', { req: req, tipo: 'fecha' }),
             '<div class="lt-campo"><label class="lt-label">Edad</label><div class="lt-edad" id="lt-hc-edad">' +
             (edad ? U.escHtml(edad) : '<span class="lt-gris">Se calcula con la fecha de nacimiento</span>') + '</div></div>']) +
       chips('paciente.sexo', 'Sexo', SEXOS, req) +
-      fila([chips('paciente.rh', 'RH', RH), chips('paciente.grupo', 'Grupo sanguíneo', GRUPOS)]) +
-      fila([campo('paciente.direccion', 'Dirección', { max: 150, mayus: true }),
-            campo('paciente.ciudad', 'Ciudad', { max: 80, mayus: true })]) +
-      campo('paciente.telefono', 'Teléfono', { tipo: 'digitos', max: 15, ph: 'Ej. 3001234567' }) +
-      chips('paciente.estado_civil', 'Estado civil', ESTADOS_CIVILES) +
-      campo('paciente.ocupacion', 'Ocupación', { max: 80, mayus: true }) +
+      fila([chips('paciente.rh', 'RH', RH, true), chips('paciente.grupo', 'Grupo sanguíneo', GRUPOS, true)]) +
+      fila([campo('paciente.direccion', 'Dirección', { req: true, max: 150, mayus: true, ph: 'Ej. CALLE 10 # 20-30' }),
+            campo('paciente.ciudad', 'Ciudad', { req: true, max: 80, mayus: true })]) +
+      campo('paciente.telefono', 'Teléfono', { req: true, tipo: 'digitos', max: 10, ph: 'Ej. 3157778899',
+        ayuda: 'Celular de 10 dígitos (3XX…) o fijo con indicativo (60X…).' }) +
+      (esMenorEstadoCivil()
+        ? '<div class="lt-campo" data-envoltura="paciente.estado_civil_menor"><label class="lt-label">Estado civil</label>' +
+          '<div class="lt-dato-v">Soltero/a <span class="lt-gris">· menor de ' + EDAD_ESTADO_CIVIL + ' años: no se pregunta</span></div></div>'
+        : chips('paciente.estado_civil', 'Estado civil', ESTADOS_CIVILES, true)) +
+      campo('paciente.ocupacion', 'Ocupación', { req: true, max: 80, mayus: true, ph: 'Ej. ESTUDIANTE' }) +
       fila([campo('paciente.eps', 'EPS', { max: 80, mayus: true, ph: NO_APLICA }),
             campo('paciente.arl', 'ARL', { max: 80, mayus: true, ph: NO_APLICA })]) +
       '<div class="lt-muted">Si el paciente no tiene EPS o ARL, deja el campo vacío: se registra "' + NO_APLICA + '".</div>' +
@@ -463,7 +564,7 @@ var HCLite = (function(){
         : interruptor('acompanante.tiene', '¿El paciente tiene acompañante?')) +
       (a.tiene ? campo('acompanante.nombre', 'Nombre y apellidos completos', { req: true, max: 120, mayus: true }) +
         fila([campo('acompanante.parentesco', 'Parentesco', { req: true, max: 60, mayus: true, ph: 'Ej. MADRE' }),
-              campo('acompanante.telefono', 'Teléfono', { req: true, tipo: 'digitos', max: 15 })]) : ''));
+              campo('acompanante.telefono', 'Teléfono', { req: true, tipo: 'digitos', max: 10, ph: 'Ej. 3157778899' })]) : ''));
     return html;
   }
 
@@ -495,12 +596,17 @@ var HCLite = (function(){
 
     var cuerpoCons = '<div class="lt-consentimiento">' + U.escHtml(TEXTO_CONSENTIMIENTO) + '</div>' +
       '<div class="lt-muted">Lee el texto al paciente o a su acudiente y registra su decisión.</div>' +
-      chips('consentimiento.decision', 'Decisión', DECISIONES, true);
+      (hc.modo === 'admin'
+        ? dato('Decisión', '<strong>' + U.escHtml(textoDe(DECISIONES, c.decision) || '—') + '</strong>') +
+          '<div class="lt-ayuda">La decisión del paciente y las firmas no se cambian en la corrección.</div>'
+        : chips('consentimiento.decision', 'Decisión', DECISIONES, true));
     if(c.decision === 'rechaza'){
       cuerpoCons += '<div class="lt-aviso">Al rechazar la atención, la historia clínica pasa directo al cierre.</div>' +
         campo('consentimiento.motivo_rechazo', 'Motivo del rechazo', { req: true, tipo: 'area', filas: 3, max: 1000 }) +
         '<div class="lt-campo" data-envoltura="firma.paciente">' + etiqueta('Firma del paciente o acudiente', true) +
-          (hc.firmas.paciente
+          (hc.modo === 'admin'
+            ? (hc.firmas.paciente ? '<img class="lt-firma-img" src="' + hc.firmas.paciente + '" alt="Firma">' : '<div class="lt-gris">Sin firma</div>')
+            : hc.firmas.paciente
             ? '<img class="lt-firma-img" src="' + hc.firmas.paciente + '" alt="Firma"><button type="button" class="lt-btn-sec" data-hc="firmar" data-firma-campo="paciente">Volver a firmar</button>'
             : '<button type="button" class="lt-btn-sec primario lt-btn-firma" data-hc="firmar" data-firma-campo="paciente">Tomar firma</button>') +
         '</div>' +
@@ -544,9 +650,10 @@ var HCLite = (function(){
   }
 
   // '' normal · 'fuera' fuera de lo normal en adultos · 'imposible'
-  function estadoSigno(clave){
+  // base: 'signos' (toma de la atención) o 'signos_tomas.N' (tomas adicionales)
+  function estadoSigno(clave, base){
     var def = SIGNOS[clave];
-    var n = numeroSigno(hc.datos.signos[clave], def.decimal);
+    var n = numeroSigno((leerCampo(base || 'signos') || {})[clave], def.decimal);
     if(n === null) return '';
     if(isNaN(n) || n < def.posible[0] || n > def.posible[1]) return 'imposible';
     var edad = edadAnios();
@@ -554,15 +661,17 @@ var HCLite = (function(){
     return n < def.normal[0] || n > def.normal[1] ? 'fuera' : '';
   }
 
-  function campoSigno(clave){
-    var def = SIGNOS[clave], v = hc.datos.signos[clave];
+  function campoSigno(clave, base){
+    base = base || 'signos';
+    var def = SIGNOS[clave], v = (leerCampo(base) || {})[clave];
     v = v === undefined || v === null ? '' : String(v);
-    var est = estadoSigno(clave);
-    return '<div class="lt-campo lt-signo' + (est ? ' ' + est : '') + '" data-envoltura="signos.' + clave + '">' +
+    var est = estadoSigno(clave, base), ruta = base + '.' + clave;
+    var attrs = ' data-signo="' + clave + '" data-signo-base="' + base + '" data-campo="' + ruta + '"';
+    return '<div class="lt-campo lt-signo' + (est ? ' ' + est : '') + '" data-envoltura="' + ruta + '">' +
       etiqueta(def.nombre + (def.unidad ? ' (' + def.unidad + ')' : ''), def.req) +
       (def.decimal
-        ? '<input class="lt-input" type="number" step="0.1" data-solo="decimal" data-signo="' + clave + '" data-campo="signos.' + clave + '" value="' + U.escHtml(v) + '" placeholder="Ej. 36.5">'
-        : '<input class="lt-input" type="tel" pattern="[0-9]*" data-solo="digitos" data-signo="' + clave + '" maxlength="4" data-campo="signos.' + clave + '" value="' + U.escHtml(v) + '">') +
+        ? '<input class="lt-input" type="number" step="0.1" data-solo="decimal"' + attrs + ' value="' + U.escHtml(v) + '" placeholder="Ej. 36.5">'
+        : '<input class="lt-input" type="tel" pattern="[0-9]*" data-solo="digitos" maxlength="4"' + attrs + ' value="' + U.escHtml(v) + '">') +
       '<div class="lt-signo-aviso" data-aviso-signo="' + clave + '">' + textoEstadoSigno(est) + '</div></div>';
   }
   function textoEstadoSigno(est){
@@ -612,8 +721,47 @@ var HCLite = (function(){
       (aviso ? '<div class="lt-aviso">' + aviso + '</div>' : '');
 
     return seccion('Valoración primaria ABCDE', cuerpoAbcde) +
-      seccion('Signos vitales', cuerpoSignos) +
+      seccion('Signos vitales' + ((hc.datos.signos_tomas || []).length ? ' · Toma 1 (Inicio)' : ''), cuerpoSignos) +
+      (hc.modo === 'admin' ? seccionTomas(1) : '') +
       seccion('Escala de Glasgow', cuerpoGlasgow);
+  }
+
+  // ── Tomas adicionales de signos vitales (novedades y editor del admin) ──
+  // Hasta 3 en total: con 2 se rotulan Inicio / Final; con 3, Inicio /
+  // Durante / Final. previas: tomas que la HC ya tiene antes de estas.
+  function etiquetasTomas(total){
+    return total <= 1 ? [''] : (total === 2 ? ['Inicio', 'Final'] : ['Inicio', 'Durante', 'Final']);
+  }
+  function formToma(i, titulo){
+    var base = 'signos_tomas.' + i;
+    return '<div class="lt-proc">' +
+      '<div class="lt-proc-cab"><strong>' + U.escHtml(titulo) + '</strong>' +
+        '<button type="button" class="lt-link" data-hc="toma-quitar" data-i="' + i + '">Quitar</button></div>' +
+      campo(base + '.hora', 'Hora de la toma', { req: true, tipo: 'hora' }) +
+      fila([campoSigno('ta_sis', base), campoSigno('ta_dia', base)]) +
+      fila([campoSigno('fc', base), campoSigno('fr', base)]) +
+      fila([campoSigno('spo2', base), campoSigno('temp', base)]) +
+      fila([campoSigno('gluco', base), campoSigno('eva', base)]) +
+      '</div>';
+  }
+  function seccionTomas(previas){
+    var tomas = hc.datos.signos_tomas || [], total = previas + tomas.length, et = etiquetasTomas(total);
+    var cuerpo = '<div class="lt-muted">Hasta 3 tomas en total. En el PDF: con 2 tomas, Inicio y Final; con 3, Inicio, Durante y Final.</div>';
+    for(var i = 0; i < tomas.length; i++) cuerpo += formToma(i, 'Toma ' + (previas + i + 1) + ' · ' + et[previas + i]);
+    cuerpo += total < 1 + MAX_TOMAS_EXTRA
+      ? '<button type="button" class="lt-btn-sec primario lt-btn-agregar" data-hc="toma-agregar">+ Agregar toma de signos vitales</button>'
+      : '<div class="lt-muted">Ya están las 3 tomas posibles.</div>';
+    return seccion('Tomas de signos vitales (' + total + ' de 3)', cuerpo);
+  }
+  function agregarToma(){
+    hc.datos.signos_tomas.push({ hora: horaActual() });
+    guardarHC();
+    redibujarM6();
+  }
+  function quitarToma(i){
+    hc.datos.signos_tomas.splice(i, 1);
+    guardarHC();
+    redibujarM6();
   }
 
   // ── Módulo 5: examen físico, triage y procedimientos ──
@@ -636,21 +784,13 @@ var HCLite = (function(){
 
     var procs = hc.datos.procedimientos || [], htmlP = '';
     for(var j = 0; j < procs.length; j++) htmlP += filaProcedimiento(j);
-    var cuerpoProc = (procs.length ? htmlP : '<div class="lt-muted">No hay procedimientos registrados. Si no se realizó ninguno, continúa.</div>') +
+    var cuerpoProc = '<div class="lt-muted">Responsable: <strong>' + U.escHtml(responsableTexto()) + '</strong>.</div>' +
+      (procs.length ? htmlP : '<div class="lt-muted">No hay procedimientos registrados. Si no se realizó ninguno, continúa.</div>') +
       '<button type="button" class="lt-btn-sec primario lt-btn-agregar" data-hc="proc-agregar">+ Agregar procedimiento</button>';
 
     return seccion('Examen físico cefalocaudal', cuerpoExamen) +
       seccion('Triage prehospitalario', cuerpoTriage) +
       seccion('Procedimientos realizados', cuerpoProc);
-  }
-
-  // Personas que pueden ser responsables de un procedimiento: los médicos
-  // del evento y el enfermero que diligencia
-  function responsables(){
-    var lista = [], meds = hc.servicio.medicos || [];
-    for(var i = 0; i < meds.length; i++) lista.push([String(meds[i].id), meds[i].nombre + ' (médico)']);
-    lista.push([String(st.usuario.id), st.usuario.nombre + ' (yo)']);
-    return lista;
   }
 
   function filaProcedimiento(i){
@@ -661,7 +801,7 @@ var HCLite = (function(){
       campo(base + '.hora', 'Hora', { req: true, tipo: 'hora' }) +
       campo(base + '.descripcion', 'Procedimiento realizado', { req: true, tipo: 'area', filas: 2, max: 500,
         ph: 'Escribe con exactitud el procedimiento. Ej. Inmovilización de muñeca derecha con férula' }) +
-      chips(base + '.responsable_id', 'Responsable', responsables(), true) +
+      dato('Responsable', U.escHtml(responsableTexto())) +
       '</div>';
   }
 
@@ -672,11 +812,7 @@ var HCLite = (function(){
   }
 
   function agregarProcedimiento(){
-    var meds = hc.servicio.medicos || [];
-    hc.datos.procedimientos.push({
-      hora: horaActual(), descripcion: '',
-      responsable_id: meds.length === 1 ? String(meds[0].id) : (meds.length ? '' : String(st.usuario.id))
-    });
+    hc.datos.procedimientos.push({ hora: horaActual(), descripcion: '' });
     guardarHC();
     var y = window.pageYOffset || 0;
     renderModulo();
@@ -701,6 +837,7 @@ var HCLite = (function(){
   }
 
   function bodegasDeHC(){
+    if(hc.modo === 'admin') return hc.bodegas || [];   // asignadas a quien la diligenció
     var ev = eventoDeHC();
     return ev ? (ev.bodegas || []) : [];
   }
@@ -729,6 +866,12 @@ var HCLite = (function(){
 
   function modulo6(){
     if(!_m6) _m6 = m6Nuevo();
+    var html = seccion('Medicamentos e insumos suministrados',
+      listaMedsHtml('Aún no se ha registrado ningún medicamento ni insumo. Si no se suministró nada, continúa con la historia clínica.'));
+    return html + '<div class="lt-campo" data-envoltura="m6">' + formularioM6() + '</div>';
+  }
+
+  function listaMedsHtml(vacio){
     var meds = hc.datos.medicamentos || [], lista = '';
     for(var i = 0; i < meds.length; i++){
       var m = meds[i], e = estadoConsumo(m);
@@ -743,9 +886,7 @@ var HCLite = (function(){
         '<button type="button" class="lt-btn-sec peligro lt-med-quitar" data-hc="m6-quitar" data-id="' + U.escHtml(m.client_id) + '">Quitar</button>' +
       '</div>';
     }
-    var html = seccion('Medicamentos e insumos suministrados',
-      (meds.length ? lista : '<div class="lt-muted">Aún no se ha registrado ningún medicamento ni insumo. Si no se suministró nada, continúa con la historia clínica.</div>'));
-    return html + '<div class="lt-campo" data-envoltura="m6">' + formularioM6() + '</div>';
+    return meds.length ? lista : '<div class="lt-muted">' + vacio + '</div>';
   }
 
   function formularioM6(){
@@ -757,7 +898,7 @@ var HCLite = (function(){
           (u.pendiente ? '<br><span class="lt-gris">Guardado en la tablet: se subirá al sincronizar.</span>' : '') + '</div>' +
         '<div class="lt-m6-siguiente">' +
           '<button type="button" class="lt-btn-sec primario" data-hc="m6-otro">+ Registrar otro consumo</button>' +
-          '<button type="button" class="lt-btn" data-hc="siguiente">Continuar con la historia clínica ›</button>' +
+          (hc.modo === 'novedad' ? '' : '<button type="button" class="lt-btn" data-hc="siguiente">Continuar con la historia clínica ›</button>') +
         '</div>');
     }
     var bodegas = bodegasDeHC();
@@ -892,7 +1033,11 @@ var HCLite = (function(){
       fecha_atencion: new Date().toISOString(),
       nombre: item.nombre,
       unidad: item.unidad,
-      evento_id: hc.evento_id
+      evento_id: hc.evento_id,
+      // El editor del administrador registra la dosis con el consumo
+      hc_id: hc.servidor_id || null,
+      dosis: esMed ? txt(f.dosis) : '', via: esMed ? f.via : '', via_otra: esMed && f.via === 'OTRA' ? mayus(f.via_otra) : '',
+      hora: esMed ? f.hora : horaActual()
     };
     var abierta = hc.client_id;
     _m6.enviando = true;
@@ -944,6 +1089,15 @@ var HCLite = (function(){
       redibujarM6();
       U.toast('Consumo quitado de la historia clínica', 'ok');
     }
+    if(hc.modo === 'admin'){
+      // Editor del administrador: se quita del inventario y de la HC en el momento
+      U.api('POST', '/api/hc/' + hc.servidor_id + '/consumos/anular', { client_id: m.client_id }, function(err){
+        if(err){ U.modal('No se pudo quitar', U.escHtml(err.message), [{ texto: 'Entendido', clase: 'primario' }]); return; }
+        U.devolverLocal({ sub_sku_id: m.sub_sku_id, bodega_nombre: m.bodega_nombre, cantidad: m.cantidad });
+        sacar();
+      });
+      return;
+    }
     if(U.quitarConsumoDeCola(m.client_id)){ sacar(); return; }
     U.api('POST', '/api/movimientos/anular-consumo', { client_id: m.client_id }, function(err){
       if(err && err.status !== 404){
@@ -968,6 +1122,10 @@ var HCLite = (function(){
 
   function bloqueFirma(campo, quien){
     var img = hc.firmas[campo];
+    if(hc.modo === 'admin'){
+      return '<div class="lt-campo" data-envoltura="firma.' + campo + '">' +
+        (img ? '<img class="lt-firma-img" src="' + img + '" alt="Firma">' : '<div class="lt-gris">Sin firma' + (campo === 'medico' ? ' (se toma en Historias clínicas → Firma del médico)' : '') + '</div>') + '</div>';
+    }
     return '<div class="lt-campo" data-envoltura="firma.' + campo + '">' +
       (img ? '<img class="lt-firma-img" src="' + img + '" alt="Firma">' +
              '<button type="button" class="lt-btn-sec" data-hc="firmar" data-firma-campo="' + campo + '">Volver a firmar</button>'
@@ -975,7 +1133,8 @@ var HCLite = (function(){
       '</div>';
   }
 
-  function modulo7(){
+  // Evolución, destino y traslado (módulo 7 y novedades)
+  function htmlCierre(){
     var d = hc.datos, c = d.cierre, t = c.traslado || {}, s = hc.servicio, esRechazo = rechazo();
     var cuerpoEvol =
       campo('cierre.evolucion', 'Evolución y descripción del servicio', { req: true, tipo: 'area', filas: 5, max: 4000,
@@ -1001,6 +1160,21 @@ var HCLite = (function(){
               campo('cierre.traslado.telefono', 'Número telefónico', { req: true, tipo: 'digitos', max: 15 })]) +
         '<div class="lt-muted">La entrega del paciente en la institución la registra el administrador después. La historia clínica quedará <strong>abierta</strong> hasta entonces.</div>');
     }
+    return html;
+  }
+
+  function modulo7(){
+    var d = hc.datos, c = d.cierre, s = hc.servicio, esRechazo = rechazo();
+    var html = htmlCierre();
+    if(hc.modo === 'admin' && d.entrega){
+      html += seccion('Entrega del paciente',
+        fila([campo('entrega.fecha', 'Fecha', { req: true, tipo: 'fecha', sinMax: true }), campo('entrega.hora', 'Hora', { req: true, tipo: 'hora' })]) +
+        campo('entrega.institucion', 'Institución', { req: true, max: 150, mayus: true }) +
+        chips('entrega.servicio', 'Servicio receptor', [['URGENCIAS', 'Urgencias'], ['OTRO', 'Otro']], true) +
+        (d.entrega.servicio === 'OTRO' ? campo('entrega.servicio_otro', '¿Cuál servicio?', { req: true, max: 80, mayus: true }) : '') +
+        fila([campo('entrega.recibe_nombre', 'Nombre de quien recibe', { req: true, max: 120, mayus: true }),
+              campo('entrega.recibe_cargo', 'Cargo', { req: true, max: 80, mayus: true })]));
+    }
 
     // Responsables de la atención
     var meds = s.medicos || [], idMed = d.responsables.medico_id, med = null;
@@ -1021,7 +1195,7 @@ var HCLite = (function(){
     html += seccion('Responsables de la atención',
       '<div class="lt-subtitulo">Médico</div>' + cuerpoMed +
       '<div class="lt-subtitulo">TAPH / APH / Auxiliar (quien diligencia)</div>' +
-      dato('Nombre', U.escHtml(st.usuario.nombre)) + dato('Cédula', U.escHtml(st.usuario.cedula || '')) +
+      dato('Nombre', U.escHtml(diligencia().nombre)) + dato('Cédula', U.escHtml(diligencia().cedula || '')) +
       bloqueFirma('enfermero', 'de quien diligencia'));
 
     // Resumen y envío
@@ -1036,7 +1210,12 @@ var HCLite = (function(){
       (esRechazo ? '' : dato('Triage', U.escHtml(d.triage || '—')) +
         dato('Medicamentos e insumos', (d.medicamentos || []).length ? String(d.medicamentos.length) : 'Ninguno')) +
       dato('Destino', U.escHtml(esRechazo ? 'Rechazo de atención' : (textoDe(DESTINOS, c.destino) || '—'))) +
-      (hc.estado === 'por_enviar'
+      (hc.modo === 'admin'
+        ? '<div class="lt-campo" data-envoltura="motivo"><label class="lt-label">Motivo de la corrección <span class="lt-req">*</span></label>' +
+            '<textarea class="lt-input lt-area" rows="2" maxlength="500" data-admin-motivo="1" placeholder="Ej. El paciente aportó su dirección y teléfono por llamada">' + U.escHtml(hc.motivo || '') + '</textarea>' +
+            '<div class="lt-ayuda">Queda en el historial de cambios de la historia clínica y en las notas aclaratorias del PDF.</div></div>' +
+          '<button type="button" class="lt-btn" data-hc="admin-guardar">Guardar cambios</button>'
+        : hc.estado === 'por_enviar'
         ? '<div class="lt-aviso">Esta historia clínica está <strong>pendiente de envío</strong>. Se enviará con el botón <strong>Sincronizar</strong> cuando haya señal.</div>' +
           '<button type="button" class="lt-btn" data-hc="enviar">Intentar enviar ahora</button>'
         : '<div class="lt-muted">Al enviarla, el servidor le asigna su número (HC-AAAA-NNNN). Después ya no se puede modificar desde la tablet.</div>' +
@@ -1044,7 +1223,18 @@ var HCLite = (function(){
     return html;
   }
 
-  function rechazo(){ return hc.datos.consentimiento.decision === 'rechaza'; }
+  function rechazo(){ return (hc.datos.consentimiento || {}).decision === 'rechaza'; }
+
+  function validarEntrega(err){
+    var e = hc.datos.entrega || {};
+    if(!fechaValida(e.fecha)) err('entrega.fecha', 'Entrega: indica la fecha');
+    if(!RE_HORA.test(e.hora || '')) err('entrega.hora', 'Entrega: indica la hora (HH:MM)');
+    if(txt(e.institucion).length < 3) err('entrega.institucion', 'Entrega: escribe la institución');
+    if(!e.servicio) err('entrega.servicio', 'Entrega: selecciona el servicio receptor');
+    else if(e.servicio === 'OTRO' && txt(e.servicio_otro).length < 3) err('entrega.servicio_otro', 'Entrega: escribe cuál servicio receptor');
+    if(txt(e.recibe_nombre).length < 3) err('entrega.recibe_nombre', 'Entrega: escribe el nombre de quien recibe');
+    if(txt(e.recibe_cargo).length < 3) err('entrega.recibe_cargo', 'Entrega: escribe el cargo de quien recibe');
+  }
   function moduloOmitido(n){ return rechazo() && n >= 4 && n <= 6; }
 
   // ══════════════════════════════════════════
@@ -1054,27 +1244,31 @@ var HCLite = (function(){
     var e = [], d = hc.datos;
     function err(campo, msg){ e.push({ campo: campo, msg: msg }); }
     if(n === 2){
+      // Todo obligatorio (menos EPS y ARL), sin datos de relleno
       var p = d.paciente;
-      if(!p.nn){
-        var nom = mayus(p.nombres), ape = mayus(p.apellidos);
-        if(nom.length < 2 || !RE_NOMBRE.test(nom)) err('paciente.nombres', 'Escribe los nombres del paciente (solo letras)');
-        if(ape.length < 2 || !RE_NOMBRE.test(ape)) err('paciente.apellidos', 'Escribe los apellidos del paciente (solo letras)');
-        if(!p.tipo_doc) err('paciente.tipo_doc', 'Selecciona el tipo de documento');
-        if(String(p.documento || '').length < 3) err('paciente.documento', 'Escribe el número de documento');
-        if(!fechaValida(p.fecha_nacimiento)) err('paciente.fecha_nacimiento', 'Indica la fecha de nacimiento');
-        if(!p.sexo) err('paciente.sexo', 'Selecciona el sexo');
-      }
-      if(p.fecha_nacimiento && fechaValida(p.fecha_nacimiento) && !calcularEdad(p.fecha_nacimiento, fechaAtencion())){
-        err('paciente.fecha_nacimiento', 'La fecha de nacimiento no puede ser posterior a hoy');
-      }
-      if(p.telefono && digitos(p.telefono).length < 7) err('paciente.telefono', 'El teléfono debe tener al menos 7 dígitos');
+      var nom = mayus(p.nombres), ape = mayus(p.apellidos), doc = String(p.documento || '');
+      if(nom.length < 2 || !RE_NOMBRE.test(nom) || textoDeRelleno(nom)) err('paciente.nombres', 'Escribe los nombres del paciente (solo letras, sin datos de relleno)');
+      if(ape.length < 2 || !RE_NOMBRE.test(ape) || textoDeRelleno(ape)) err('paciente.apellidos', 'Escribe los apellidos del paciente (solo letras, sin datos de relleno)');
+      if(!p.tipo_doc) err('paciente.tipo_doc', 'Selecciona el tipo de documento');
+      if(doc.length < 3) err('paciente.documento', 'Escribe el número de documento');
+      else if(documentoDeRelleno(doc)) err('paciente.documento', 'El número de documento no es válido (parece un dato de relleno)');
+      if(!fechaValida(p.fecha_nacimiento)) err('paciente.fecha_nacimiento', 'Indica la fecha de nacimiento');
+      else if(!calcularEdad(p.fecha_nacimiento, fechaAtencion())) err('paciente.fecha_nacimiento', 'La fecha de nacimiento no puede ser posterior a hoy');
+      if(!p.sexo) err('paciente.sexo', 'Selecciona el sexo');
+      if(!p.rh) err('paciente.rh', 'Selecciona el RH');
+      if(!p.grupo) err('paciente.grupo', 'Selecciona el grupo sanguíneo');
+      if(txt(p.direccion).length < 5 || textoDeRelleno(p.direccion, 4)) err('paciente.direccion', 'Escribe la dirección del paciente (sin datos de relleno)');
+      if(txt(p.ciudad).length < 3 || textoDeRelleno(p.ciudad)) err('paciente.ciudad', 'Escribe la ciudad del paciente (sin datos de relleno)');
+      if(!telefonoValido(p.telefono)) err('paciente.telefono', 'Teléfono del paciente: ' + ERROR_TELEFONO);
+      if(!esMenorEstadoCivil() && !p.estado_civil) err('paciente.estado_civil', 'Selecciona el estado civil');
+      if(txt(p.ocupacion).length < 3 || textoDeRelleno(p.ocupacion)) err('paciente.ocupacion', 'Escribe la ocupación del paciente (sin datos de relleno)');
       if(p.otra_aseguradora && !txt(p.aseguradora)) err('paciente.aseguradora', 'Escribe el nombre de la otra aseguradora');
       var a = d.acompanante;
       if(p.tipo_doc === 'TI' && !a.tiene) a.tiene = true;   // TI: acompañante obligatorio
       if(a.tiene){
-        if(txt(a.nombre).length < 3) err('acompanante.nombre', 'Escribe el nombre completo del acompañante');
-        if(!txt(a.parentesco)) err('acompanante.parentesco', 'Escribe el parentesco del acompañante');
-        if(digitos(a.telefono).length < 7) err('acompanante.telefono', 'Escribe el teléfono del acompañante');
+        if(txt(a.nombre).length < 3 || textoDeRelleno(a.nombre)) err('acompanante.nombre', 'Escribe el nombre completo del acompañante (sin datos de relleno)');
+        if(txt(a.parentesco).length < 3 || textoDeRelleno(a.parentesco)) err('acompanante.parentesco', 'Escribe el parentesco del acompañante');
+        if(!telefonoValido(a.telefono)) err('acompanante.telefono', 'Teléfono del acompañante: ' + ERROR_TELEFONO);
       }
     }
     if(n === 3){
@@ -1089,10 +1283,10 @@ var HCLite = (function(){
         var t = c.testigo || {};
         if(txt(c.motivo_rechazo).length < 3) err('consentimiento.motivo_rechazo', 'Escribe el motivo del rechazo');
         if(!hc.firmas.paciente) err('firma.paciente', 'Falta la firma del paciente o acudiente');
-        if(txt(t.nombres).length < 2) err('consentimiento.testigo.nombres', 'Escribe el nombre del testigo');
-        if(txt(t.apellidos).length < 2) err('consentimiento.testigo.apellidos', 'Escribe el apellido del testigo');
-        if(digitos(t.cedula).length < 5) err('consentimiento.testigo.cedula', 'Escribe la cédula del testigo');
-        if(digitos(t.telefono).length < 7) err('consentimiento.testigo.telefono', 'Escribe el teléfono del testigo');
+        if(txt(t.nombres).length < 2 || textoDeRelleno(t.nombres)) err('consentimiento.testigo.nombres', 'Escribe el nombre del testigo (sin datos de relleno)');
+        if(txt(t.apellidos).length < 2 || textoDeRelleno(t.apellidos)) err('consentimiento.testigo.apellidos', 'Escribe el apellido del testigo (sin datos de relleno)');
+        if(digitos(t.cedula).length < 5 || documentoDeRelleno(t.cedula)) err('consentimiento.testigo.cedula', 'Escribe la cédula del testigo');
+        if(!telefonoValido(t.telefono)) err('consentimiento.testigo.telefono', 'Teléfono del testigo: ' + ERROR_TELEFONO);
       }
     }
     if(n === 4){
@@ -1102,38 +1296,19 @@ var HCLite = (function(){
       if(!v.circulacion) err('valoracion.circulacion', 'Selecciona el estado de la circulación (C)');
       if(!v.neuro) err('valoracion.neuro', 'Selecciona el estado neurológico (D)');
       if(v.exposicion_si && txt(v.exposicion).length < 3) err('valoracion.exposicion', 'Describe los hallazgos de la exposición (E)');
-      if(!RE_HORA.test(d.signos.hora || '')) err('signos.hora', 'Escribe la hora de la toma de signos vitales (HH:MM)');
-      for(var clave in SIGNOS){
-        if(!SIGNOS.hasOwnProperty(clave)) continue;
-        var def = SIGNOS[clave], num = numeroSigno(d.signos[clave], def.decimal);
-        if(num === null){ if(def.req) err('signos.' + clave, 'Registra ' + def.nombre); }
-        else if(isNaN(num) || num < def.posible[0] || num > def.posible[1]){
-          err('signos.' + clave, def.nombre + ': valor no válido (entre ' + def.posible[0] + ' y ' + def.posible[1] + ')');
-        }
-      }
-      var sis = numeroSigno(d.signos.ta_sis), dia = numeroSigno(d.signos.ta_dia);
-      if(sis && dia && dia >= sis) err('signos.ta_dia', 'La tensión diastólica debe ser menor que la sistólica');
+      validarSignos('signos', '', err);
+      // Tomas adicionales (editor del administrador)
+      for(var tk = 0; tk < (d.signos_tomas || []).length; tk++) validarSignos('signos_tomas.' + tk, 'Toma ' + (tk + 2) + ': ', err);
       if(!d.glasgow.ocular) err('glasgow.ocular', 'Selecciona la respuesta ocular (Glasgow)');
       if(!d.glasgow.verbal) err('glasgow.verbal', 'Selecciona la respuesta verbal (Glasgow)');
       if(!d.glasgow.motora) err('glasgow.motora', 'Selecciona la respuesta motora (Glasgow)');
     }
     if(n === 7){
-      var ci = d.cierre, tr = ci.traslado || {};
-      if(txt(ci.evolucion).length < 3) err('cierre.evolucion', 'Escribe la evolución y descripción del servicio');
-      if(!ci.condicion) err('cierre.condicion', 'Selecciona la condición clínica al finalizar la atención');
-      if(!rechazo()){
-        if(!ci.destino) err('cierre.destino', 'Selecciona el destino o disposición final del paciente');
-        if(ci.destino === 'TRASLADO'){
-          if(txt(tr.destino).length < 3) err('cierre.traslado.destino', 'Traslado: escribe el destino');
-          if(!tr.ambulancia) err('cierre.traslado.ambulancia', 'Traslado: selecciona el tipo de ambulancia');
-          if(!txt(tr.movil)) err('cierre.traslado.movil', 'Traslado: escribe el número del móvil');
-          if(String(tr.placa || '').replace(/[^A-Za-z0-9]/g, '').length < 5) err('cierre.traslado.placa', 'Traslado: escribe la placa');
-          if(txt(tr.conductor).length < 3) err('cierre.traslado.conductor', 'Traslado: escribe el nombre del conductor');
-          if(digitos(tr.telefono).length < 7) err('cierre.traslado.telefono', 'Traslado: escribe el teléfono');
-        }
-      }
+      validarCierre(err);
       if((hc.servicio.medicos || []).length && !d.responsables.medico_id) err('responsables.medico_id', 'Selecciona el médico responsable');
-      if(!hc.firmas.enfermero) err('firma.enfermero', 'Falta tu firma como responsable de la atención');
+      // En el editor del administrador la firma ya está en la HC (no se edita)
+      if(hc.modo !== 'admin' && !hc.firmas.enfermero) err('firma.enfermero', 'Falta tu firma como responsable de la atención');
+      if(hc.modo === 'admin' && hc.datos.entrega) validarEntrega(err);
     }
     if(n === 6){
       if(_m6 && _m6.idx !== null) err('m6', 'Registra el producto seleccionado o pulsa "Cambiar producto" para cancelarlo');
@@ -1150,10 +1325,43 @@ var HCLite = (function(){
         var p = procs[i], b = 'procedimientos.' + i;
         if(!RE_HORA.test(p.hora || '')) err(b + '.hora', 'Procedimiento ' + (i + 1) + ': escribe la hora (HH:MM)');
         if(txt(p.descripcion).length < 3) err(b + '.descripcion', 'Procedimiento ' + (i + 1) + ': describe el procedimiento realizado');
-        if(!p.responsable_id) err(b + '.responsable_id', 'Procedimiento ' + (i + 1) + ': elige el responsable');
       }
     }
     return e;
+  }
+
+  // Signos vitales de una toma (base 'signos' o 'signos_tomas.N')
+  function validarSignos(base, prefijo, err){
+    var sg = leerCampo(base) || {};
+    if(!RE_HORA.test(sg.hora || '')) err(base + '.hora', prefijo + 'escribe la hora de la toma de signos vitales (HH:MM)');
+    for(var clave in SIGNOS){
+      if(!SIGNOS.hasOwnProperty(clave)) continue;
+      var def = SIGNOS[clave], num = numeroSigno(sg[clave], def.decimal);
+      if(num === null){ if(def.req) err(base + '.' + clave, prefijo + 'registra ' + def.nombre); }
+      else if(isNaN(num) || num < def.posible[0] || num > def.posible[1]){
+        err(base + '.' + clave, prefijo + def.nombre + ': valor no válido (entre ' + def.posible[0] + ' y ' + def.posible[1] + ')');
+      }
+    }
+    var sis = numeroSigno(sg.ta_sis), dia = numeroSigno(sg.ta_dia);
+    if(sis && dia && dia >= sis) err(base + '.ta_dia', prefijo + 'la tensión diastólica debe ser menor que la sistólica');
+  }
+
+  // Evolución, destino y traslado (módulo 7 y novedades)
+  function validarCierre(err){
+    var ci = hc.datos.cierre, tr = ci.traslado || {};
+    if(txt(ci.evolucion).length < 3) err('cierre.evolucion', 'Escribe la evolución y descripción del servicio');
+    if(!ci.condicion) err('cierre.condicion', 'Selecciona la condición clínica al finalizar la atención');
+    if(!rechazo()){
+      if(!ci.destino) err('cierre.destino', 'Selecciona el destino o disposición final del paciente');
+      if(ci.destino === 'TRASLADO'){
+        if(txt(tr.destino).length < 3) err('cierre.traslado.destino', 'Traslado: escribe el destino');
+        if(!tr.ambulancia) err('cierre.traslado.ambulancia', 'Traslado: selecciona el tipo de ambulancia');
+        if(!txt(tr.movil)) err('cierre.traslado.movil', 'Traslado: escribe el número del móvil');
+        if(String(tr.placa || '').replace(/[^A-Za-z0-9]/g, '').length < 5) err('cierre.traslado.placa', 'Traslado: escribe la placa');
+        if(txt(tr.conductor).length < 3 || textoDeRelleno(tr.conductor)) err('cierre.traslado.conductor', 'Traslado: escribe el nombre del conductor (sin datos de relleno)');
+        if(!telefonoValido(tr.telefono)) err('cierre.traslado.telefono', 'Traslado: teléfono — ' + ERROR_TELEFONO);
+      }
+    }
   }
 
   function mostrarErrores(errores){
@@ -1192,6 +1400,8 @@ var HCLite = (function(){
   }
 
   function renderModulo(){
+    if(hc.modo === 'novedad'){ renderNovedad(); return; }
+    U.$('lt-hc-anterior').style.display = '';
     var m = MODULOS[hc.paso - 1];
     var html;
     if(hc.paso === 1) html = modulo1();
@@ -1204,7 +1414,9 @@ var HCLite = (function(){
     else html = moduloProximo(m);
     U.$('lt-hc-modulo').innerHTML = html;
     U.$('lt-hc-titulo').innerHTML = '<span class="lt-hc-paciente">' + U.escHtml(nombrePaciente(hc)) + '</span>' +
-      '<span class="lt-hc-sub">' + (hc.consecutivo ? U.escHtml(hc.consecutivo) : 'HC sin número aún') + ' · Inicio ' + U.horaCO(hc.inicio_atencion) + '</span>';
+      '<span class="lt-hc-sub">' + (hc.consecutivo ? U.escHtml(hc.consecutivo) : 'HC sin número aún') + ' · Inicio ' +
+      (hc.modo === 'admin' ? U.fmtFecha(fechaAtencion()) + ' ' : '') + U.horaCO(hc.inicio_atencion) +
+      (hc.modo === 'admin' ? ' · Editando como administrador' : '') + '</span>';
     U.$('lt-hc-anterior').style.visibility = hc.paso > 1 ? 'visible' : 'hidden';
     U.$('lt-hc-siguiente').style.display = hc.paso < 7 ? '' : 'none';
     renderPasos();
@@ -1215,7 +1427,7 @@ var HCLite = (function(){
     if(n === 4 && !hc.datos.signos.hora) hc.datos.signos.hora = horaActual();
     hc.paso = n;
     if(n > hc.max_paso) hc.max_paso = n;
-    guardarHC();
+    if(hc.modo !== 'admin') guardarHC();   // en el editor del admin, navegar no es un cambio
     mostrarErrores([]);
     renderModulo();
     if(!sinScroll) window.scrollTo(0, 0);
@@ -1314,11 +1526,19 @@ var HCLite = (function(){
     if(ruta === 'paciente.fecha_nacimiento'){
       var edad = calcularEdad(v, fechaAtencion());
       U.$('lt-hc-edad').innerHTML = edad ? U.escHtml(edad) : (v ? '<span class="lt-error-txt">Fecha no válida</span>' : '<span class="lt-gris">Se calcula con la fecha de nacimiento</span>');
+      var conChips = !!document.querySelector('[data-chip="paciente.estado_civil"]');
+      if(conChips === esMenorEstadoCivil()){
+        guardarHC();
+        var y0 = window.pageYOffset || 0;
+        renderModulo();
+        window.scrollTo(0, y0);
+        return;
+      }
     }
     var signo = el.getAttribute('data-signo');
     if(signo){
       // Marca en rojo al escribir, sin redibujar (no pierde el foco)
-      var est = estadoSigno(signo);
+      var est = estadoSigno(signo, el.getAttribute('data-signo-base'));
       var env = el.parentNode;
       env.className = 'lt-campo lt-signo' + (est ? ' ' + est : '');
       var av = env.querySelector('[data-aviso-signo]');
@@ -1389,7 +1609,7 @@ var HCLite = (function(){
   // ── Precarga: atención anterior del mismo paciente (solo con conexión) ──
   function consultarPaciente(){
     var p = hc.datos.paciente;
-    if(st.offline || p.nn || !p.tipo_doc || String(p.documento || '').length < 3) return;
+    if(hc.modo || st.offline || !p.tipo_doc || String(p.documento || '').length < 3) return;
     var clave = p.tipo_doc + ':' + p.documento;
     if(hc.precargado === clave) return;
     var abierta = hc.client_id;
@@ -1599,7 +1819,7 @@ var HCLite = (function(){
         U.modal('Historia clínica enviada',
           'Quedó registrada con el número <strong class="lt-consecutivo">' + U.escHtml(res.consecutivo) + '</strong>.' +
           (res.estado === 'abierta' ? '<br><br>Quedó <strong>abierta</strong>: el administrador registrará la entrega del paciente en la institución.' : '') +
-          '<br><br>Los datos del paciente se borraron de esta tablet.',
+          '<br><br>Mientras el evento siga activo podrás agregarle <strong>novedades</strong> (signos, procedimientos, medicamentos o la evolución) desde "Enviadas en este evento".',
           [{ texto: 'Aceptar', clase: 'primario' }]);
         return;
       }
@@ -1623,8 +1843,13 @@ var HCLite = (function(){
         if(i >= 0) lista.splice(i, 1);
         guardarTodas(lista);
         var env = leerEnviadas();
-        env.unshift({ client_id: h.client_id, consecutivo: data.consecutivo, inicio_atencion: h.inicio_atencion, enviada_at: new Date().toISOString(), evento_id: h.evento_id });
-        U.guardarJSON(U.claveUsuario('hcenv'), env.slice(0, 200));
+        // Copia de la HC (sin firmas) para registrar novedades mientras el
+        // evento siga activo; se borra cuando el evento finaliza
+        env.unshift({ client_id: h.client_id, consecutivo: data.consecutivo, inicio_atencion: h.inicio_atencion, enviada_at: new Date().toISOString(), evento_id: h.evento_id,
+                      copia: { servicio: h.servicio, inicio_atencion: h.inicio_atencion, datos: JSON.parse(JSON.stringify(h.datos)) } });
+        env = env.slice(0, 200);
+        for(var c = 40; c < env.length; c++) delete env[c].copia;
+        guardarEnviadas(env);
         cb({ ok: true, consecutivo: data.consecutivo, estado: data.estado });
         return;
       }
@@ -1646,9 +1871,15 @@ var HCLite = (function(){
     var pendientes = [];
     var lista = leerTodas();
     for(var i = 0; i < lista.length; i++) if(lista[i].estado === 'por_enviar') pendientes.push(lista[i]);
-    var r = { enviadas: 0, errores: 0, sinRed: false, sesion: false, total: pendientes.length };
+    var novPend = contar().novedades;
+    var r = { enviadas: 0, errores: 0, sinRed: false, sesion: false, total: pendientes.length + novPend, novedades: 0, errores_nov: 0 };
     function siguiente(n){
-      if(n >= pendientes.length || r.sinRed || r.sesion){ renderLista(); alTerminar(r); return; }
+      if(n >= pendientes.length || r.sinRed || r.sesion){
+        if(r.sinRed || r.sesion){ renderLista(); alTerminar(r); return; }
+        // Después de las HC, las novedades pendientes
+        sincronizarNovedades(r, function(){ renderLista(); alTerminar(r); });
+        return;
+      }
       enviarUna(pendientes[n], function(res){
         if(res.ok) r.enviadas++;
         else if(res.sinRed) r.sinRed = true;
@@ -1691,16 +1922,404 @@ var HCLite = (function(){
           (h.estado === 'borrador' ? '<button type="button" class="lt-btn-sec peligro" data-hc="descartar" data-id="' + U.escHtml(h.client_id) + '">Descartar</button>' : '') +
         '</div></div>';
     }
-    var env = leerEnviadas(), hoy = U.fechaCO(), envHoy = [];
-    for(var j = 0; j < env.length; j++) if(U.fechaCO(env[j].enviada_at) === hoy) envHoy.push(env[j]);
-    if(envHoy.length){
-      html += '<div class="lt-subtitulo">Enviadas hoy</div>';
-      for(var k = 0; k < envHoy.length; k++){
-        html += '<div class="lt-hc-env"><strong>' + U.escHtml(envHoy[k].consecutivo) + '</strong> · Inicio ' + U.horaCO(envHoy[k].inicio_atencion) +
-          ' · Enviada ' + U.horaCO(envHoy[k].enviada_at) + '</div>';
+    var env = leerEnviadas(), hoy = U.fechaCO(), delEvento = [], otrasHoy = [];
+    purgarCopias(env);
+    var novs = leerNovedades();
+    for(var j = 0; j < env.length; j++){
+      if(st.evento && env[j].evento_id === st.evento.id) delEvento.push(env[j]);
+      else if(U.fechaCO(env[j].enviada_at) === hoy) otrasHoy.push(env[j]);
+    }
+    if(delEvento.length){
+      html += '<div class="lt-subtitulo">Enviadas en este evento</div>' +
+        '<div class="lt-muted">Puedes agregar novedades a tus historias clínicas hasta que finalice el evento.</div>';
+      for(var k = 0; k < delEvento.length; k++) html += filaEnviada(delEvento[k], novs);
+    }
+    if(otrasHoy.length){
+      html += '<div class="lt-subtitulo">Enviadas hoy en otros eventos</div>';
+      for(var k2 = 0; k2 < otrasHoy.length; k2++){
+        html += '<div class="lt-hc-env"><strong>' + U.escHtml(otrasHoy[k2].consecutivo) + '</strong> · Inicio ' + U.horaCO(otrasHoy[k2].inicio_atencion) +
+          ' · Enviada ' + U.horaCO(otrasHoy[k2].enviada_at) + '</div>';
       }
     }
     cont.innerHTML = html;
+  }
+
+  function filaEnviada(e, novs){
+    var pend = null, p = e.copia && e.copia.datos ? (e.copia.datos.paciente || {}) : {};
+    for(var i = 0; i < novs.length; i++) if(novs[i].client_id === e.client_id) pend = novs[i];
+    var nombre = mayus((p.nombres || '') + ' ' + (p.apellidos || ''));
+    var badge = '', btn = '';
+    if(pend){
+      badge = pend.estado === 'por_enviar' ? '<span class="lt-pend">Novedad pendiente de envío</span>'
+        : (pend.error_envio ? '<span class="lt-pend error">Novedad: revisar</span>' : '<span class="lt-pend borrador">Novedad en curso</span>');
+      btn = '<button type="button" class="lt-btn-sec primario" data-hc="nov-abrir" data-id="' + U.escHtml(pend.nov_id) + '">' + (pend.estado === 'por_enviar' ? 'Ver novedad' : 'Continuar novedad') + '</button>';
+    } else if(e.copia){
+      btn = '<button type="button" class="lt-btn-sec" data-hc="nov-nueva" data-id="' + U.escHtml(e.client_id) + '">+ Agregar novedad</button>';
+    }
+    return '<div class="lt-hc-item lt-hc-item-env">' +
+      '<div class="lt-hc-item-txt">' +
+        '<div class="lt-hc-item-nombre"><strong>' + U.escHtml(e.consecutivo) + '</strong>' + (nombre ? ' · ' + U.escHtml(nombre) : '') + badge + '</div>' +
+        '<div class="lt-hc-item-meta">Inicio ' + U.fmtFecha(U.fechaCO(e.inicio_atencion)) + ' ' + U.horaCO(e.inicio_atencion) + ' · Enviada ' + U.horaCO(e.enviada_at) + '</div>' +
+        (pend && pend.error_envio ? '<div class="lt-hist-error">' + U.escHtml(pend.error_envio) + '</div>' : '') +
+      '</div>' +
+      '<div class="lt-hc-item-btns">' + btn + '</div></div>';
+  }
+
+  // Las copias (con datos del paciente) se borran cuando su evento ya no
+  // está activo (finalizó) y no tienen novedades pendientes
+  function purgarCopias(env){
+    if(st.offline || !st.eventos) return;
+    var activos = {}, cambio = false, i;
+    for(i = 0; i < st.eventos.length; i++) activos[st.eventos[i].id] = true;
+    for(i = 0; i < env.length; i++){
+      if(env[i].copia && !activos[env[i].evento_id] && !novedadDe(env[i].client_id)){ delete env[i].copia; cambio = true; }
+    }
+    if(cambio) guardarEnviadas(env);
+  }
+
+  // ══════════════════════════════════════════
+  // NOVEDADES (HC ya enviada, solo quien la diligenció, evento activo)
+  // ══════════════════════════════════════════
+  function copiaDe(hcClientId){
+    var e = enviadaDe(hcClientId);
+    return e && e.copia ? e.copia.datos : null;
+  }
+
+  function nuevaNovedad(hcClientId){
+    var pend = novedadDe(hcClientId);
+    if(pend){ abrirNovedad(pend.nov_id); return; }
+    var e = enviadaDe(hcClientId);
+    if(!e || !e.copia){ U.toast('Esta historia clínica ya no está en la tablet', 'error'); renderLista(); return; }
+    var c = e.copia, d = c.datos;
+    hc = {
+      modo: 'novedad', nov_id: 'n' + U.nuevoClientId(), client_id: e.client_id, consecutivo: e.consecutivo,
+      evento_id: e.evento_id, estado: 'borrador', servicio: c.servicio, inicio_atencion: c.inicio_atencion,
+      datos: {
+        paciente: d.paciente || {}, consentimiento: d.consentimiento || {}, responsables: d.responsables || {},
+        signos_tomas: [], procedimientos: [], medicamentos: [],
+        cierre: JSON.parse(JSON.stringify(d.cierre || {})), cierre_editado: false
+      },
+      firmas: {}
+    };
+    if(!hc.datos.cierre.traslado) hc.datos.cierre.traslado = {};
+    if(!guardarHC()){
+      hc = null;
+      U.modal('No hay espacio en la tablet', 'No se pudo crear la novedad. Sincroniza tus pendientes e intenta de nuevo.', [{ texto: 'Entendido', clase: 'primario' }]);
+      return;
+    }
+    abrirNovedad(hc.nov_id);
+  }
+
+  function abrirNovedad(novId){
+    var l = leerNovedades(), i = buscarNov(l, novId);
+    if(i < 0){ U.toast('No se encontró la novedad en esta tablet', 'error'); renderLista(); return; }
+    hc = l[i];
+    _m6 = null;
+    U.mostrar('lt-hc-editor', true);
+    U.mostrar('lt-hc-inicio', false);
+    U.$('lt-hc-guardado').textContent = hc.actualizada_at ? 'Novedad guardada en la tablet · ' + U.horaCO(hc.actualizada_at) : '';
+    U.$('lt-hc-guardado').className = 'lt-hc-guardado';
+    mostrarErrores([]);
+    renderModulo();
+    window.scrollTo(0, 0);
+  }
+
+  function renderNovedad(){
+    U.$('lt-hc-modulo').innerHTML = moduloNovedad();
+    U.$('lt-hc-titulo').innerHTML = '<span class="lt-hc-paciente">Novedad · ' + U.escHtml(nombrePaciente(hc)) + '</span>' +
+      '<span class="lt-hc-sub">' + U.escHtml(hc.consecutivo) + ' · Inicio ' + U.horaCO(hc.inicio_atencion) + '</span>';
+    U.$('lt-hc-pasos').innerHTML = '';
+    U.$('lt-hc-anterior').style.display = 'none';
+    U.$('lt-hc-siguiente').style.display = 'none';
+  }
+
+  function moduloNovedad(){
+    if(!_m6) _m6 = m6Nuevo();
+    var base = copiaDe(hc.client_id) || {}, rech = rechazo(), html = '', i;
+    html += seccion('Novedad de la historia clínica',
+      '<div class="lt-muted">Registra lo que pasó después de enviar la historia clínica. La novedad queda con tu nombre y la hora, y se agrega a la historia clínica.</div>' +
+      dato('Consecutivo', '<strong>' + U.escHtml(hc.consecutivo) + '</strong>') + dato('Paciente', U.escHtml(nombrePaciente(hc))));
+    if(!rech){
+      html += seccionTomas(1 + (base.signos_tomas || []).length);
+      var procBase = base.procedimientos || [], cuerpoP = '';
+      if(procBase.length){
+        cuerpoP += '<div class="lt-muted">Ya registrados:</div><ul class="lt-lista-previa">';
+        for(i = 0; i < procBase.length; i++) cuerpoP += '<li>' + U.escHtml(procBase[i].hora || '') + ' · ' + U.escHtml(mayus(procBase[i].descripcion || '')) + '</li>';
+        cuerpoP += '</ul>';
+      }
+      cuerpoP += '<div class="lt-muted">Responsable: <strong>' + U.escHtml(responsableTexto()) + '</strong>.</div>';
+      for(i = 0; i < hc.datos.procedimientos.length; i++) cuerpoP += filaProcedimiento(i);
+      cuerpoP += '<button type="button" class="lt-btn-sec primario lt-btn-agregar" data-hc="proc-agregar">+ Agregar procedimiento</button>';
+      html += seccion('Procedimientos', cuerpoP);
+      var medBase = base.medicamentos || [], cuerpoM = '';
+      if(medBase.length){
+        cuerpoM += '<div class="lt-muted">Ya registrados:</div><ul class="lt-lista-previa">';
+        for(i = 0; i < medBase.length; i++) cuerpoM += '<li>' + medBase[i].cantidad + ' ' + U.escHtml(medBase[i].unidad || '') + ' · ' + U.escHtml(medBase[i].nombre) + '</li>';
+        cuerpoM += '</ul><div class="lt-muted">Nuevos en esta novedad:</div>';
+      }
+      cuerpoM += listaMedsHtml('Aún no has agregado medicamentos ni insumos en esta novedad.');
+      html += seccion('Medicamentos e insumos', cuerpoM) + '<div class="lt-campo" data-envoltura="m6">' + formularioM6() + '</div>';
+    }
+    var c = hc.datos.cierre;
+    html += seccion('Evolución y descripción del servicio',
+      interruptor('cierre_editado', '¿Actualizar la evolución, el destino o el traslado?') +
+      (hc.datos.cierre_editado ? '' : '<div class="lt-muted">Se conserva lo registrado' + (c.destino ? ' (destino: ' + U.escHtml(textoDe(DESTINOS, c.destino) || c.destino) + ')' : '') + '.</div>'));
+    if(hc.datos.cierre_editado) html += htmlCierre();
+    html += '<div class="lt-hc-acciones-nov">' +
+      '<button type="button" class="lt-btn" data-hc="nov-guardar">' + (hc.estado === 'por_enviar' ? 'Volver a guardar novedad' : 'Guardar novedad') + '</button>' +
+      '<button type="button" class="lt-btn-sec peligro" data-hc="nov-descartar">Descartar novedad</button></div>';
+    return html;
+  }
+
+  function validarNovedad(){
+    var e = [], d = hc.datos, i;
+    function err(campo, msg){ e.push({ campo: campo, msg: msg }); }
+    var previas = 1 + ((copiaDe(hc.client_id) || {}).signos_tomas || []).length;
+    for(i = 0; i < d.signos_tomas.length; i++) validarSignos('signos_tomas.' + i, 'Toma ' + (previas + i + 1) + ': ', err);
+    for(i = 0; i < d.procedimientos.length; i++){
+      var p = d.procedimientos[i], b = 'procedimientos.' + i;
+      if(!RE_HORA.test(p.hora || '')) err(b + '.hora', 'Procedimiento ' + (i + 1) + ': escribe la hora (HH:MM)');
+      if(txt(p.descripcion).length < 3) err(b + '.descripcion', 'Procedimiento ' + (i + 1) + ': describe el procedimiento realizado');
+    }
+    var m6 = validar(6);
+    for(i = 0; i < m6.length; i++) e.push(m6[i]);
+    if(d.cierre_editado) validarCierre(err);
+    if(!e.length && !d.signos_tomas.length && !d.procedimientos.length && !d.medicamentos.length && !d.cierre_editado){
+      err('', 'La novedad está vacía: agrega signos vitales, procedimientos, medicamentos o actualiza la evolución');
+    }
+    return e;
+  }
+
+  function pedirGuardarNovedad(){
+    var errores = validarNovedad();
+    if(errores.length){ mostrarErrores(errores); return; }
+    mostrarErrores([]);
+    var pendientes = 0, meds = hc.datos.medicamentos;
+    for(var k = 0; k < meds.length; k++) if(U.consumoEnCola(meds[k].client_id)) pendientes++;
+    U.modal('Guardar novedad',
+      '¿Guardar la novedad de <strong>' + U.escHtml(hc.consecutivo) + '</strong> (' + U.escHtml(nombrePaciente(hc)) + ')?<br><br>Queda con tu nombre y la hora, y se agrega a la historia clínica.' +
+      (st.offline ? '<br><br>Estás <strong>sin conexión</strong>: se enviará con el botón Sincronizar.'
+        : (pendientes ? '<br><br>Tiene consumos guardados en la tablet: se sincronizan primero.' : '')),
+      [{ texto: 'Cancelar' }, { texto: st.offline ? 'Guardar para enviar' : 'Guardar', clase: 'primario', accion: function(){
+        hc.estado = 'por_enviar';
+        hc.creada_at = new Date().toISOString();
+        delete hc.error_envio;
+        guardarHC();
+        U.renderModo();
+        if(st.offline){ U.toast('Novedad pendiente de envío: se enviará al sincronizar', 'ok'); cerrarEditor(); return; }
+        if(pendientes){ cerrarEditor(); U.sincronizar(); return; }
+        enviarNovedadAhora();
+      } }]);
+  }
+
+  function cuerpoNovedad(n){
+    var d = n.datos, procs = [], meds = [], i, cierre = null;
+    for(i = 0; i < d.procedimientos.length; i++) procs.push({ hora: d.procedimientos[i].hora, descripcion: d.procedimientos[i].descripcion });
+    for(i = 0; i < d.medicamentos.length; i++){
+      var m = d.medicamentos[i];
+      meds.push({ client_id: m.client_id, nombre: m.nombre, dosis: m.dosis, via: m.via, via_otra: m.via_otra, hora: m.hora });
+    }
+    if(d.cierre_editado){
+      cierre = JSON.parse(JSON.stringify(d.cierre));
+      if((d.consentimiento || {}).decision === 'rechaza') cierre.destino = '';
+      if(cierre.destino !== 'TRASLADO') delete cierre.traslado;
+    }
+    return { client_id: n.nov_id, hc_client_id: n.client_id, creada_at: n.creada_at || new Date().toISOString(),
+             signos_tomas: d.signos_tomas, procedimientos: procs, medicamentos: meds, cierre: cierre };
+  }
+
+  // La copia de la HC queda al día con la novedad aceptada
+  function aplicarNovedadACopia(n){
+    var env = leerEnviadas();
+    for(var i = 0; i < env.length; i++){
+      if(env[i].client_id !== n.client_id || !env[i].copia) continue;
+      var c = env[i].copia.datos;
+      c.signos_tomas = (c.signos_tomas || []).concat(n.datos.signos_tomas);
+      c.procedimientos = (c.procedimientos || []).concat(n.datos.procedimientos);
+      c.medicamentos = (c.medicamentos || []).concat(n.datos.medicamentos);
+      if(n.datos.cierre_editado) c.cierre = n.datos.cierre;
+    }
+    guardarEnviadas(env);
+  }
+
+  // Envía una novedad. cb({ ok } | { sinRed } | { sesion } | { error })
+  function enviarNovedad(n, cb){
+    U.api('POST', '/api/hc/novedad', cuerpoNovedad(n), function(err){
+      var lista = leerNovedades(), i = buscarNov(lista, n.nov_id);
+      if(!err){
+        if(i >= 0){ lista.splice(i, 1); guardarNovedades(lista); }
+        aplicarNovedadACopia(n);
+        cb({ ok: true });
+        return;
+      }
+      if(err.sinRed){ cb({ sinRed: true }); return; }
+      if(U.sesionVencida(err)){ cb({ sesion: true }); return; }
+      if(err.status === 409){ cb({ sinRed: true }); return; }   // se reintenta al sincronizar
+      if(i >= 0){
+        lista[i].estado = 'borrador';
+        lista[i].error_envio = err.message;
+        guardarNovedades(lista);
+        if(hc && hc.nov_id === n.nov_id){ hc.estado = 'borrador'; hc.error_envio = err.message; }
+      }
+      cb({ error: err.message });
+    });
+  }
+
+  function enviarNovedadAhora(){
+    var n = hc;
+    var btns = document.querySelectorAll('[data-hc="nov-guardar"]');
+    for(var i = 0; i < btns.length; i++){ btns[i].disabled = true; btns[i].textContent = 'Enviando…'; }
+    enviarNovedad(n, function(res){
+      if(res.ok){
+        if(hc && hc.nov_id === n.nov_id) hc = null;
+        U.mostrar('lt-hc-editor', false);
+        U.mostrar('lt-hc-inicio', true);
+        renderLista();
+        U.renderModo();
+        window.scrollTo(0, 0);
+        U.modal('Novedad registrada', 'Se agregó a la historia clínica <strong class="lt-consecutivo">' + U.escHtml(n.consecutivo) + '</strong>.', [{ texto: 'Aceptar', clase: 'primario' }]);
+        return;
+      }
+      if(hc && hc.nov_id === n.nov_id) renderModulo();
+      if(res.sinRed) U.toast('Sin conexión: la novedad quedó pendiente y se enviará al sincronizar', 'error');
+      else if(res.sesion) U.modal('Tu sesión venció', 'La novedad quedó guardada en la tablet como pendiente de envío. Sal, vuelve a ingresar y pulsa Sincronizar.', [{ texto: 'Entendido', clase: 'primario' }]);
+      else U.modal('No se pudo guardar la novedad', U.escHtml(res.error) + '<br><br>Corrige el dato y vuelve a guardar.', [{ texto: 'Entendido', clase: 'primario' }]);
+    });
+  }
+
+  function sincronizarNovedades(r, fin){
+    var lista = leerNovedades(), pend = [];
+    for(var i = 0; i < lista.length; i++) if(lista[i].estado === 'por_enviar') pend.push(lista[i]);
+    function sig(n){
+      if(n >= pend.length || r.sinRed || r.sesion){ fin(); return; }
+      enviarNovedad(pend[n], function(res){
+        if(res.ok) r.novedades++;
+        else if(res.sinRed) r.sinRed = true;
+        else if(res.sesion) r.sesion = true;
+        else r.errores_nov++;
+        sig(n + 1);
+      });
+    }
+    sig(0);
+  }
+
+  function pedirDescartarNovedad(){
+    if(hc.datos.medicamentos.length){
+      U.modal('Hay consumos registrados', 'Esta novedad tiene medicamentos o insumos registrados. Quítalos primero (el stock vuelve a la bodega) y después descártala.', [{ texto: 'Entendido', clase: 'primario' }]);
+      return;
+    }
+    var novId = hc.nov_id;
+    U.modal('Descartar novedad', '¿Descartar esta novedad? No se agregará nada a la historia clínica.',
+      [{ texto: 'Cancelar' }, { texto: 'Descartar', clase: 'peligro', accion: function(){
+        var l = leerNovedades(), i = buscarNov(l, novId);
+        if(i >= 0){ l.splice(i, 1); guardarNovedades(l); }
+        hc = null;
+        U.mostrar('lt-hc-editor', false);
+        U.mostrar('lt-hc-inicio', true);
+        renderLista();
+        U.renderModo();
+        U.toast('Novedad descartada');
+      } }]);
+  }
+
+  // ══════════════════════════════════════════
+  // MODO ADMINISTRADOR (hc-editor.html)
+  // ══════════════════════════════════════════
+  // HC del servidor (GET /api/hc/:id/editor) → forma del editor
+  function desdeServidor(h){
+    var d = JSON.parse(JSON.stringify(h.datos || {}));
+    var s = d.servicio || {}, r = d.responsables || {}, p = d.paciente || {}, i, k;
+    p.nn = false;
+    if(p.eps === NO_APLICA) p.eps = '';
+    if(p.arl === NO_APLICA) p.arl = '';
+    d.paciente = p;
+    var an = d.antecedentes || {};
+    an.gestacion_si = an.gestacion === 'si';
+    if(an.semanas !== null && an.semanas !== undefined) an.semanas = String(an.semanas);
+    d.antecedentes = an;
+    var ex = d.examen || {};
+    for(k in ex) if(ex.hasOwnProperty(k) && ex[k] === ESTADO_ADECUADO) ex[k] = '';
+    if(d.valoracion && d.valoracion.via_aerea === 'PERMEABLE') d.valoracion.via_aerea = 'ADECUADA';
+    d.responsables = { medico_id: r.medico ? String(r.medico.id) : '' };
+    var procs = [];
+    for(i = 0; i < (d.procedimientos || []).length; i++) procs.push({ hora: d.procedimientos[i].hora, descripcion: d.procedimientos[i].descripcion });
+    d.procedimientos = procs;
+    // Medicamentos: lo registrado en el inventario + la dosis, vía y hora guardadas
+    var guardados = {}, meds = [];
+    for(i = 0; i < (d.medicamentos || []).length; i++) guardados[d.medicamentos[i].consumo_id] = d.medicamentos[i];
+    for(i = 0; i < (h.consumos || []).length; i++){
+      var c = h.consumos[i], g = guardados[c.client_id] || {}, esMed = esMedicamento(c);
+      meds.push({ client_id: c.client_id, sub_sku_id: c.sub_sku_id, nombre: c.nombre, lote: c.lote || '', unidad: c.unidad || '',
+                  familia: c.familia || '', es_medicamento: esMed, bodega_id: c.bodega_id, bodega_nombre: c.bodega || '',
+                  cantidad: Number(c.cantidad), dosis: g.dosis || '', via: g.via || '', via_otra: g.via_otra || '', hora: g.hora || '' });
+    }
+    d.medicamentos = meds;
+    if(!d.cierre) d.cierre = {};
+    if(d.cierre.destino === 'RECHAZO_ATENCION') d.cierre.destino = '';
+    if(!d.cierre.traslado) d.cierre.traslado = {};
+    if(!d.signos_tomas) d.signos_tomas = [];
+    return {
+      modo: 'admin', servidor_id: h.id, client_id: h.client_id, consecutivo: h.consecutivo, estado: h.estado,
+      evento_id: h.evento_id,
+      servicio: { evento: s.evento ? s.evento.nombre : '', lugar: s.lugar || '', municipio: s.municipio || '', departamento: s.departamento || '',
+                  medicos: r.medico ? [{ id: r.medico.id, nombre: r.medico.nombre, cedula: r.medico.cedula }] : [] },
+      diligencia: d.enfermero || r.enfermero || { nombre: '—', cedula: '' },
+      inicio_atencion: h.inicio_atencion, paso: 1, max_paso: 7, datos: d, firmas: h.firmas || {},
+      bodegas: h.bodegas || [], motivo: '', sucio: false
+    };
+  }
+
+  function abrirAdmin(h){
+    hc = desdeServidor(h);
+    completarEstructura(hc);
+    _examenAbiertos = {};
+    _m6 = null;
+    U.mostrar('lt-hc-editor', true);
+    U.$('lt-hc-guardado').textContent = '';
+    mostrarErrores([]);
+    renderModulo();
+    window.scrollTo(0, 0);
+  }
+
+  function pedirGuardarAdmin(){
+    for(var n = 2; n <= 7; n++){
+      if(moduloOmitido(n)) continue;
+      var e = validar(n);
+      if(e.length){ irA(n); mostrarErrores(e); return; }
+    }
+    if(txt(hc.motivo).length < 5){
+      mostrarErrores([{ campo: 'motivo', msg: 'Escribe el motivo de la corrección (queda en el historial de cambios)' }]);
+      return;
+    }
+    mostrarErrores([]);
+    var h = hc;
+    var btns = document.querySelectorAll('[data-hc="admin-guardar"]');
+    for(var i = 0; i < btns.length; i++){ btns[i].disabled = true; btns[i].textContent = 'Guardando…'; }
+    U.guardarAdmin(h.servidor_id, cuerpoEnvio(h).datos, txt(h.motivo), function(err, data){
+      for(var j = 0; j < btns.length; j++){ btns[j].disabled = false; btns[j].textContent = 'Guardar cambios'; }
+      if(err){
+        U.modal('No se pudo guardar', U.escHtml(err.message), [{ texto: 'Entendido', clase: 'primario' }]);
+        return;
+      }
+      h.sucio = false;
+      U.modal('Cambios guardados',
+        'La historia clínica <strong>' + U.escHtml(h.consecutivo) + '</strong> quedó actualizada (' + data.cambios + ' cambio' + (data.cambios !== 1 ? 's' : '') + '). Quedó en el historial con el motivo.',
+        [{ texto: 'Aceptar', clase: 'primario', accion: function(){ if(U.alGuardarAdmin) U.alGuardarAdmin(h.servidor_id); } }]);
+    });
+  }
+
+  function salirAdmin(){
+    function salir(){
+      hc = null;
+      U.mostrar('lt-hc-editor', false);
+      if(U.alCerrarAdmin) U.alCerrarAdmin();
+    }
+    if(hc && hc.sucio){
+      U.modal('Salir sin guardar', 'Tienes cambios sin guardar en <strong>' + U.escHtml(hc.consecutivo) + '</strong>. ¿Salir y descartarlos?',
+        [{ texto: 'Seguir editando' }, { texto: 'Salir sin guardar', clase: 'peligro', accion: salir }]);
+      return;
+    }
+    salir();
   }
 
   function pedirDescartar(clientId){
@@ -1726,7 +2345,7 @@ var HCLite = (function(){
     if(a === 'nueva') crear();
     else if(a === 'abrir') abrir(b.getAttribute('data-id'));
     else if(a === 'descartar') pedirDescartar(b.getAttribute('data-id'));
-    else if(a === 'volver') cerrarEditor();
+    else if(a === 'volver'){ if(hc && hc.modo === 'admin') salirAdmin(); else cerrarEditor(); }
     else if(a === 'siguiente') siguiente();
     else if(a === 'anterior') anterior();
     else if(a === 'paso') irA(parseInt(b.getAttribute('data-paso'), 10));
@@ -1762,6 +2381,13 @@ var HCLite = (function(){
     else if(a === 'm6-otro'){ _m6.ultimo = null; redibujarM6(); var bus = U.$('lt-m6-buscar'); if(bus) bus.focus(); }
     else if(a === 'm6-quitar') pedirQuitarM6(b.getAttribute('data-id'));
     else if(a === 'proc-quitar') quitarProcedimiento(parseInt(b.getAttribute('data-i'), 10));
+    else if(a === 'toma-agregar') agregarToma();
+    else if(a === 'toma-quitar') quitarToma(parseInt(b.getAttribute('data-i'), 10));
+    else if(a === 'nov-nueva') nuevaNovedad(b.getAttribute('data-id'));
+    else if(a === 'nov-abrir') abrirNovedad(b.getAttribute('data-id'));
+    else if(a === 'nov-guardar') pedirGuardarNovedad();
+    else if(a === 'nov-descartar') pedirDescartarNovedad();
+    else if(a === 'admin-guardar') pedirGuardarAdmin();
   }
 
   function conectarEventos(){
@@ -1779,9 +2405,11 @@ var HCLite = (function(){
       if(s){ alInterruptor(s.getAttribute('data-bool'), s.getAttribute('data-valor')); return; }
     });
     U.on(editor, 'input', function(e){
+      if(e.target.getAttribute && e.target.getAttribute('data-admin-motivo')){ if(hc) hc.motivo = e.target.value; return; }
       if(e.target.getAttribute && e.target.getAttribute('data-m6')) alEscribirM6(e.target); else alEscribir(e.target);
     });
     U.on(editor, 'change', function(e){
+      if(e.target.getAttribute && e.target.getAttribute('data-admin-motivo')) return;
       if(e.target.getAttribute && e.target.getAttribute('data-m6')){ alEscribirM6(e.target); return; }
       alEscribir(e.target);
       if(e.target.getAttribute('data-campo') === 'paciente.documento') consultarPaciente();
@@ -1829,9 +2457,12 @@ var HCLite = (function(){
     // Historias clínicas con algo por subir: por enviar, o con consumos en la
     // cola de la tablet. consumosSueltos: consumos de la cola sin HC.
     porSincronizar: function(idUsuario, cola){
-      var lista = leerTodas(idUsuario), ids = {}, n = 0, sueltos = 0, i;
+      var lista = leerTodas(idUsuario), novs = leerNovedades(idUsuario), ids = {}, n = 0, sueltos = 0, i;
       for(i = 0; i < lista.length; i++){
         if(lista[i].estado === 'por_enviar' && !ids[lista[i].client_id]){ ids[lista[i].client_id] = true; n++; }
+      }
+      for(i = 0; i < novs.length; i++){
+        if(novs[i].estado === 'por_enviar' && !ids[novs[i].client_id]){ ids[novs[i].client_id] = true; n++; }
       }
       for(i = 0; i < (cola || []).length; i++){
         var h = cola[i].hc_client_id;
@@ -1841,9 +2472,11 @@ var HCLite = (function(){
       return { hc: n, consumosSueltos: sueltos };
     },
     sincronizar: sincronizar,
+    // Editor del administrador (hc-editor.html)
+    abrirAdmin: abrirAdmin,
     // Al cerrar sesión: cierra el editor sin perder nada
     salir: function(){
-      if(hc){ clearTimeout(_guardarTimer); guardarHC(); }
+      if(hc && hc.modo !== 'admin'){ clearTimeout(_guardarTimer); guardarHC(); }
       hc = null;
       U.mostrar('lt-hc-editor', false);
       U.mostrar('lt-hc-inicio', true);

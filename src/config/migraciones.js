@@ -217,6 +217,42 @@ const MIGRACIONES = [
   'CREATE INDEX IF NOT EXISTS asistencia_personal_idx ON asistencia_jornadas (personal_id)',
   'CREATE INDEX IF NOT EXISTS asistencia_evento_idx ON asistencia_jornadas (evento_id, entrada_at)',
   'CREATE INDEX IF NOT EXISTS asistencia_entrada_idx ON asistencia_jornadas (entrada_at)',
+  // Asistencia v3: varias cuentas de tablets (se crean, editan y eliminan;
+  // eliminar = activo false para conservar el rastro) y cada marca guarda la
+  // IP, el dispositivo (identificador propio de cada tablet, con nombre que
+  // le pone el admin) y la cuenta con que se hizo. Solo identifica: no bloquea.
+  'ALTER TABLE asistencia_cuentas ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()',
+  'ALTER TABLE asistencia_cuentas ADD COLUMN IF NOT EXISTS ultimo_ingreso_at TIMESTAMPTZ',
+  'ALTER TABLE asistencia_cuentas DROP CONSTRAINT IF EXISTS asistencia_cuentas_usuario_key',
+  "CREATE UNIQUE INDEX IF NOT EXISTS asistencia_cuentas_usuario_activa ON asistencia_cuentas (usuario) WHERE activo = true",
+  `CREATE TABLE IF NOT EXISTS asistencia_dispositivos (
+     id SERIAL PRIMARY KEY,
+     codigo TEXT NOT NULL UNIQUE,
+     nombre TEXT,
+     cuenta_id INTEGER REFERENCES asistencia_cuentas(id),
+     primera_vez_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+     ultima_vez_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+     ultima_ip TEXT,
+     navegador TEXT
+   )`,
+  'ALTER TABLE asistencia_jornadas ADD COLUMN IF NOT EXISTS entrada_ip TEXT',
+  'ALTER TABLE asistencia_jornadas ADD COLUMN IF NOT EXISTS salida_ip TEXT',
+  'ALTER TABLE asistencia_jornadas ADD COLUMN IF NOT EXISTS entrada_dispositivo_id INTEGER REFERENCES asistencia_dispositivos(id)',
+  'ALTER TABLE asistencia_jornadas ADD COLUMN IF NOT EXISTS salida_dispositivo_id INTEGER REFERENCES asistencia_dispositivos(id)',
+  'ALTER TABLE asistencia_jornadas ADD COLUMN IF NOT EXISTS entrada_cuenta_id INTEGER REFERENCES asistencia_cuentas(id)',
+  'ALTER TABLE asistencia_jornadas ADD COLUMN IF NOT EXISTS salida_cuenta_id INTEGER REFERENCES asistencia_cuentas(id)',
+
+  // Novedades de la HC desde la tablet (signos, procedimientos, consumos,
+  // evolución): el client_id evita aplicar dos veces la misma
+  `CREATE TABLE IF NOT EXISTS hc_novedades (
+     id SERIAL PRIMARY KEY,
+     client_id TEXT NOT NULL UNIQUE,
+     hc_id INTEGER NOT NULL REFERENCES historias_clinicas(id),
+     usuario_id INTEGER REFERENCES usuarios(id),
+     creada_at TIMESTAMPTZ,
+     recibida_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+     contenido JSONB
+   )`,
 
   // Registro de las migraciones que deben correr UNA sola vez
   'CREATE TABLE IF NOT EXISTS migraciones_aplicadas (nombre TEXT PRIMARY KEY, aplicada_at TIMESTAMPTZ NOT NULL DEFAULT NOW())',

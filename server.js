@@ -21,6 +21,8 @@ app.get('/logo.png', (req, res) => res.sendFile(path.join(__dirname, 'logo.png')
 // Página independiente y liviana; js/compat-check.js redirige aquí a los
 // navegadores que no pueden ejecutar la app principal.
 app.get('/enfermero', (req, res) => res.sendFile(path.join(__dirname, 'enfermero.html')));
+// Editar historias clínicas (solo administrador; la sesión es la del WMS)
+app.get('/hc-editor', (req, res) => res.sendFile(path.join(__dirname, 'hc-editor.html')));
 
 // Modo offline del panel de enfermero: la página se guarda en el dispositivo.
 //   - Safari de iOS 9–12 → AppCache (/enfermero.appcache, atributo manifest)
