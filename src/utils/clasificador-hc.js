@@ -74,6 +74,7 @@ function _promptSistema(cat) {
     '- procedimientos: con base en los procedimientos realizados (y los medicamentos administrados) elige los más parecidos de la tabla PROCEDIMIENTOS, con el nombre exacto.',
     '  Si alguno no está, créalo en pocas palabras. Si no hubo procedimientos ni medicamentos, usa "Toma de signos vitales". Máximo 4.',
     '- triage: nivel según el motivo de consulta y las definiciones de TRIAGE (no copies el que haya puesto el enfermero).',
+    '- Escribe siempre las palabras completas: sin abreviaturas ni siglas (por ejemplo "Fractura miembro inferior", no "Fractura MI"; "Trauma craneoencefálico", no "TCE").',
     '',
     'DIAGNÓSTICOS (diagnóstico | categoría):',
     cat.diagnosticos.map(d => `${d.nombre} | ${d.categoria}`).join('\n'),

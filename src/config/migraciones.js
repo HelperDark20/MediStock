@@ -329,6 +329,34 @@ const MIGRACIONES_UNICAS = [
       }
     }
   },
+  {
+    // Catálogo del reporte sin abreviaturas: renombra en el catálogo y en las
+    // clasificaciones ya guardadas ("Fractura MI" → "Fractura miembro inferior")
+    nombre: 'hc_catalogo_sin_abreviaturas',
+    fn: async (client) => {
+      const { RENOMBRADOS, DIAGNOSTICOS, clave } = require('../data/hc-catalogos');
+      for (const [viejo, nuevo] of RENOMBRADOS) {
+        const cat = (DIAGNOSTICOS.find(d => d[0] === nuevo) || [])[1];
+        if (cat) {
+          await client.query('DELETE FROM hc_diagnosticos WHERE clave = $1', [clave(viejo)]);
+          await client.query('INSERT INTO hc_diagnosticos (nombre, clave, categoria) VALUES ($1, $2, $3) ON CONFLICT (clave) DO NOTHING', [nuevo, clave(nuevo), cat]);
+        } else {
+          await client.query('DELETE FROM hc_procedimientos_catalogo WHERE clave = $1', [clave(viejo)]);
+          await client.query('INSERT INTO hc_procedimientos_catalogo (nombre, clave) VALUES ($1, $2) ON CONFLICT (clave) DO NOTHING', [nuevo, clave(nuevo)]);
+        }
+      }
+      const r = await client.query('SELECT id, clasificacion FROM historias_clinicas WHERE clasificacion IS NOT NULL');
+      for (const h of r.rows) {
+        const c = h.clasificacion;
+        let cambio = false;
+        for (const [viejo, nuevo] of RENOMBRADOS) {
+          if (c.diagnostico === viejo) { c.diagnostico = nuevo; cambio = true; }
+          if (Array.isArray(c.procedimientos)) c.procedimientos = c.procedimientos.map(p => (p === viejo ? (cambio = true, nuevo) : p));
+        }
+        if (cambio) await client.query('UPDATE historias_clinicas SET clasificacion = $2 WHERE id = $1', [h.id, JSON.stringify(c)]);
+      }
+    }
+  },
 ];
 
 // Lo informa GET /api/health, para comprobar tras desplegar que se aplicaron

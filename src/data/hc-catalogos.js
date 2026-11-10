@@ -4,7 +4,8 @@
 // catálogo (origen 'ia') para que las siguientes HC usen el mismo nombre.
 // Tabla entregada por el cliente (2026-11-10), con las correcciones
 // aprobadas: "Simcope" → Síncope, "Renitis" → Rinitis, sin duplicados
-// (Excoriación, Dolor neuropático; Politrauma = Politraumatismo).
+// (Excoriación, Dolor neuropático; Politrauma = Politraumatismo) y sin
+// abreviaturas (2026-11-10): ver RENOMBRADOS.
 
 const DIAGNOSTICOS = [
   ['Absceso', 'Trauma y lesiones'],
@@ -68,8 +69,8 @@ const DIAGNOSTICOS = [
   ['Estado de alicoramiento', 'Infecciones y cuadros generales'],
   ['Excoriación', 'Heridas y quemaduras'],
   ['Faringitis', 'Otorrinolaringología'],
-  ['Fractura MI', 'Trauma y lesiones'],
-  ['Fractura MS', 'Trauma y lesiones'],
+  ['Fractura miembro inferior', 'Trauma y lesiones'],
+  ['Fractura miembro superior', 'Trauma y lesiones'],
   ['Gastritis', 'Gastrointestinal y abdominal'],
   ['Gastroenteritis', 'Gastrointestinal y abdominal'],
   ['Golpe de calor', 'Intoxicaciones y exposición ambiental'],
@@ -120,7 +121,7 @@ const DIAGNOSTICOS = [
   ['Síndrome convulsivo', 'Neurológico'],
   ['Síntomas de embarazo', 'Obstetricia'],
   ['Sinusitis', 'Respiratorio y alergias'],
-  ['TCE leve', 'Trauma y lesiones'],
+  ['Trauma craneoencefálico leve', 'Trauma y lesiones'],
   ['Tendinitis', 'Dolor musculoesquelético'],
   ['Trauma abdomen', 'Trauma y lesiones'],
   ['Trauma brazo', 'Trauma y lesiones'],
@@ -137,12 +138,12 @@ const DIAGNOSTICOS = [
   ['Trauma tobillo', 'Trauma y lesiones'],
   ['Urolitiasis', 'Urológico'],
   ['Vértigo', 'Neurológico'],
-  ['Intoxicación por SPA', 'Intoxicaciones y exposición ambiental'],
+  ['Intoxicación por sustancias psicoactivas', 'Intoxicaciones y exposición ambiental'],
   ['Intoxicación etílica', 'Intoxicaciones y exposición ambiental'],
   ['Fiebre', 'Infecciones y cuadros generales'],
   ['Náuseas', 'Gastrointestinal y abdominal'],
   ['Picadura de insecto', 'Alergias y reacciones inmunológicas'],
-  ['Post Cx', 'Infecciones y cuadros generales'],
+  ['Postquirúrgico', 'Infecciones y cuadros generales'],
   ['Agente externo', 'Exposición agentes químicos']
 ];
 
@@ -171,7 +172,7 @@ const PROCEDIMIENTOS = [
   'Nebulización',
   'Oxigenoterapia',
   'Primeros auxilios psicológicos',
-  'RCP básico',
+  'Reanimación cardiopulmonar básica',
   'Remisión a centro asistencial',
   'Retiro de cuerpos extraños superficiales',
   'Sutura',
@@ -199,4 +200,15 @@ function clave(s) {
     .replace(/[^a-z0-9°+]+/g, ' ').trim();
 }
 
-module.exports = { DIAGNOSTICOS, PROCEDIMIENTOS, TRIAGE, clave };
+// Nombres abreviados de la tabla original → nombre completo (el cliente
+// pidió que no se abrevie). Se aplica también a lo ya guardado.
+const RENOMBRADOS = [
+  ['Fractura MI', 'Fractura miembro inferior'],
+  ['Fractura MS', 'Fractura miembro superior'],
+  ['TCE leve', 'Trauma craneoencefálico leve'],
+  ['Intoxicación por SPA', 'Intoxicación por sustancias psicoactivas'],
+  ['Post Cx', 'Postquirúrgico'],
+  ['RCP básico', 'Reanimación cardiopulmonar básica']
+];
+
+module.exports = { DIAGNOSTICOS, PROCEDIMIENTOS, TRIAGE, RENOMBRADOS, clave };
