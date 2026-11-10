@@ -341,7 +341,7 @@ const TXT_TIPO = { ARTISTA: 'Artista', DEPORTISTA: 'Deportista', DIRECTORES: 'Di
   PRODUCTOR: 'Productor', EXTERNO: 'Externo' };
 const TXT_SEXO = { M: 'Masculino', F: 'Femenino', O: 'Otro' };
 
-const { jornada: _jornada, edadReporte: _edadReporte, rangoEdad: _rangoEdad } = require('../utils/hc-reporte');
+const { jornada: _jornada, edadReporte: _edadReporte, rangoEdad: _rangoEdad, hora12: _hora12 } = require('../utils/hc-reporte');
 function _fechaDMA(iso) { return iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : ''; }
 
 // GET /api/hc/reporte?evento_id&desde&hasta — filas del reporte (el Excel lo
@@ -378,15 +378,17 @@ router.get('/reporte', verificarToken, verificarNivel(4), async (req, res) => {
       const d = h.datos || {}, pac = d.paciente || {}, s = d.servicio || {}, c = h.clasificacion;
       if (!c) pendientes++;
       const fecha = _fechaCO(new Date(h.inicio_atencion));
-      const hora = new Date(new Date(h.inicio_atencion).getTime() - COLOMBIA_OFFSET_MS).toISOString().slice(11, 16);
+      const horaSeg = new Date(new Date(h.inicio_atencion).getTime() - COLOMBIA_OFFSET_MS).toISOString().slice(11, 19);
+      const hora = horaSeg.slice(0, 5);
       const edad = _edadReporte(pac.edad);
       return {
         consecutivo: h.consecutivo,
         evento: (s.evento && s.evento.nombre) || h.evento_nombre || '',
         fecha: _fechaDMA(fecha),
-        hora_inicial: h.hora_inicio || '',
-        hora_final: h.hora_fin || '',
-        hora_atencion: hora,
+        // Horas en 12 h con segundos: 06:00:00 PM
+        hora_inicial: _hora12(h.hora_inicio),
+        hora_final: _hora12(h.hora_fin),
+        hora_atencion: _hora12(horaSeg),
         jornada: _jornada(fecha, hora, h),
         ubicacion: s.ubicacion_asignada || h.ubicacion_actual || '',
         nombre: 'CONFIDENCIAL',

@@ -111,9 +111,12 @@ function _openai(cuerpo) {
 }
 
 async function _clasificarOpenAI(entrada, cat) {
+  const modelo = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+  // Los modelos de razonamiento (gpt-5…, o1/o3/o4…) no aceptan temperature
+  const razonamiento = /^(gpt-5|o\d)/i.test(modelo);
   const r = await _openai({
-    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-    temperature: 0,
+    model: modelo,
+    ...(razonamiento ? {} : { temperature: 0 }),
     response_format: { type: 'json_object' },
     messages: [
       { role: 'system', content: _promptSistema(cat) },

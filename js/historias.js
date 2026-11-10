@@ -544,17 +544,25 @@ async function hcGuardarFirmaMedico(){
 function hcHtmlClasificacion(h){
   const c = h.clasificacion;
   let cuerpo;
+  const fila = (et, v) => `<tr><th>${et}</th><td>${v}</td></tr>`;
   if(c){
-    cuerpo = hcDato('Diagnóstico', escHtml(c.diagnostico)) + hcDato('Categoría', escHtml(c.categoria)) +
-      hcDato('Nivel de triage', `<strong>${escHtml(c.triage)}</strong>${h.datos && h.datos.triage ? ` <span class="hc-sub" style="display:inline;padding:0">(el enfermero marcó ${escHtml(h.datos.triage)})</span>` : ''}`) +
-      hcDato('Procedimiento', escHtml((c.procedimientos || []).join(' + ')), true) +
-      `<div class="hc-sub">${c.corregida_por ? `Corregida por ${escHtml(c.corregida_por)} el ${hcFechaHora(c.corregida_at)}` : `Clasificada por IA${c.modelo ? ' (' + escHtml(c.modelo) + ')' : ''} el ${hcFechaHora(h.clasificada_at)}`}</div>`;
+    const triageEnf = h.datos && h.datos.triage && h.datos.triage !== c.triage ? ` <span class="hc-clas-nota">el enfermero marcó ${escHtml(h.datos.triage)}</span>` : '';
+    cuerpo = `<table class="hc-clas-tabla">` +
+      fila('Diagnóstico', escHtml(c.diagnostico)) + fila('Categoría', escHtml(c.categoria)) +
+      fila('Nivel de triage', `<strong>${escHtml(c.triage)}</strong>${triageEnf}`) +
+      fila('Procedimiento', escHtml((c.procedimientos || []).join(' + '))) + '</table>' +
+      (c.corregida_por ? `<div class="hc-clas-nota" style="padding:0 10px 4px">Corregida a mano por ${escHtml(c.corregida_por)}</div>` : '');
   } else {
-    cuerpo = `<div class="hc-nada">${h.clasificacion_error ? 'No se pudo clasificar: ' + escHtml(h.clasificacion_error) : 'Pendiente: la IA la clasifica en unos minutos (si está configurada).'}</div>`;
+    cuerpo = `<div class="hc-nada">${h.clasificacion_error ? 'No se pudo clasificar: ' + escHtml(h.clasificacion_error) : 'Pendiente: la IA la clasifica en unos minutos.'}</div>`;
   }
-  return hcSec('Clasificación para el reporte (IA)', cuerpo +
-    `<div class="hc-clas-acciones"><button class="tb-btn" onclick="hcAbrirClasificacion()"><img class="btn-ico" src="img/iconos/editar.svg" alt="">Corregir</button>
-     <button class="tb-btn" onclick="hcRehacerClasificacion()">Volver a clasificar con IA</button></div>`);
+  return hcSec('Clasificación para el reporte (IA)',
+    `<div class="hc-clas-intro">Así sale esta atención en el <strong>Reporte Excel</strong> (diagnóstico, categoría, triage y procedimiento).</div>` + cuerpo +
+    `<div class="hc-clas-acciones">
+       <div><button class="tb-btn" onclick="hcAbrirClasificacion()"><img class="btn-ico" src="img/iconos/editar.svg" alt="">Corregir</button>
+         <span>Si la IA se equivocó: eliges tú el diagnóstico, los procedimientos y el triage.</span></div>
+       <div><button class="tb-btn" onclick="hcRehacerClasificacion()">Volver a clasificar con IA</button>
+         <span>La IA la clasifica de nuevo (por ejemplo, después de corregir el motivo de consulta).</span></div>
+     </div>`);
 }
 
 let _hcCatalogos = null;

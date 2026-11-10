@@ -45,4 +45,12 @@ function rangoEdad(anios) {
   return 'Persona mayor';
 }
 
-module.exports = { jornada, edadReporte, rangoEdad };
+// "18:05" o "18:05:09" (24 h) → "06:05:09 PM"
+function hora12(hms) {
+  const m = /^(\d\d):(\d\d)(?::(\d\d))?$/.exec(String(hms || ''));
+  if (!m) return '';
+  const h = +m[1];
+  return `${String(h % 12 || 12).padStart(2, '0')}:${m[2]}:${m[3] || '00'} ${h < 12 ? 'AM' : 'PM'}`;
+}
+
+module.exports = { jornada, edadReporte, rangoEdad, hora12 };
