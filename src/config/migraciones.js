@@ -339,19 +339,38 @@ async function _cargarMunicipios() {
   );
 }
 
+// Texto del error aunque venga sin mensaje (p. ej. AggregateError de conexión)
+function _textoError(err) {
+  if (!err) return 'desconocido';
+  return err.message || err.code ||
+    (Array.isArray(err.errors) && err.errors.map(e => e.message || e.code).filter(Boolean).join('; ')) || String(err);
+}
+
+// Al reiniciar el hosting arrancan varios procesos a la vez: si uno no logra
+// conectarse a la base o choca con otro, se reintenta (todo es idempotente)
+const INTENTOS_MIGRACION = 4;
 async function aplicarMigraciones() {
-  try {
-    for (const sql of MIGRACIONES) await pool.query(sql);
-    await _cargarMunicipios();
-    for (const m of MIGRACIONES_UNICAS) await _aplicarUnaVez(m);
-    estado.migraciones = 'ok';
-    console.log('Migraciones de base de datos al día');
-  } catch (err) {
-    estado.migraciones = 'error: ' + err.message;
-    // No se detiene el servidor (el resto de la app sigue funcionando), pero
-    // el registro de consumos usa estas columnas y FALLARÁ hasta corregirlo.
-    // Se ve en GET /api/health y en el log.
-    console.error('ERROR aplicando migraciones (los consumos fallarán hasta corregirlo):', err.message);
+  for (let intento = 1; intento <= INTENTOS_MIGRACION; intento++) {
+    try {
+      for (const sql of MIGRACIONES) await pool.query(sql);
+      await _cargarMunicipios();
+      for (const m of MIGRACIONES_UNICAS) await _aplicarUnaVez(m);
+      estado.migraciones = 'ok';
+      console.log('Migraciones de base de datos al día');
+      return;
+    } catch (err) {
+      const texto = _textoError(err);
+      if (intento < INTENTOS_MIGRACION) {
+        console.error(`Migraciones: intento ${intento} falló (${texto}); se reintenta`);
+        await new Promise(r => setTimeout(r, 3000 * intento));
+        continue;
+      }
+      estado.migraciones = 'error: ' + texto;
+      // No se detiene el servidor (el resto de la app sigue funcionando), pero
+      // el registro de consumos usa estas columnas y FALLARÁ hasta corregirlo.
+      // Se ve en GET /api/health y en el log.
+      console.error('ERROR aplicando migraciones (los consumos fallarán hasta corregirlo):', texto);
+    }
   }
 }
 
