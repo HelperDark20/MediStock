@@ -113,6 +113,11 @@ router.get('/', verificarToken, async (req, res) => {
     query += ` LIMIT $${params.length}`;
 
     const result = await pool.query(query, params);
+    // La cédula del paciente solo la ve el administrador; enfermero y
+    // supervisor la ven como CONFIDENCIAL (igual que en Historias clínicas)
+    if (req.usuario.nivel !== 4) {
+      result.rows.forEach(m => { if (m.cedula_paciente) m.cedula_paciente = 'CONFIDENCIAL'; });
+    }
     res.json(result.rows);
   } catch (err) {
     console.error(err);

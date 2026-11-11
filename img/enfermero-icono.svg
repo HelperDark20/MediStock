@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180">
+  <defs>
+    <radialGradient id="fondo" cx="0.28" cy="0.18" r="1.05">
+      <stop offset="0" stop-color="#1F3D6B"/>
+      <stop offset="0.55" stop-color="#11264A"/>
+      <stop offset="1" stop-color="#0A1628"/>
+    </radialGradient>
+    <linearGradient id="hoja" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F1F5FB"/>
+      <stop offset="1" stop-color="#D3DEEE"/>
+    </linearGradient>
+    <linearGradient id="pinza" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6F86B0"/>
+      <stop offset="1" stop-color="#4C6390"/>
+    </linearGradient>
+    <linearGradient id="azul" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3AA8EA"/>
+      <stop offset="1" stop-color="#1A72BC"/>
+    </linearGradient>
+    <linearGradient id="cruz" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F06A60"/>
+      <stop offset="1" stop-color="#D2453C"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="180" height="180" fill="url(#fondo)"/>
+
+  <!-- Tabla de la historia clínica -->
+  <rect x="38" y="34" width="86" height="108" rx="13" fill="#4C6390"/>
+  <rect x="43.5" y="39.5" width="75" height="97" rx="9" fill="url(#hoja)"/>
+  <!-- pinza -->
+  <path d="M66 26h30a5 5 0 0 1 5 5v9a5 5 0 0 1-5 5H66a5 5 0 0 1-5-5v-9a5 5 0 0 1 5-5z" fill="url(#pinza)"/>
+  <rect x="71" y="31.5" width="20" height="7" rx="3.5" fill="#D3DEEE"/>
+
+  <!-- cruz médica -->
+  <rect x="58" y="54" width="30" height="30" rx="8" fill="#FFFFFF" stroke="#C3D2E8" stroke-width="1.5"/>
+  <path d="M69 58h8v7h7v8h-7v7h-8v-7h-7v-8h7z" fill="url(#cruz)"/>
+
+  <!-- renglones de la historia -->
+  <rect x="56" y="94" width="50" height="7" rx="3.5" fill="#9FB4D4"/>
+  <rect x="56" y="107" width="40" height="7" rx="3.5" fill="#B9C9E2"/>
+  <rect x="56" y="120" width="30" height="7" rx="3.5" fill="#B9C9E2"/>
+
+  <!-- insignia: signos vitales -->
+  <circle cx="122" cy="113" r="28" fill="url(#azul)" stroke="#FFFFFF" stroke-width="5"/>
+  <path d="M101 114h9l5-10 7 20 6-15 4 5h10" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- NOVA -->
+  <text x="90" y="166" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="15" letter-spacing="6.5" fill="#2E9BE0" dx="3">NOVA</text>
+</svg>
