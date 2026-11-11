@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
-const { verificarToken, verificarNivel } = require('../middlewares/auth');
+const { verificarToken, verificarNivel, verificarNiveles } = require('../middlewares/auth');
 const { validarParamsId, idValido } = require('../utils/validar');
 const { fechaValida } = require('../utils/fechas');
 
@@ -113,6 +113,11 @@ router.get('/', verificarToken, async (req, res) => {
     query += ` LIMIT $${params.length}`;
 
     const result = await pool.query(query, params);
+    // La cédula del paciente solo la ve el administrador; enfermero y
+    // supervisor la ven como CONFIDENCIAL (igual que en Historias clínicas)
+    if (req.usuario.nivel !== 4) {
+      result.rows.forEach(m => { if (m.cedula_paciente) m.cedula_paciente = 'CONFIDENCIAL'; });
+    }
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -299,10 +304,20 @@ async function _registrarConsumo(usuario, d) {
       const ya = await client.query('SELECT id FROM movimientos WHERE client_id = $1', [d.client_id]);
       if (ya.rows.length) { await client.query('ROLLBACK'); return { estado: 'duplicado' }; }
     }
-    // Una HC ya enviada no admite más consumos
+    // Una HC ya enviada solo admite consumos como NOVEDAD: del mismo
+    // enfermero que la diligenció y mientras el evento no haya finalizado
+    // (sin conexión: si se registró antes del cierre). Los datos de dosis y
+    // vía llegan después con la novedad (POST /api/hc/novedad).
     if (d.hc_client_id) {
-      const hc = await client.query('SELECT 1 FROM historias_clinicas WHERE client_id = $1', [d.hc_client_id]);
-      if (hc.rows.length) { await client.query('ROLLBACK'); return { estado: 'hc_enviada' }; }
+      const hc = await client.query(
+        `SELECT h.usuario_id, e.estado, e.finalizado_at FROM historias_clinicas h
+         JOIN eventos e ON e.id = h.evento_id WHERE h.client_id = $1`, [d.hc_client_id]);
+      if (hc.rows.length) {
+        const x = hc.rows[0];
+        const fecha = d.fecha_atencion ? new Date(d.fecha_atencion) : new Date();
+        const abierto = x.estado !== 'finalizado' || (x.finalizado_at && fecha.getTime() <= new Date(x.finalizado_at).getTime());
+        if (x.usuario_id !== usuario.id || !abierto) { await client.query('ROLLBACK'); return { estado: 'hc_enviada' }; }
+      }
     }
     if (!await _depositoAsignado(client, usuario, d.bodega_origen_id, d.es_offline ? d.fecha_atencion : null)) {
       await client.query('ROLLBACK');
@@ -358,9 +373,9 @@ function _pacienteDelConsumo(body) {
   if (doc && (doc.length < 3 || doc.length > 20)) return { error: 'Documento del paciente inválido' };
   return { hc_client_id: hc, cedula_paciente: doc || null };
 }
-const ERROR_HC_ENVIADA = 'La historia clínica ya fue enviada: no se le pueden agregar consumos';
+const ERROR_HC_ENVIADA = 'La historia clínica ya fue enviada: solo quien la diligenció puede agregarle consumos, y solo mientras el evento no haya finalizado';
 
-router.post('/consumo', verificarToken, verificarNivel(2), async (req, res) => {
+router.post('/consumo', verificarToken, verificarNiveles(2, 4), async (req, res) => {
   const sub_sku_id = idValido(req.body.sub_sku_id);
   const bodega_origen_id = idValido(req.body.bodega_origen_id);
   const cantidad = _cantidadValida(req.body.cantidad);
@@ -397,7 +412,7 @@ router.post('/consumo', verificarToken, verificarNivel(2), async (req, res) => {
 const MAX_SINCRONIZAR = 200;
 const TOLERANCIA_RELOJ_MS = 10 * 60 * 1000;   // reloj de la tablet adelantado
 
-router.post('/sincronizar', verificarToken, verificarNivel(2), async (req, res) => {
+router.post('/sincronizar', verificarToken, verificarNiveles(2, 4), async (req, res) => {
   const consumos = req.body && req.body.consumos;
   if (!Array.isArray(consumos) || !consumos.length) {
     return res.status(400).json({ error: 'No hay consumos para sincronizar' });
@@ -447,7 +462,7 @@ router.post('/sincronizar', verificarToken, verificarNivel(2), async (req, res) 
 // producto o de cantidad). El stock vuelve a la bodega con un movimiento de
 // reversión, igual que cuando el administrador revierte un movimiento.
 // Es seguro repetirlo. body: { client_id }
-router.post('/anular-consumo', verificarToken, verificarNivel(2), async (req, res) => {
+router.post('/anular-consumo', verificarToken, verificarNiveles(2, 4), async (req, res) => {
   const clientId = _clientIdValido(req.body && req.body.client_id);
   if (!clientId) return res.status(400).json({ error: 'Identificador de consumo inválido' });
 
@@ -468,10 +483,18 @@ router.post('/anular-consumo', verificarToken, verificarNivel(2), async (req, re
       await client.query('ROLLBACK');
       return res.json({ mensaje: 'Este consumo ya estaba anulado', ya_anulado: true });
     }
-    const enviada = await client.query('SELECT 1 FROM historias_clinicas WHERE client_id = $1', [mov.hc_client_id]);
+    // HC ya enviada: solo se puede quitar un consumo de una novedad que aún
+    // no se guardó (no está en la HC) y con el evento sin finalizar
+    const enviada = await client.query(
+      `SELECT h.datos->'medicamentos' AS meds, e.estado FROM historias_clinicas h
+       JOIN eventos e ON e.id = h.evento_id WHERE h.client_id = $1`, [mov.hc_client_id]);
     if (enviada.rows.length) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'La historia clínica ya fue enviada: pide al administrador que corrija el consumo' });
+      const x = enviada.rows[0];
+      const enLaHC = (x.meds || []).some(m => m.consumo_id === clientId);
+      if (enLaHC || x.estado === 'finalizado') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'La historia clínica ya fue enviada: pide al administrador que corrija el consumo' });
+      }
     }
     await client.query(
       `INSERT INTO stock (sub_sku_id, bodega_id, cantidad)
@@ -553,7 +576,7 @@ router.post('/traslado', verificarToken, verificarNivel(3), async (req, res) => 
 });
 
 // POST /api/movimientos/destruccion — nivel 3 y 4
-router.post('/destruccion', verificarToken, verificarNivel(3), async (req, res) => {
+router.post('/destruccion', verificarToken, verificarNivel(4), async (req, res) => {
   const sub_sku_id = idValido(req.body.sub_sku_id);
   const bodega_origen_id = idValido(req.body.bodega_origen_id);
   const motivo = req.body.motivo == null ? null : String(req.body.motivo);

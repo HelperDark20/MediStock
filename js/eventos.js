@@ -74,7 +74,7 @@ function renderEventos(){
         <div style="margin-bottom:8px">${personalHTML}</div>
         <div style="font-size:11px;color:#aaa;font-family:var(--font-mono)">
           <img class="evt-mini-ico" src="img/iconos/mes.svg" alt="">
-          ${fmtDate(e.fecha_inicio)} → ${fmtDate(e.fecha_fin)}
+          ${fmtDate(e.fecha_inicio)} → ${fmtDate(e.fecha_fin)}${e.hora_inicio ? ` · ${e.hora_inicio}–${e.hora_fin}` : ''}
         </div>
         ${accion}
       </div>
@@ -82,11 +82,58 @@ function renderEventos(){
   }).join('');
 }
 
+// ── HORA DEL EVENTO: se escribe en 12 o 24 horas y queda en 24 h ──
+// 13 a 23 → p. m. sin preguntar · 00 → a. m. · 1 a 12 → pregunta a. m. o p. m.
+// También acepta "6:00 pm", "6pm", "0600". El valor queda en data-valor (HH:MM).
+const _pad2 = n => String(n).padStart(2, '0');
+function _evtHora12(h, m){ return `${h % 12 || 12}:${_pad2(m)} ${h < 12 ? 'a. m.' : 'p. m.'}`; }
+function _evtHoraParse(txt){
+  const t = String(txt || '').toLowerCase().replace(/[\s.]/g, '');
+  const m = /^(\d{1,2})(?::?(\d{2}))?(am|pm|a|p)?$/.exec(t);
+  if(!m) return null;
+  const h = +m[1], mi = m[2] ? +m[2] : 0;
+  if(h > 23 || mi > 59) return null;
+  if(m[3] && (h < 1 || h > 12)) return null;
+  return { h, mi, ampm: m[3] ? m[3][0] : '' };
+}
+function evtHoraFijar(id, h, mi, normalizar){
+  const el = document.getElementById(id), v = `${_pad2(h)}:${_pad2(mi)}`;
+  el.dataset.valor = v;
+  if(normalizar) el.value = v;
+  document.getElementById(id + '-ayuda').innerHTML = `<span class="evt-hora-ok">✓ ${_evtHora12(h, mi)} (${v})</span>`;
+}
+function evtHoraEscribir(id, alSalir){
+  const el = document.getElementById(id), ayuda = document.getElementById(id + '-ayuda');
+  el.dataset.valor = '';
+  if(!el.value.trim()){ ayuda.innerHTML = ''; return; }
+  const p = _evtHoraParse(el.value);
+  if(!p){ ayuda.innerHTML = alSalir ? '<span class="evt-hora-error">Escribe la hora así: 18:00 o 6:00 pm</span>' : ''; return; }
+  if(p.ampm) return evtHoraFijar(id, p.ampm === 'p' ? (p.h % 12) + 12 : p.h % 12, p.mi, alSalir);
+  if(p.h >= 13 || p.h === 0) return evtHoraFijar(id, p.h, p.mi, alSalir);
+  // 1 a 12: ¿mañana o tarde/noche?
+  ayuda.innerHTML = `<span class="evt-hora-preg">¿${p.h}:${_pad2(p.mi)} de la mañana o de la tarde/noche?</span>
+    <button type="button" class="evt-ampm" onmousedown="event.preventDefault()" onclick="evtHoraFijar('${id}', ${p.h % 12}, ${p.mi}, true)">a. m.</button>
+    <button type="button" class="evt-ampm" onmousedown="event.preventDefault()" onclick="evtHoraFijar('${id}', ${(p.h % 12) + 12}, ${p.mi}, true)">p. m.</button>`;
+}
+function evtHoraCargar(id, v){
+  const el = document.getElementById(id);
+  el.value = v || ''; el.dataset.valor = '';
+  document.getElementById(id + '-ayuda').innerHTML = '';
+  if(/^\d\d:\d\d$/.test(v || '')) evtHoraFijar(id, +v.slice(0, 2), +v.slice(3), true);
+}
+function _evtHorasDe(p){
+  const hi = document.getElementById(p + '-hora-inicio').dataset.valor, hf = document.getElementById(p + '-hora-fin').dataset.valor;
+  if(!hi || !hf) return { error: 'Indica la hora de inicio y la hora final del evento (si es de 1 a 12, elige a. m. o p. m.)' };
+  if(hi === hf) return { error: 'La hora final debe ser distinta a la de inicio' };
+  return { hora_inicio: hi, hora_fin: hf };
+}
+
 // ── CREAR EVENTO (solo datos base) ──
 function abrirCrearEvento(){
   document.getElementById('evt-nombre').value = '';
   document.getElementById('evt-fecha-inicio').value = '';
   document.getElementById('evt-fecha-fin').value = '';
+  evtHoraCargar('evt-hora-inicio', ''); evtHoraCargar('evt-hora-fin', '');
   document.getElementById('evt-ubicacion').innerHTML = '<option value="">Seleccionar ubicación…</option>' +
     S.ubicaciones.map(u=>`<option value="${u.id}">${escHtml(u.nombre)}</option>`).join('');
   document.getElementById('modal-crear-evento').classList.add('open');
@@ -102,9 +149,11 @@ async function crearEvento(){
   if(!fechaInicio || !fechaFin){ toastError('Ingresa las fechas del evento'); return; }
   if(fechaFin < fechaInicio){ toastError('La fecha de finalización no puede ser anterior a la de inicio'); return; }
   if(!ubicacion_id){ toastError('Selecciona la ubicación del evento'); return; }
+  const horas = _evtHorasDe('evt');
+  if(horas.error){ toastError(horas.error); return; }
 
   try {
-    const nuevo = await Eventos.create({ nombre, fecha_inicio: fechaInicio, fecha_fin: fechaFin, ubicacion_id });
+    const nuevo = await Eventos.create({ nombre, fecha_inicio: fechaInicio, fecha_fin: fechaFin, ubicacion_id, ...horas });
     closeModal('modal-crear-evento');
     S.eventos = await Eventos.getAll();
     renderEventos();
@@ -128,6 +177,7 @@ async function abrirDetalleEvento(id){
     document.getElementById('evtdet-nombre').value = evento.nombre;
     document.getElementById('evtdet-fecha-inicio').value = (evento.fecha_inicio||'').split('T')[0];
     document.getElementById('evtdet-fecha-fin').value = (evento.fecha_fin||'').split('T')[0];
+    evtHoraCargar('evtdet-hora-inicio', evento.hora_inicio); evtHoraCargar('evtdet-hora-fin', evento.hora_fin);
     document.getElementById('evtdet-ubicacion').innerHTML = S.ubicaciones
       .map(u=>`<option value="${u.id}" ${u.id===evento.ubicacion_id?'selected':''}>${escHtml(u.nombre)}</option>`).join('');
     document.getElementById('evtdet-ubicacion-warn').style.display = 'none';
@@ -162,9 +212,11 @@ async function guardarDetalleEvento(){
   if(!fechaInicio || !fechaFin){ toastError('Ingresa las fechas del evento'); return; }
   if(fechaFin < fechaInicio){ toastError('La fecha de finalización no puede ser anterior a la de inicio'); return; }
   if(!ubicacion_id){ toastError('Selecciona la ubicación del evento'); return; }
+  const horas = _evtHorasDe('evtdet');
+  if(horas.error){ toastError(horas.error); return; }
 
   try {
-    const actualizado = await Eventos.update(id, { nombre, fecha_inicio: fechaInicio, fecha_fin: fechaFin, ubicacion_id });
+    const actualizado = await Eventos.update(id, { nombre, fecha_inicio: fechaInicio, fecha_fin: fechaFin, ubicacion_id, ...horas });
     S.eventos = await Eventos.getAll();
     renderEventos();
     toast(actualizado.bodegas_reiniciadas
@@ -195,7 +247,8 @@ function evtDetRenderEnfermeros(){
     personal.map(p => {
     const detalle = p.es_medico
       ? `Médico · Cédula / RP: ${escHtml(p.cedula || '')}`
-      : ((p.bodegas||[]).map(b=>escHtml(b.nombre)).join(', ') || '<span style="color:var(--red2)">Sin depósitos asignados</span>');
+      : ((p.bodegas||[]).map(b=>escHtml(b.nombre)).join(', ') || '<span style="color:var(--red2)">Sin depósitos asignados</span>') +
+        `<br>${p.ubicacion ? 'Ubicación: ' + escHtml(p.ubicacion) : '<span style="color:var(--red2)">Sin ubicación asignada</span>'}`;
     return `<div class="user-card" style="margin-bottom:8px">
       <div class="user-avatar foto"><img src="${avatarNivel(p.nivel || (p.es_medico ? 1 : 2))}" alt=""></div>
       <div class="user-info">
@@ -203,7 +256,7 @@ function evtDetRenderEnfermeros(){
         <div class="user-cedula">${detalle}</div>
       </div>
       <div class="act-btn-group">
-        ${p.es_medico ? '' : `<button class="act-btn primary" title="Editar depósitos" onclick="evtAbrirAsignarDepositos(${p.id},${jsArg(p.nombre)})"><i class="ti ti-building-warehouse"></i></button>`}
+        ${p.es_medico ? '' : `<button class="act-btn primary" title="Editar depósitos y ubicación" onclick="evtAbrirAsignarDepositos(${p.id},${jsArg(p.nombre)})"><i class="ti ti-building-warehouse"></i></button>`}
         <button class="act-btn danger" title="Quitar del evento" onclick="evtDetEnfRemove(${p.id},${jsArg(p.nombre)})"><img class="btn-ico" src="img/iconos/eliminar.svg" alt=""></button>
       </div>
     </div>`;
@@ -289,7 +342,8 @@ function evtAbrirAsignarDepositos(usuarioId, nombre){
   _evtAsignarSeleccion = new Set((persona?.bodegas||[]).map(b=>b.id));
 
   document.getElementById('evtasig-usuario-id').value = usuarioId;
-  document.getElementById('evtasig-sub').textContent = `Selecciona los depósitos que puede usar ${nombre} durante este evento.`;
+  document.getElementById('evtasig-sub').textContent = `Selecciona los depósitos que puede usar ${nombre} durante este evento y dónde estará.`;
+  document.getElementById('evtasig-ubicacion').value = (persona && persona.ubicacion) || '';
 
   const depositos = (S.bodegasRaw||[]).filter(b => b.ubicacion_id === _evtDetalleEvento.ubicacion_id);
   const checklist = document.getElementById('evtasig-checklist');
@@ -313,14 +367,16 @@ function evtToggleDeposito(bodegaId, checked){
 
 async function evtGuardarAsignacion(){
   try {
-    await Eventos.updateEnfermero(_evtDetalleId, _evtAsignarUsuarioId, { bodega_ids: [..._evtAsignarSeleccion] });
+    const ubicacion = document.getElementById('evtasig-ubicacion').value.trim();
+    if(ubicacion.length < 2){ toastError('Escribe la ubicación del enfermero dentro del evento'); return; }
+    await Eventos.updateEnfermero(_evtDetalleId, _evtAsignarUsuarioId, { bodega_ids: [..._evtAsignarSeleccion], ubicacion });
     closeModal('modal-asignar-depositos');
     _evtDetalleEvento = await Eventos.getOne(_evtDetalleId);
     evtDetRenderEnfermeros();
     S.eventos = await Eventos.getAll();
     renderEventos();
     document.getElementById('modal-evento-detalle').classList.add('open');
-    toast('✓ Depósitos actualizados','success');
+    toast('✓ Depósitos y ubicación guardados','success');
   } catch(err){
     toastError(err.message);
     document.getElementById('modal-evento-detalle').classList.add('open');

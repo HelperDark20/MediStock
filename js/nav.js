@@ -95,12 +95,18 @@ function goTo(viewId){
   if(viewId==='eventos'&&currentRole===4){
     ta.innerHTML=`<button class="tb-btn primary" onclick="abrirCrearEvento()"><img class="btn-ico" src="img/iconos/crear-evento.svg" alt="">Crear evento</button>`;
   }
-  if(viewId==='asistencia'&&currentRole===4){
+  if(viewId==='asistencia'&&currentRole>=3){
     ta.innerHTML=`<button class="tb-btn primary" onclick="asisAbrirCarga()"><img class="btn-ico" src="img/iconos/crear-usuario.svg" alt="">Cargar personal</button>`+
       `<button class="tb-btn" onclick="asisExportExcel()"><img class="btn-ico" src="img/iconos/excel.svg" alt="">Excel</button>`+
       `<button class="tb-btn" onclick="asisExportPDF()"><img class="btn-ico" src="img/iconos/pdf.svg" alt="">PDF</button>`+
-      `<button class="tb-btn" onclick="asisAbrirCuenta()"><img class="btn-ico" src="img/iconos/cedula.svg" alt="">Cuenta de tablets</button>`+
+      `<button class="tb-btn" onclick="asisAbrirCuenta()"><img class="btn-ico" src="img/iconos/cedula.svg" alt="">Cuentas de tablets</button>`+
+      `<button class="tb-btn" onclick="asisAbrirDispositivos()"><img class="btn-ico" src="img/iconos/ubicacion.svg" alt="">Dispositivos e IP</button>`+
       `<button class="tb-btn" onclick="asisCerrarSesiones()"><img class="btn-ico" src="img/iconos/salir.svg" alt="">Cerrar sesión de tablets</button>`;
+  }
+  if(viewId==='historias'&&currentRole>=3){
+    ta.innerHTML=`<button class="tb-btn" onclick="hcAbrirReporte()"><img class="btn-ico" src="img/iconos/excel.svg" alt="">Reporte Excel</button>`;
+    // Página aparte (solo administrador): el editor de la tablet con todas las historias clínicas
+    if(currentRole===4) ta.innerHTML+=`<button class="tb-btn primary" onclick="window.open('/hc-editor','_blank')"><img class="btn-ico" src="img/iconos/editar.svg" alt="">Editar Historias Clínicas</button>`;
   }
   if(viewId==='segstock'&&currentRole===4){
   ta.innerHTML=`<button class="tb-btn primary" onclick="abrirCrearGrupoSeg()"><img class="btn-ico" src="img/iconos/crear-grupo.svg" alt="">Crear grupo</button>`;

@@ -1,13 +1,16 @@
 // ══════════════════════════════════════════
-// HISTORIAS CLÍNICAS — módulo del administrador (nivel 4)
+// HISTORIAS CLÍNICAS — módulo del administrador (nivel 4) y del supervisor
+// (nivel 3: solo consulta, PDF y Reporte Excel; el servidor le envía las HC
+// con CONFIDENCIAL en el nombre, documento, teléfono y dirección del paciente
+// y en el nombre y teléfono del acompañante, y sin adjuntos)
 //
 // Lista las HC que envían las tablets, con filtros; muestra cada una
 // completa; registra la entrega del paciente (HC con traslado, que quedan
 // abiertas hasta entonces) con la foto o PDF del recibido de la IPS; toma la
-// firma del médico si quedó pendiente; permite corregir cualquier dato con
-// rastro de cambios (quién, cuándo, motivo, antes → después), y genera la
-// versión imprimible con la estructura del formato SIG_08NB_0030 (se guarda
-// como PDF desde el diálogo de impresión del navegador).
+// firma del médico si quedó pendiente y genera la versión imprimible con la
+// estructura del formato SIG_08NB_0030 (se guarda como PDF desde el diálogo
+// de impresión del navegador). La corrección de datos se hace en la página
+// aparte "Editar Historias Clínicas" (hc-editor.html), con rastro de cambios.
 // API: /api/hc (src/routes/hc.js)
 // ══════════════════════════════════════════
 
@@ -16,6 +19,10 @@ const HC_TXT = {
   tipo_doc: { CC:'CC', TI:'TI', CE:'CE', PAS:'Pasaporte', RC:'RC', PPT:'PPT', OTRO:'Otro' },
   sexo: { M:'Masculino', F:'Femenino', O:'Otro' },
   estado_civil: { SOLTERO:'Soltero/a', CASADO:'Casado/a', DIVORCIADO:'Divorciado/a', VIUDO:'Viudo/a', UNION_LIBRE:'Unión libre' },
+  procedencia: { INTERNO:'Interno', EXTERNO:'Externo' },
+  tipo_paciente: { ARTISTA:'Artista', DEPORTISTA:'Deportista', DIRECTORES:'Directores', ESPECTADOR:'Espectador', LOGISTICA:'Logística',
+    POLICIA:'Policía', AUTORIDAD_PMU:'Autoridad PMU', PROVEEDOR:'Proveedor', ADMINISTRACION:'Administración', NOVA:'Nova',
+    PRODUCTOR:'Productor', EXTERNO:'Externo' },
   decision: { acepta:'Acepta la atención', rechaza:'Rechaza la atención', urgencia_vital:'Urgencia vital: sin capacidad de consentir' },
   via_aerea: { ADECUADA:'Adecuada', PERMEABLE:'Permeable', OBSTRUIDA:'Obstruida', INSTRUMENTADA:'Instrumentada' },
   respiracion: { ADECUADA:'Adecuada', DIFICULTAD:'Dificultad respiratoria', AUSENTE:'Ausente' },
@@ -34,7 +41,8 @@ const HC_TXT = {
   ambulancia: { TAB:'TAB', TAM:'TAM', APH:'APH', NEONATAL:'Neonatal' },
   servicio: { URGENCIAS:'Urgencias', OTRO:'Otro' },
   gestacion: { si:'Sí', no:'No', no_aplica:'No aplica' },
-  accion: { edicion:'Edición', entrega:'Entrega del paciente', firma_medico:'Firma del médico', adjunto:'Archivo adjunto' }
+  accion: { edicion:'Edición', entrega:'Entrega del paciente', firma_medico:'Firma del médico', adjunto:'Archivo adjunto',
+            novedad:'Novedad (enfermero)', consumo:'Medicamento / insumo (administrador)' }
 };
 const HC_ANTECEDENTES = [['patologicos','Patológicos'],['quirurgicos','Quirúrgicos'],['farmacologicos','Farmacológicos'],['alergicos','Alérgicos'],
   ['toxicos','Tóxicos'],['traumaticos','Traumáticos'],['hospitalarios','Hospitalarios'],['otros','Otros']];
@@ -67,6 +75,8 @@ function renderHistorias(){
   const eSel = selE.value;
   selE.innerHTML = '<option value="">Todos</option>' + (S.eventos || []).map(e => `<option value="${e.id}">${escHtml(e.nombre)}</option>`).join('');
   selE.value = eSel;
+  document.getElementById('hcf-documento').placeholder = currentRole === 4 ? 'Documento, nombre o HC-2026-…' : 'Número de HC (HC-2026-…)';
+  document.getElementById('hcf-documento-label').textContent = currentRole === 4 ? 'Paciente o número de HC' : 'Número de HC';
   hcBuscar(1);
 }
 
@@ -137,10 +147,10 @@ async function hcRecargar(){
 function hcRenderDetalle(){
   const h = _hcActual, d = h.datos, r = d.responsables || {};
   const traslado = d.cierre && d.cierre.destino === 'TRASLADO';
+  const admin = currentRole === 4;
   const acciones = [
-    traslado && !d.entrega ? `<button class="tb-btn primary" onclick="hcAbrirEntrega()"><i class="ti ti-building-hospital"></i>Registrar entrega</button>` : '',
-    r.medico && r.medico_firma_pendiente ? `<button class="tb-btn" onclick="hcAbrirFirmaMedico()"><i class="ti ti-signature"></i>Firma del médico</button>` : '',
-    `<button class="tb-btn" onclick="hcAbrirEdicion()"><img class="btn-ico" src="img/iconos/editar.svg" alt="">Editar</button>`,
+    admin && traslado && !d.entrega ? `<button class="tb-btn primary" onclick="hcAbrirEntrega()"><i class="ti ti-building-hospital"></i>Registrar entrega</button>` : '',
+    admin && r.medico && r.medico_firma_pendiente ? `<button class="tb-btn" onclick="hcAbrirFirmaMedico()"><i class="ti ti-signature"></i>Firma del médico</button>` : '',
     `<button class="tb-btn" onclick="hcImprimir()"><i class="ti ti-printer"></i>Imprimir / PDF</button>`
   ].join('');
   document.getElementById('hc-detalle').innerHTML = `
@@ -153,7 +163,8 @@ function hcRenderDetalle(){
       <div class="hc-acciones">${acciones}</div>
     </div>
     ${hcHtml(h, false)}
-    ${hcHtmlAdjuntos(h)}
+    ${hcHtmlClasificacion(h)}
+    ${admin ? hcHtmlAdjuntos(h) : ''}
     ${hcHtmlCambios(h)}
     <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-hc')">Cerrar</button></div>`;
 }
@@ -181,8 +192,9 @@ function hcHtml(h, imprimir){
     hcDato('Tipo de documento', hcT('tipo_doc', p.tipo_doc)) + hcDato('Número', hcV(p.documento)) +
     hcDato('Fecha de nacimiento', hcFecha(p.fecha_nacimiento)) + hcDato('Edad', hcV(p.edad && p.edad.texto)) +
     hcDato('Sexo', hcT('sexo', p.sexo)) + hcDato('RH', hcT('rh', p.rh)) + hcDato('Grupo sanguíneo', hcV(p.grupo)) +
+    hcDato('Ubicación del paciente', hcT('procedencia', p.procedencia)) + hcDato('Tipo de paciente', hcT('tipo_paciente', p.tipo_paciente)) +
     hcDato('Dirección', hcV(p.direccion)) + hcDato('Ciudad', hcV(p.ciudad)) + hcDato('Teléfono', hcV(p.telefono)) +
-    hcDato('Estado civil', hcT('estado_civil', p.estado_civil)) + hcDato('Ocupación', hcV(p.ocupacion)) +
+    hcDato('Estado civil', p.edad && p.edad.anios < 15 ? 'Soltero/a' : hcT('estado_civil', p.estado_civil)) + hcDato('Ocupación', hcV(p.ocupacion)) +
     hcDato('EPS', hcV(p.eps)) + hcDato('ARL', hcV(p.arl)) + hcDato('Otra aseguradora', p.otra_aseguradora ? hcV(p.aseguradora) : 'No'));
   html += hcSec('Contacto de acompañante', a.tiene
     ? hcDato('Nombre completo', hcV(a.nombre), true) + hcDato('Parentesco', hcV(a.parentesco)) + hcDato('Teléfono', hcV(a.telefono))
@@ -198,23 +210,35 @@ function hcHtml(h, imprimir){
       hcDato('C. Circulación', hcT('circulacion', v.circulacion) + (v.circulacion_obs ? ' · ' + escHtml(v.circulacion_obs) : ''), true) +
       hcDato('D. Estado neurológico', hcT('neuro', v.neuro) + ((v.orientado || []).length ? ' · Orientado en ' + v.orientado.map(o => hcT('orientado', o).toLowerCase()).join(', ') : ''), true) +
       hcDato('E. Exposición', hcV(v.exposicion), true));
-    html += hcSec('Signos vitales',
-      hcDato('Hora', hcV(sg.hora)) + hcDato('TA', sg.ta_sis ? `${sg.ta_sis}/${sg.ta_dia} mmHg` : '—') +
-      hcDato('FC', sg.fc ? sg.fc + ' lpm' : '—') + hcDato('FR', sg.fr ? sg.fr + ' rpm' : '—') +
-      hcDato('SpO₂', sg.spo2 ? sg.spo2 + ' %' : '—') + hcDato('Temperatura', sg.temp ? sg.temp + ' °C' : '—') +
-      hcDato('Glucometría', sg.gluco ? sg.gluco + ' mg/dL' : '—') + hcDato('Dolor EVA', sg.eva !== null && sg.eva !== undefined ? sg.eva + '/10' : '—'));
+    const tomas = [sg].concat(d.signos_tomas || []);
+    if(tomas.length === 1){
+      html += hcSec('Signos vitales',
+        hcDato('Hora', hcV(sg.hora)) + hcDato('TA', sg.ta_sis ? `${sg.ta_sis}/${sg.ta_dia} mmHg` : '—') +
+        hcDato('FC', sg.fc ? sg.fc + ' lpm' : '—') + hcDato('FR', sg.fr ? sg.fr + ' rpm' : '—') +
+        hcDato('SpO₂', sg.spo2 ? sg.spo2 + ' %' : '—') + hcDato('Temperatura', sg.temp ? sg.temp + ' °C' : '—') +
+        hcDato('Glucometría', sg.gluco ? sg.gluco + ' mg/dL' : '—') + hcDato('Dolor EVA', sg.eva !== null && sg.eva !== undefined ? sg.eva + '/10' : '—'));
+    } else {
+      // 2 tomas: Inicio / Final · 3 tomas: Inicio / Durante / Final
+      const et = tomas.length === 2 ? ['Inicio', 'Final'] : ['Inicio', 'Durante', 'Final'];
+      const n = (v, u) => v === null || v === undefined || v === '' ? '—' : escHtml(v) + (u ? ' ' + u : '');
+      html += hcSec('Signos vitales',
+        `<table class="hc-tabla"><thead><tr><th>Toma</th><th>Hora</th><th>TA</th><th>FC</th><th>FR</th><th>SpO₂</th><th>Temp.</th><th>Glucometría</th><th>EVA</th></tr></thead><tbody>` +
+        tomas.map((t, i) => `<tr><td><b>${et[i]}</b></td><td>${hcV(t.hora)}</td><td>${t.ta_sis ? `${t.ta_sis}/${t.ta_dia} mmHg` : '—'}</td>
+          <td>${n(t.fc, 'lpm')}</td><td>${n(t.fr, 'rpm')}</td><td>${n(t.spo2, '%')}</td><td>${n(t.temp, '°C')}</td><td>${n(t.gluco, 'mg/dL')}</td><td>${t.eva !== null && t.eva !== undefined ? t.eva + '/10' : '—'}</td></tr>`).join('') +
+        '</tbody></table>');
+    }
     html += hcSec('Escala de Glasgow',
       hcDato('Respuesta ocular', hcT('ocular', g.ocular)) + hcDato('Respuesta verbal', hcT('verbal', g.verbal)) +
-      hcDato('Respuesta motora', hcT('motora', g.motora)) + hcDato('Total', `<span class="hc-grande">${hcV(g.total)}</span> / 15`));
+      hcDato('Respuesta motora', hcT('motora', g.motora)) + hcDato('Total', `<strong class="hc-grande">${hcV(g.total)} / 15</strong>`));
     html += hcSec('Examen físico cefalocaudal', HC_SEGMENTOS.map(([k, t]) => hcDato(t, hcV(d.examen && d.examen[k]))).join(''));
-    html += hcSec('Triage prehospitalario', hcDato('Clasificación', `<span class="hc-grande">${hcV(d.triage)}</span>`));
+    html += hcSec('Triage prehospitalario', hcDato('Clasificación', `<strong class="hc-grande">${hcV(d.triage)}</strong>`));
     html += hcSec('Procedimientos realizados', (d.procedimientos || []).length
       ? `<table class="hc-tabla"><thead><tr><th>Hora</th><th>Procedimiento</th><th>Responsable</th></tr></thead><tbody>` +
         d.procedimientos.map(x => `<tr><td>${hcV(x.hora)}</td><td>${hcV(x.descripcion)}</td><td>${hcV(x.responsable && x.responsable.nombre)}</td></tr>`).join('') + '</tbody></table>'
       : '<div class="hc-nada">Ninguno</div>');
-    html += hcSec('Medicamentos administrados e insumos', (d.medicamentos || []).length
+    html += hcSec('Medicamentos e insumos administrados', (d.medicamentos || []).length
       ? `<table class="hc-tabla"><thead><tr><th>Hora</th><th>Medicamento / insumo</th><th>Cantidad</th><th>Dosis</th><th>Vía</th><th>Responsable</th></tr></thead><tbody>` +
-        d.medicamentos.map(m => `<tr><td>${hcV(m.hora)}</td><td>${hcV(m.nombre)}${m.lote ? `<div class="hc-sub">Lote ${escHtml(m.lote)} · ${escHtml(m.bodega)}</div>` : ''}</td>
+        d.medicamentos.map(m => `<tr><td>${hcV(m.hora)}</td><td>${hcV(m.nombre)}</td>
           <td>${m.cantidad} ${escHtml(m.unidad || '')}</td><td>${m.es_medicamento ? hcV(m.dosis) : 'Insumo'}</td>
           <td>${m.es_medicamento ? (m.via === 'OTRA' ? hcV(m.via_otra) : hcT('via', m.via)) : '—'}</td><td>${hcV(m.responsable && m.responsable.nombre)}</td></tr>`).join('') + '</tbody></table>'
       : '<div class="hc-nada">Ninguno</div>');
@@ -264,30 +288,173 @@ function hcHtmlAdjuntos(h){
       <button class="act-btn primary" title="Ver" onclick="hcVerAdjunto(${a.id})"><i class="ti ti-eye"></i></button></div>`).join(''));
 }
 
+// ── Cambios resumidos: una línea por módulo ──
+// El rastro guarda cada campo (antes → después). Para leerlo se resume:
+//   novedad de la tablet → "ENFERMERA agregó signos vitales (Durante 14:40)"
+//   edición del admin    → "Glasgow: ocular Espontánea → Ninguna; total 15 → 3"
+const HC_MODULOS = {
+  paciente: ['Identificación del paciente', 'la identificación del paciente'], acompanante: ['Acompañante', 'el acompañante'],
+  motivo: ['Motivo de consulta', 'el motivo de consulta'], antecedentes: ['Antecedentes', 'los antecedentes'],
+  consentimiento: ['Consentimiento', 'el consentimiento'], valoracion: ['Valoración ABCDE', 'la valoración ABCDE'],
+  signos: ['Signos vitales', 'los signos vitales'], signos_tomas: ['Signos vitales', 'signos vitales'],
+  glasgow: ['Glasgow', 'el Glasgow'], examen: ['Examen físico', 'el examen físico'], triage: ['Triage', 'el triage'],
+  procedimientos: ['Procedimientos', 'procedimientos'], medicamentos: ['Medicamentos e insumos', 'medicamentos e insumos'],
+  cierre: ['Evolución y cierre', 'la evolución y el cierre'], responsables: ['Responsables', 'los responsables'],
+  entrega: ['Entrega del paciente', 'la entrega del paciente'], estado: ['Estado de la HC', 'el estado de la HC'],
+  adjuntos: ['Archivos adjuntos', 'archivos adjuntos'], firmas: ['Firmas', 'las firmas']
+};
+const HC_ETIQUETAS = {
+  nombres: 'nombres', apellidos: 'apellidos', tipo_doc: 'tipo de documento', documento: 'documento', fecha_nacimiento: 'fecha de nacimiento',
+  rh: 'RH', grupo: 'grupo sanguíneo', direccion: 'dirección', ocupacion: 'ocupación', movil: 'móvil', telefono: 'teléfono', estado_civil: 'estado civil', otra_aseguradora: 'otra aseguradora',
+  via_aerea: 'vía aérea', respiracion: 'respiración', circulacion: 'circulación', neuro: 'estado neurológico', orientado: 'orientado en', exposicion_si: 'hallazgos en la exposición',
+  via_aerea_obs: 'observaciones vía aérea', respiracion_obs: 'observaciones respiración', circulacion_obs: 'observaciones circulación',
+  ta_sis: 'TA sistólica', ta_dia: 'TA diastólica', fc: 'FC', fr: 'FR', spo2: 'SpO₂', temp: 'temperatura', gluco: 'glucometría', eva: 'dolor EVA',
+  ocular: 'ocular', verbal: 'verbal', motora: 'motora', total: 'total', relato: 'relato', evolucion: 'evolución', condicion: 'condición',
+  destino: 'destino', ambulancia: 'ambulancia', recibe_nombre: 'quien recibe', recibe_cargo: 'cargo de quien recibe', servicio_otro: 'otro servicio',
+  medico_firma_pendiente: 'firma médica pendiente', procedencia: 'ubicación del paciente', tipo_paciente: 'tipo de paciente', campos_pulmonares: 'campos pulmonares', eess: 'extremidades superiores',
+  eeii: 'extremidades inferiores', torax: 'tórax', gestacion: 'gestación', semanas: 'semanas de gestación', motivo_rechazo: 'motivo del rechazo'
+};
+function _hcValorCambio(k, v){
+  if(v === null || v === undefined || v === '' || v === '[]' || v === '{}') return 'vacío';
+  if(v === true) return 'Sí';
+  if(v === false) return 'No';
+  const t = HC_TXT[k] && HC_TXT[k][v];
+  const s = String(t || v);
+  return s.length > 90 ? s.slice(0, 87) + '…' : s;
+}
+function _hcEtiquetaCampo(partes){
+  const ult = partes[partes.length - 1];
+  const base = HC_ETIQUETAS[ult] || ult.replace(/_/g, ' ');
+  return partes.length > 2 && !/^\d+$/.test(partes[1]) ? (HC_ETIQUETAS[partes[1]] || partes[1].replace(/_/g, ' ')) + ' ' + base : base;
+}
+// Texto corto de un elemento de una lista (procedimiento, medicamento, toma)
+function _hcItem(modulo, o, i, h){
+  if(modulo === 'procedimientos') return `${(o.descripcion || '').trim() || '—'}${o.hora ? ' ' + o.hora : ''}`;
+  if(modulo === 'medicamentos'){
+    const via = o.via ? (o.via === 'OTRA' ? o.via_otra : hcT('via', o.via)) : '';
+    return [o.nombre, o.cantidad !== undefined && o.cantidad !== null ? `${o.cantidad} ${(o.unidad || '').toLowerCase()}`.trim() : '', o.dosis || '', via].filter(Boolean).join(' · ');
+  }
+  // Toma de signos: rótulo según cuántas tomas tiene hoy la HC
+  const total = 1 + ((h.datos && h.datos.signos_tomas) || []).length;
+  const et = total === 2 ? ['Inicio', 'Final'] : ['Inicio', 'Durante', 'Final'];
+  return `${et[i + 1] || 'Toma ' + (i + 2)}${o.hora ? ' ' + o.hora : ''}`;
+}
+// "1 Tabletas DESLORATADINA 5 MG TAB (lote F00393A) de MEC-B 2 MED" (formato
+// anterior) → "DESLORATADINA 5 MG TAB · 1 tabletas": sin lote ni depósito
+function _hcSoloItem(t){
+  let x = String(t).replace(/\s*\(lote [^)]*\)/i, '').replace(/ de [^·]*$/, '').trim();
+  const m = /^(\d+)\s+(\S+)\s+(.+)$/.exec(x);
+  if(m && x.indexOf(' · ') < 0) x = `${m[3]} · ${m[1]} ${m[2].toLowerCase()}`;
+  return x;
+}
+function hcResumenCambios(c, h){
+  const porModulo = {}, orden = [];
+  (c.cambios || []).forEach(x => {
+    const partes = String(x.campo).split('.');
+    const m = partes[0];
+    if(!porModulo[m]){ porModulo[m] = []; orden.push(m); }
+    porModulo[m].push({ partes, antes: x.antes, despues: x.despues });
+  });
+  const novedad = c.accion === 'novedad';
+  const quien = c.usuario_nombre || '—';
+  const lineas = [];
+  orden.forEach(m => {
+    const [titulo, nombre] = HC_MODULOS[m] || [m, m];
+    const filas = porModulo[m];
+    if(['procedimientos', 'medicamentos', 'signos_tomas'].indexOf(m) >= 0){
+      // Listas: elementos agregados, quitados o cambiados
+      const items = {}, sueltos = [];
+      filas.forEach(f => {
+        if(/^\d+$/.test(f.partes[1] || '')){
+          const it = items[f.partes[1]] || (items[f.partes[1]] = { antes: {}, despues: {}, cambios: [] });
+          const k = f.partes.slice(2).join('.');
+          it.antes[k] = f.antes; it.despues[k] = f.despues;
+          it.cambios.push(f);
+        } else if(typeof f.despues === 'string' && f.despues !== '[]') sueltos.push(_hcSoloItem(f.despues));
+        else if(typeof f.antes === 'string' && f.antes !== '[]' && (f.despues === null || f.despues === undefined)) sueltos.push('quitó ' + _hcSoloItem(f.antes));
+      });
+      const agregados = [], quitados = [], cambiados = [];
+      Object.keys(items).sort((a, b) => a - b).forEach(idx => {
+        const it = items[idx];
+        const vacio = o => Object.values(o).every(v => v === null || v === undefined || v === '');
+        if(vacio(it.antes)) agregados.push(_hcItem(m, it.despues, +idx, h));
+        else if(vacio(it.despues)) quitados.push(_hcItem(m, it.antes, +idx, h));
+        else cambiados.push(`${_hcItem(m, { ...it.antes, ...it.despues }, +idx, h)}: ` +
+          it.cambios.map(f => `${_hcEtiquetaCampo(f.partes.slice(1))} ${_hcValorCambio(f.partes[f.partes.length - 1], f.antes)} → ${_hcValorCambio(f.partes[f.partes.length - 1], f.despues)}`).join(', '));
+      });
+      const partes = [];
+      if(agregados.length) partes.push(`agregó ${novedad ? nombre + ' ' : ''}(${agregados.join('; ')})`);
+      if(quitados.length) partes.push(`quitó ${novedad ? nombre + ' ' : ''}(${quitados.join('; ')})`);
+      if(cambiados.length) partes.push(`cambió ${novedad ? nombre + ' ' : ''}(${cambiados.join('; ')})`);
+      sueltos.forEach(t => partes.push(/^quitó /.test(t) ? t : 'agregó ' + t));
+      if(partes.length) lineas.push(novedad ? `${quien} ${partes.join('; ')}` : `${titulo}: ${partes.join('; ')}`);
+      return;
+    }
+    // Campos sueltos: "campo antes → después" (las listas como "orientado en" se juntan)
+    const grupos = {}, gOrden = [];
+    filas.forEach(f => {
+      let partes = f.partes;
+      if(/^\d+$/.test(partes[partes.length - 1])) partes = partes.slice(0, -1);
+      const k = partes.join('.');
+      if(!grupos[k]){ grupos[k] = { partes, antes: [], despues: [], lista: partes !== f.partes }; gOrden.push(k); }
+      const g = grupos[k];
+      if(f.antes !== null && f.antes !== undefined && f.antes !== '[]' && f.antes !== '{}') g.antes.push(f.antes);
+      if(f.despues !== null && f.despues !== undefined && f.despues !== '[]' && f.despues !== '{}') g.despues.push(f.despues);
+    });
+    const textos = gOrden.map(k => {
+      const g = grupos[k], ult = g.partes[g.partes.length - 1];
+      const v = arr => arr.length ? arr.map(x => _hcValorCambio(ult, x)).join(', ') : 'vacío';
+      if(g.lista && !g.antes.length && !g.despues.length) return '';
+      if(g.partes.length === 1) return `${v(g.antes)} → ${v(g.despues)}`;
+      return `${_hcEtiquetaCampo(g.partes)} ${v(g.antes)} → ${v(g.despues)}`;
+    }).filter(Boolean);
+    if(!textos.length) return;
+    lineas.push(novedad ? `${quien} actualizó ${nombre} (${textos.join('; ')})` : `${titulo}: ${textos.join('; ')}`);
+  });
+  return lineas;
+}
+// Los consumos que el administrador agrega o quita en el editor y la edición
+// que guarda después son una sola corrección: se juntan en un punto
+// "Edición" con el motivo que él escribió (si son seguidos, del mismo usuario
+// y dentro de 2 horas)
+function _hcAgruparCambios(lista){
+  const grupos = [];
+  lista.forEach(c => {
+    const ult = grupos[grupos.length - 1];
+    const deAdmin = c.accion === 'edicion' || c.accion === 'consumo';
+    if(deAdmin && ult && ult.deAdmin && ult.usuario_nombre === c.usuario_nombre &&
+       Math.abs(new Date(c.created_at) - new Date(ult.ultimo_at)) <= 2 * 3600e3){
+      ult.cambios = ult.cambios.concat(c.cambios || []);
+      if(c.accion === 'edicion'){ ult.accion = 'edicion'; ult.motivo = c.motivo; }
+      ult.ultimo_at = c.created_at;
+      return;
+    }
+    grupos.push({ ...c, deAdmin, accion: deAdmin ? 'edicion' : c.accion, motivo: c.accion === 'consumo' ? '' : c.motivo,
+                  cambios: (c.cambios || []).slice(), ultimo_at: c.created_at });
+  });
+  return grupos;
+}
+function _hcCambioHtml(c, h, i){
+  const lineas = hcResumenCambios(c, h);
+  return `<div class="hc-cambio" style="padding:4px 6px;${i ? 'border-top:1px dashed #bbb' : ''}">
+      <div><strong>${i !== null ? (i + 1) + '. ' : ''}${escHtml(hcT('accion', c.accion))}</strong> · ${escHtml(c.usuario_nombre || '—')} · ${hcFechaHora(c.created_at)}</div>
+      ${c.motivo && c.accion !== 'novedad' ? `<div>Motivo: ${escHtml(c.motivo)}</div>` : ''}
+      ${lineas.map(l => `<div class="hc-cambio-l">${escHtml(l)}</div>`).join('')}
+    </div>`;
+}
+
 // Para el PDF: cada corrección posterior a la recepción, en orden, con quién,
-// cuándo, el motivo y el antes → después (nota aclaratoria, Res. 1995/1999)
+// cuándo, el motivo y lo que cambió (nota aclaratoria, Res. 1995/1999)
 function hcNotasAclaratorias(h){
-  const lista = (h.cambios || []).slice().sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+  const lista = _hcAgruparCambios((h.cambios || []).slice().sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)) || a.id - b.id));
   if(!lista.length) return '';
-  const fmt = x => x === null || x === undefined || x === '' ? '<em>vacío</em>' : escHtml(typeof x === 'object' ? JSON.stringify(x) : String(x));
-  const campo = c => escHtml(String(c).split('.').join(' › ').replace(/_/g, ' '));
-  return hcSec('Notas aclaratorias (correcciones posteriores)', lista.map((c, i) => `
-    <div class="hc-cambio" style="padding:4px 6px;border-top:${i ? '1px dashed #bbb' : '0'}">
-      <div><strong>${i + 1}. ${escHtml(hcT('accion', c.accion))}</strong> · ${escHtml(c.usuario_nombre || '—')} · ${hcFechaHora(c.created_at)}</div>
-      ${c.motivo ? `<div>Motivo: ${escHtml(c.motivo)}</div>` : ''}
-      ${(c.cambios || []).length ? `<ul style="margin:3px 0 0 16px;padding:0">${c.cambios.slice(0, 80).map(x => `<li>${campo(x.campo)}: ${fmt(x.antes)} → ${fmt(x.despues)}</li>`).join('')}</ul>` : ''}
-    </div>`).join(''));
+  return hcSec('Notas aclaratorias (correcciones posteriores)', lista.map((c, i) => _hcCambioHtml(c, h, i)).join(''));
 }
 
 function hcHtmlCambios(h){
   if(!(h.cambios || []).length) return hcSec('Historial de cambios', '<div class="hc-nada">Sin cambios desde que se recibió de la tablet.</div>');
-  const fmt = x => x === null || x === undefined || x === '' ? '<em>vacío</em>' : escHtml(typeof x === 'object' ? JSON.stringify(x) : String(x));
-  return hcSec('Historial de cambios', h.cambios.map(c => `
-    <div class="hc-cambio">
-      <div><strong>${escHtml(hcT('accion', c.accion))}</strong> · ${escHtml(c.usuario_nombre || '—')} · ${hcFechaHora(c.created_at)}</div>
-      ${c.motivo ? `<div class="hc-sub">Motivo: ${escHtml(c.motivo)}</div>` : ''}
-      <ul>${(c.cambios || []).slice(0, 60).map(x => `<li><code>${escHtml(x.campo)}</code>: ${fmt(x.antes)} → ${fmt(x.despues)}</li>`).join('')}</ul>
-    </div>`).join(''));
+  const lista = _hcAgruparCambios(h.cambios.slice().sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)) || a.id - b.id));
+  return hcSec('Historial de cambios', lista.reverse().map(c => _hcCambioHtml(c, h, null)).join(''));
 }
 
 async function hcVerAdjunto(aid){
@@ -378,126 +545,68 @@ async function hcGuardarFirmaMedico(){
 }
 
 // ══════════════════════════════════════════
-// EDICIÓN (con rastro de cambios)
-// Formulario con los datos guardados; al guardar se envía la HC completa con
-// los valores editados y el servidor la vuelve a validar y registra el rastro.
+// CLASIFICACIÓN PARA EL REPORTE — se ve (solo lectura) en el detalle de cada
+// HC; no sale en el PDF. Se corrige en "Editar Historias Clínicas".
 // ══════════════════════════════════════════
-function hcLeer(o, ruta){ return ruta.split('.').reduce((x, k) => (x === null || x === undefined ? undefined : x[k]), o); }
-function hcFijar(o, ruta, v){
-  const partes = ruta.split('.');
-  let x = o;
-  partes.slice(0, -1).forEach(k => { if(x[k] === null || typeof x[k] !== 'object') x[k] = {}; x = x[k]; });
-  x[partes[partes.length - 1]] = v;
-}
-
-// Campo del formulario de edición. tipo: texto | area | fecha | hora | si-no | lista
-function hcCampo(d, ruta, etiqueta, tipo, opciones, ancho){
-  const v = hcLeer(d, ruta);
-  const val = v === null || v === undefined ? '' : String(v);
-  let input;
-  if(tipo === 'area') input = `<textarea data-ruta="${ruta}" rows="2">${escHtml(val)}</textarea>`;
-  else if(tipo === 'si-no') input = `<select data-ruta="${ruta}" data-tipo="bool"><option value="false"${v ? '' : ' selected'}>No</option><option value="true"${v ? ' selected' : ''}>Sí</option></select>`;
-  else if(tipo === 'lista') input = `<select data-ruta="${ruta}"><option value="">—</option>${Object.entries(opciones).map(([k, t]) => `<option value="${escHtml(k)}"${String(k) === val ? ' selected' : ''}>${escHtml(t)}</option>`).join('')}</select>`;
-  else input = `<input type="${tipo === 'fecha' ? 'date' : tipo === 'hora' ? 'time' : 'text'}" data-ruta="${ruta}" value="${escHtml(val)}">`;
-  return `<div class="form-group${ancho ? ' fg-full' : ''}"><label>${etiqueta}</label>${input}</div>`;
-}
-function hcGrupo(titulo, campos){ return `<div class="hc-ed-grupo"><div class="hc-sec-t">${titulo}</div><div class="form-grid">${campos}</div></div>`; }
-
-function hcAbrirEdicion(){
-  const d = JSON.parse(JSON.stringify(_hcActual.datos));
-  const rechazo = d.consentimiento && d.consentimiento.decision === 'rechaza';
-  const f = (ruta, et, tipo = 'texto', op, ancho) => hcCampo(d, ruta, et, tipo, op, ancho);
-  let html = '';
-  html += hcGrupo('Identificación del paciente',
-    f('paciente.nn', 'Paciente sin identificar (NN)', 'si-no') + f('paciente.nombres', 'Nombres') + f('paciente.apellidos', 'Apellidos') +
-    f('paciente.tipo_doc', 'Tipo de documento', 'lista', HC_TXT.tipo_doc) + f('paciente.documento', 'Número de documento') +
-    f('paciente.fecha_nacimiento', 'Fecha de nacimiento', 'fecha') + f('paciente.sexo', 'Sexo', 'lista', HC_TXT.sexo) +
-    f('paciente.rh', 'RH', 'lista', HC_TXT.rh) + f('paciente.grupo', 'Grupo sanguíneo', 'lista', { A:'A', B:'B', AB:'AB', O:'O' }) +
-    f('paciente.direccion', 'Dirección') + f('paciente.ciudad', 'Ciudad') + f('paciente.telefono', 'Teléfono') +
-    f('paciente.estado_civil', 'Estado civil', 'lista', HC_TXT.estado_civil) + f('paciente.ocupacion', 'Ocupación') +
-    f('paciente.eps', 'EPS') + f('paciente.arl', 'ARL') + f('paciente.otra_aseguradora', '¿Otra aseguradora?', 'si-no') + f('paciente.aseguradora', 'Otra aseguradora'));
-  html += hcGrupo('Contacto de acompañante',
-    f('acompanante.tiene', '¿Tiene acompañante?', 'si-no') + f('acompanante.nombre', 'Nombre completo') + f('acompanante.parentesco', 'Parentesco') + f('acompanante.telefono', 'Teléfono'));
-  html += hcGrupo('Motivo de consulta', f('motivo.relato', 'Motivo y relato', 'area', null, true));
-  html += hcGrupo('Antecedentes',
-    f('antecedentes.refiere', '¿Refiere antecedentes?', 'si-no') +
-    HC_ANTECEDENTES.map(([k, t]) => f('antecedentes.' + k, t, 'area')).join('') +
-    f('antecedentes.gestacion', 'Gestación', 'lista', HC_TXT.gestacion) + f('antecedentes.semanas', 'Semanas de gestación'));
-  if(rechazo){
-    html += hcGrupo('Consentimiento informado (rechazo)',
-      f('consentimiento.motivo_rechazo', 'Motivo del rechazo', 'area', null, true) +
-      f('consentimiento.testigo.nombres', 'Nombre del testigo') + f('consentimiento.testigo.apellidos', 'Apellido del testigo') +
-      f('consentimiento.testigo.cedula', 'Cédula del testigo') + f('consentimiento.testigo.telefono', 'Teléfono del testigo'));
+function hcHtmlClasificacion(h){
+  const c = h.clasificacion;
+  let cuerpo;
+  const fila = (et, v) => `<tr><th>${et}</th><td>${v}</td></tr>`;
+  if(c){
+    cuerpo = `<table class="hc-clas-tabla">` +
+      fila('Diagnóstico', escHtml(c.diagnostico)) + fila('Categoría', escHtml(c.categoria)) +
+      fila('Nivel de triage', `<strong>${escHtml(c.triage)}</strong>`) +
+      fila('Procedimiento', escHtml((c.procedimientos || []).join(' + '))) + '</table>' +
+      (c.corregida_por ? `<div class="hc-clas-nota" style="padding:0 10px 4px">Corregida a mano por ${escHtml(c.corregida_por)}</div>` : '');
   } else {
-    html += hcGrupo('Valoración primaria ABCDE',
-      f('valoracion.via_aerea', 'A. Vía aérea', 'lista', HC_TXT.via_aerea) + f('valoracion.via_aerea_obs', 'Observaciones A') +
-      f('valoracion.respiracion', 'B. Respiración', 'lista', HC_TXT.respiracion) + f('valoracion.respiracion_obs', 'Observaciones B') +
-      f('valoracion.circulacion', 'C. Circulación', 'lista', HC_TXT.circulacion) + f('valoracion.circulacion_obs', 'Observaciones C') +
-      f('valoracion.neuro', 'D. Estado neurológico', 'lista', HC_TXT.neuro) +
-      `<div class="form-group"><label>Orientado en</label><div class="hc-checks">${Object.entries(HC_TXT.orientado).map(([k, t]) =>
-        `<label><input type="checkbox" data-orientado="${k}"${(d.valoracion.orientado || []).indexOf(k) >= 0 ? ' checked' : ''}> ${t}</label>`).join('')}</div></div>` +
-      f('valoracion.exposicion_si', 'E. ¿Hallazgos en la exposición?', 'si-no') + f('valoracion.exposicion', 'Hallazgos de la exposición', 'area', null, true));
-    html += hcGrupo('Signos vitales',
-      f('signos.hora', 'Hora', 'hora') + f('signos.ta_sis', 'TA sistólica') + f('signos.ta_dia', 'TA diastólica') + f('signos.fc', 'FC') +
-      f('signos.fr', 'FR') + f('signos.spo2', 'SpO₂') + f('signos.temp', 'Temperatura') + f('signos.gluco', 'Glucometría') + f('signos.eva', 'Dolor EVA (0-10)'));
-    html += hcGrupo('Escala de Glasgow',
-      f('glasgow.ocular', 'Respuesta ocular', 'lista', HC_TXT.ocular) + f('glasgow.verbal', 'Respuesta verbal', 'lista', HC_TXT.verbal) + f('glasgow.motora', 'Respuesta motora', 'lista', HC_TXT.motora));
-    html += hcGrupo('Examen físico cefalocaudal', HC_SEGMENTOS.map(([k, t]) => f('examen.' + k, t, 'area')).join(''));
-    html += hcGrupo('Triage prehospitalario', f('triage', 'Clasificación', 'lista', { I:'I', II:'II', III:'III', IV:'IV', V:'V' }));
-    if((d.procedimientos || []).length){
-      html += hcGrupo('Procedimientos realizados', d.procedimientos.map((x, i) =>
-        f(`procedimientos.${i}.hora`, `Procedimiento ${i + 1}: hora`, 'hora') + f(`procedimientos.${i}.descripcion`, `Procedimiento ${i + 1}`, 'area')).join(''));
-    }
-    if((d.medicamentos || []).length){
-      html += hcGrupo('Medicamentos administrados (el producto y la cantidad se corrigen en el inventario)', d.medicamentos.map((m, i) => m.es_medicamento
-        ? `<div class="form-group fg-full hc-ed-med"><strong>${escHtml(m.nombre)}</strong> · ${m.cantidad} ${escHtml(m.unidad || '')}</div>` +
-          f(`medicamentos.${i}.dosis`, 'Dosis') + f(`medicamentos.${i}.via`, 'Vía', 'lista', HC_TXT.via) +
-          f(`medicamentos.${i}.via_otra`, 'Otra vía (cuál)') + f(`medicamentos.${i}.hora`, 'Hora', 'hora')
-        : `<div class="form-group fg-full hc-ed-med"><strong>${escHtml(m.nombre)}</strong> · ${m.cantidad} ${escHtml(m.unidad || '')} · insumo</div>`).join(''));
-    }
+    cuerpo = `<div class="hc-nada">${h.clasificacion_error ? 'No se pudo clasificar: ' + escHtml(h.clasificacion_error) : 'Pendiente: se clasifica en unos minutos.'}</div>`;
   }
-  html += hcGrupo('Evolución y cierre',
-    f('cierre.evolucion', 'Evolución y descripción del servicio', 'area', null, true) +
-    f('cierre.condicion', 'Condición final', 'lista', HC_TXT.condicion) +
-    (rechazo ? '' : f('cierre.destino', 'Destino', 'lista', Object.fromEntries(Object.entries(HC_TXT.destino).filter(([k]) => k !== 'RECHAZO_ATENCION')))));
-  if(!rechazo){
-    html += hcGrupo('Datos del traslado (solo si el destino es Traslado asistencial)',
-      f('cierre.traslado.destino', 'Destino del traslado') + f('cierre.traslado.ambulancia', 'Tipo de ambulancia', 'lista', HC_TXT.ambulancia) +
-      f('cierre.traslado.movil', 'Móvil') + f('cierre.traslado.placa', 'Placa') + f('cierre.traslado.conductor', 'Conductor') + f('cierre.traslado.telefono', 'Teléfono'));
-  }
-  if(d.entrega){
-    html += hcGrupo('Entrega del paciente',
-      f('entrega.fecha', 'Fecha', 'fecha') + f('entrega.hora', 'Hora', 'hora') + f('entrega.institucion', 'Institución') +
-      f('entrega.servicio', 'Servicio receptor', 'lista', HC_TXT.servicio) + f('entrega.servicio_otro', 'Otro servicio (cuál)') +
-      f('entrega.recibe_nombre', 'Nombre de quien recibe') + f('entrega.recibe_cargo', 'Cargo'));
-  }
-  document.getElementById('hc-editar-num').textContent = _hcActual.consecutivo;
-  document.getElementById('hc-editar-form').innerHTML = html;
-  document.getElementById('hc-editar-motivo').value = '';
-  document.getElementById('modal-hc-editar').classList.add('open');
+  return `<div class="hc-clas">` + hcSec('Clasificación para el reporte',
+    `<div class="hc-clas-intro">Así sale esta atención en el <strong>Reporte Excel</strong> (diagnóstico, categoría, triage y procedimiento).</div>` + cuerpo +
+    (currentRole === 4 ? `<div class="hc-clas-intro" style="padding-bottom:10px">Para corregirla: <a href="/hc-editor?hc=${h.id}" target="_blank" rel="noopener">abrir en Editar Historias Clínicas</a>.</div>` : '')) + '</div>';
 }
 
-async function hcGuardarEdicion(){
-  const motivo = document.getElementById('hc-editar-motivo').value.trim();
-  if(motivo.length < 5) return toastError('Escribe el motivo de la corrección');
-  const d = JSON.parse(JSON.stringify(_hcActual.datos));
-  document.querySelectorAll('#hc-editar-form [data-ruta]').forEach(el => {
-    const ruta = el.dataset.ruta;
-    hcFijar(d, ruta, el.dataset.tipo === 'bool' ? el.value === 'true' : el.value);
+// ══════════════════════════════════════════
+// REPORTE DE ATENCIONES (solo Excel)
+// Una fila por historia clínica, columnas en el orden que pidió el cliente.
+// Nombre e ID salen como CONFIDENCIAL. Diagnóstico, categoría, procedimiento
+// y triage salen de la clasificación por IA de cada HC.
+// ══════════════════════════════════════════
+const HC_REPORTE_COLS = [
+  ['evento', 'Evento', 28], ['fecha', 'Fecha', 12], ['hora_inicial', 'Hora Inicial', 11], ['hora_final', 'Hora Final', 10],
+  ['hora_atencion', 'Hora Atención', 12], ['jornada', 'Jornada Atención', 15], ['ubicacion', 'Ubicación', 22],
+  ['nombre', 'Nombre Paciente', 16], ['id', 'ID', 14], ['edad', 'Edad', 10], ['rango_edad', 'Rango Edad', 16],
+  ['ubicacion_paciente', 'Ubicación del Paciente', 20], ['diagnostico', 'Diagnóstico', 26], ['categoria', 'Categoría', 28],
+  ['procedimiento', 'Procedimiento', 40], ['genero', 'Género', 11], ['tipo', 'Tipo', 16], ['traslado', 'Traslado', 9], ['triage', 'Nivel Triage', 11]
+];
+function hcAbrirReporte(){
+  const sel = document.getElementById('hcrep-evento');
+  sel.innerHTML = '<option value="">Todos los eventos</option>' + (S.eventos || []).map(e => `<option value="${e.id}">${escHtml(e.nombre)}</option>`).join('');
+  sel.value = document.getElementById('hcf-evento').value;
+  document.getElementById('hcrep-desde').value = document.getElementById('hcf-desde').value;
+  document.getElementById('hcrep-hasta').value = document.getElementById('hcf-hasta').value;
+  document.getElementById('hcrep-aviso').innerHTML = '';
+  document.getElementById('modal-hc-reporte').classList.add('open');
+}
+async function hcDescargarReporte(btn){
+  if(typeof XLSX === 'undefined') return toastError('No se pudo cargar el generador de Excel. Revisa la conexión.');
+  const f = { evento_id: document.getElementById('hcrep-evento').value, desde: document.getElementById('hcrep-desde').value, hasta: document.getElementById('hcrep-hasta').value };
+  await unaVez('hc-reporte', btn, async () => {
+    try {
+      const r = await HistoriasClinicas.reporte(f);
+      if(!r.filas.length){ toastError('No hay historias clínicas con esos filtros'); return; }
+      const tabla = [HC_REPORTE_COLS.map(c => c[1])].concat(r.filas.map(x => HC_REPORTE_COLS.map(c => x[c[0]] === null || x[c[0]] === undefined ? '' : x[c[0]])));
+      const ws = XLSX.utils.aoa_to_sheet(tabla);
+      ws['!cols'] = HC_REPORTE_COLS.map(c => ({ wch: c[2] }));
+      ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: tabla.length - 1, c: HC_REPORTE_COLS.length - 1 } }) };
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Atenciones');
+      XLSX.writeFile(wb, `reporte_atenciones_${fechaColombia()}.xlsx`);
+      document.getElementById('hcrep-aviso').innerHTML = r.pendientes
+        ? `<div class="asis-carga-aviso">Se descargaron ${r.filas.length} atenciones. <b>${r.pendientes}</b> aún no tienen la clasificación de la IA (diagnóstico, categoría, procedimiento y triage): salen como "Pendiente de clasificar". Vuelve a descargar en unos minutos.</div>`
+        : `<div class="asis-carga-ok">✓ Se descargaron ${r.filas.length} atenciones.</div>`;
+    } catch(err){ toastError(err.message); }
   });
-  if(d.valoracion){
-    d.valoracion.orientado = [...document.querySelectorAll('#hc-editar-form [data-orientado]')].filter(x => x.checked).map(x => x.dataset.orientado);
-  }
-  if(d.cierre && d.cierre.destino !== 'TRASLADO' && d.cierre.traslado && !Object.values(d.cierre.traslado).some(Boolean)) d.cierre.traslado = null;
-  const btn = document.getElementById('hc-editar-guardar');
-  btn.disabled = true; btn.textContent = 'Guardando…';
-  try {
-    const r = await HistoriasClinicas.editar(_hcActual.id, d, motivo);
-    closeModal('modal-hc-editar');
-    toast(`✓ Historia clínica actualizada (${r.cambios} cambio${r.cambios !== 1 ? 's' : ''})`, 'success');
-    await hcRecargar();
-  } catch(err){ toastError(err.message); }
-  finally { btn.disabled = false; btn.textContent = 'Guardar cambios'; }
 }
 
 // ══════════════════════════════════════════
@@ -514,9 +623,12 @@ function hcImprimir(){
   @page{ size:A4; margin:12mm }
   *{ box-sizing:border-box }
   body{ font-family:Arial,Helvetica,sans-serif; font-size:10.5px; color:#111; margin:0 }
-  .enc{ display:flex; justify-content:space-between; align-items:flex-start; border:1.5px solid #111; padding:8px 10px; margin-bottom:6px }
+  .enc{ display:flex; justify-content:space-between; align-items:center; border:1.5px solid #111; padding:8px 10px; margin-bottom:6px }
   .enc h1{ font-size:14px; margin:0 0 2px } .enc .cod{ text-align:right; font-size:10px }
   .enc .num{ font-size:15px; font-weight:bold }
+  /* Logos: no más altos que los datos de la cabecera */
+  .enc-lado{ display:flex; align-items:center; gap:10px }
+  .enc-logo{ height:60px; width:auto; display:block }
   .hc-sec{ border:1px solid #111; margin-bottom:5px; page-break-inside:avoid }
   .hc-sec-t{ background:#e6e6e6; font-weight:bold; text-transform:uppercase; padding:3px 6px; border-bottom:1px solid #111; font-size:10px }
   .hc-sec > .hc-dato, .hc-sec > div:not(.hc-sec-t){ }
@@ -539,14 +651,17 @@ function hcImprimir(){
   .pie{ margin-top:8px; font-size:8.5px; color:#555; text-align:center }
 </style></head><body>
 <div class="enc">
-  <div><h1>NOVA BRIDGE SAS</h1><div>HISTORIA CLÍNICA PREHOSPITALARIA</div></div>
-  <div class="cod"><div>SIG_08NB_0030</div><div class="num">${escHtml(h.consecutivo)}</div><div>${h.estado === 'abierta' ? 'ABIERTA (pendiente de entrega)' : 'CERRADA'}</div></div>
+  <div class="enc-lado"><img class="enc-logo" src="${location.origin}/img/logos/nova.png" alt="NOVA BRIDGE"><div><h1>NOVA BRIDGE SAS</h1><div>HISTORIA CLÍNICA PREHOSPITALARIA</div></div></div>
+  <div class="enc-lado"><div class="cod"><div>SIG_08NB_0030</div><div class="num">${escHtml(h.consecutivo)}</div><div>${h.estado === 'abierta' ? 'ABIERTA (pendiente de entrega)' : 'CERRADA'}</div></div>
+    <img class="enc-logo" src="${location.origin}/img/logos/minsalud.webp" alt="Ministerio de Salud y Protección Social"></div>
 </div>
 ${hcHtml(h, true)}
 ${hcNotasAclaratorias(h)}
-<div class="pie">Generada desde MediStock el ${hcFechaHora(new Date().toISOString())}. Recibida en el servidor el ${hcFechaHora(h.recibida_at)}${(h.cambios || []).length ? ` · ${h.cambios.length} registro(s) en el historial de cambios` : ''}.</div>
+<div class="pie">Generada desde WMS-HC NOVABRIDGE S.A.S. el ${hcFechaHora(new Date().toISOString())}. Recibida en el servidor el ${hcFechaHora(h.recibida_at)}${(h.cambios || []).length ? ` · ${h.cambios.length} registro(s) en el historial de cambios` : ''}.</div>
 </body></html>`);
   w.document.close();
   w.focus();
-  setTimeout(() => w.print(), 400);
+  const imgs = [...w.document.images];
+  Promise.all(imgs.map(i => i.complete ? null : new Promise(ok => { i.onload = i.onerror = ok; })))
+    .then(() => setTimeout(() => w.print(), 200));
 }

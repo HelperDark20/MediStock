@@ -1,0 +1,36 @@
+/* Editar historias clínicas (hc-editor.html): usa los estilos del panel de
+   enfermero (css/enfermero-lite.css) más el listado con filtros */
+.lt-screen#lt-app{ display:block; }
+.lt-body{ max-width:1100px; margin:0 auto; }
+.hce-filtros{ display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:10px 14px; margin-top:12px; }
+.hce-filtros label{ display:block; font-size:12px; color:#666; font-weight:600; }
+.hce-filtros .lt-input{ margin-top:4px; }
+.hce-botones{ display:flex; gap:10px; margin-top:12px; }
+.hce-botones .lt-btn, .hce-botones .lt-btn-sec{ width:auto; min-width:140px; margin:0; }
+.hce-paginas{ display:flex; gap:12px; align-items:center; justify-content:center; margin-top:12px; font-size:13px; color:#666; }
+.hce-paginas .lt-btn-sec{ width:auto; }
+.lt-state a.lt-btn{ display:block; margin-top:14px; text-decoration:none; text-align:center; }
+.lt-hc-item .lt-pend{ margin-left:6px; }
+
+/* Clasificación para el reporte (arriba del editor) */
+.hce-clasif{ margin-top:10px; }
+.hce-clas-datos{ display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:8px 16px; margin:10px 0 4px; }
+.hce-clas-dato span{ display:block; font-size:11px; font-weight:600; color:#777; text-transform:uppercase; letter-spacing:.03em; }
+.hce-clas-dato b{ display:block; font-weight:500; font-size:14px; margin-top:2px; }
+.hce-clas-dato strong{ font-size:16px; }
+.hce-clas-acciones{ display:grid; gap:8px; margin-top:12px; padding-top:12px; border-top:1px dashed #D8D4C8; }
+.hce-clas-acciones > div{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.hce-clas-acciones .lt-btn-sec{ width:auto; min-width:220px; margin:0; }
+.hce-clas-acciones .lt-btn-sec img{ width:16px; height:16px; vertical-align:-3px; margin-right:6px; }
+.hce-clas-acciones span{ font-size:12.5px; color:#777; }
+
+/* Ventana para corregirla: procedimientos en columnas, de izquierda a derecha */
+.lt-modal.hce-clas-modal{ max-width:920px; }
+.hce-clas-modal .lt-label{ display:block; margin-top:14px; }
+.hce-clas-triage .lt-chip{ min-width:64px; }
+.hce-clas-procs{ display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:6px; max-height:46vh; overflow:auto;
+  border:1px solid #D8D4C8; border-radius:10px; padding:8px; margin-top:6px; }
+.hce-clas-proc{ display:flex; align-items:flex-start; gap:8px; padding:7px 9px; border:1px solid #EAE7DE; border-radius:8px; font-size:13px; cursor:pointer; background:#fff; }
+.hce-clas-proc input{ margin-top:2px; flex:none; }
+.hce-clas-proc.sel{ border-color:#0A1628; background:#EEF1F6; font-weight:600; }
+.hce-clas-proc em{ color:#888; font-weight:400; }

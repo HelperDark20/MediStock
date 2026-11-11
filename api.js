@@ -91,8 +91,15 @@ const Asistencia = {
   personal: (eventoId) => request('GET', '/api/asistencia/personal' + (eventoId ? `?evento_id=${eventoId}` : '')),
   cargarPersonal: (eventoId, personas) => request('POST', '/api/asistencia/personal', { evento_id: eventoId, personas }),
   quitarPersonal: (id) => request('DELETE', `/api/asistencia/personal/${id}`),
-  cuenta: () => request('GET', '/api/asistencia/cuenta'),
-  guardarCuenta: (data) => request('PUT', '/api/asistencia/cuenta', data),
+  // Cuentas de las tablets (sin límite)
+  cuentas: () => request('GET', '/api/asistencia/cuentas'),
+  crearCuenta: (data) => request('POST', '/api/asistencia/cuentas', data),
+  editarCuenta: (id, data) => request('PUT', `/api/asistencia/cuentas/${id}`, data),
+  eliminarCuenta: (id) => request('DELETE', `/api/asistencia/cuentas/${id}`),
+  // Dispositivos e IP de cada marca
+  dispositivos: () => request('GET', '/api/asistencia/dispositivos'),
+  nombrarDispositivo: (id, nombre) => request('PUT', `/api/asistencia/dispositivos/${id}`, { nombre }),
+  marcasIp: (f) => request('GET', '/api/asistencia/marcas-ip?' + new URLSearchParams(Object.entries(f || {}).filter(([, v]) => v)).toString()),
   cerrarSesiones: () => request('POST', '/api/asistencia/cuenta/cerrar-sesiones'),
   async foto(id, tipo){
     const res = await fetch(`${API_URL}/api/asistencia/${id}/foto/${tipo}`, { headers: { Authorization: 'Bearer ' + getToken() } });
@@ -109,6 +116,8 @@ const HistoriasClinicas = {
   },
   getOne: (id) => request('GET', `/api/hc/${id}`),
   editar: (id, datos, motivo) => request('PUT', `/api/hc/${id}`, { datos, motivo }),
+  // Reporte de atenciones (Excel) y clasificación por IA
+  reporte: (f) => request('GET', '/api/hc/reporte?' + new URLSearchParams(Object.entries(f || {}).filter(([, v]) => v)).toString()),
   entrega: (id, data) => request('POST', `/api/hc/${id}/entrega`, data),
   firmaMedico: (id, firma) => request('POST', `/api/hc/${id}/firma-medico`, { firma }),
   // Sube el recibido de la IPS (foto o PDF) tal cual, sin JSON

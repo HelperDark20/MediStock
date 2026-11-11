@@ -4,6 +4,7 @@
 // exportación para nómina (Excel y PDF) y la cuenta de las tablets.
 // ══════════════════════════════════════════
 let _asisDatos = { jornadas: [], resumen: {} };
+let _asisGrupos = [];   // personal cargado por evento (para las tarjetas y el Excel)
 let _asisSalidaId = null;
 
 const ASIS_ESTADOS = {
@@ -12,6 +13,7 @@ const ASIS_ESTADOS = {
   // Más de 16 h sin salida, o su evento finalizó con el turno abierto
   sin_salida: ['Sin salida', 'sin'],
 };
+// Antes "Sin salida (+16 h)": también aplica cuando el evento finalizó con el turno abierto
 
 function _asisFechaCO(iso){
   if(!iso) return '';
@@ -64,7 +66,10 @@ async function asisBuscar(){
   const tbody = document.getElementById('asis-tbody');
   tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state" style="padding:24px"><p>Cargando…</p></div></td></tr>';
   try {
-    _asisDatos = await Asistencia.listar(_asisFiltros());
+    const f = _asisFiltros();
+    const [datos, grupos] = await Promise.all([Asistencia.listar(f), Asistencia.personal(f.evento_id).catch(() => [])]);
+    _asisDatos = datos;
+    _asisGrupos = grupos;
     _asisRenderPersonal();
   } catch(e){
     tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state" style="padding:24px"><p>${escHtml(e.message)}</p></div></td></tr>`;
@@ -75,12 +80,21 @@ async function asisBuscar(){
 
 function _asisRender(){
   const { jornadas, resumen } = _asisDatos;
-  const st = (ico, num, label) => `<div class="rep-stat"><div class="rep-stat-icon ilustrado"><img src="img/${ico}" alt=""></div><div><div class="rep-stat-num">${num}</div><div class="rep-stat-label">${label}</div></div></div>`;
+  const st = (ico, num, label, extra) => `<div class="rep-stat"><div class="rep-stat-icon ilustrado"><img src="img/${ico}" alt=""></div><div><div class="rep-stat-num${extra && extra.dur ? ' dur' : ''}">${num}</div><div class="rep-stat-label">${label}</div>${extra && extra.sub ? `<div class="asis-stat-sub" title="${escHtml(extra.sub)}">${escHtml(extra.sub)}</div>` : ''}</div>${extra && extra.ver ? `<button class="asis-ver" onclick="asisVerPersonas('${extra.ver}')">Ver</button>` : ''}</div>`;
+  // Personal cargado: asistieron (al menos un turno) / no asistieron (o sin marcar si el evento sigue)
+  const personas = _asisGrupos.reduce((a, g) => a.concat(g.personal.map(p => ({ ...p, evento: g.evento }))), []);
+  const asistieron = personas.filter(p => p.jornadas > 0);
+  const faltan = personas.filter(p => !p.jornadas);
+  const turno = t => t ? { num: _asisDur(t.minutos), sub: `${t.persona} · ${_asisFechaCO(t.entrada_at)}` } : { num: '—', sub: 'Sin turnos completos' };
+  const corto = turno(resumen.turno_mas_corto), largo = turno(resumen.turno_mas_largo);
   document.getElementById('asis-stats').innerHTML =
-    (resumen.personas_cargadas !== null && resumen.personas_cargadas !== undefined ? st('modulos/usuarios.png', resumen.personas_cargadas, 'Personal cargado') : st('modulos/usuarios.png', new Set(jornadas.map(j => j.cedula)).size, 'Personas con jornadas')) +
+    st('modulos/usuarios.png', personas.length, 'Personal cargado') +
+    st('iconos/estado-finalizado.svg', asistieron.length, 'Asistieron', { ver: 'asistieron' }) +
+    st('iconos/faltante.svg', faltan.length, _asisEtiquetaFaltan(faltan), { ver: 'faltan' }) +
     st('iconos/estado-en-curso.svg', resumen.en_turno || 0, 'En turno ahora') +
-    st('iconos/faltante.svg', resumen.sin_salida || 0, 'Sin salida') +
-    st('iconos/vencimiento.svg', _asisDur(resumen.minutos || 0), 'Horas del período');
+    st('iconos/advertencia.svg', resumen.sin_salida || 0, 'Sin salida') +
+    st('iconos/vencimiento.svg', corto.num, 'Turno más corto', { sub: corto.sub, dur: true }) +
+    st('iconos/calendario.svg', largo.num, 'Turno más largo', { sub: largo.sub, dur: true });
   const tbody = document.getElementById('asis-tbody');
   if(!jornadas.length){
     tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state" style="padding:24px"><img class="empty-ico" src="img/iconos/asistencia.svg" alt=""><p>No hay jornadas con esos filtros</p></div></td></tr>';
@@ -106,6 +120,29 @@ function _asisRender(){
       <td data-label="">${accion}</td>
     </tr>`;
   }).join('');
+}
+
+// "No asistieron" si su evento ya finalizó; "Sin marcar" si sigue en curso
+function _asisEtiquetaFaltan(lista){
+  const fin = lista.filter(p => p.estado === 'no_asistio').length;
+  if(!lista.length) return _asisGrupos.some(g => g.evento.estado !== 'finalizado') ? 'Sin marcar' : 'No asistieron';
+  return fin === lista.length ? 'No asistieron' : (fin ? 'No asistieron / sin marcar' : 'Sin marcar');
+}
+function asisVerPersonas(tipo){
+  const personas = _asisGrupos.reduce((a, g) => a.concat(g.personal.map(p => ({ ...p, evento: g.evento }))), []);
+  const lista = personas.filter(p => tipo === 'asistieron' ? p.jornadas > 0 : !p.jornadas);
+  const varios = _asisGrupos.length > 1;
+  document.getElementById('asis-lista-titulo').textContent = tipo === 'asistieron' ? `Asistieron (${lista.length})` : `${_asisEtiquetaFaltan(lista)} (${lista.length})`;
+  document.getElementById('asis-lista-sub').textContent = tipo === 'asistieron'
+    ? 'Personal cargado que marcó al menos un turno, con sus turnos y horas laboradas.'
+    : 'Personal cargado que no ha marcado ningún turno (al finalizar el evento quedan como "No asistió").';
+  document.getElementById('asis-lista-cuerpo').innerHTML = lista.length ? lista.map(p => `
+    <div class="asis-personal-fila">
+      <img src="img/avatares/personal.svg" alt="">
+      <div class="asis-personal-datos"><b>${escHtml(p.nombre)}</b><div class="asis-sub">CC ${escHtml(p.cedula)}${varios ? ' · ' + escHtml(p.evento.nombre) : ''}${p.turnos_completos ? ` · ${p.turnos_completos} turno${p.turnos_completos !== 1 ? 's' : ''} · ${_asisDur(p.minutos)}` : ''}</div></div>
+      <span class="asis-est ${ASIS_ESTADO_PERSONAL[p.estado][1]}">${ASIS_ESTADO_PERSONAL[p.estado][0]}</span>
+    </div>`).join('') : '<div class="empty-state" style="padding:18px"><p>Nadie en esta lista</p></div>';
+  document.getElementById('modal-asis-lista').classList.add('open');
 }
 
 function asisLimpiar(){
@@ -139,8 +176,7 @@ function _asisFilaPersonal(p, finalizado){
 async function _asisRenderPersonal(){
   const card = document.getElementById('asis-personal-card');
   const eventoId = document.getElementById('asis-evento').value;
-  let grupos;
-  try { grupos = await Asistencia.personal(eventoId); } catch(e){ card.style.display = 'none'; return; }
+  const grupos = _asisGrupos;
   // "Todos los eventos" sin ningún evento con personal: no se muestra la tarjeta
   if(!eventoId && !grupos.length){ card.style.display = 'none'; return; }
   card.style.display = '';
@@ -311,29 +347,147 @@ async function asisGuardarSalida(btn){
   });
 }
 
-// ── Cuenta de las tablets ──
+// ── Cuentas de las tablets (sin límite) ──
+let _asisCuentas = [];
 async function asisAbrirCuenta(){
-  document.getElementById('asis-cuenta-pass').value = '';
+  asisNuevaCuenta();
+  await _asisCargarCuentas();
+  document.getElementById('modal-asis-cuenta').classList.add('open');
+}
+async function _asisCargarCuentas(){
+  const cont = document.getElementById('asis-cuentas-lista');
   try {
-    const c = await Asistencia.cuenta();
-    const hay = !!(c && c.existe);
-    document.getElementById('asis-cuenta-usuario').value = hay ? c.usuario : 'datacontrol@novabridge.com.co';
-    document.getElementById('asis-cuenta-estado').innerHTML = hay
-      ? `Cuenta creada. Sesiones válidas desde ${_asisFechaCO(c.sesiones_desde)}. Deja la contraseña vacía para no cambiarla.`
-      : 'Aún no hay cuenta: crea el usuario y la contraseña con los que se activan las tablets.';
-    document.getElementById('modal-asis-cuenta').classList.add('open');
-  } catch(e){ toastError(e.message); }
+    _asisCuentas = await Asistencia.cuentas();
+    cont.innerHTML = _asisCuentas.length ? _asisCuentas.map(c => `
+      <div class="asis-cuenta-fila">
+        <div style="flex:1;min-width:0"><b>${escHtml(c.usuario)}</b>
+          <div class="asis-sub">Contraseña: ••••••••  · ${c.ultimo_ingreso_at ? 'Última activación ' + _asisFechaCO(c.ultimo_ingreso_at) : 'Aún no se ha usado'} · ${c.dispositivos} tablet${c.dispositivos !== 1 ? 's' : ''}</div></div>
+        <button class="act-btn" title="Editar usuario o asignar contraseña nueva" onclick="asisEditarCuenta(${c.id})"><img class="btn-ico" src="img/iconos/editar.svg" alt=""></button>
+        <button class="act-btn danger" title="Eliminar cuenta" onclick="asisEliminarCuenta(${c.id})"><img class="btn-ico" src="img/iconos/eliminar.svg" alt=""></button>
+      </div>`).join('') : '<div class="empty-state" style="padding:16px"><p>Aún no hay cuentas: crea la primera abajo.</p></div>';
+  } catch(e){ cont.innerHTML = `<div class="empty-state" style="padding:16px"><p>${escHtml(e.message)}</p></div>`; }
+}
+function asisNuevaCuenta(){
+  document.getElementById('asis-cuenta-id').value = '';
+  document.getElementById('asis-cuenta-usuario').value = '';
+  document.getElementById('asis-cuenta-pass').value = '';
+  document.getElementById('asis-cuenta-form-t').textContent = 'Nueva cuenta';
+  document.getElementById('asis-cuenta-pass-lbl').innerHTML = 'Contraseña <span style="font-weight:400;color:#aaa">(mín. 8 caracteres)</span>';
+  document.getElementById('asis-cuenta-guardar').textContent = 'Crear cuenta';
+  document.getElementById('asis-cuenta-cancelar-ed').style.display = 'none';
+}
+function asisEditarCuenta(id){
+  const c = _asisCuentas.find(x => x.id === id);
+  if(!c) return;
+  document.getElementById('asis-cuenta-id').value = id;
+  document.getElementById('asis-cuenta-usuario').value = c.usuario;
+  document.getElementById('asis-cuenta-pass').value = '';
+  document.getElementById('asis-cuenta-form-t').textContent = 'Editar ' + c.usuario;
+  document.getElementById('asis-cuenta-pass-lbl').innerHTML = 'Contraseña nueva <span style="font-weight:400;color:#aaa">(vacía = no cambiarla)</span>';
+  document.getElementById('asis-cuenta-guardar').textContent = 'Guardar cambios';
+  document.getElementById('asis-cuenta-cancelar-ed').style.display = '';
+  document.getElementById('asis-cuenta-usuario').focus();
 }
 async function asisGuardarCuenta(btn){
+  const id = document.getElementById('asis-cuenta-id').value;
   const usuario = document.getElementById('asis-cuenta-usuario').value.trim();
   const password = document.getElementById('asis-cuenta-pass').value;
   await unaVez('asis-cuenta', btn, async () => {
     try {
-      const r = await Asistencia.guardarCuenta({ usuario, password });
-      closeModal('modal-asis-cuenta');
+      const r = id ? await Asistencia.editarCuenta(parseInt(id), { usuario, password }) : await Asistencia.crearCuenta({ usuario, password });
       toast('✓ ' + r.mensaje, 'success');
+      asisNuevaCuenta();
+      await _asisCargarCuentas();
     } catch(e){ toastError(e.message); }
   });
+}
+function asisEliminarCuenta(id){
+  const c = _asisCuentas.find(x => x.id === id);
+  if(!c) return;
+  document.getElementById('modal-title').textContent = 'Eliminar cuenta de tablets';
+  document.getElementById('modal-sub').innerHTML = `¿Eliminar la cuenta <strong>${escHtml(c.usuario)}</strong>? Las tablets activadas con ella dejan de marcar. Las marcas que ya hizo se conservan.`;
+  document.getElementById('modal-ok-btn').onclick = async () => {
+    try {
+      const r = await Asistencia.eliminarCuenta(id);
+      closeModal('modal-confirm');
+      toast('✓ ' + r.mensaje, 'success');
+      await _asisCargarCuentas();
+    } catch(e){ toastError(e.message); }
+  };
+  document.getElementById('modal-confirm').classList.add('open');
+}
+
+// ── Dispositivos e IP ──
+let _asisMarcasIp = [];
+async function asisAbrirDispositivos(){
+  const sel = document.getElementById('asis-disp-evento');
+  sel.innerHTML = '<option value="">Todos los eventos</option>' + (S.eventos || []).map(e => `<option value="${e.id}">${escHtml(e.nombre)}</option>`).join('');
+  sel.value = document.getElementById('asis-evento').value;
+  document.getElementById('asis-disp-desde').value = document.getElementById('asis-desde').value;
+  document.getElementById('asis-disp-hasta').value = document.getElementById('asis-hasta').value;
+  document.getElementById('modal-asis-dispositivos').classList.add('open');
+  await Promise.all([asisBuscarMarcasIp(), _asisCargarDispositivos()]);
+}
+async function asisBuscarMarcasIp(){
+  const cont = document.getElementById('asis-disp-tabla');
+  cont.innerHTML = '<div class="empty-state" style="padding:16px"><p>Cargando…</p></div>';
+  try {
+    _asisMarcasIp = await Asistencia.marcasIp({
+      evento_id: document.getElementById('asis-disp-evento').value,
+      desde: document.getElementById('asis-disp-desde').value,
+      hasta: document.getElementById('asis-disp-hasta').value
+    });
+    const raras = _asisMarcasIp.filter(m => m.ip_distinta || m.dispositivo_sin_nombre);
+    document.getElementById('asis-disp-resumen').innerHTML =
+      `<span class="asis-est gris">${_asisMarcasIp.length} marca${_asisMarcasIp.length !== 1 ? 's' : ''}</span>` +
+      (_asisMarcasIp.filter(m => m.ip_distinta).length ? `<span class="asis-est man">${_asisMarcasIp.filter(m => m.ip_distinta).length} desde una IP distinta a la habitual</span>` : '') +
+      (_asisMarcasIp.filter(m => m.dispositivo_sin_nombre).length ? `<span class="asis-est sin">${_asisMarcasIp.filter(m => m.dispositivo_sin_nombre).length} desde dispositivos sin nombre</span>` : '') +
+      (!raras.length && _asisMarcasIp.length ? '<span class="asis-est ok">Todas desde la IP habitual y tablets registradas</span>' : '');
+    cont.innerHTML = _asisMarcasIp.length ? `<table><thead><tr><th>Persona</th><th>Evento</th><th>Marca</th><th>Fecha y hora</th><th>IP</th><th>Dispositivo</th><th>Cuenta</th><th>Observación</th></tr></thead><tbody>` +
+      _asisMarcasIp.map(m => `<tr class="${m.ip_distinta || m.dispositivo_sin_nombre ? 'alerta' : ''}">
+        <td><b>${escHtml(m.persona || '—')}</b><div class="asis-sub">CC ${escHtml(m.cedula || '')}</div></td>
+        <td>${escHtml(m.evento)}</td><td>${m.tipo}</td><td>${_asisFechaCO(m.fecha)}</td>
+        <td><code>${escHtml(m.ip || 'Sin registro')}</code></td>
+        <td>${escHtml(m.dispositivo || 'Sin registro')}</td><td>${escHtml(m.cuenta || '—')}</td>
+        <td>${_asisObsMarca(m)}</td></tr>`).join('') + '</tbody></table>'
+      : '<div class="empty-state" style="padding:16px"><p>No hay marcas con esos filtros</p></div>';
+  } catch(e){ cont.innerHTML = `<div class="empty-state" style="padding:16px"><p>${escHtml(e.message)}</p></div>`; }
+}
+function _asisObsMarca(m){
+  return [m.ip_distinta ? `IP distinta a la habitual (${m.ip_habitual})` : '', m.dispositivo_sin_nombre ? 'Dispositivo sin nombre' : '',
+    m.offline ? 'Marcada sin conexión (IP de la sincronización)' : ''].filter(Boolean).join(' · ') || '—';
+}
+async function _asisCargarDispositivos(){
+  const cont = document.getElementById('asis-disp-lista');
+  try {
+    const lista = await Asistencia.dispositivos();
+    cont.innerHTML = lista.length ? lista.map(d => `
+      <div class="asis-disp-fila">
+        <input type="text" id="asis-disp-nombre-${d.id}" value="${escHtml(d.nombre || '')}" placeholder="Sin nombre · ${escHtml(d.codigo.slice(-6).toUpperCase())}" maxlength="60">
+        <button class="tb-btn" onclick="asisNombrarDispositivo(${d.id})">Guardar nombre</button>
+        <div class="asis-sub" style="margin:0">Cuenta ${escHtml(d.cuenta || '—')} · última vez ${_asisFechaCO(d.ultima_vez_at)} · IP ${escHtml(d.ultima_ip || '—')} · ${d.jornadas} marca${d.jornadas !== 1 ? 's' : ''}</div>
+      </div>`).join('') : '<div class="empty-state" style="padding:12px"><p>Ninguna tablet ha marcado todavía</p></div>';
+  } catch(e){ cont.innerHTML = `<div class="empty-state" style="padding:12px"><p>${escHtml(e.message)}</p></div>`; }
+}
+async function asisNombrarDispositivo(id){
+  try {
+    const r = await Asistencia.nombrarDispositivo(id, document.getElementById('asis-disp-nombre-' + id).value);
+    toast('✓ ' + r.mensaje, 'success');
+    await Promise.all([_asisCargarDispositivos(), asisBuscarMarcasIp()]);
+  } catch(e){ toastError(e.message); }
+}
+function asisExcelMarcasIp(){
+  if(typeof XLSX === 'undefined') return toastError('No se pudo cargar el generador de Excel. Revisa la conexión.');
+  if(!_asisMarcasIp.length) return toastError('No hay marcas para exportar');
+  const filas = [['Nombre','Cédula','Evento','Marca','Fecha','Hora','IP','IP habitual del evento','Dispositivo','Cuenta','Marcada sin conexión','Observación']]
+    .concat(_asisMarcasIp.slice().reverse().map(m => [m.persona || '', m.cedula || '', m.evento, m.tipo, _asisSoloFecha(m.fecha), _asisSoloHora(m.fecha),
+      m.ip || 'Sin registro', m.ip_habitual || '', m.dispositivo || 'Sin registro', m.cuenta || '', m.offline ? 'Sí' : 'No', _asisObsMarca(m).replace(/^—$/, '')]));
+  const ws = XLSX.utils.aoa_to_sheet(filas);
+  ws['!cols'] = [26, 13, 24, 9, 12, 8, 16, 18, 26, 26, 12, 46].map(w => ({ wch: w }));
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: filas.length - 1, c: filas[0].length - 1 } }) };
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Dispositivos e IP');
+  XLSX.writeFile(wb, `asistencia_dispositivos_ip_${_asisHoyCO()}.xlsx`);
 }
 function asisCerrarSesiones(){
   document.getElementById('modal-title').textContent = 'Cerrar sesión de todas las tablets';
@@ -356,7 +510,7 @@ function _asisSoloHora(iso){ return iso ? _asisFechaCO(iso).slice(11, 16) : ''; 
 // Una fila por jornada, en orden cronológico, con todo lo que muestra el PDF
 function _asisFilasExport(){
   return _asisDatos.jornadas.slice().reverse().map(j => ({
-    persona: j.persona, cedula: j.cedula, rol: j.nivel === 1 ? 'Médico' : 'Enfermero/a', evento: j.evento,
+    persona: j.persona, cedula: j.cedula, evento: j.evento,
     fecha_entrada: _asisSoloFecha(j.entrada_at), hora_entrada: _asisSoloHora(j.entrada_at),
     fecha_salida: _asisSoloFecha(j.salida_at), hora_salida: _asisSoloHora(j.salida_at),
     minutos: j.minutos,
@@ -368,17 +522,11 @@ function _asisFilasExport(){
     reloj: j.reloj_desfase_seg && Math.abs(j.reloj_desfase_seg) > 600 ? Math.round(j.reloj_desfase_seg / 60) : ''
   }));
 }
-const ASIS_COLS_JORNADAS = ['Persona','Cédula','Rol','Evento','Fecha de entrada','Hora de entrada','Fecha de salida','Hora de salida',
-  'Minutos','Horas trabajadas','Estado','Motivo salida manual','Salida registrada por','Marcada sin conexión','Reloj de la tablet corregido (min)'];
-function _asisFilaJornada(f){
-  return [f.persona, f.cedula, f.rol, f.evento, f.fecha_entrada, f.hora_entrada, f.fecha_salida || 'Sin salida', f.hora_salida,
-    f.minutos === null || f.minutos === undefined ? '' : f.minutos, f.horas, f.estado, f.motivo, f.registrada_por, f.sin_conexion, f.reloj];
-}
 function _asisConsolidado(filas){
   const porPersona = {};
   filas.forEach(f => {
     const k = f.cedula;
-    if(!porPersona[k]) porPersona[k] = { persona: f.persona, cedula: f.cedula, rol: f.rol, jornadas: 0, completas: 0, sin_salida: 0, minutos: 0 };
+    if(!porPersona[k]) porPersona[k] = { persona: f.persona, cedula: f.cedula, jornadas: 0, completas: 0, sin_salida: 0, minutos: 0 };
     const p = porPersona[k];
     p.jornadas++;
     if(f.minutos !== null && f.minutos !== undefined){ p.completas++; p.minutos += f.minutos; }
@@ -392,27 +540,39 @@ function _asisTituloPeriodo(){
   return [f.evento_id ? ev.options[ev.selectedIndex].text : 'Todos los eventos',
     f.desde || f.hasta ? `${f.desde ? fmtDate(f.desde) : '…'} a ${f.hasta ? fmtDate(f.hasta) : '…'}` : 'Todas las fechas'].join(' · ');
 }
+// Excel: una sola tabla. Una fila por turno con los totales de la persona
+// (Jornadas, Completas, Sin salida) y, al final, el personal cargado que no
+// marcó ningún turno ("No asistió" / "Sin marcar"). La columna Evento solo
+// cuando se descarga con "Todos los eventos".
 function asisExportExcel(){
   if(typeof XLSX === 'undefined') return toastError('No se pudo cargar el generador de Excel. Revisa la conexión.');
   const filas = _asisFilasExport();
-  if(!filas.length) return toastError('No hay jornadas para exportar');
-  const jornadas = [ASIS_COLS_JORNADAS].concat(filas.map(_asisFilaJornada));
-  const consolidado = [['Persona','Cédula','Rol','Jornadas','Completas','Sin salida','Minutos','Horas trabajadas']]
-    .concat(_asisConsolidado(filas).map(p => [p.persona, p.cedula, p.rol, p.jornadas, p.completas, p.sin_salida, p.minutos, _asisDur(p.minutos)]));
-  const anchos = [26, 13, 12, 24, 15, 13, 15, 13, 9, 16, 22, 34, 22, 12, 14].map(w => ({ wch: w }));
+  const todos = !_asisFiltros().evento_id;
+  const faltan = _asisGrupos.reduce((a, g) => a.concat(g.personal.filter(p => !p.jornadas).map(p => ({ ...p, evento: g.evento.nombre }))), []);
+  if(!filas.length && !faltan.length) return toastError('No hay jornadas ni personal para exportar');
+  const totales = {};
+  filas.forEach(f => {
+    const k = f.cedula + '|' + f.evento;
+    const t = totales[k] || (totales[k] = { jornadas: 0, completas: 0, sin_salida: 0 });
+    t.jornadas++;
+    if(f.minutos !== null && f.minutos !== undefined) t.completas++; else t.sin_salida++;
+  });
+  const cols = ['Nombre', 'Cédula'].concat(todos ? ['Evento'] : [], ['Jornadas', 'Completas', 'Sin salida', 'Fecha de entrada', 'Hora de entrada',
+    'Fecha de salida', 'Hora de salida', 'Minutos', 'Horas trabajadas', 'Estado', 'Motivo salida manual', 'Salida registrada por',
+    'Marcada sin conexión', 'Reloj de la tablet corregido (min)']);
+  const orden = filas.slice().sort((a, b) => a.persona.localeCompare(b.persona) || (a.fecha_entrada + a.hora_entrada).localeCompare(b.fecha_entrada + b.hora_entrada));
+  const tabla = [cols].concat(orden.map(f => {
+    const t = totales[f.cedula + '|' + f.evento];
+    return [f.persona, f.cedula].concat(todos ? [f.evento] : [], [t.jornadas, t.completas, t.sin_salida, f.fecha_entrada, f.hora_entrada,
+      f.fecha_salida || 'Sin salida', f.hora_salida, f.minutos === null || f.minutos === undefined ? '' : f.minutos, f.horas, f.estado,
+      f.motivo, f.registrada_por, f.sin_conexion, f.reloj]);
+  }), faltan.sort((a, b) => a.nombre.localeCompare(b.nombre)).map(p => [p.nombre, p.cedula].concat(todos ? [p.evento] : [],
+    [0, 0, 0, '', '', '', '', '', '', ASIS_ESTADO_PERSONAL[p.estado][0], '', '', '', ''])));
+  const ws = XLSX.utils.aoa_to_sheet(tabla);
+  ws['!cols'] = [26, 13].concat(todos ? [24] : [], [9, 10, 10, 15, 13, 15, 13, 9, 16, 22, 34, 22, 12, 14]).map(w => ({ wch: w }));
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: tabla.length - 1, c: cols.length - 1 } }) };
   const wb = XLSX.utils.book_new();
-  // Hoja 1 — igual que el PDF: consolidado para nómina y, debajo, cada jornada
-  const hoja1 = [['NOVA BRIDGE SAS — Asistencia de personal'], [_asisTituloPeriodo()],
-    [`Generado el ${_asisFechaCO(new Date().toISOString())}`], [],
-    ['CONSOLIDADO PARA NÓMINA']].concat(consolidado, [[], ['JORNADAS']], jornadas);
-  const ws1 = XLSX.utils.aoa_to_sheet(hoja1);
-  ws1['!cols'] = anchos;
-  XLSX.utils.book_append_sheet(wb, ws1, 'Asistencia');
-  // Hoja 2 — solo la tabla de jornadas, con filtros, para ordenar o cruzar con la nómina
-  const ws2 = XLSX.utils.aoa_to_sheet(jornadas);
-  ws2['!cols'] = anchos;
-  ws2['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: jornadas.length - 1, c: ASIS_COLS_JORNADAS.length - 1 } }) };
-  XLSX.utils.book_append_sheet(wb, ws2, 'Jornadas (tabla)');
+  XLSX.utils.book_append_sheet(wb, ws, 'Asistencia');
   XLSX.writeFile(wb, `asistencia_${_asisHoyCO()}.xlsx`);
 }
 function asisExportPDF(){
@@ -426,8 +586,8 @@ function asisExportPDF(){
 .sub{color:#555;margin:2px 0 12px}h2{font-size:12px;margin:14px 0 6px}table{width:100%;border-collapse:collapse}
 th,td{border:1px solid #bbb;padding:4px 6px;text-align:left}th{background:#eee}td.n{text-align:right}</style></head><body>
 <h1>NOVA BRIDGE SAS — Asistencia de personal</h1><div class="sub">${escHtml(_asisTituloPeriodo())} · Generado el ${_asisFechaCO(new Date().toISOString())}</div>
-<h2>Consolidado para nómina</h2><table><tr><th>Persona</th><th>Cédula</th><th>Rol</th><th>Jornadas</th><th>Completas</th><th>Sin salida</th><th>Horas trabajadas</th></tr>
-${cons.map(p => `<tr><td>${escHtml(p.persona)}</td><td>${escHtml(p.cedula)}</td><td>${p.rol}</td><td class="n">${p.jornadas}</td><td class="n">${p.completas}</td><td class="n">${p.sin_salida}</td><td class="n">${_asisDur(p.minutos)}</td></tr>`).join('')}</table>
+<h2>Consolidado para nómina</h2><table><tr><th>Persona</th><th>Cédula</th><th>Jornadas</th><th>Completas</th><th>Sin salida</th><th>Horas trabajadas</th></tr>
+${cons.map(p => `<tr><td>${escHtml(p.persona)}</td><td>${escHtml(p.cedula)}</td><td class="n">${p.jornadas}</td><td class="n">${p.completas}</td><td class="n">${p.sin_salida}</td><td class="n">${_asisDur(p.minutos)}</td></tr>`).join('')}</table>
 <h2>Jornadas</h2><table><tr><th>Persona</th><th>Cédula</th><th>Evento</th><th>Fecha de entrada</th><th>Hora de entrada</th><th>Fecha de salida</th><th>Hora de salida</th><th>Horas</th><th>Estado</th><th>Motivo salida manual</th></tr>
 ${filas.map(f => `<tr><td>${escHtml(f.persona)}</td><td>${escHtml(f.cedula)}</td><td>${escHtml(f.evento)}</td><td>${f.fecha_entrada}</td><td>${f.hora_entrada}</td><td>${f.fecha_salida || 'Sin salida'}</td><td>${f.hora_salida}</td><td class="n">${f.horas || '—'}</td><td>${escHtml(f.estado)}</td><td>${escHtml(f.motivo)}${f.registrada_por ? ' (' + escHtml(f.registrada_por) + ')' : ''}</td></tr>`).join('')}</table>
 </body></html>`);

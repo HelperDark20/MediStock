@@ -21,6 +21,8 @@ app.get('/logo.png', (req, res) => res.sendFile(path.join(__dirname, 'logo.png')
 // Página independiente y liviana; js/compat-check.js redirige aquí a los
 // navegadores que no pueden ejecutar la app principal.
 app.get('/enfermero', (req, res) => res.sendFile(path.join(__dirname, 'enfermero.html')));
+// Editar historias clínicas (solo administrador; la sesión es la del WMS)
+app.get('/hc-editor', (req, res) => res.sendFile(path.join(__dirname, 'hc-editor.html')));
 
 // Modo offline del panel de enfermero: la página se guarda en el dispositivo.
 //   - Safari de iOS 9–12 → AppCache (/enfermero.appcache, atributo manifest)
@@ -113,7 +115,10 @@ app.use((err, req, res, next) => {
 // Un error no controlado se registra en el log en vez de tumbar la app
 process.on('unhandledRejection', err => console.error('Promesa rechazada sin controlar:', err));
 
-require('./src/config/migraciones').aplicarMigraciones();
+// Al terminar las migraciones arranca la clasificación de HC (reporte con IA)
+require('./src/config/migraciones').aplicarMigraciones()
+  .then(() => require('./src/utils/clasificador-hc').iniciar())
+  .catch(err => console.error('Clasificación de HC:', err.message));
 
 app.listen(PORT, () => {
   console.log(`MediStock corriendo en puerto ${PORT}`);

@@ -21,13 +21,20 @@ const SEXOS = ['M', 'F', 'O'];
 const RH = ['+', '-'];
 const GRUPOS = ['A', 'B', 'AB', 'O'];
 const ESTADOS_CIVILES = ['SOLTERO', 'CASADO', 'DIVORCIADO', 'VIUDO', 'UNION_LIBRE'];
+// Ubicación del paciente: interno (está en el evento) o externo (ajeno al
+// evento). El tipo solo se elige si es interno; si es externo queda EXTERNO.
+const PROCEDENCIAS = ['INTERNO', 'EXTERNO'];
+const TIPOS_PACIENTE = ['ARTISTA', 'DEPORTISTA', 'DIRECTORES', 'ESPECTADOR', 'LOGISTICA', 'POLICIA', 'AUTORIDAD_PMU',
+  'PROVEEDOR', 'ADMINISTRACION', 'NOVA', 'PRODUCTOR'];
 const DECISIONES = ['acepta', 'rechaza', 'urgencia_vital'];
 const ANTECEDENTES = ['patologicos', 'quirurgicos', 'farmacologicos', 'alergicos', 'toxicos', 'traumaticos', 'hospitalarios', 'otros'];
 
 const MAX_FIRMA = 400 * 1024;   // ~400 KB por firma (PNG en base64)
 
 // Módulo 4 — valoración primaria ABCDE
-const VIA_AEREA = ['ADECUADA', 'PERMEABLE', 'OBSTRUIDA', 'INSTRUMENTADA'];
+// "Permeable" se quitó (es lo mismo que "Adecuada"): las HC antiguas que la
+// tengan pasan a ADECUADA al editarse
+const VIA_AEREA = ['ADECUADA', 'OBSTRUIDA', 'INSTRUMENTADA'];
 const RESPIRACION = ['ADECUADA', 'DIFICULTAD', 'AUSENTE'];
 const CIRCULACION = ['ADECUADA', 'COMPROMETIDA'];
 const NEURO = ['ALERTA', 'SOMNOLIENTO', 'CONFUSO', 'INCONSCIENTE'];
@@ -42,7 +49,7 @@ const SIGNOS = [
   ['spo2', 30, 100, true, 'la saturación (SpO₂)'],
   ['temp', 25, 45, true, 'la temperatura'],
   ['gluco', 10, 1000, false, 'la glucometría'],
-  ['eva', 0, 10, false, 'el dolor (EVA)']
+  ['eva', 0, 10, true, 'el dolor (EVA)']
 ];
 // Módulo 5
 const SEGMENTOS = ['cabeza', 'cara', 'cuello', 'torax', 'campos_pulmonares', 'abdomen', 'pelvis', 'espalda', 'eess', 'eeii', 'osteomuscular'];
@@ -51,6 +58,11 @@ const TRIAGE = ['I', 'II', 'III', 'IV', 'V'];
 // Procedimientos realizados: texto libre (el enfermero escribe con exactitud
 // el procedimiento), con hora y responsable
 const MAX_PROCEDIMIENTOS = 40;
+// Tomas de signos vitales: la de la atención + hasta 2 más (novedades):
+// en el PDF se rotulan Inicio / Final o Inicio / Durante / Final
+const MAX_TOMAS_EXTRA = 2;
+// Menores de esta edad: no se pregunta el estado civil (queda SOLTERO/A)
+const EDAD_ESTADO_CIVIL = 15;
 const RE_HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 // ── Utilidades de normalización ──
@@ -72,6 +84,52 @@ function obj(v) { return v && typeof v === 'object' && !Array.isArray(v) ? v : {
 
 // Nombres de persona: letras (con tildes y Ñ), espacios, punto, guion y apóstrofo
 const RE_NOMBRE = /^[A-ZÁÉÍÓÚÜÑ][A-ZÁÉÍÓÚÜÑ .'-]*$/;
+
+// ── Datos de relleno ──
+// Se vio personal que llena los campos con "NNNNNNN" o "000000000" para no
+// pedir el dato. Se rechazan:
+//   texto: un solo carácter repetido ("NN", "XXXX") o 3+ letras iguales
+//          seguidas (ninguna palabra en español las tiene). En la dirección,
+//          4+ (admite "MANZANA III").
+//   teléfono: nacional o extranjero (puede empezar con +), de 8 a 15
+//          dígitos, sin 5 dígitos iguales seguidos (55555) ni 5 en escalera
+//          (12345 / 54321)
+//   documento: no un solo dígito repetido ni una secuencia (123456789)
+// Las mismas reglas están en js/lite/hc-lite.js.
+function _secuencia(d, largo) {
+  let sube = 1, baja = 1;
+  for (let i = 1; i < d.length; i++) {
+    const a = +d[i - 1], b = +d[i];
+    sube = b === a + 1 ? sube + 1 : 1;
+    baja = b === a - 1 ? baja + 1 : 1;
+    if (sube >= largo || baja >= largo) return true;
+  }
+  return false;
+}
+function textoDeRelleno(v, repetidas) {
+  const s = String(v || '').toUpperCase();
+  const solo = s.replace(/[^A-ZÁÉÍÓÚÜÑ0-9]/g, '');
+  if (solo.length >= 2 && /^(.)\1*$/.test(solo)) return true;
+  return new RegExp('([A-ZÁÉÍÓÚÜÑ])\\1{' + ((repetidas || 3) - 1) + '}').test(s);
+}
+function telefonoValido(v) {
+  const d = digitos(v);
+  return d.length >= 8 && d.length <= 15 && !/(\d)\1{4}/.test(d) && !_secuencia(d, 5);
+}
+// "+1 (555) 201-8899" → "+15552018899"; "310 367 3515" → "3103673515"
+function telefono(v) {
+  const s = typeof v === 'string' || typeof v === 'number' ? String(v).trim() : '';
+  const d = digitos(s).slice(0, 15);
+  return d ? (s.charAt(0) === '+' ? '+' : '') + d : '';
+}
+function documentoDeRelleno(v) {
+  // Un solo carácter repetido ("0000000", "XXXX"); si es solo números, también
+  // una secuencia completa ("123456789"). Un pasaporte como AB-1234X es válido.
+  const d = String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (d.length < 3) return false;
+  return /^(.)\1*$/.test(d) || (/^\d+$/.test(d) && _secuencia(d, d.length));
+}
+const ERROR_TELEFONO = 'escribe un número de mínimo 8 dígitos (nacional o extranjero), sin 5 números iguales o seguidos (55555, 12345)';
 
 function firmaValida(v) {
   return typeof v === 'string' && v.length <= MAX_FIRMA && /^data:image\/png;base64,[A-Za-z0-9+/]+=*$/.test(v);
@@ -98,10 +156,12 @@ function calcularEdad(fechaNac, fechaAtencion) {
 }
 
 // ── Módulos ──
+// Todos los datos de identificación son obligatorios (no hay paciente NN:
+// no se maneja papelería, después no habría forma de saber quién fue
+// atendido). EPS y ARL siguen siendo opcionales ("NO APLICA").
 function _paciente(p, fechaAtencion, errores) {
-  const nn = bool(p.nn);
   const out = {
-    nn,
+    nn: false,
     nombres: mayus(p.nombres, 80),
     apellidos: mayus(p.apellidos, 80),
     tipo_doc: enumv(p.tipo_doc, TIPOS_DOC),
@@ -113,40 +173,50 @@ function _paciente(p, fechaAtencion, errores) {
     grupo: enumv(p.grupo, GRUPOS),
     direccion: mayus(p.direccion, 150),
     ciudad: mayus(p.ciudad, 80),
-    telefono: digitos(p.telefono).slice(0, 15),
+    telefono: telefono(p.telefono),
     estado_civil: enumv(p.estado_civil, ESTADOS_CIVILES),
     ocupacion: mayus(p.ocupacion, 80),
     eps: mayus(p.eps, 80) || NO_APLICA,
     arl: mayus(p.arl, 80) || NO_APLICA,
     otra_aseguradora: bool(p.otra_aseguradora),
-    aseguradora: ''
+    aseguradora: '',
+    procedencia: enumv(p.procedencia, PROCEDENCIAS),
+    tipo_paciente: ''
   };
+  out.tipo_paciente = out.procedencia === 'EXTERNO' ? 'EXTERNO' : enumv(p.tipo_paciente, TIPOS_PACIENTE);
+  if (!out.procedencia) errores.push('Indica si el paciente es interno (está en el evento) o externo (ajeno al evento)');
+  else if (!out.tipo_paciente) errores.push('Selecciona el tipo de paciente');
   out.documento = TIPOS_DOC_ALFANUMERICOS.indexOf(out.tipo_doc) >= 0
     ? mayus(p.documento, 20).replace(/[^A-Z0-9-]/g, '')
     : digitos(p.documento).slice(0, 15);
   if (out.otra_aseguradora) out.aseguradora = mayus(p.aseguradora, 80);
 
-  if (nn) {
-    // Paciente sin identificar: el admin completa los datos después
-    if (!out.nombres) out.nombres = 'NN';
-    if (!out.apellidos) out.apellidos = 'NN';
-  } else {
-    if (out.nombres.length < 2 || !RE_NOMBRE.test(out.nombres)) errores.push('Escribe los nombres del paciente (solo letras)');
-    if (out.apellidos.length < 2 || !RE_NOMBRE.test(out.apellidos)) errores.push('Escribe los apellidos del paciente (solo letras)');
-    if (!out.tipo_doc) errores.push('Selecciona el tipo de documento del paciente');
-    else if (TIPOS_DOC_ALFANUMERICOS.indexOf(out.tipo_doc) >= 0) {
-      if (out.documento.length < 3) errores.push('Escribe el número de documento del paciente');
-    } else if (out.documento.length < 3) {
-      errores.push('Escribe el número de documento del paciente (solo números)');
-    }
-    if (!out.fecha_nacimiento) errores.push('Indica la fecha de nacimiento del paciente');
-    if (!out.sexo) errores.push('Selecciona el sexo del paciente');
+  if (out.nombres.length < 2 || !RE_NOMBRE.test(out.nombres) || textoDeRelleno(out.nombres)) errores.push('Escribe los nombres del paciente (solo letras, sin datos de relleno)');
+  if (out.apellidos.length < 2 || !RE_NOMBRE.test(out.apellidos) || textoDeRelleno(out.apellidos)) errores.push('Escribe los apellidos del paciente (solo letras, sin datos de relleno)');
+  if (!out.tipo_doc) errores.push('Selecciona el tipo de documento del paciente');
+  else if (TIPOS_DOC_ALFANUMERICOS.indexOf(out.tipo_doc) >= 0) {
+    if (out.documento.length < 3) errores.push('Escribe el número de documento del paciente');
+    else if (documentoDeRelleno(out.documento)) errores.push('El número de documento del paciente no es válido (parece un dato de relleno)');
+  } else if (out.documento.length < 3) {
+    errores.push('Escribe el número de documento del paciente (solo números)');
+  } else if (documentoDeRelleno(out.documento)) {
+    errores.push('El número de documento del paciente no es válido (parece un dato de relleno)');
   }
+  if (!out.fecha_nacimiento) errores.push('Indica la fecha de nacimiento del paciente');
+  if (!out.sexo) errores.push('Selecciona el sexo del paciente');
   if (out.fecha_nacimiento) {
     out.edad = calcularEdad(out.fecha_nacimiento, fechaAtencion);
     if (!out.edad) errores.push('La fecha de nacimiento no puede ser posterior a la fecha de atención');
   }
-  if (out.telefono && out.telefono.length < 7) errores.push('El teléfono del paciente debe tener al menos 7 dígitos');
+  if (!out.rh) errores.push('Selecciona el RH del paciente');
+  if (!out.grupo) errores.push('Selecciona el grupo sanguíneo del paciente');
+  if (out.direccion.length < 5 || textoDeRelleno(out.direccion, 4)) errores.push('Escribe la dirección del paciente (sin datos de relleno)');
+  if (out.ciudad.length < 3 || textoDeRelleno(out.ciudad)) errores.push('Escribe la ciudad del paciente (sin datos de relleno)');
+  if (!telefonoValido(out.telefono)) errores.push('Teléfono del paciente: ' + ERROR_TELEFONO);
+  // Menores de 15 años: no se pregunta; queda SOLTERO/A
+  if (out.edad && out.edad.anios < EDAD_ESTADO_CIVIL) out.estado_civil = 'SOLTERO';
+  else if (!out.estado_civil) errores.push('Selecciona el estado civil del paciente');
+  if (out.ocupacion.length < 3 || textoDeRelleno(out.ocupacion)) errores.push('Escribe la ocupación del paciente (sin datos de relleno)');
   if (out.otra_aseguradora && !out.aseguradora) errores.push('Escribe el nombre de la otra aseguradora');
   return out;
 }
@@ -157,10 +227,10 @@ function _acompanante(a, tipoDoc, errores) {
   if (!out.tiene) return out;
   out.nombre = mayus(a.nombre, 120);
   out.parentesco = mayus(a.parentesco, 60);
-  out.telefono = digitos(a.telefono).slice(0, 15);
-  if (out.nombre.length < 3) errores.push('Escribe el nombre completo del acompañante');
-  if (!out.parentesco) errores.push('Escribe el parentesco del acompañante');
-  if (out.telefono.length < 7) errores.push('Escribe el teléfono del acompañante (al menos 7 dígitos)');
+  out.telefono = telefono(a.telefono);
+  if (out.nombre.length < 3 || textoDeRelleno(out.nombre)) errores.push('Escribe el nombre completo del acompañante (sin datos de relleno)');
+  if (out.parentesco.length < 3 || textoDeRelleno(out.parentesco)) errores.push('Escribe el parentesco del acompañante');
+  if (!telefonoValido(out.telefono)) errores.push('Teléfono del acompañante: ' + ERROR_TELEFONO);
   return out;
 }
 
@@ -204,12 +274,12 @@ function _consentimiento(c, firmas, errores) {
       nombres: mayus(t.nombres, 80),
       apellidos: mayus(t.apellidos, 80),
       cedula: digitos(t.cedula).slice(0, 15),
-      telefono: digitos(t.telefono).slice(0, 15)
+      telefono: telefono(t.telefono)
     };
-    if (out.testigo.nombres.length < 2) errores.push('Escribe el nombre del testigo');
-    if (out.testigo.apellidos.length < 2) errores.push('Escribe el apellido del testigo');
-    if (out.testigo.cedula.length < 5) errores.push('Escribe la cédula del testigo');
-    if (out.testigo.telefono.length < 7) errores.push('Escribe el teléfono del testigo (al menos 7 dígitos)');
+    if (out.testigo.nombres.length < 2 || textoDeRelleno(out.testigo.nombres)) errores.push('Escribe el nombre del testigo (sin datos de relleno)');
+    if (out.testigo.apellidos.length < 2 || textoDeRelleno(out.testigo.apellidos)) errores.push('Escribe el apellido del testigo (sin datos de relleno)');
+    if (out.testigo.cedula.length < 5 || documentoDeRelleno(out.testigo.cedula)) errores.push('Escribe la cédula del testigo');
+    if (!telefonoValido(out.testigo.telefono)) errores.push('Teléfono del testigo: ' + ERROR_TELEFONO);
   }
   return out;
 }
@@ -225,7 +295,7 @@ function _numero(v, decimal) {
 
 function _valoracion(v, errores) {
   const out = {
-    via_aerea: enumv(v.via_aerea, VIA_AEREA),
+    via_aerea: enumv(v.via_aerea === 'PERMEABLE' ? 'ADECUADA' : v.via_aerea, VIA_AEREA),
     respiracion: enumv(v.respiracion, RESPIRACION),
     circulacion: enumv(v.circulacion, CIRCULACION),
     neuro: enumv(v.neuro, NEURO),
@@ -243,25 +313,34 @@ function _valoracion(v, errores) {
   return out;
 }
 
-function _signos(s, errores) {
+function _signos(s, errores, prefijo) {
+  const pre = prefijo || '';
+  const err = m => errores.push(pre ? pre + m.charAt(0).toLowerCase() + m.slice(1) : m);
   const out = { hora: RE_HORA.test(s.hora) ? s.hora : '' };
-  if (!out.hora) errores.push('Escribe la hora de la toma de signos vitales (HH:MM)');
+  if (!out.hora) err('Escribe la hora de la toma de signos vitales (HH:MM)');
   SIGNOS.forEach(([k, min, max, req, nombre]) => {
     const n = _numero(s[k], k === 'temp');
     if (n === null) {
       out[k] = null;
-      if (req) errores.push(`Registra ${nombre}`);
+      if (req) err(`Registra ${nombre}`);
     } else if (isNaN(n) || n < min || n > max) {
       out[k] = null;
-      errores.push(`El valor de ${nombre} no es válido (entre ${min} y ${max})`);
+      err(`El valor de ${nombre} no es válido (entre ${min} y ${max})`);
     } else {
       out[k] = n;
     }
   });
   if (out.ta_sis !== null && out.ta_dia !== null && out.ta_dia >= out.ta_sis) {
-    errores.push('La tensión diastólica debe ser menor que la sistólica');
+    err('La tensión diastólica debe ser menor que la sistólica');
   }
   return out;
+}
+
+// Tomas adicionales de signos vitales (novedades): hasta 2
+function _tomasExtra(lista, errores) {
+  if (!Array.isArray(lista)) return [];
+  if (lista.length > MAX_TOMAS_EXTRA) errores.push(`Máximo ${MAX_TOMAS_EXTRA + 1} tomas de signos vitales en total`);
+  return lista.slice(0, MAX_TOMAS_EXTRA).map((t, i) => _signos(obj(t), errores, `Toma ${i + 2} de signos: `));
 }
 
 function _glasgow(g, errores) {
@@ -280,8 +359,9 @@ function _examen(e) {
   return out;
 }
 
-// responsables: personas válidas como responsable { id: { id, nombre, rol } }
-function _procedimientos(lista, responsables, errores) {
+// responsable: { id, nombre, rol } — el médico del evento si hay; si no,
+// quien diligencia la HC (regla del cliente: ya no se elige)
+function _procedimientos(lista, responsable, errores) {
   if (!Array.isArray(lista)) return [];
   if (lista.length > MAX_PROCEDIMIENTOS) errores.push(`Máximo ${MAX_PROCEDIMIENTOS} procedimientos`);
   return lista.slice(0, MAX_PROCEDIMIENTOS).map((p, i) => {
@@ -290,13 +370,10 @@ function _procedimientos(lista, responsables, errores) {
     const out = {
       hora: RE_HORA.test(p.hora) ? p.hora : '',
       descripcion: txtLargo(p.descripcion, 500),
-      responsable: null
+      responsable: responsable ? { id: responsable.id, nombre: responsable.nombre, rol: responsable.rol } : null
     };
     if (!out.hora) errores.push(`Procedimiento ${n}: escribe la hora (HH:MM)`);
     if (out.descripcion.length < 3) errores.push(`Procedimiento ${n}: describe el procedimiento realizado`);
-    const r = responsables[String(p.responsable_id)];
-    if (r) out.responsable = { id: r.id, nombre: r.nombre, rol: r.rol };
-    else errores.push(`Procedimiento ${n}: elige el responsable`);
     return out;
   });
 }
@@ -327,14 +404,14 @@ function _cierre(c, rechazo, lugarOrigen, errores) {
       movil: mayus(t.movil, 30).replace(/[^A-Z0-9 -]/g, ''),
       placa: mayus(t.placa, 10).replace(/[^A-Z0-9-]/g, ''),
       conductor: mayus(t.conductor, 120),
-      telefono: digitos(t.telefono).slice(0, 15)
+      telefono: telefono(t.telefono)
     };
     if (out.traslado.destino.length < 3) errores.push('Traslado: escribe el destino (a dónde se remite el paciente)');
     if (!out.traslado.ambulancia) errores.push('Traslado: selecciona el tipo de ambulancia');
     if (!out.traslado.movil) errores.push('Traslado: escribe el número del móvil');
     if (out.traslado.placa.length < 5) errores.push('Traslado: escribe la placa de la ambulancia');
-    if (out.traslado.conductor.length < 3) errores.push('Traslado: escribe el nombre del conductor');
-    if (out.traslado.telefono.length < 7) errores.push('Traslado: escribe el teléfono (al menos 7 dígitos)');
+    if (out.traslado.conductor.length < 3 || textoDeRelleno(out.traslado.conductor)) errores.push('Traslado: escribe el nombre del conductor (sin datos de relleno)');
+    if (!telefonoValido(out.traslado.telefono)) errores.push('Traslado: teléfono — ' + ERROR_TELEFONO);
   }
   return out;
 }
@@ -350,7 +427,8 @@ function _responsables(r, medicos, enfermero, firmasIn, errores) {
     responsable_principal: medicos.length ? 'medico' : 'enfermero'
   };
   if (medicos.length) {
-    const m = medicos.find(x => String(x.id) === String(r.medico_id));
+    // Un solo médico por evento (regla del cliente): queda elegido solo
+    const m = medicos.length === 1 ? medicos[0] : medicos.find(x => String(x.id) === String(r.medico_id));
     if (!m) errores.push('Selecciona el médico responsable de la atención');
     else {
       out.medico = { id: m.id, nombre: m.nombre, cedula: m.cedula };
@@ -369,6 +447,8 @@ function _responsables(r, medicos, enfermero, firmasIn, errores) {
 //                 unidad, bodega, fecha }
 //   enviados: datos.medicamentos de la tablet
 //   enfermero: { id, nombre }
+//   medico: { id, nombre } o null — responsable de los MEDICAMENTOS si la HC
+//           tiene médico; los insumos son de quien diligencia
 const VIAS = ['VO', 'IV', 'IM', 'SC', 'SL', 'TOPICA', 'INHALADA', 'OTRA'];
 const COLOMBIA_OFFSET_MS = 5 * 3600 * 1000;
 function _horaCO(fecha) {
@@ -383,7 +463,7 @@ function esFamiliaMedicamento(familia) {
   return f === 'MED' || f.startsWith('MEDICAMENT') || f.startsWith('FARMAC');
 }
 
-function normalizarMedicamentos(movs, enviados, enfermero) {
+function normalizarMedicamentos(movs, enviados, enfermero, medico) {
   const errores = [];
   const porId = {};
   (Array.isArray(enviados) ? enviados : []).forEach(e => { e = obj(e); if (typeof e.client_id === 'string') porId[e.client_id] = e; });
@@ -406,7 +486,7 @@ function normalizarMedicamentos(movs, enviados, enfermero) {
       via: esMed ? enumv(e.via, VIAS) : '',
       via_otra: '',
       hora: RE_HORA.test(e.hora) ? e.hora : _horaCO(m.fecha),
-      responsable: { id: enfermero.id, nombre: enfermero.nombre }
+      responsable: esMed && medico ? { id: medico.id, nombre: medico.nombre } : { id: enfermero.id, nombre: enfermero.nombre }
     };
     if (esMed) {
       if (!out.dosis) errores.push(`${m.nombre}: escribe la dosis administrada`);
@@ -431,14 +511,13 @@ function normalizarMedicamentos(movs, enviados, enfermero) {
 // Normaliza y valida la HC completa.
 //   cuerpo: { datos, firmas } tal como los envía la tablet
 //   fechaAtencion: 'YYYY-MM-DD' (hora de Colombia) del inicio de la atención
-//   contexto: { responsables } — personas que pueden figurar como responsables
-//             de un procedimiento (médicos del evento y el enfermero)
+//   contexto: { medicos, enfermero, lugar } — médicos del evento (máximo uno)
+//             y quien diligencia
 // Devuelve { datos, firmas, errores }
 function normalizarHC(cuerpo, fechaAtencion, contexto) {
   const errores = [];
   const d = obj(cuerpo && cuerpo.datos);
   const firmasIn = obj(cuerpo && cuerpo.firmas);
-  const responsables = (contexto && contexto.responsables) || {};
 
   const paciente = _paciente(obj(d.paciente), fechaAtencion, errores);
   const datos = {
@@ -452,20 +531,24 @@ function normalizarHC(cuerpo, fechaAtencion, contexto) {
   // valoración, examen, triage ni procedimientos
   if (datos.consentimiento.decision === 'rechaza') {
     datos.valoracion = null; datos.signos = null; datos.glasgow = null;
-    datos.examen = null; datos.triage = null; datos.procedimientos = [];
+    datos.examen = null; datos.triage = null; datos.procedimientos = []; datos.signos_tomas = [];
   } else {
     datos.valoracion = _valoracion(obj(d.valoracion), errores);
     datos.signos = _signos(obj(d.signos), errores);
+    datos.signos_tomas = _tomasExtra(d.signos_tomas, errores);
     datos.glasgow = _glasgow(obj(d.glasgow), errores);
     datos.examen = _examen(obj(d.examen));
     datos.triage = enumv(d.triage, TRIAGE);
     if (!datos.triage) errores.push('Selecciona la clasificación de triage');
-    datos.procedimientos = _procedimientos(d.procedimientos, responsables, errores);
   }
   // Módulo 7: cierre y responsables
   const ctx = contexto || {};
   datos.cierre = _cierre(obj(d.cierre), datos.consentimiento.decision === 'rechaza', ctx.lugar || '', errores);
   datos.responsables = _responsables(obj(d.responsables), ctx.medicos || [], ctx.enfermero || {}, firmasIn, errores);
+  // Procedimientos: responsable el médico (si hay) o quien diligencia
+  if (datos.consentimiento.decision !== 'rechaza') {
+    datos.procedimientos = _procedimientos(d.procedimientos, responsableProcedimientos(datos.responsables), errores);
+  }
   // Entrega del paciente en la institución: la registra el administrador
   // después (solo cuando hubo traslado asistencial)
   datos.entrega = null;
@@ -476,6 +559,14 @@ function normalizarHC(cuerpo, fechaAtencion, contexto) {
   if (datos.responsables.medico && firmaValida(firmasIn.medico)) firmas.medico = firmasIn.medico;
   if (firmaValida(firmasIn.enfermero)) firmas.enfermero = firmasIn.enfermero;
   return { datos, firmas, errores };
+}
+
+// Responsable de los procedimientos y de los medicamentos: el médico de la
+// HC si hay; si no, quien la diligencia
+function responsableProcedimientos(resp) {
+  if (resp && resp.medico) return { id: resp.medico.id, nombre: resp.medico.nombre, rol: 'MÉDICO' };
+  const e = (resp && resp.enfermero) || {};
+  return { id: e.id, nombre: e.nombre, rol: 'ENFERMERO/A' };
 }
 
 // ── Módulo admin ──
@@ -543,6 +634,33 @@ function diferencias(antes, despues) {
     .map(r => ({ campo: r, antes: a[r] === undefined ? null : a[r], despues: b[r] === undefined ? null : b[r] }));
 }
 
+// ── Supervisor (nivel 3): ve las HC sin los datos que identifican al
+// paciente y al acompañante ──
+const CONFIDENCIAL = 'CONFIDENCIAL';
+const RE_CAMPO_CONFIDENCIAL = /^(paciente\.(nombres|apellidos|documento|telefono|direccion)|acompanante\.(nombre|telefono))$/;
+function hcConfidencial(h) {
+  const out = { ...h, paciente_nombre: CONFIDENCIAL, paciente_documento: h.paciente_documento ? CONFIDENCIAL : h.paciente_documento };
+  if (h.datos) {
+    const d = JSON.parse(JSON.stringify(h.datos));
+    if (d.paciente) {
+      d.paciente.nombres = CONFIDENCIAL; d.paciente.apellidos = '';
+      ['documento', 'telefono', 'direccion'].forEach(k => { if (d.paciente[k]) d.paciente[k] = CONFIDENCIAL; });
+    }
+    if (d.acompanante && d.acompanante.tiene) {
+      ['nombre', 'telefono'].forEach(k => { if (d.acompanante[k]) d.acompanante[k] = CONFIDENCIAL; });
+    }
+    out.datos = d;
+  }
+  if (Array.isArray(h.cambios)) {
+    out.cambios = h.cambios.map(c => ({
+      ...c,
+      cambios: (Array.isArray(c.cambios) ? c.cambios : []).map(x => RE_CAMPO_CONFIDENCIAL.test(x && x.campo)
+        ? { ...x, antes: x.antes ? CONFIDENCIAL : x.antes, despues: x.despues ? CONFIDENCIAL : x.despues } : x)
+    }));
+  }
+  return out;
+}
+
 // Estado con que queda la HC al recibirla: abierta si hubo traslado
 // asistencial (falta registrar la entrega en la institución), si no cerrada
 function estadoInicial(datos) {
@@ -551,6 +669,11 @@ function estadoInicial(datos) {
 
 module.exports = {
   normalizarHC, normalizarMedicamentos, estadoInicial, calcularEdad, firmaValida, VIAS,
+  textoDeRelleno, telefonoValido, telefono, documentoDeRelleno, hcConfidencial, CONFIDENCIAL, responsableProcedimientos, MAX_TOMAS_EXTRA, TIPOS_PACIENTE,
+  // Para las novedades de la tablet (src/routes/hc.js)
+  signosNovedad: (s, errores, prefijo) => _signos(obj(s), errores, prefijo),
+  procedimientosNovedad: (lista, responsable, errores) => _procedimientos(lista, responsable, errores),
+  cierreNovedad: (c, rechazo, lugar, errores) => _cierre(obj(c), rechazo, lugar, errores),
   normalizarEntrega, aFormaDeEnvio, diferencias, esFamiliaMedicamento, NO_APLICA,
   CONDICIONES, DESTINOS, AMBULANCIAS,
   NO_REFIERE, ESTADO_ADECUADO, TEXTO_CONSENTIMIENTO, TIPOS_DOC, SEGMENTOS

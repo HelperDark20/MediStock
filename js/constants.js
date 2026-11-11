@@ -39,7 +39,9 @@ const NIVELES = {
   // Médico: sin acceso a la app (solo se asigna a eventos para la historia clínica)
   1:{label:'Médico',cls:'n1',nav:[]},
   2:{label:'Enfermero/a',cls:'n2',nav:['dashboard','inventario','movimientos','trazabilidad']},
-  3:{label:'Supervisor',cls:'n3',nav:['dashboard','inventario','movimientos','registro','trazabilidad']},
+  // Supervisor: movimientos solo traslados; Asistencias completo; Historias
+  // clínicas solo consulta (datos del paciente CONFIDENCIAL), PDF y Excel
+  3:{label:'Supervisor',cls:'n3',nav:['dashboard','inventario','movimientos','registro','asistencia','historias','trazabilidad']},
   4:{label:'Administrador',cls:'n4',nav:['dashboard','inventario','movimientos','registro','sku','usuarios','bodegas','eventos','asistencia','historias','segstock','reportes','trazabilidad']}
 };
 

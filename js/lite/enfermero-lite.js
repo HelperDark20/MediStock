@@ -36,7 +36,9 @@
      nb_cola_U           consumos pendientes de sincronizar
      nb_evento_U         evento elegido cuando tiene varios en curso
      nb_hc_U             historias clínicas en curso / pendientes de envío
-     nb_hcenv_U          consecutivos de las HC ya enviadas (sin datos del paciente)
+     nb_hcenv_U          HC ya enviadas; mientras su evento esté activo, con una
+                         copia (sin firmas) para registrar novedades
+     nb_hcnov_U          novedades de HC enviadas, en curso o pendientes de envío
    ══════════════════════════════════════════ */
 (function(){
   'use strict';
@@ -610,6 +612,8 @@
     var t = r.enviadas ? (r.enviadas === 1 ? 'Se envió' : 'Se enviaron') + ' <strong>' + plural(r.enviadas, 'historia clínica', 'historias clínicas') + '</strong>. ' : '';
     if(r.sinRed) t += 'Sin conexión: quedan historias clínicas pendientes de envío. ';
     if(r.errores) t += '<strong>' + plural(r.errores, 'historia clínica fue rechazada', 'historias clínicas fueron rechazadas') + '</strong>: ábrela en "Mis historias clínicas" para ver el motivo y corregirla. ';
+    if(r.novedades) t += (r.novedades === 1 ? 'Se envió' : 'Se enviaron') + ' <strong>' + plural(r.novedades, 'novedad', 'novedades') + '</strong>. ';
+    if(r.errores_nov) t += '<strong>' + plural(r.errores_nov, 'novedad fue rechazada', 'novedades fueron rechazadas') + '</strong>: ábrela en "Enviadas en este evento" para ver el motivo. ';
     return t;
   }
 
@@ -620,14 +624,14 @@
     HCLite.mostrarInicio();
     var quedanConsumos = leerCola(st.usuario.id).length;
     var quedanHC = HCLite.contar(st.usuario.id).porEnviar;
-    var incompleto = rc.sinRed || rc.errores || quedanConsumos || quedanHC || (rh && rh.errores);
+    var incompleto = rc.sinRed || rc.errores || quedanConsumos || quedanHC || (rh && (rh.errores || rh.errores_nov));
     var t = '';
     if(rc.ok) t += 'Se subieron <strong>' + plural(rc.ok, 'consumo', 'consumos') + '</strong>. ';
     if(rc.errores) t += '<strong>' + plural(rc.errores, 'consumo no se pudo registrar', 'consumos no se pudieron registrar') + '</strong>: ábrelos en el módulo 6 de su historia clínica para ver el motivo. ';
     if(rc.sinRed) t += 'Sin conexión: lo pendiente sigue guardado en la tablet; sincroniza cuando tengas señal. ';
     else if(rc.error) t += escHtml(rc.error) + ' ';
     t += resumenHC(rh);
-    if(!incompleto) t += 'Los datos de los pacientes se borraron de esta tablet.';
+    if(!incompleto) t += 'Todo quedó en el servidor. Los datos de las historias clínicas se borran de esta tablet cuando finaliza el evento.';
     modal(incompleto ? 'Sincronización incompleta' : 'Sincronización completa', t,
       !incompleto && st.offline
         ? [{ texto: 'Seguir offline' }, { texto: 'Volver a en línea', clase: 'primario', accion: volverEnLinea }]

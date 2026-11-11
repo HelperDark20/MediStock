@@ -46,6 +46,18 @@
   function leerJSON(k){ try { return JSON.parse(leer(k) || 'null'); } catch(e){ return null; } }
   function guardarJSON(k, v){ return guardar(k, v === null ? null : JSON.stringify(v)); }
   function nuevoId(){ return 'dc' + new Date().getTime().toString(36) + Math.random().toString(36).slice(2, 10); }
+
+  // Identificador propio de esta tablet (queda en su navegador): cada marca
+  // lo lleva, junto con la IP, para el consolidado "Dispositivos e IP" del
+  // administrador. Solo identifica; no bloquea.
+  function dispositivo(){
+    var d = leer('dc_dispositivo');
+    if(!d || !/^[A-Za-z0-9_-]{12,64}$/.test(d)){
+      d = 'tb' + new Date().getTime().toString(36) + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
+      guardar('dc_dispositivo', d);
+    }
+    return d;
+  }
   function dos(n){ return (n < 10 ? '0' : '') + n; }
   // Hora de Colombia (UTC-5, sin horario de verano)
   function enCO(fecha){ return new Date(new Date(fecha).getTime() - COLOMBIA_MS); }
@@ -85,6 +97,7 @@
     x.setRequestHeader('Content-Type', 'application/json');
     var token = leer('dc_token');
     if(token) x.setRequestHeader('Authorization', 'Bearer ' + token);
+    x.setRequestHeader('X-Dispositivo', dispositivo());
     x.timeout = 30000;
     x.onreadystatechange = function(){
       if(x.readyState !== 4) return;
@@ -119,7 +132,7 @@
     if(!usuario || !pass){ error('dc-activar-error', 'Escribe el usuario y la contraseña de la tablet'); return; }
     var btn = $('dc-activar-btn');
     btn.disabled = true; btn.textContent = 'Activando…';
-    api('POST', '/api/asistencia/kiosco/login', { usuario: usuario, password: pass }, function(err, r){
+    api('POST', '/api/asistencia/kiosco/login', { usuario: usuario, password: pass, dispositivo: dispositivo() }, function(err, r){
       btn.disabled = false; btn.textContent = 'Activar tablet';
       if(err){ error('dc-activar-error', err.message); return; }
       guardar('dc_token', r.token);
@@ -238,14 +251,10 @@
   // ══════════════════════════════════════════
   // EVENTOS
   // ══════════════════════════════════════════
+  // El servidor manda solo los eventos EN CURSO (entre "Iniciar" y
+  // "Finalizar" evento): se marca en cualquiera de ellos
   function eventosVisibles(){
-    var hoy = fechaCO(ahora()), lista = [], evs = (st.paquete && st.paquete.eventos) || [];
-    for(var i = 0; i < evs.length; i++){
-      var e = evs[i], tieneAbiertas = false;
-      for(var u in st.abiertas) if(st.abiertas.hasOwnProperty(u) && st.abiertas[u].evento_id === e.id) tieneAbiertas = true;
-      if((e.fecha_inicio <= hoy && e.fecha_fin >= hoy) || tieneAbiertas) lista.push(e);
-    }
-    return lista;
+    return ((st.paquete && st.paquete.eventos) || []).slice();
   }
   function buscarEvento(id){
     var evs = (st.paquete && st.paquete.eventos) || [];
@@ -264,7 +273,7 @@
     detenerCamara();
     var lista = eventosVisibles();
     if(!lista.length){
-      estado('No hay eventos vigentes hoy para marcar asistencia.<br>Revisa las fechas del evento en el panel admin.' +
+      estado('No hay eventos en curso para marcar asistencia.<br>La asistencia se marca desde que el administrador pulsa <b>Iniciar evento</b> hasta que lo finaliza (y el evento debe tener personal cargado).' +
         '<button class="dc-btn" type="button" data-accion="reintentar">Actualizar</button>');
       return;
     }
@@ -343,10 +352,6 @@
     if(ab){
       if(ahora().getTime() - new Date(ab.entrada_at).getTime() <= MAX_JORNADA_MS) abierta = ab;
       else { delete st.abiertas[p.cedula]; guardarJSON('dc_abiertas', st.abiertas); }
-    }
-    if(!abierta && !(e.fecha_inicio <= fechaCO(ahora()) && e.fecha_fin >= fechaCO(ahora()))){
-      error('dc-marcar-error', 'Este evento ya no admite entradas (terminó el ' + fmtFecha(e.fecha_fin) + ')');
-      return;
     }
     st.persona = p; st.abierta = abierta; st.accion = abierta ? 'salida' : 'entrada';
     st.fase = 'pin'; st.pin = '';
@@ -560,7 +565,7 @@
       if(!st.cola.length){ terminar(false); return; }
       var envio = st.cola.slice(0, LOTE), ahoraMs = new Date().getTime();
       for(var i = 0; i < envio.length; i++) envio[i].offline = ahoraMs - new Date(envio[i].fecha).getTime() > 120000;
-      api('POST', '/api/asistencia/kiosco/marcas', { marcas: envio, reloj_tablet: new Date().toISOString() }, function(err, r){
+      api('POST', '/api/asistencia/kiosco/marcas', { marcas: envio, reloj_tablet: new Date().toISOString(), dispositivo: dispositivo() }, function(err, r){
         if(err){
           if(sesionCerrada(err)){ st.enviando = false; pantallaActivar(err.message); return; }
           terminar(true, err);

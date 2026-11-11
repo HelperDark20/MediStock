@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0A1628">
+<title>Nova Bridge — Editar historias clínicas</title>
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="stylesheet" href="css/enfermero-lite.css">
+<link rel="stylesheet" href="css/hc-editor.css">
+</head>
+<body>
+<!--
+  Editar historias clínicas (solo administrador, nivel 4). Página aparte del
+  WMS: el mismo editor por módulos del panel de enfermero (js/lite/hc-lite.js
+  en modo administrador) con TODAS las historias clínicas y sus filtros. Cada
+  corrección se guarda con motivo y queda en el historial de cambios.
+  Aquí también se corrige la clasificación para el reporte (diagnóstico,
+  categoría, procedimiento y triage).
+  La sesión es la misma del WMS (nb_token).
+-->
+<div class="lt-screen on" id="lt-app">
+  <div class="lt-header">
+    <div class="lt-header-logo">
+      <div class="lt-header-title">N O V A</div>
+      <div class="lt-header-wms">WMS-HC</div>
+    </div>
+    <div class="lt-header-user"><span class="lt-avatar" id="lt-avatar">AD</span><span id="lt-nombre"></span></div>
+    <button class="lt-header-btn" type="button" id="hce-cerrar">Volver al WMS</button>
+  </div>
+
+  <div class="lt-body">
+    <div class="lt-state" id="lt-state"></div>
+
+    <div class="lt-tabpanel on" id="lt-tab-hc">
+      <!-- Listado con filtros -->
+      <div id="lt-hc-inicio" class="on">
+        <div class="lt-card">
+          <div class="lt-card-title">Editar historias clínicas</div>
+          <div class="lt-muted">Todas las historias clínicas. Ábrela para corregir cualquier dato (agregar medicamentos o insumos, procedimientos, tomas de signos…). Al guardar se pide el motivo y queda en el historial de cambios.</div>
+          <div class="hce-filtros">
+            <label>Desde<input class="lt-input" type="date" id="hce-desde"></label>
+            <label>Hasta<input class="lt-input" type="date" id="hce-hasta"></label>
+            <label>Cédula, nombre o consecutivo<input class="lt-input" type="text" id="hce-documento" placeholder="Ej. 1006166884" autocomplete="off"></label>
+            <label>Evento<select class="lt-input" id="hce-evento"></select></label>
+            <label>Ubicación<select class="lt-input" id="hce-ubicacion"></select></label>
+            <label>Estado<select class="lt-input" id="hce-estado">
+              <option value="">Todos</option>
+              <option value="abierta">Abierta (falta entrega)</option>
+              <option value="cerrada">Cerrada</option>
+              <option value="firma_pendiente">Firma médica pendiente</option>
+            </select></label>
+          </div>
+          <div class="hce-botones">
+            <button type="button" class="lt-btn" id="hce-buscar">Buscar</button>
+            <button type="button" class="lt-btn-sec" id="hce-limpiar">Limpiar</button>
+          </div>
+        </div>
+        <div class="lt-card">
+          <div class="lt-card-title" id="hce-resumen">Historias clínicas</div>
+          <div id="hce-lista"></div>
+          <div class="hce-paginas" id="hce-paginas"></div>
+        </div>
+      </div>
+
+      <!-- Editor (js/lite/hc-lite.js en modo administrador) -->
+      <div id="lt-hc-editor">
+        <div class="lt-hc-top">
+          <button type="button" class="lt-btn-sec" data-hc="volver">‹ Historias clínicas</button>
+          <div class="lt-hc-titulo" id="lt-hc-titulo"></div>
+        </div>
+        <div class="lt-hc-guardado" id="lt-hc-guardado"></div>
+        <!-- Clasificación para el reporte (js/hc-editor.js) -->
+        <div class="lt-card hce-clasif" id="hce-clasif"></div>
+        <div class="lt-pasos" id="lt-hc-pasos"></div>
+        <div class="lt-error" id="lt-hc-errores"></div>
+        <div id="lt-hc-modulo"></div>
+        <div class="lt-hc-nav">
+          <button type="button" class="lt-btn-sec lt-hc-anterior" id="lt-hc-anterior" data-hc="anterior">‹ Anterior</button>
+          <button type="button" class="lt-btn lt-hc-siguiente" id="lt-hc-siguiente" data-hc="siguiente">Siguiente ›</button>
+        </div>
+      </div>
+      <div id="lt-hc-lista"></div>
+    </div>
+  </div>
+</div>
+
+<div class="lt-modal-fondo" id="lt-modal">
+  <div class="lt-modal">
+    <div class="lt-modal-titulo" id="lt-modal-titulo"></div>
+    <div class="lt-modal-cuerpo" id="lt-modal-cuerpo"></div>
+    <div class="lt-modal-botones" id="lt-modal-botones"></div>
+  </div>
+</div>
+
+<!-- Corregir la clasificación para el reporte -->
+<div class="lt-modal-fondo" id="hce-clas-modal">
+  <div class="lt-modal hce-clas-modal" role="dialog" aria-labelledby="hce-clas-titulo">
+    <div class="lt-modal-titulo" id="hce-clas-titulo">Corregir clasificación</div>
+    <div class="lt-muted">Lo que sale en el Reporte Excel para esta historia clínica. El diagnóstico define la categoría y el nivel de triage queda también en la historia clínica.</div>
+    <label class="lt-label" for="hce-clas-diag">Diagnóstico</label>
+    <select class="lt-input" id="hce-clas-diag"></select>
+    <label class="lt-label">Nivel de triage</label>
+    <div class="hce-clas-triage" id="hce-clas-triage"></div>
+    <label class="lt-label">Procedimientos <span class="lt-gris" id="hce-clas-cuenta"></span></label>
+    <div class="hce-clas-procs" id="hce-clas-procs"></div>
+    <div class="lt-proc-error" id="hce-clas-error" style="display:none"></div>
+    <div class="lt-modal-botones">
+      <button type="button" class="lt-btn-sec" id="hce-clas-cancelar">Cancelar</button>
+      <button type="button" class="lt-btn-sec primario" id="hce-clas-guardar">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- La firma no se edita aquí, pero el editor espera el panel -->
+<div class="lt-firma-fondo" id="lt-firma">
+  <div class="lt-firma-barra"><span class="lt-firma-titulo" id="lt-firma-titulo">Firma</span></div>
+  <div class="lt-firma-zona" id="lt-firma-zona"><canvas id="lt-firma-canvas"></canvas></div>
+</div>
+
+<div class="lt-toast" id="lt-toast"></div>
+
+<script src="js/lite/hc-lite.js"></script>
+<script src="js/hc-editor.js"></script>
+</body>
+</html>

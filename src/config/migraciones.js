@@ -217,6 +217,74 @@ const MIGRACIONES = [
   'CREATE INDEX IF NOT EXISTS asistencia_personal_idx ON asistencia_jornadas (personal_id)',
   'CREATE INDEX IF NOT EXISTS asistencia_evento_idx ON asistencia_jornadas (evento_id, entrada_at)',
   'CREATE INDEX IF NOT EXISTS asistencia_entrada_idx ON asistencia_jornadas (entrada_at)',
+  // Asistencia v3: varias cuentas de tablets (se crean, editan y eliminan;
+  // eliminar = activo false para conservar el rastro) y cada marca guarda la
+  // IP, el dispositivo (identificador propio de cada tablet, con nombre que
+  // le pone el admin) y la cuenta con que se hizo. Solo identifica: no bloquea.
+  'ALTER TABLE asistencia_cuentas ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()',
+  'ALTER TABLE asistencia_cuentas ADD COLUMN IF NOT EXISTS ultimo_ingreso_at TIMESTAMPTZ',
+  'ALTER TABLE asistencia_cuentas DROP CONSTRAINT IF EXISTS asistencia_cuentas_usuario_key',
+  "CREATE UNIQUE INDEX IF NOT EXISTS asistencia_cuentas_usuario_activa ON asistencia_cuentas (usuario) WHERE activo = true",
+  `CREATE TABLE IF NOT EXISTS asistencia_dispositivos (
+     id SERIAL PRIMARY KEY,
+     codigo TEXT NOT NULL UNIQUE,
+     nombre TEXT,
+     cuenta_id INTEGER REFERENCES asistencia_cuentas(id),
+     primera_vez_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+     ultima_vez_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+     ultima_ip TEXT,
+     navegador TEXT
+   )`,
+  'ALTER TABLE asistencia_jornadas ADD COLUMN IF NOT EXISTS entrada_ip TEXT',
+  'ALTER TABLE asistencia_jornadas ADD COLUMN IF NOT EXISTS salida_ip TEXT',
+  'ALTER TABLE asistencia_jornadas ADD COLUMN IF NOT EXISTS entrada_dispositivo_id INTEGER REFERENCES asistencia_dispositivos(id)',
+  'ALTER TABLE asistencia_jornadas ADD COLUMN IF NOT EXISTS salida_dispositivo_id INTEGER REFERENCES asistencia_dispositivos(id)',
+  'ALTER TABLE asistencia_jornadas ADD COLUMN IF NOT EXISTS entrada_cuenta_id INTEGER REFERENCES asistencia_cuentas(id)',
+  'ALTER TABLE asistencia_jornadas ADD COLUMN IF NOT EXISTS salida_cuenta_id INTEGER REFERENCES asistencia_cuentas(id)',
+
+  // Horas del evento (reporte de HC: atención PRE / IN / POST) y ubicación de
+  // cada enfermero dentro del evento (texto que escribe el administrador)
+  'ALTER TABLE eventos ADD COLUMN IF NOT EXISTS hora_inicio TEXT',
+  'ALTER TABLE eventos ADD COLUMN IF NOT EXISTS hora_fin TEXT',
+  'ALTER TABLE evento_usuarios ADD COLUMN IF NOT EXISTS ubicacion TEXT',
+  // Clasificación de cada HC para el reporte (diagnóstico, categoría,
+  // procedimientos y triage, por IA) y catálogos que la IA usa y amplía
+  'ALTER TABLE historias_clinicas ADD COLUMN IF NOT EXISTS clasificacion JSONB',
+  'ALTER TABLE historias_clinicas ADD COLUMN IF NOT EXISTS clasificada_at TIMESTAMPTZ',
+  'ALTER TABLE historias_clinicas ADD COLUMN IF NOT EXISTS clasificacion_error TEXT',
+  'ALTER TABLE historias_clinicas ADD COLUMN IF NOT EXISTS clasificacion_intentos INTEGER NOT NULL DEFAULT 0',
+  // El triage de la HC lo define la IA; el que marcó el enfermero queda aquí
+  // (solo para auditoría, no se muestra). triage_fijo: el administrador lo
+  // puso a mano y la IA ya no lo cambia (hasta "Volver a clasificar con IA").
+  'ALTER TABLE historias_clinicas ADD COLUMN IF NOT EXISTS triage_enfermero TEXT',
+  'ALTER TABLE historias_clinicas ADD COLUMN IF NOT EXISTS triage_fijo BOOLEAN NOT NULL DEFAULT false',
+  `CREATE TABLE IF NOT EXISTS hc_diagnosticos (
+     id SERIAL PRIMARY KEY,
+     nombre TEXT NOT NULL,
+     clave TEXT NOT NULL UNIQUE,
+     categoria TEXT NOT NULL,
+     origen TEXT NOT NULL DEFAULT 'tabla',
+     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   )`,
+  `CREATE TABLE IF NOT EXISTS hc_procedimientos_catalogo (
+     id SERIAL PRIMARY KEY,
+     nombre TEXT NOT NULL,
+     clave TEXT NOT NULL UNIQUE,
+     origen TEXT NOT NULL DEFAULT 'tabla',
+     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   )`,
+
+  // Novedades de la HC desde la tablet (signos, procedimientos, consumos,
+  // evolución): el client_id evita aplicar dos veces la misma
+  `CREATE TABLE IF NOT EXISTS hc_novedades (
+     id SERIAL PRIMARY KEY,
+     client_id TEXT NOT NULL UNIQUE,
+     hc_id INTEGER NOT NULL REFERENCES historias_clinicas(id),
+     usuario_id INTEGER REFERENCES usuarios(id),
+     creada_at TIMESTAMPTZ,
+     recibida_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+     contenido JSONB
+   )`,
 
   // Registro de las migraciones que deben correr UNA sola vez
   'CREATE TABLE IF NOT EXISTS migraciones_aplicadas (nombre TEXT PRIMARY KEY, aplicada_at TIMESTAMPTZ NOT NULL DEFAULT NOW())',
@@ -266,6 +334,43 @@ const MIGRACIONES_UNICAS = [
       }
     }
   },
+  {
+    // Catálogo del reporte sin abreviaturas: renombra en el catálogo y en las
+    // clasificaciones ya guardadas ("Fractura MI" → "Fractura miembro inferior")
+    nombre: 'hc_catalogo_sin_abreviaturas',
+    fn: async (client) => {
+      const { RENOMBRADOS, DIAGNOSTICOS, clave } = require('../data/hc-catalogos');
+      for (const [viejo, nuevo] of RENOMBRADOS) {
+        const cat = (DIAGNOSTICOS.find(d => d[0] === nuevo) || [])[1];
+        if (cat) {
+          await client.query('DELETE FROM hc_diagnosticos WHERE clave = $1', [clave(viejo)]);
+          await client.query('INSERT INTO hc_diagnosticos (nombre, clave, categoria) VALUES ($1, $2, $3) ON CONFLICT (clave) DO NOTHING', [nuevo, clave(nuevo), cat]);
+        } else {
+          await client.query('DELETE FROM hc_procedimientos_catalogo WHERE clave = $1', [clave(viejo)]);
+          await client.query('INSERT INTO hc_procedimientos_catalogo (nombre, clave) VALUES ($1, $2) ON CONFLICT (clave) DO NOTHING', [nuevo, clave(nuevo)]);
+        }
+      }
+      const r = await client.query('SELECT id, clasificacion FROM historias_clinicas WHERE clasificacion IS NOT NULL');
+      for (const h of r.rows) {
+        const c = h.clasificacion;
+        let cambio = false;
+        for (const [viejo, nuevo] of RENOMBRADOS) {
+          if (c.diagnostico === viejo) { c.diagnostico = nuevo; cambio = true; }
+          if (Array.isArray(c.procedimientos)) c.procedimientos = c.procedimientos.map(p => (p === viejo ? (cambio = true, nuevo) : p));
+        }
+        if (cambio) await client.query('UPDATE historias_clinicas SET clasificacion = $2 WHERE id = $1', [h.id, JSON.stringify(c)]);
+      }
+    }
+  },
+  {
+    // HC ya clasificadas: su triage pasa a ser el de la clasificación
+    nombre: 'hc_triage_desde_clasificacion',
+    sql: `UPDATE historias_clinicas
+          SET triage_enfermero = COALESCE(triage_enfermero, datos->>'triage'),
+              triage_fijo = (clasificacion ? 'corregida_por'),
+              datos = jsonb_set(datos, '{triage}', to_jsonb(clasificacion->>'triage'))
+          WHERE clasificacion IS NOT NULL AND datos->>'triage' IS NOT NULL AND clasificacion->>'triage' IS NOT NULL`
+  },
 ];
 
 // Lo informa GET /api/health, para comprobar tras desplegar que se aplicaron
@@ -303,19 +408,40 @@ async function _cargarMunicipios() {
   );
 }
 
+// Texto del error aunque venga sin mensaje (p. ej. AggregateError de conexión)
+function _textoError(err) {
+  if (!err) return 'desconocido';
+  return err.message || err.code ||
+    (Array.isArray(err.errors) && err.errors.map(e => e.message || e.code).filter(Boolean).join('; ')) || String(err);
+}
+
+// Al reiniciar el hosting arrancan varios procesos a la vez: si uno no logra
+// conectarse a la base o choca con otro, se reintenta (todo es idempotente)
+const INTENTOS_MIGRACION = 4;
 async function aplicarMigraciones() {
-  try {
-    for (const sql of MIGRACIONES) await pool.query(sql);
-    await _cargarMunicipios();
-    for (const m of MIGRACIONES_UNICAS) await _aplicarUnaVez(m);
-    estado.migraciones = 'ok';
-    console.log('Migraciones de base de datos al día');
-  } catch (err) {
-    estado.migraciones = 'error: ' + err.message;
-    // No se detiene el servidor (el resto de la app sigue funcionando), pero
-    // el registro de consumos usa estas columnas y FALLARÁ hasta corregirlo.
-    // Se ve en GET /api/health y en el log.
-    console.error('ERROR aplicando migraciones (los consumos fallarán hasta corregirlo):', err.message);
+  for (let intento = 1; intento <= INTENTOS_MIGRACION; intento++) {
+    try {
+      for (const sql of MIGRACIONES) await pool.query(sql);
+      await _cargarMunicipios();
+      // Catálogos de diagnósticos y procedimientos del reporte (solo agrega los que falten)
+      await require('../utils/clasificador-hc').cargarCatalogos(pool);
+      for (const m of MIGRACIONES_UNICAS) await _aplicarUnaVez(m);
+      estado.migraciones = 'ok';
+      console.log('Migraciones de base de datos al día');
+      return;
+    } catch (err) {
+      const texto = _textoError(err);
+      if (intento < INTENTOS_MIGRACION) {
+        console.error(`Migraciones: intento ${intento} falló (${texto}); se reintenta`);
+        await new Promise(r => setTimeout(r, 3000 * intento));
+        continue;
+      }
+      estado.migraciones = 'error: ' + texto;
+      // No se detiene el servidor (el resto de la app sigue funcionando), pero
+      // el registro de consumos usa estas columnas y FALLARÁ hasta corregirlo.
+      // Se ve en GET /api/health y en el log.
+      console.error('ERROR aplicando migraciones (los consumos fallarán hasta corregirlo):', texto);
+    }
   }
 }
 
