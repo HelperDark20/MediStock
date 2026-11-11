@@ -367,6 +367,14 @@ select.lt-input{ background:#fff url("data:image/svg+xml;utf8,<svg xmlns='http:/
 .lt-proc-cab strong{ float:left; padding-top:6px; }
 .lt-proc-cab .lt-link{ float:right; color:#C0392B; }
 .lt-btn-agregar{ min-height:48px; margin-top:4px; }
+/* Procedimientos guardados (como los medicamentos) con lápiz para editar */
+.lt-proc-item .lt-med-txt{ max-width:70%; }
+.lt-proc-item .lt-med-nombre{ font-size:14px; line-height:1.35; }
+.lt-proc-editar{ float:right; width:auto; min-height:40px; padding:6px 14px; margin:0; }
+.lt-proc-editar img{ width:16px; height:16px; vertical-align:-3px; margin-right:6px; }
+.lt-proc-botones{ overflow:hidden; margin-top:10px; }
+.lt-proc-botones button{ width:auto; float:left; margin:6px 8px 0 0; min-height:44px; }
+.lt-proc-error{ margin-top:8px; padding:8px 10px; border-radius:8px; background:#FDF0EF; color:#C0392B; font-size:13px; }
 .lt-chip-multi.sel{ background:#1A6B3C; border-color:#1A6B3C; }
 
 /* ══ HC módulo 6: medicamentos e insumos ══ */

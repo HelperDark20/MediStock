@@ -81,7 +81,9 @@ var HCLite = (function(){
   var EDAD_ESTADO_CIVIL = 15;
   // Tomas de signos: la de la atención + hasta 2 más (novedades)
   var MAX_TOMAS_EXTRA = 2;
-  var ERROR_TELEFONO = 'escribe un número colombiano de 10 dígitos (celular 3XX XXX XXXX o fijo 60X XXX XXXX)';
+  // Teléfono: nacional o extranjero (puede empezar con +), de 8 a 15 dígitos,
+  // sin 5 iguales seguidos (55555) ni 5 en escalera (12345 / 54321)
+  var ERROR_TELEFONO = 'escribe un número de mínimo 8 dígitos (nacional o extranjero), sin 5 números iguales o seguidos (55555, 12345)';
 
   // Módulo 4 — valoración primaria ABCDE
   // "Permeable" se quitó: técnicamente es lo mismo que "Adecuada"
@@ -238,6 +240,9 @@ var HCLite = (function(){
   }
 
   function guardarPronto(){
+    // Editor del administrador: solo marca "sin guardar" (al instante, para
+    // que Corregir la clasificación sepa que hay cambios pendientes)
+    if(hc && hc.modo === 'admin'){ guardarHC(); return; }
     clearTimeout(_guardarTimer);
     _guardarTimer = setTimeout(guardarHC, 300);
   }
@@ -345,8 +350,8 @@ var HCLite = (function(){
     return new RegExp('([A-ZÁÉÍÓÚÜÑ])\\1{' + ((repetidas || 3) - 1) + '}').test(s);
   }
   function telefonoValido(v){
-    var d = String(v === undefined || v === null ? '' : v).replace(/\D/g, '');
-    return /^(3\d{9}|60\d{8})$/.test(d) && !/(\d)\1{6}/.test(d) && !secuencia(d, 7);
+    var d = digitos(v);
+    return d.length >= 8 && d.length <= 15 && !/(\d)\1{4}/.test(d) && !secuencia(d, 5);
   }
   function documentoDeRelleno(v){
     var d = String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -426,7 +431,7 @@ var HCLite = (function(){
     return '<label class="lt-label">' + U.escHtml(texto) + (req ? ' <span class="lt-req">*</span>' : '') + '</label>';
   }
 
-  // opts: { req, tipo: 'texto'|'digitos'|'alfanum'|'fecha'|'area', mayus, max, ph, ayuda, filas }
+  // opts: { req, tipo: 'texto'|'digitos'|'telefono'|'alfanum'|'fecha'|'area', mayus, max, ph, ayuda, filas }
   function campo(ruta, texto, opts){
     opts = opts || {};
     var v = leerCampo(ruta);
@@ -439,6 +444,9 @@ var HCLite = (function(){
       html += '<textarea class="lt-input lt-area lt-mayus" autocapitalize="characters" rows="' + (opts.filas || 3) + '"' + attrs + '>' + U.escHtml(v) + '</textarea>';
     } else if(opts.tipo === 'digitos'){
       html += '<input class="lt-input" type="tel" pattern="[0-9]*" data-solo="digitos"' + attrs + ' value="' + U.escHtml(v) + '">';
+    } else if(opts.tipo === 'telefono'){
+      // Números, espacios y un + al inicio (indicativo de otro país)
+      html += '<input class="lt-input" type="tel" data-solo="telefono"' + attrs + ' value="' + U.escHtml(v) + '">';
     } else if(opts.tipo === 'hora'){
       html += '<input class="lt-input lt-hora" type="tel" pattern="[0-9]*" data-solo="hora" maxlength="5" placeholder="HH:MM"' +
         ' data-campo="' + ruta + '" value="' + U.escHtml(v) + '" autocomplete="off">';
@@ -532,8 +540,6 @@ var HCLite = (function(){
     var req = true;
     var html = seccion('Identificación del paciente',
       '<div class="lt-muted">Todos los datos son obligatorios (menos EPS y ARL). Pídelos al paciente o a su acompañante: no se aceptan datos de relleno como "NNNN" o "0000000".</div>' +
-      chips('paciente.procedencia', 'El paciente es', PROCEDENCIAS, true) +
-      (p.procedencia === 'INTERNO' ? chips('paciente.tipo_paciente', 'Tipo de paciente', TIPOS_PACIENTE, true) : '') +
       fila([campo('paciente.nombres', 'Nombres', { req: req, mayus: true, max: 80, ph: 'Ej. PABLO ANDRÉS' }),
             campo('paciente.apellidos', 'Apellidos', { req: req, mayus: true, max: 80, ph: 'Ej. PÉREZ GÓMEZ' })]) +
       chips('paciente.tipo_doc', 'Tipo de documento', TIPOS_DOC, req) +
@@ -547,10 +553,12 @@ var HCLite = (function(){
             (edad ? U.escHtml(edad) : '<span class="lt-gris">Se calcula con la fecha de nacimiento</span>') + '</div></div>']) +
       chips('paciente.sexo', 'Sexo', SEXOS, req) +
       fila([chips('paciente.rh', 'RH', RH, true), chips('paciente.grupo', 'Grupo sanguíneo', GRUPOS, true)]) +
+      chips('paciente.procedencia', 'Ubicación del paciente', PROCEDENCIAS, true) +
+      (p.procedencia === 'INTERNO' ? chips('paciente.tipo_paciente', 'Tipo de paciente', TIPOS_PACIENTE, true) : '') +
       fila([campo('paciente.direccion', 'Dirección', { req: true, max: 150, mayus: true, ph: 'Ej. CALLE 10 # 20-30' }),
             campo('paciente.ciudad', 'Ciudad', { req: true, max: 80, mayus: true })]) +
-      campo('paciente.telefono', 'Teléfono', { req: true, tipo: 'digitos', max: 10, ph: 'Ej. 3157778899',
-        ayuda: 'Celular de 10 dígitos (3XX…) o fijo con indicativo (60X…).' }) +
+      campo('paciente.telefono', 'Teléfono', { req: true, tipo: 'telefono', max: 20, ph: 'Ej. 3157778899',
+        ayuda: 'Nacional o extranjero (con + y el indicativo), mínimo 8 dígitos.' }) +
       (esMenorEstadoCivil()
         ? '<div class="lt-campo" data-envoltura="paciente.estado_civil_menor"><label class="lt-label">Estado civil</label>' +
           '<div class="lt-dato-v">Soltero/a <span class="lt-gris">· menor de ' + EDAD_ESTADO_CIVIL + ' años: no se pregunta</span></div></div>'
@@ -572,7 +580,7 @@ var HCLite = (function(){
         : interruptor('acompanante.tiene', '¿El paciente tiene acompañante?')) +
       (a.tiene ? campo('acompanante.nombre', 'Nombre y apellidos completos', { req: true, max: 120, mayus: true }) +
         fila([campo('acompanante.parentesco', 'Parentesco', { req: true, max: 60, mayus: true, ph: 'Ej. MADRE' }),
-              campo('acompanante.telefono', 'Teléfono', { req: true, tipo: 'digitos', max: 10, ph: 'Ej. 3157778899' })]) : ''));
+              campo('acompanante.telefono', 'Teléfono', { req: true, tipo: 'telefono', max: 20, ph: 'Ej. 3157778899' })]) : ''));
     return html;
   }
 
@@ -622,7 +630,7 @@ var HCLite = (function(){
         fila([campo('consentimiento.testigo.nombres', 'Nombre', { req: true, max: 80, mayus: true }),
               campo('consentimiento.testigo.apellidos', 'Apellido', { req: true, max: 80, mayus: true })]) +
         fila([campo('consentimiento.testigo.cedula', 'Cédula', { req: true, tipo: 'digitos', max: 15 }),
-              campo('consentimiento.testigo.telefono', 'Teléfono', { req: true, tipo: 'digitos', max: 15 })]);
+              campo('consentimiento.testigo.telefono', 'Teléfono', { req: true, tipo: 'telefono', max: 20 })]);
     } else if(c.decision === 'urgencia_vital'){
       cuerpoCons += '<div class="lt-aviso">Se continúa la atención sin consentimiento por urgencia vital (paciente inconsciente o sin acudiente).</div>';
     }
@@ -790,27 +798,51 @@ var HCLite = (function(){
 
     var cuerpoTriage = chips('triage', 'Clasificación', TRIAGE, true, 'I es la más urgente y V la menos urgente.');
 
-    var procs = hc.datos.procedimientos || [], htmlP = '';
-    for(var j = 0; j < procs.length; j++) htmlP += filaProcedimiento(j);
     var cuerpoProc = '<div class="lt-muted">Responsable: <strong>' + U.escHtml(responsableTexto()) + '</strong>.</div>' +
-      (procs.length ? htmlP : '<div class="lt-muted">No hay procedimientos registrados. Si no se realizó ninguno, continúa.</div>') +
-      '<button type="button" class="lt-btn-sec primario lt-btn-agregar" data-hc="proc-agregar">+ Agregar procedimiento</button>';
+      seccionProcedimientos('No hay procedimientos registrados. Si no se realizó ninguno, continúa.');
 
     return seccion('Examen físico cefalocaudal', cuerpoExamen) +
       seccion('Triage prehospitalario', cuerpoTriage) +
       seccion('Procedimientos realizados', cuerpoProc);
   }
 
-  function filaProcedimiento(i){
-    var base = 'procedimientos.' + i;
-    return '<div class="lt-proc">' +
-      '<div class="lt-proc-cab"><strong>Procedimiento ' + (i + 1) + '</strong>' +
-        '<button type="button" class="lt-link" data-hc="proc-quitar" data-i="' + i + '">Quitar</button></div>' +
-      campo(base + '.hora', 'Hora', { req: true, tipo: 'hora' }) +
-      campo(base + '.descripcion', 'Procedimiento realizado', { req: true, tipo: 'area', filas: 2, max: 500,
+  // Procedimientos: se escriben en un formulario (hc.datos.proc_form, el que
+  // se agrega o edita; el servidor lo ignora) y con "Guardar procedimiento"
+  // pasan a la lista, como los medicamentos, con un lápiz para editarlos.
+  var _procError = '';
+  function seccionProcedimientos(vacio){
+    var procs = hc.datos.procedimientos || [], f = hc.datos.proc_form, html = '';
+    for(var j = 0; j < procs.length; j++){
+      if(f && f.i === j){ html += formProcedimiento(); continue; }
+      html += '<div class="lt-med lt-proc-item">' +
+        '<div class="lt-med-txt">' +
+          '<div class="lt-med-nombre">' + U.escHtml(mayus(procs[j].descripcion) || 'Sin descripción') + '</div>' +
+          '<div class="lt-med-meta"><strong>' + U.escHtml(procs[j].hora || '--:--') + '</strong> · Responsable: ' + U.escHtml(responsableTexto()) + '</div>' +
+        '</div>' +
+        (f ? '' : '<button type="button" class="lt-btn-sec lt-proc-editar" data-hc="proc-editar" data-i="' + j + '" title="Editar procedimiento">' +
+          '<img src="/img/iconos/editar.svg" alt="">Editar</button>') +
+      '</div>';
+    }
+    if(!procs.length && !f) html += '<div class="lt-muted">' + vacio + '</div>';
+    if(f && !(f.i >= 0 && f.i < procs.length)) html += formProcedimiento();
+    if(!f) html += '<button type="button" class="lt-btn-sec primario lt-btn-agregar" data-hc="proc-agregar">+ Agregar procedimiento</button>';
+    return html;
+  }
+
+  function formProcedimiento(){
+    var f = hc.datos.proc_form, nuevo = !(f.i >= 0);
+    return '<div class="lt-proc" data-envoltura="proc_form">' +
+      '<div class="lt-proc-cab"><strong>' + (nuevo ? 'Nuevo procedimiento' : 'Editar procedimiento') + '</strong></div>' +
+      campo('proc_form.hora', 'Hora', { req: true, tipo: 'hora' }) +
+      campo('proc_form.descripcion', 'Procedimiento realizado', { req: true, tipo: 'area', filas: 2, max: 500,
         ph: 'Escribe con exactitud el procedimiento. Ej. Inmovilización de muñeca derecha con férula' }) +
       dato('Responsable', U.escHtml(responsableTexto())) +
-      '</div>';
+      (_procError ? '<div class="lt-proc-error">' + U.escHtml(_procError) + '</div>' : '') +
+      '<div class="lt-proc-botones">' +
+        '<button type="button" class="lt-btn" data-hc="proc-guardar">Guardar procedimiento</button>' +
+        '<button type="button" class="lt-btn-sec" data-hc="proc-cancelar">Cancelar</button>' +
+        (nuevo ? '' : '<button type="button" class="lt-btn-sec peligro" data-hc="proc-quitar" data-i="' + f.i + '">Eliminar</button>') +
+      '</div></div>';
   }
 
   function horaActual(){
@@ -819,20 +851,63 @@ var HCLite = (function(){
     return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
   }
 
-  function agregarProcedimiento(){
-    hc.datos.procedimientos.push({ hora: horaActual(), descripcion: '' });
-    guardarHC();
+  function redibujarAqui(enfocar){
     var y = window.pageYOffset || 0;
     renderModulo();
     window.scrollTo(0, y);
+    var t = enfocar && document.querySelector('[data-campo="' + enfocar + '"]');
+    if(t) t.focus();
+  }
+
+  function agregarProcedimiento(){
+    hc.datos.proc_form = { i: -1, hora: horaActual(), descripcion: '' };
+    _procError = '';
+    guardarHC();
+    redibujarAqui('proc_form.descripcion');
+  }
+
+  function editarProcedimiento(i){
+    var p = (hc.datos.procedimientos || [])[i];
+    if(!p) return;
+    hc.datos.proc_form = { i: i, hora: p.hora || '', descripcion: p.descripcion || '' };
+    _procError = '';
+    guardarHC();
+    redibujarAqui('proc_form.descripcion');
+  }
+
+  function guardarProcedimiento(){
+    var f = hc.datos.proc_form;
+    if(!f) return;
+    _procError = !RE_HORA.test(f.hora || '') ? 'Escribe la hora del procedimiento (HH:MM)'
+      : txt(f.descripcion).length < 3 ? 'Describe el procedimiento realizado' : '';
+    if(_procError){ redibujarAqui(); return; }
+    var procs = hc.datos.procedimientos, p = {}, k;
+    var antes = f.i >= 0 && f.i < procs.length ? procs[f.i] : null;
+    if(antes) for(k in antes) if(antes.hasOwnProperty(k)) p[k] = antes[k];
+    p.hora = f.hora;
+    p.descripcion = mayus(f.descripcion);
+    if(antes) procs[f.i] = p; else procs.push(p);
+    delete hc.datos.proc_form;
+    guardarHC();
+    redibujarAqui();
+  }
+
+  function cancelarProcedimiento(){
+    delete hc.datos.proc_form;
+    _procError = '';
+    guardarHC();
+    redibujarAqui();
   }
 
   function quitarProcedimiento(i){
-    hc.datos.procedimientos.splice(i, 1);
-    guardarHC();
-    var y = window.pageYOffset || 0;
-    renderModulo();
-    window.scrollTo(0, y);
+    U.modal('Eliminar procedimiento', '¿Eliminar este procedimiento de la historia clínica?',
+      [{ texto: 'Cancelar' }, { texto: 'Eliminar', clase: 'peligro', accion: function(){
+        hc.datos.procedimientos.splice(i, 1);
+        delete hc.datos.proc_form;
+        _procError = '';
+        guardarHC();
+        redibujarAqui();
+      } }]);
   }
 
   // ── Módulo 6: suministro de medicamentos e insumos ──
@@ -1165,7 +1240,7 @@ var HCLite = (function(){
         fila([campo('cierre.traslado.movil', 'Móvil', { req: true, tipo: 'alfanum', max: 30 }),
               campo('cierre.traslado.placa', 'Placa', { req: true, tipo: 'alfanum', max: 10, ph: 'Ej. ABC123' })]) +
         fila([campo('cierre.traslado.conductor', 'Conductor', { req: true, max: 120, mayus: true }),
-              campo('cierre.traslado.telefono', 'Número telefónico', { req: true, tipo: 'digitos', max: 15 })]) +
+              campo('cierre.traslado.telefono', 'Número telefónico', { req: true, tipo: 'telefono', max: 20 })]) +
         '<div class="lt-muted">La entrega del paciente en la institución la registra el administrador después. La historia clínica quedará <strong>abierta</strong> hasta entonces.</div>');
     }
     return html;
@@ -1330,6 +1405,7 @@ var HCLite = (function(){
     }
     if(n === 5){
       if(!d.triage) err('triage', 'Selecciona la clasificación de triage');
+      if(d.proc_form) err('proc_form', 'Tienes un procedimiento sin guardar: toca "Guardar procedimiento" o "Cancelar"');
       var procs = d.procedimientos || [];
       for(var i = 0; i < procs.length; i++){
         var p = procs[i], b = 'procedimientos.' + i;
@@ -1517,6 +1593,11 @@ var HCLite = (function(){
       var limpio = digitos(v);
       if(limpio !== v) el.value = limpio;
       v = limpio;
+    }
+    if(el.getAttribute('data-solo') === 'telefono'){
+      var tel = String(v).replace(/[^\d+ ]/g, '').replace(/(?!^)\+/g, '');
+      if(tel !== v) el.value = tel;
+      v = tel;
     }
     if(el.getAttribute('data-fecha-dma')) v = isoDesdeDMA(v);
     if(el.getAttribute('data-solo') === 'hora'){
@@ -2056,11 +2137,10 @@ var HCLite = (function(){
       if(procBase.length){
         cuerpoP += '<div class="lt-muted">Ya registrados:</div><ul class="lt-lista-previa">';
         for(i = 0; i < procBase.length; i++) cuerpoP += '<li>' + U.escHtml(procBase[i].hora || '') + ' · ' + U.escHtml(mayus(procBase[i].descripcion || '')) + '</li>';
-        cuerpoP += '</ul>';
+        cuerpoP += '</ul><div class="lt-muted">Nuevos en esta novedad:</div>';
       }
-      cuerpoP += '<div class="lt-muted">Responsable: <strong>' + U.escHtml(responsableTexto()) + '</strong>.</div>';
-      for(i = 0; i < hc.datos.procedimientos.length; i++) cuerpoP += filaProcedimiento(i);
-      cuerpoP += '<button type="button" class="lt-btn-sec primario lt-btn-agregar" data-hc="proc-agregar">+ Agregar procedimiento</button>';
+      cuerpoP += '<div class="lt-muted">Responsable: <strong>' + U.escHtml(responsableTexto()) + '</strong>.</div>' +
+        seccionProcedimientos('Aún no has agregado procedimientos en esta novedad.');
       html += seccion('Procedimientos', cuerpoP);
       var medBase = base.medicamentos || [], cuerpoM = '';
       if(medBase.length){
@@ -2087,6 +2167,7 @@ var HCLite = (function(){
     function err(campo, msg){ e.push({ campo: campo, msg: msg }); }
     var previas = 1 + ((copiaDe(hc.client_id) || {}).signos_tomas || []).length;
     for(i = 0; i < d.signos_tomas.length; i++) validarSignos('signos_tomas.' + i, 'Toma ' + (previas + i + 1) + ': ', err);
+    if(d.proc_form) err('proc_form', 'Tienes un procedimiento sin guardar: toca "Guardar procedimiento" o "Cancelar"');
     for(i = 0; i < d.procedimientos.length; i++){
       var p = d.procedimientos[i], b = 'procedimientos.' + i;
       if(!RE_HORA.test(p.hora || '')) err(b + '.hora', 'Procedimiento ' + (i + 1) + ': escribe la hora (HH:MM)');
@@ -2371,6 +2452,9 @@ var HCLite = (function(){
       if(t) t.focus();
     }
     else if(a === 'proc-agregar') agregarProcedimiento();
+    else if(a === 'proc-editar') editarProcedimiento(parseInt(b.getAttribute('data-i'), 10));
+    else if(a === 'proc-guardar') guardarProcedimiento();
+    else if(a === 'proc-cancelar') cancelarProcedimiento();
     else if(a === 'm6-bodega'){ _m6.bodegaId = parseInt(b.getAttribute('data-id'), 10); _m6.idx = null; _m6.q = ''; _m6.form = {}; _m6.error = ''; redibujarM6(); }
     else if(a === 'm6-item'){
       _m6.idx = parseInt(b.getAttribute('data-idx'), 10);
@@ -2455,6 +2539,8 @@ var HCLite = (function(){
       st = utilidades.estado;
       conectarEventos();
     },
+    // Editor del administrador: ¿hay cambios sin guardar?
+    adminSucio: function(){ return !!(hc && hc.modo === 'admin' && hc.sucio); },
     // Al entrar al panel o cambiar de evento
     mostrarInicio: function(){
       if(hc){ return; }   // con una HC abierta se queda en el editor

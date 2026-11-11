@@ -1,5 +1,8 @@
 // ══════════════════════════════════════════
-// HISTORIAS CLÍNICAS — módulo del administrador (nivel 4)
+// HISTORIAS CLÍNICAS — módulo del administrador (nivel 4) y del supervisor
+// (nivel 3: solo consulta, PDF y Reporte Excel; el servidor le envía las HC
+// con CONFIDENCIAL en el nombre, documento, teléfono y dirección del paciente
+// y en el nombre y teléfono del acompañante, y sin adjuntos)
 //
 // Lista las HC que envían las tablets, con filtros; muestra cada una
 // completa; registra la entrega del paciente (HC con traslado, que quedan
@@ -72,6 +75,8 @@ function renderHistorias(){
   const eSel = selE.value;
   selE.innerHTML = '<option value="">Todos</option>' + (S.eventos || []).map(e => `<option value="${e.id}">${escHtml(e.nombre)}</option>`).join('');
   selE.value = eSel;
+  document.getElementById('hcf-documento').placeholder = currentRole === 4 ? 'Documento, nombre o HC-2026-…' : 'Número de HC (HC-2026-…)';
+  document.getElementById('hcf-documento-label').textContent = currentRole === 4 ? 'Paciente o número de HC' : 'Número de HC';
   hcBuscar(1);
 }
 
@@ -142,9 +147,10 @@ async function hcRecargar(){
 function hcRenderDetalle(){
   const h = _hcActual, d = h.datos, r = d.responsables || {};
   const traslado = d.cierre && d.cierre.destino === 'TRASLADO';
+  const admin = currentRole === 4;
   const acciones = [
-    traslado && !d.entrega ? `<button class="tb-btn primary" onclick="hcAbrirEntrega()"><i class="ti ti-building-hospital"></i>Registrar entrega</button>` : '',
-    r.medico && r.medico_firma_pendiente ? `<button class="tb-btn" onclick="hcAbrirFirmaMedico()"><i class="ti ti-signature"></i>Firma del médico</button>` : '',
+    admin && traslado && !d.entrega ? `<button class="tb-btn primary" onclick="hcAbrirEntrega()"><i class="ti ti-building-hospital"></i>Registrar entrega</button>` : '',
+    admin && r.medico && r.medico_firma_pendiente ? `<button class="tb-btn" onclick="hcAbrirFirmaMedico()"><i class="ti ti-signature"></i>Firma del médico</button>` : '',
     `<button class="tb-btn" onclick="hcImprimir()"><i class="ti ti-printer"></i>Imprimir / PDF</button>`
   ].join('');
   document.getElementById('hc-detalle').innerHTML = `
@@ -158,7 +164,7 @@ function hcRenderDetalle(){
     </div>
     ${hcHtml(h, false)}
     ${hcHtmlClasificacion(h)}
-    ${hcHtmlAdjuntos(h)}
+    ${admin ? hcHtmlAdjuntos(h) : ''}
     ${hcHtmlCambios(h)}
     <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-hc')">Cerrar</button></div>`;
 }
@@ -182,11 +188,11 @@ function hcHtml(h, imprimir){
     hcDato('Evento', hcV(s.evento && s.evento.nombre)));
   html += hcSec('Identificación del paciente',
     (p.nn ? hcDato('Paciente', 'Sin identificar (NN)') : '') +
-    hcDato('Ubicación del paciente', hcT('procedencia', p.procedencia)) + hcDato('Tipo de paciente', hcT('tipo_paciente', p.tipo_paciente)) +
     hcDato('Nombres y apellidos', hcV(`${p.nombres || ''} ${p.apellidos || ''}`.trim()), true) +
     hcDato('Tipo de documento', hcT('tipo_doc', p.tipo_doc)) + hcDato('Número', hcV(p.documento)) +
     hcDato('Fecha de nacimiento', hcFecha(p.fecha_nacimiento)) + hcDato('Edad', hcV(p.edad && p.edad.texto)) +
     hcDato('Sexo', hcT('sexo', p.sexo)) + hcDato('RH', hcT('rh', p.rh)) + hcDato('Grupo sanguíneo', hcV(p.grupo)) +
+    hcDato('Ubicación del paciente', hcT('procedencia', p.procedencia)) + hcDato('Tipo de paciente', hcT('tipo_paciente', p.tipo_paciente)) +
     hcDato('Dirección', hcV(p.direccion)) + hcDato('Ciudad', hcV(p.ciudad)) + hcDato('Teléfono', hcV(p.telefono)) +
     hcDato('Estado civil', p.edad && p.edad.anios < 15 ? 'Soltero/a' : hcT('estado_civil', p.estado_civil)) + hcDato('Ocupación', hcV(p.ocupacion)) +
     hcDato('EPS', hcV(p.eps)) + hcDato('ARL', hcV(p.arl)) + hcDato('Otra aseguradora', p.otra_aseguradora ? hcV(p.aseguradora) : 'No'));
@@ -539,67 +545,25 @@ async function hcGuardarFirmaMedico(){
 }
 
 // ══════════════════════════════════════════
-// CLASIFICACIÓN PARA EL REPORTE (IA) — se ve en el detalle de cada HC
+// CLASIFICACIÓN PARA EL REPORTE — se ve (solo lectura) en el detalle de cada
+// HC; no sale en el PDF. Se corrige en "Editar Historias Clínicas".
 // ══════════════════════════════════════════
 function hcHtmlClasificacion(h){
   const c = h.clasificacion;
   let cuerpo;
   const fila = (et, v) => `<tr><th>${et}</th><td>${v}</td></tr>`;
   if(c){
-    const triageEnf = h.datos && h.datos.triage && h.datos.triage !== c.triage ? ` <span class="hc-clas-nota">el enfermero marcó ${escHtml(h.datos.triage)}</span>` : '';
     cuerpo = `<table class="hc-clas-tabla">` +
       fila('Diagnóstico', escHtml(c.diagnostico)) + fila('Categoría', escHtml(c.categoria)) +
-      fila('Nivel de triage', `<strong>${escHtml(c.triage)}</strong>${triageEnf}`) +
+      fila('Nivel de triage', `<strong>${escHtml(c.triage)}</strong>`) +
       fila('Procedimiento', escHtml((c.procedimientos || []).join(' + '))) + '</table>' +
       (c.corregida_por ? `<div class="hc-clas-nota" style="padding:0 10px 4px">Corregida a mano por ${escHtml(c.corregida_por)}</div>` : '');
   } else {
-    cuerpo = `<div class="hc-nada">${h.clasificacion_error ? 'No se pudo clasificar: ' + escHtml(h.clasificacion_error) : 'Pendiente: la IA la clasifica en unos minutos.'}</div>`;
+    cuerpo = `<div class="hc-nada">${h.clasificacion_error ? 'No se pudo clasificar: ' + escHtml(h.clasificacion_error) : 'Pendiente: se clasifica en unos minutos.'}</div>`;
   }
-  return hcSec('Clasificación para el reporte (IA)',
+  return `<div class="hc-clas">` + hcSec('Clasificación para el reporte',
     `<div class="hc-clas-intro">Así sale esta atención en el <strong>Reporte Excel</strong> (diagnóstico, categoría, triage y procedimiento).</div>` + cuerpo +
-    `<div class="hc-clas-acciones">
-       <div><button class="tb-btn" onclick="hcAbrirClasificacion()"><img class="btn-ico" src="img/iconos/editar.svg" alt="">Corregir</button>
-         <span>Si la IA se equivocó: eliges tú el diagnóstico, los procedimientos y el triage.</span></div>
-       <div><button class="tb-btn" onclick="hcRehacerClasificacion()">Volver a clasificar con IA</button>
-         <span>La IA la clasifica de nuevo (por ejemplo, después de corregir el motivo de consulta).</span></div>
-     </div>`);
-}
-
-let _hcCatalogos = null;
-async function hcAbrirClasificacion(){
-  try {
-    _hcCatalogos = await HistoriasClinicas.catalogos();
-    const c = _hcActual.clasificacion || {};
-    document.getElementById('hcclas-diagnostico').innerHTML = '<option value="">Elegir…</option>' +
-      _hcCatalogos.diagnosticos.map(d => `<option value="${escHtml(d.nombre)}"${d.nombre === c.diagnostico ? ' selected' : ''}>${escHtml(d.nombre)} · ${escHtml(d.categoria)}${d.origen === 'ia' ? ' (nuevo por IA)' : ''}</option>`).join('');
-    const sel = new Set(c.procedimientos || []);
-    document.getElementById('hcclas-procedimientos').innerHTML = _hcCatalogos.procedimientos.map(p =>
-      `<label class="evt-check-item"><input type="checkbox" value="${escHtml(p.nombre)}"${sel.has(p.nombre) ? ' checked' : ''}> <span>${escHtml(p.nombre)}${p.origen === 'ia' ? ' <em>(nuevo por IA)</em>' : ''}</span></label>`).join('');
-    document.getElementById('hcclas-triage').value = c.triage || '';
-    document.getElementById('modal-hc-clasif').classList.add('open');
-  } catch(err){ toastError(err.message); }
-}
-async function hcGuardarClasificacion(btn){
-  const diagnostico = document.getElementById('hcclas-diagnostico').value;
-  const procedimientos = [...document.querySelectorAll('#hcclas-procedimientos input:checked')].map(x => x.value);
-  const triage = document.getElementById('hcclas-triage').value;
-  if(!diagnostico || !procedimientos.length || !triage) return toastError('Elige el diagnóstico, al menos un procedimiento y el nivel de triage');
-  if(procedimientos.length > 4) return toastError('Máximo 4 procedimientos');
-  await unaVez('hc-clas', btn, async () => {
-    try {
-      await HistoriasClinicas.corregirClasificacion(_hcActual.id, { diagnostico, procedimientos, triage });
-      closeModal('modal-hc-clasif');
-      toast('✓ Clasificación corregida', 'success');
-      await hcRecargar();
-    } catch(err){ toastError(err.message); }
-  });
-}
-async function hcRehacerClasificacion(){
-  try {
-    const r = await HistoriasClinicas.rehacerClasificacion(_hcActual.id);
-    toast('✓ ' + r.mensaje, 'success');
-    setTimeout(() => { if(_hcActual) hcRecargar(); }, 6000);
-  } catch(err){ toastError(err.message); }
+    (currentRole === 4 ? `<div class="hc-clas-intro" style="padding-bottom:10px">Para corregirla: <a href="/hc-editor?hc=${h.id}" target="_blank" rel="noopener">abrir en Editar Historias Clínicas</a>.</div>` : '')) + '</div>';
 }
 
 // ══════════════════════════════════════════

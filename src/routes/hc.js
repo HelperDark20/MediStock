@@ -27,7 +27,7 @@ const clasificador = require('../utils/clasificador-hc');
 const {
   normalizarHC, normalizarMedicamentos, estadoInicial, normalizarEntrega, diferencias,
   firmaValida, TIPOS_DOC, responsableProcedimientos, MAX_TOMAS_EXTRA,
-  signosNovedad, procedimientosNovedad, cierreNovedad
+  signosNovedad, procedimientosNovedad, cierreNovedad, hcConfidencial
 } = require('../utils/hc');
 
 // :id, :aid deben ser ids numéricos (si no, 400 en vez de error 500)
@@ -278,8 +278,10 @@ function _inicioDiaCO(fecha) { return new Date(`${fecha}T00:00:00Z`).getTime() +
 
 // GET /api/hc — listado. Filtros: desde, hasta (AAAA-MM-DD), ubicacion_id,
 // evento_id, documento (o nombre), estado (abierta | cerrada |
-// firma_pendiente), pagina (desde 1)
-router.get('/', verificarToken, verificarNivel(4), async (req, res) => {
+// firma_pendiente), pagina (desde 1). El supervisor (nivel 3) solo busca por
+// consecutivo y ve CONFIDENCIAL en el nombre y el documento.
+router.get('/', verificarToken, verificarNivel(3), async (req, res) => {
+  const supervisor = req.usuario.nivel === 3;
   const q = req.query, cond = [], params = [];
   const p = v => { params.push(v); return `$${params.length}`; };
   if (q.desde) {
@@ -303,7 +305,8 @@ router.get('/', verificarToken, verificarNivel(4), async (req, res) => {
   const busq = String(q.documento || '').trim().toUpperCase().slice(0, 80);
   if (busq) {
     const like = `%${busq.replace(/[%_\\]/g, '')}%`;
-    cond.push(`(h.paciente_documento ILIKE ${p(like)} OR h.paciente_nombre ILIKE ${p(like)} OR h.consecutivo ILIKE ${p(like)})`);
+    cond.push(supervisor ? `h.consecutivo ILIKE ${p(like)}`
+      : `(h.paciente_documento ILIKE ${p(like)} OR h.paciente_nombre ILIKE ${p(like)} OR h.consecutivo ILIKE ${p(like)})`);
   }
   if (q.estado === 'abierta' || q.estado === 'cerrada') cond.push(`h.estado = ${p(q.estado)}`);
   else if (q.estado === 'firma_pendiente') cond.push(`(h.datos->'responsables'->>'medico_firma_pendiente') = 'true'`);
@@ -326,7 +329,7 @@ router.get('/', verificarToken, verificarNivel(4), async (req, res) => {
        LIMIT ${POR_PAGINA} OFFSET ${(pagina - 1) * POR_PAGINA}`,
       params
     );
-    res.json({ total: total.rows[0].n, pagina, por_pagina: POR_PAGINA, filas: filas.rows });
+    res.json({ total: total.rows[0].n, pagina, por_pagina: POR_PAGINA, filas: supervisor ? filas.rows.map(hcConfidencial) : filas.rows });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
@@ -346,7 +349,7 @@ function _fechaDMA(iso) { return iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/$
 
 // GET /api/hc/reporte?evento_id&desde&hasta — filas del reporte (el Excel lo
 // arma el navegador). Nombre e ID salen como CONFIDENCIAL.
-router.get('/reporte', verificarToken, verificarNivel(4), async (req, res) => {
+router.get('/reporte', verificarToken, verificarNivel(3), async (req, res) => {
   const q = req.query, cond = [], params = [];
   const p = v => { params.push(v); return '$' + params.length; };
   if (q.evento_id) {
@@ -439,7 +442,8 @@ router.put('/:id/clasificacion', verificarToken, verificarNivel(4), async (req, 
     const antes = r.rows[0].clasificacion;
     const c = { diagnostico: d.rows[0].nombre, categoria: d.rows[0].categoria, procedimientos: procs, triage,
                 corregida_por: req.usuario.nombre, corregida_at: new Date().toISOString(), modelo: antes && antes.modelo, version: antes && antes.version };
-    await pool.query('UPDATE historias_clinicas SET clasificacion = $2, clasificada_at = NOW(), clasificacion_error = NULL WHERE id = $1', [req.params.id, JSON.stringify(c)]);
+    // El triage corregido pasa a la HC y la IA ya no lo cambia
+    await clasificador.guardarClasificacion(pool, req.params.id, c, ', triage_fijo = true');
     res.json({ mensaje: 'Clasificación corregida', clasificacion: c });
   } catch (err) {
     console.error(err);
@@ -451,6 +455,8 @@ router.put('/:id/clasificacion', verificarToken, verificarNivel(4), async (req, 
 router.post('/:id/clasificacion/rehacer', verificarToken, verificarNivel(4), async (req, res) => {
   if (!clasificador.proveedor()) return res.status(400).json({ error: 'La IA no está configurada (falta OPENAI_API_KEY)' });
   try {
+    // La IA vuelve a definir también el triage (aunque se hubiera corregido)
+    await pool.query('UPDATE historias_clinicas SET triage_fijo = false WHERE id = $1', [req.params.id]);
     await clasificador.reclasificar(pool, req.params.id);
     res.json({ mensaje: 'Se volverá a clasificar en unos segundos' });
   } catch (err) {
@@ -459,8 +465,9 @@ router.post('/:id/clasificacion/rehacer', verificarToken, verificarNivel(4), asy
   }
 });
 
-// GET /api/hc/:id — HC completa, sus adjuntos (sin el contenido) y el rastro
-router.get('/:id', verificarToken, verificarNivel(4), async (req, res) => {
+// GET /api/hc/:id — HC completa, sus adjuntos (sin el contenido) y el rastro.
+// El supervisor la ve sin los datos que identifican al paciente ni adjuntos.
+router.get('/:id', verificarToken, verificarNivel(3), async (req, res) => {
   try {
     const r = await pool.query('SELECT * FROM historias_clinicas WHERE id = $1', [req.params.id]);
     if (!r.rows.length) return res.status(404).json({ error: 'Historia clínica no encontrada' });
@@ -470,7 +477,10 @@ router.get('/:id', verificarToken, verificarNivel(4), async (req, res) => {
     const cambios = await pool.query(
       `SELECT id, usuario_nombre, accion, motivo, cambios, created_at
        FROM hc_cambios WHERE hc_id = $1 ORDER BY id DESC`, [req.params.id]);
-    res.json({ ...r.rows[0], adjuntos: adj.rows, cambios: cambios.rows });
+    const hc = { ...r.rows[0], adjuntos: adj.rows, cambios: cambios.rows };
+    delete hc.triage_enfermero;
+    if (req.usuario.nivel === 3) return res.json({ ...hcConfidencial(hc), adjuntos: [] });
+    res.json(hc);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
@@ -640,6 +650,7 @@ router.get('/:id/editor', verificarToken, verificarNivel(4), async (req, res) =>
       [hc.evento_id, hc.usuario_id, consumos.map(c => c.bodega_id).filter(Boolean)]);
     const cambios = await pool.query(
       'SELECT id, usuario_nombre, accion, motivo, cambios, created_at FROM hc_cambios WHERE hc_id = $1 ORDER BY id DESC', [hc.id]);
+    delete hc.triage_enfermero;
     res.json({ ...hc, consumos, bodegas: bod.rows, cambios: cambios.rows });
   } catch (err) {
     console.error(err);
@@ -729,6 +740,8 @@ router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
     const g = await _guardarConRastro(hc, datos, req.usuario, 'edicion', motivo);
     if (g.sinCambios) return res.status(400).json({ error: 'No hay cambios para guardar' });
     if (g.conflicto) return res.status(409).json({ error: 'La historia clínica cambió mientras la editabas (entrega, firma, novedad u otra corrección). Vuelve a abrirla y repite el cambio.' });
+    // Si el administrador cambió el triage, queda el suyo (la IA no lo cambia)
+    if (datos.triage !== hc.datos.triage) await pool.query('UPDATE historias_clinicas SET triage_fijo = true WHERE id = $1', [hc.id]);
     clasificador.reclasificar(pool, hc.id).catch(e => console.error('Reclasificar HC', e.message));
     res.json({ mensaje: 'Historia clínica actualizada', cambios: g.cambios, estado: g.estado });
   } catch (err) {

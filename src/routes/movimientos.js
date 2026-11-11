@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
-const { verificarToken, verificarNivel } = require('../middlewares/auth');
+const { verificarToken, verificarNivel, verificarNiveles } = require('../middlewares/auth');
 const { validarParamsId, idValido } = require('../utils/validar');
 const { fechaValida } = require('../utils/fechas');
 
@@ -370,7 +370,7 @@ function _pacienteDelConsumo(body) {
 }
 const ERROR_HC_ENVIADA = 'La historia clínica ya fue enviada: solo quien la diligenció puede agregarle consumos, y solo mientras el evento no haya finalizado';
 
-router.post('/consumo', verificarToken, verificarNivel(2), async (req, res) => {
+router.post('/consumo', verificarToken, verificarNiveles(2, 4), async (req, res) => {
   const sub_sku_id = idValido(req.body.sub_sku_id);
   const bodega_origen_id = idValido(req.body.bodega_origen_id);
   const cantidad = _cantidadValida(req.body.cantidad);
@@ -407,7 +407,7 @@ router.post('/consumo', verificarToken, verificarNivel(2), async (req, res) => {
 const MAX_SINCRONIZAR = 200;
 const TOLERANCIA_RELOJ_MS = 10 * 60 * 1000;   // reloj de la tablet adelantado
 
-router.post('/sincronizar', verificarToken, verificarNivel(2), async (req, res) => {
+router.post('/sincronizar', verificarToken, verificarNiveles(2, 4), async (req, res) => {
   const consumos = req.body && req.body.consumos;
   if (!Array.isArray(consumos) || !consumos.length) {
     return res.status(400).json({ error: 'No hay consumos para sincronizar' });
@@ -457,7 +457,7 @@ router.post('/sincronizar', verificarToken, verificarNivel(2), async (req, res) 
 // producto o de cantidad). El stock vuelve a la bodega con un movimiento de
 // reversión, igual que cuando el administrador revierte un movimiento.
 // Es seguro repetirlo. body: { client_id }
-router.post('/anular-consumo', verificarToken, verificarNivel(2), async (req, res) => {
+router.post('/anular-consumo', verificarToken, verificarNiveles(2, 4), async (req, res) => {
   const clientId = _clientIdValido(req.body && req.body.client_id);
   if (!clientId) return res.status(400).json({ error: 'Identificador de consumo inválido' });
 
@@ -571,7 +571,7 @@ router.post('/traslado', verificarToken, verificarNivel(3), async (req, res) => 
 });
 
 // POST /api/movimientos/destruccion — nivel 3 y 4
-router.post('/destruccion', verificarToken, verificarNivel(3), async (req, res) => {
+router.post('/destruccion', verificarToken, verificarNivel(4), async (req, res) => {
   const sub_sku_id = idValido(req.body.sub_sku_id);
   const bodega_origen_id = idValido(req.body.bodega_origen_id);
   const motivo = req.body.motivo == null ? null : String(req.body.motivo);

@@ -91,8 +91,9 @@ const RE_NOMBRE = /^[A-ZÁÉÍÓÚÜÑ][A-ZÁÉÍÓÚÜÑ .'-]*$/;
 //   texto: un solo carácter repetido ("NN", "XXXX") o 3+ letras iguales
 //          seguidas (ninguna palabra en español las tiene). En la dirección,
 //          4+ (admite "MANZANA III").
-//   teléfono: número colombiano de 10 dígitos (celular 3…, fijo 60…), sin
-//          7 dígitos iguales seguidos ni 1234567 / 7654321
+//   teléfono: nacional o extranjero (puede empezar con +), de 8 a 15
+//          dígitos, sin 5 dígitos iguales seguidos (55555) ni 5 en escalera
+//          (12345 / 54321)
 //   documento: no un solo dígito repetido ni una secuencia (123456789)
 // Las mismas reglas están en js/lite/hc-lite.js.
 function _secuencia(d, largo) {
@@ -112,8 +113,14 @@ function textoDeRelleno(v, repetidas) {
   return new RegExp('([A-ZÁÉÍÓÚÜÑ])\\1{' + ((repetidas || 3) - 1) + '}').test(s);
 }
 function telefonoValido(v) {
-  const d = String(v || '');
-  return /^(3\d{9}|60\d{8})$/.test(d) && !/(\d)\1{6}/.test(d) && !_secuencia(d, 7);
+  const d = digitos(v);
+  return d.length >= 8 && d.length <= 15 && !/(\d)\1{4}/.test(d) && !_secuencia(d, 5);
+}
+// "+1 (555) 201-8899" → "+15552018899"; "310 367 3515" → "3103673515"
+function telefono(v) {
+  const s = typeof v === 'string' || typeof v === 'number' ? String(v).trim() : '';
+  const d = digitos(s).slice(0, 15);
+  return d ? (s.charAt(0) === '+' ? '+' : '') + d : '';
 }
 function documentoDeRelleno(v) {
   // Un solo carácter repetido ("0000000", "XXXX"); si es solo números, también
@@ -122,7 +129,7 @@ function documentoDeRelleno(v) {
   if (d.length < 3) return false;
   return /^(.)\1*$/.test(d) || (/^\d+$/.test(d) && _secuencia(d, d.length));
 }
-const ERROR_TELEFONO = 'escribe un número colombiano válido de 10 dígitos (celular 3XX XXX XXXX o fijo 60X XXX XXXX)';
+const ERROR_TELEFONO = 'escribe un número de mínimo 8 dígitos (nacional o extranjero), sin 5 números iguales o seguidos (55555, 12345)';
 
 function firmaValida(v) {
   return typeof v === 'string' && v.length <= MAX_FIRMA && /^data:image\/png;base64,[A-Za-z0-9+/]+=*$/.test(v);
@@ -166,7 +173,7 @@ function _paciente(p, fechaAtencion, errores) {
     grupo: enumv(p.grupo, GRUPOS),
     direccion: mayus(p.direccion, 150),
     ciudad: mayus(p.ciudad, 80),
-    telefono: digitos(p.telefono).slice(0, 15),
+    telefono: telefono(p.telefono),
     estado_civil: enumv(p.estado_civil, ESTADOS_CIVILES),
     ocupacion: mayus(p.ocupacion, 80),
     eps: mayus(p.eps, 80) || NO_APLICA,
@@ -220,7 +227,7 @@ function _acompanante(a, tipoDoc, errores) {
   if (!out.tiene) return out;
   out.nombre = mayus(a.nombre, 120);
   out.parentesco = mayus(a.parentesco, 60);
-  out.telefono = digitos(a.telefono).slice(0, 15);
+  out.telefono = telefono(a.telefono);
   if (out.nombre.length < 3 || textoDeRelleno(out.nombre)) errores.push('Escribe el nombre completo del acompañante (sin datos de relleno)');
   if (out.parentesco.length < 3 || textoDeRelleno(out.parentesco)) errores.push('Escribe el parentesco del acompañante');
   if (!telefonoValido(out.telefono)) errores.push('Teléfono del acompañante: ' + ERROR_TELEFONO);
@@ -267,7 +274,7 @@ function _consentimiento(c, firmas, errores) {
       nombres: mayus(t.nombres, 80),
       apellidos: mayus(t.apellidos, 80),
       cedula: digitos(t.cedula).slice(0, 15),
-      telefono: digitos(t.telefono).slice(0, 15)
+      telefono: telefono(t.telefono)
     };
     if (out.testigo.nombres.length < 2 || textoDeRelleno(out.testigo.nombres)) errores.push('Escribe el nombre del testigo (sin datos de relleno)');
     if (out.testigo.apellidos.length < 2 || textoDeRelleno(out.testigo.apellidos)) errores.push('Escribe el apellido del testigo (sin datos de relleno)');
@@ -397,7 +404,7 @@ function _cierre(c, rechazo, lugarOrigen, errores) {
       movil: mayus(t.movil, 30).replace(/[^A-Z0-9 -]/g, ''),
       placa: mayus(t.placa, 10).replace(/[^A-Z0-9-]/g, ''),
       conductor: mayus(t.conductor, 120),
-      telefono: digitos(t.telefono).slice(0, 15)
+      telefono: telefono(t.telefono)
     };
     if (out.traslado.destino.length < 3) errores.push('Traslado: escribe el destino (a dónde se remite el paciente)');
     if (!out.traslado.ambulancia) errores.push('Traslado: selecciona el tipo de ambulancia');
@@ -627,6 +634,33 @@ function diferencias(antes, despues) {
     .map(r => ({ campo: r, antes: a[r] === undefined ? null : a[r], despues: b[r] === undefined ? null : b[r] }));
 }
 
+// ── Supervisor (nivel 3): ve las HC sin los datos que identifican al
+// paciente y al acompañante ──
+const CONFIDENCIAL = 'CONFIDENCIAL';
+const RE_CAMPO_CONFIDENCIAL = /^(paciente\.(nombres|apellidos|documento|telefono|direccion)|acompanante\.(nombre|telefono))$/;
+function hcConfidencial(h) {
+  const out = { ...h, paciente_nombre: CONFIDENCIAL, paciente_documento: h.paciente_documento ? CONFIDENCIAL : h.paciente_documento };
+  if (h.datos) {
+    const d = JSON.parse(JSON.stringify(h.datos));
+    if (d.paciente) {
+      d.paciente.nombres = CONFIDENCIAL; d.paciente.apellidos = '';
+      ['documento', 'telefono', 'direccion'].forEach(k => { if (d.paciente[k]) d.paciente[k] = CONFIDENCIAL; });
+    }
+    if (d.acompanante && d.acompanante.tiene) {
+      ['nombre', 'telefono'].forEach(k => { if (d.acompanante[k]) d.acompanante[k] = CONFIDENCIAL; });
+    }
+    out.datos = d;
+  }
+  if (Array.isArray(h.cambios)) {
+    out.cambios = h.cambios.map(c => ({
+      ...c,
+      cambios: (Array.isArray(c.cambios) ? c.cambios : []).map(x => RE_CAMPO_CONFIDENCIAL.test(x && x.campo)
+        ? { ...x, antes: x.antes ? CONFIDENCIAL : x.antes, despues: x.despues ? CONFIDENCIAL : x.despues } : x)
+    }));
+  }
+  return out;
+}
+
 // Estado con que queda la HC al recibirla: abierta si hubo traslado
 // asistencial (falta registrar la entrega en la institución), si no cerrada
 function estadoInicial(datos) {
@@ -635,7 +669,7 @@ function estadoInicial(datos) {
 
 module.exports = {
   normalizarHC, normalizarMedicamentos, estadoInicial, calcularEdad, firmaValida, VIAS,
-  textoDeRelleno, telefonoValido, documentoDeRelleno, responsableProcedimientos, MAX_TOMAS_EXTRA, TIPOS_PACIENTE,
+  textoDeRelleno, telefonoValido, telefono, documentoDeRelleno, hcConfidencial, CONFIDENCIAL, responsableProcedimientos, MAX_TOMAS_EXTRA, TIPOS_PACIENTE,
   // Para las novedades de la tablet (src/routes/hc.js)
   signosNovedad: (s, errores, prefijo) => _signos(obj(s), errores, prefijo),
   procedimientosNovedad: (lista, responsable, errores) => _procedimientos(lista, responsable, errores),

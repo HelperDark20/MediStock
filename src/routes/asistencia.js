@@ -10,7 +10,7 @@
 //                                         cargado y las jornadas abiertas
 //   POST /api/asistencia/kiosco/marcas    entradas y salidas (en línea o las
 //                                         guardadas sin conexión), con foto
-// Admin (nivel 4):
+// Admin y supervisor (nivel 3 o más):
 //   GET    /api/asistencia/eventos              eventos activos (para cargar personal)
 //   GET    /api/asistencia/personal?evento_id   personal cargado y su estado de hoy
 //   POST   /api/asistencia/personal             agrega personal a un evento (no borra)
@@ -349,12 +349,12 @@ router.post('/kiosco/marcas', verificarKiosco, async (req, res) => {
 });
 
 // ══════════════════════════════════════════
-// ADMIN (nivel 4)
+// ADMIN Y SUPERVISOR (nivel 3 o más)
 // ══════════════════════════════════════════
 // Cuentas de las tablets: sin límite. La contraseña no se puede ver (se
 // guarda cifrada de una sola vía): se asigna una nueva cuando se necesite.
 const RE_USUARIO_TABLET = /^[a-z0-9._@-]{4,80}$/;
-router.get('/cuentas', verificarToken, verificarNivel(4), async (req, res) => {
+router.get('/cuentas', verificarToken, verificarNivel(3), async (req, res) => {
   try {
     const r = await pool.query(
       `SELECT c.id, c.usuario, c.created_at, c.actualizada_at, c.ultimo_ingreso_at, c.sesiones_desde,
@@ -376,7 +376,7 @@ function _datosCuenta(body, nueva) {
   return { usuario, password };
 }
 
-router.post('/cuentas', verificarToken, verificarNivel(4), async (req, res) => {
+router.post('/cuentas', verificarToken, verificarNivel(3), async (req, res) => {
   const d = _datosCuenta(req.body, true);
   if (d.error) return res.status(400).json({ error: d.error });
   try {
@@ -392,7 +392,7 @@ router.post('/cuentas', verificarToken, verificarNivel(4), async (req, res) => {
 
 // Editar usuario y, si se escribe, contraseña nueva (cierra la sesión de las
 // tablets de esa cuenta: se activan con la contraseña nueva)
-router.put('/cuentas/:id', verificarToken, verificarNivel(4), async (req, res) => {
+router.put('/cuentas/:id', verificarToken, verificarNivel(3), async (req, res) => {
   const id = idValido(req.params.id);
   if (!id) return res.status(400).json({ error: 'Solicitud inválida' });
   const d = _datosCuenta(req.body, false);
@@ -415,7 +415,7 @@ router.put('/cuentas/:id', verificarToken, verificarNivel(4), async (req, res) =
 
 // Eliminar: la cuenta deja de servir y sus tablets quedan fuera (se conserva
 // para el registro de las marcas que hizo)
-router.delete('/cuentas/:id', verificarToken, verificarNivel(4), async (req, res) => {
+router.delete('/cuentas/:id', verificarToken, verificarNivel(3), async (req, res) => {
   const id = idValido(req.params.id);
   if (!id) return res.status(400).json({ error: 'Solicitud inválida' });
   try {
@@ -431,7 +431,7 @@ router.delete('/cuentas/:id', verificarToken, verificarNivel(4), async (req, res
 });
 
 // ── Dispositivos e IP ──
-router.get('/dispositivos', verificarToken, verificarNivel(4), async (req, res) => {
+router.get('/dispositivos', verificarToken, verificarNivel(3), async (req, res) => {
   try {
     const r = await pool.query(
       `SELECT d.id, d.codigo, d.nombre, d.primera_vez_at, d.ultima_vez_at, d.ultima_ip, d.navegador, c.usuario AS cuenta,
@@ -445,7 +445,7 @@ router.get('/dispositivos', verificarToken, verificarNivel(4), async (req, res) 
   }
 });
 
-router.put('/dispositivos/:id', verificarToken, verificarNivel(4), async (req, res) => {
+router.put('/dispositivos/:id', verificarToken, verificarNivel(3), async (req, res) => {
   const id = idValido(req.params.id);
   if (!id) return res.status(400).json({ error: 'Solicitud inválida' });
   const nombre = String((req.body && req.body.nombre) || '').replace(/\s+/g, ' ').trim().slice(0, 60);
@@ -463,7 +463,7 @@ router.put('/dispositivos/:id', verificarToken, verificarNivel(4), async (req, r
 // dispositivo y la cuenta. Señala las IP distintas a la más usada en el
 // evento y los dispositivos sin nombre (no registrados por el admin).
 // Filtros: evento_id, desde, hasta (fecha de la marca, hora de Colombia)
-router.get('/marcas-ip', verificarToken, verificarNivel(4), async (req, res) => {
+router.get('/marcas-ip', verificarToken, verificarNivel(3), async (req, res) => {
   const q = req.query, cond = ['1=1'], params = [];
   const p = v => { params.push(v); return `$${params.length}`; };
   if (q.evento_id) { const id = idValido(q.evento_id); if (!id) return res.status(400).json({ error: 'Evento inválido' }); cond.push(`m.evento_id = ${p(id)}`); }
@@ -513,7 +513,7 @@ router.get('/marcas-ip', verificarToken, verificarNivel(4), async (req, res) => 
   }
 });
 
-router.post('/cuenta/cerrar-sesiones', verificarToken, verificarNivel(4), async (req, res) => {
+router.post('/cuenta/cerrar-sesiones', verificarToken, verificarNivel(3), async (req, res) => {
   try {
     // +1 s: los tokens emitidos en este mismo segundo también quedan fuera
     const r = await pool.query("UPDATE asistencia_cuentas SET sesiones_desde = NOW() + INTERVAL '1 second' RETURNING id");
@@ -526,7 +526,7 @@ router.post('/cuenta/cerrar-sesiones', verificarToken, verificarNivel(4), async 
 });
 
 // Eventos activos (no finalizados) a los que se puede cargar personal
-router.get('/eventos', verificarToken, verificarNivel(4), async (req, res) => {
+router.get('/eventos', verificarToken, verificarNivel(3), async (req, res) => {
   try {
     const r = await pool.query(
       `SELECT e.id, e.nombre, e.estado, e.fecha_inicio::text AS fecha_inicio, e.fecha_fin::text AS fecha_fin,
@@ -552,7 +552,7 @@ router.get('/eventos', verificarToken, verificarNivel(4), async (req, res) => {
 //   no_asistio no marcó ningún turno y el evento ya finalizó
 // ?evento_id=N → solo ese evento. Sin evento_id → los eventos sin finalizar
 // y los finalizados en los últimos 30 días que tengan personal cargado.
-router.get('/personal', verificarToken, verificarNivel(4), async (req, res) => {
+router.get('/personal', verificarToken, verificarNivel(3), async (req, res) => {
   const eventoId = req.query.evento_id ? idValido(req.query.evento_id) : null;
   if (req.query.evento_id && !eventoId) return res.status(400).json({ error: 'Evento inválido' });
   try {
@@ -596,7 +596,7 @@ router.get('/personal', verificarToken, verificarNivel(4), async (req, res) => {
 
 // Agrega personal a un evento. No borra ni cambia a quien ya estaba (una
 // cédula repetida se ignora), para no perder sus datos de acceso.
-router.post('/personal', verificarToken, verificarNivel(4), async (req, res) => {
+router.post('/personal', verificarToken, verificarNivel(3), async (req, res) => {
   const b = req.body || {};
   const eventoId = idValido(b.evento_id);
   if (!eventoId) return res.status(400).json({ error: 'Elige el evento al que se carga el personal' });
@@ -636,7 +636,7 @@ router.post('/personal', verificarToken, verificarNivel(4), async (req, res) => 
 });
 
 // Quita a alguien cargado por error, solo si todavía no ha marcado
-router.delete('/personal/:id', verificarToken, verificarNivel(4), async (req, res) => {
+router.delete('/personal/:id', verificarToken, verificarNivel(3), async (req, res) => {
   const id = idValido(req.params.id);
   if (!id) return res.status(400).json({ error: 'Solicitud inválida' });
   try {
@@ -655,7 +655,7 @@ router.delete('/personal/:id', verificarToken, verificarNivel(4), async (req, re
 });
 
 // GET /api/asistencia?evento_id&desde&hasta&q&estado
-router.get('/', verificarToken, verificarNivel(4), async (req, res) => {
+router.get('/', verificarToken, verificarNivel(3), async (req, res) => {
   const q = req.query, cond = ['1=1'], params = [];
   const p = v => { params.push(v); return `$${params.length}`; };
   if (q.evento_id) { const id = idValido(q.evento_id); if (!id) return res.status(400).json({ error: 'Evento inválido' }); cond.push(`j.evento_id = ${p(id)}`); }
@@ -715,7 +715,7 @@ router.get('/', verificarToken, verificarNivel(4), async (req, res) => {
   }
 });
 
-router.get('/:id/foto/:tipo', verificarToken, verificarNivel(4), async (req, res) => {
+router.get('/:id/foto/:tipo', verificarToken, verificarNivel(3), async (req, res) => {
   const id = idValido(req.params.id);
   const col = req.params.tipo === 'entrada' ? 'entrada_foto' : req.params.tipo === 'salida' ? 'salida_foto' : null;
   if (!id || !col) return res.status(400).json({ error: 'Solicitud inválida' });
@@ -732,7 +732,7 @@ router.get('/:id/foto/:tipo', verificarToken, verificarNivel(4), async (req, res
 
 // Salida manual: el administrador pone la hora (y el motivo) de una jornada
 // abierta o sin salida. Queda registrado quién y cuándo.
-router.post('/:id/salida', verificarToken, verificarNivel(4), async (req, res) => {
+router.post('/:id/salida', verificarToken, verificarNivel(3), async (req, res) => {
   const id = idValido(req.params.id);
   const b = req.body || {};
   const motivo = typeof b.motivo === 'string' ? b.motivo.replace(/\s+/g, ' ').trim().slice(0, 300) : '';

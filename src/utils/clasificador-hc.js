@@ -219,7 +219,7 @@ async function _tomarPendiente() {
        WHERE clasificacion IS NULL AND clasificacion_intentos < $1
          AND (clasificada_at IS NULL OR clasificada_at < NOW() - INTERVAL '5 minutes')
        ORDER BY id DESC LIMIT 1 FOR UPDATE SKIP LOCKED)   -- las más recientes primero; las anteriores se van clasificando después
-     RETURNING id, datos`, [MAX_INTENTOS]);
+     RETURNING id, datos, triage_fijo`, [MAX_INTENTOS]);
   return r.rows[0] || null;
 }
 
@@ -234,7 +234,9 @@ async function procesarPendientes(max) {
       if (!hc) break;
       try {
         const c = await clasificarDatos(hc.datos);
-        await pool.query('UPDATE historias_clinicas SET clasificacion = $2, clasificada_at = NOW(), clasificacion_error = NULL WHERE id = $1', [hc.id, JSON.stringify(c)]);
+        // Triage puesto a mano por el administrador: se respeta
+        if (hc.triage_fijo && hc.datos && hc.datos.triage) c.triage = hc.datos.triage;
+        await guardarClasificacion(pool, hc.id, c);
         n++;
       } catch (err) {
         console.error('Clasificación de HC', hc.id, err.message);
@@ -248,6 +250,18 @@ async function procesarPendientes(max) {
     _corriendo = false;
   }
   return n;
+}
+
+// Guarda la clasificación y pone su triage en la HC (campo Triage). El que
+// marcó el enfermero queda guardado aparte (triage_enfermero, solo en la base
+// de datos, para auditoría). Las HC con rechazo de atención no tienen triage.
+async function guardarClasificacion(db, hcId, c, extraSet) {
+  await (db || pool).query(
+    `UPDATE historias_clinicas SET clasificacion = $2, clasificada_at = NOW(), clasificacion_error = NULL,
+            triage_enfermero = COALESCE(triage_enfermero, datos->>'triage'),
+            datos = CASE WHEN datos->>'triage' IS NULL THEN datos ELSE jsonb_set(datos, '{triage}', to_jsonb($3::text)) END
+            ${extraSet || ''}
+     WHERE id = $1`, [hcId, JSON.stringify(c), c.triage]);
 }
 
 // Marca una HC para (re)clasificar y la procesa en un momento
@@ -269,4 +283,4 @@ function iniciar() {
   setInterval(() => { procesarPendientes(20).catch(() => {}); }, 60000).unref();
 }
 
-module.exports = { cargarCatalogos, clasificarDatos, procesarPendientes, reclasificar, pronto, iniciar, entradaDeHC, proveedor };
+module.exports = { cargarCatalogos, clasificarDatos, procesarPendientes, reclasificar, guardarClasificacion, pronto, iniciar, entradaDeHC, proveedor };

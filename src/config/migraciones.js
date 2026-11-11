@@ -253,6 +253,11 @@ const MIGRACIONES = [
   'ALTER TABLE historias_clinicas ADD COLUMN IF NOT EXISTS clasificada_at TIMESTAMPTZ',
   'ALTER TABLE historias_clinicas ADD COLUMN IF NOT EXISTS clasificacion_error TEXT',
   'ALTER TABLE historias_clinicas ADD COLUMN IF NOT EXISTS clasificacion_intentos INTEGER NOT NULL DEFAULT 0',
+  // El triage de la HC lo define la IA; el que marcó el enfermero queda aquí
+  // (solo para auditoría, no se muestra). triage_fijo: el administrador lo
+  // puso a mano y la IA ya no lo cambia (hasta "Volver a clasificar con IA").
+  'ALTER TABLE historias_clinicas ADD COLUMN IF NOT EXISTS triage_enfermero TEXT',
+  'ALTER TABLE historias_clinicas ADD COLUMN IF NOT EXISTS triage_fijo BOOLEAN NOT NULL DEFAULT false',
   `CREATE TABLE IF NOT EXISTS hc_diagnosticos (
      id SERIAL PRIMARY KEY,
      nombre TEXT NOT NULL,
@@ -356,6 +361,15 @@ const MIGRACIONES_UNICAS = [
         if (cambio) await client.query('UPDATE historias_clinicas SET clasificacion = $2 WHERE id = $1', [h.id, JSON.stringify(c)]);
       }
     }
+  },
+  {
+    // HC ya clasificadas: su triage pasa a ser el de la clasificación
+    nombre: 'hc_triage_desde_clasificacion',
+    sql: `UPDATE historias_clinicas
+          SET triage_enfermero = COALESCE(triage_enfermero, datos->>'triage'),
+              triage_fijo = (clasificacion ? 'corregida_por'),
+              datos = jsonb_set(datos, '{triage}', to_jsonb(clasificacion->>'triage'))
+          WHERE clasificacion IS NOT NULL AND datos->>'triage' IS NOT NULL AND clasificacion->>'triage' IS NOT NULL`
   },
 ];
 

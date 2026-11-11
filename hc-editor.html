@@ -15,6 +15,8 @@
   WMS: el mismo editor por módulos del panel de enfermero (js/lite/hc-lite.js
   en modo administrador) con TODAS las historias clínicas y sus filtros. Cada
   corrección se guarda con motivo y queda en el historial de cambios.
+  Aquí también se corrige la clasificación para el reporte (diagnóstico,
+  categoría, procedimiento y triage).
   La sesión es la misma del WMS (nb_token).
 -->
 <div class="lt-screen on" id="lt-app">
@@ -68,6 +70,8 @@
           <div class="lt-hc-titulo" id="lt-hc-titulo"></div>
         </div>
         <div class="lt-hc-guardado" id="lt-hc-guardado"></div>
+        <!-- Clasificación para el reporte (js/hc-editor.js) -->
+        <div class="lt-card hce-clasif" id="hce-clasif"></div>
         <div class="lt-pasos" id="lt-hc-pasos"></div>
         <div class="lt-error" id="lt-hc-errores"></div>
         <div id="lt-hc-modulo"></div>
@@ -86,6 +90,25 @@
     <div class="lt-modal-titulo" id="lt-modal-titulo"></div>
     <div class="lt-modal-cuerpo" id="lt-modal-cuerpo"></div>
     <div class="lt-modal-botones" id="lt-modal-botones"></div>
+  </div>
+</div>
+
+<!-- Corregir la clasificación para el reporte -->
+<div class="lt-modal-fondo" id="hce-clas-modal">
+  <div class="lt-modal hce-clas-modal" role="dialog" aria-labelledby="hce-clas-titulo">
+    <div class="lt-modal-titulo" id="hce-clas-titulo">Corregir clasificación</div>
+    <div class="lt-muted">Lo que sale en el Reporte Excel para esta historia clínica. El diagnóstico define la categoría y el nivel de triage queda también en la historia clínica.</div>
+    <label class="lt-label" for="hce-clas-diag">Diagnóstico</label>
+    <select class="lt-input" id="hce-clas-diag"></select>
+    <label class="lt-label">Nivel de triage</label>
+    <div class="hce-clas-triage" id="hce-clas-triage"></div>
+    <label class="lt-label">Procedimientos <span class="lt-gris" id="hce-clas-cuenta"></span></label>
+    <div class="hce-clas-procs" id="hce-clas-procs"></div>
+    <div class="lt-proc-error" id="hce-clas-error" style="display:none"></div>
+    <div class="lt-modal-botones">
+      <button type="button" class="lt-btn-sec" id="hce-clas-cancelar">Cancelar</button>
+      <button type="button" class="lt-btn-sec primario" id="hce-clas-guardar">Guardar</button>
+    </div>
   </div>
 </div>
 

@@ -118,9 +118,6 @@ const HistoriasClinicas = {
   editar: (id, datos, motivo) => request('PUT', `/api/hc/${id}`, { datos, motivo }),
   // Reporte de atenciones (Excel) y clasificación por IA
   reporte: (f) => request('GET', '/api/hc/reporte?' + new URLSearchParams(Object.entries(f || {}).filter(([, v]) => v)).toString()),
-  catalogos: () => request('GET', '/api/hc/catalogos'),
-  corregirClasificacion: (id, data) => request('PUT', `/api/hc/${id}/clasificacion`, data),
-  rehacerClasificacion: (id) => request('POST', `/api/hc/${id}/clasificacion/rehacer`),
   entrega: (id, data) => request('POST', `/api/hc/${id}/entrega`, data),
   firmaMedico: (id, firma) => request('POST', `/api/hc/${id}/firma-medico`, { firma }),
   // Sube el recibido de la IPS (foto o PDF) tal cual, sin JSON

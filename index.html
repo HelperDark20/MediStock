@@ -838,7 +838,7 @@
                   <option value="firma_pendiente">Con firma médica pendiente</option>
                 </select>
               </div>
-              <div class="form-group"><label>Paciente o número de HC</label>
+              <div class="form-group"><label id="hcf-documento-label">Paciente o número de HC</label>
                 <input type="text" id="hcf-documento" placeholder="Documento, nombre o HC-2026-…" onkeydown="if(event.key==='Enter')hcBuscar(1)">
               </div>
             </div>
@@ -1427,23 +1427,6 @@
     </div>
   </div>
 </div>
-<div class="modal-overlay" id="modal-hc-clasif">
-  <div class="modal-sheet" style="max-width:600px">
-    <div class="modal-handle"></div>
-    <div class="modal-title">Corregir clasificación</div>
-    <div class="modal-sub">Lo que salga en el reporte para esta historia clínica. El diagnóstico define la categoría.</div>
-    <div class="form-grid">
-      <div class="form-group fg-full"><label>Diagnóstico</label><select id="hcclas-diagnostico"></select></div>
-      <div class="form-group"><label>Nivel de triage</label><select id="hcclas-triage"><option value="">Elegir…</option><option>I</option><option>II</option><option>III</option><option>IV</option><option>V</option></select></div>
-      <div class="form-group fg-full"><label>Procedimientos (hasta 4)</label><div class="hc-clas-procs" id="hcclas-procedimientos"></div></div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeModal('modal-hc-clasif')">Cancelar</button>
-      <button class="btn-confirm" onclick="hcGuardarClasificacion(this)">Guardar</button>
-    </div>
-  </div>
-</div>
-
 <!-- MODAL DETALLE DE EVENTO -->
 <div class="modal-overlay" id="modal-evento-detalle">
   <div class="modal-sheet" style="max-width:600px">

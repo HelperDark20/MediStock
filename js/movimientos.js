@@ -14,14 +14,12 @@ function movClearFiltro(){
 }
 
 function renderMovimientos(){
-  const canTraslado = currentRole>=3;
-  const canDestruccion = currentRole>=3;
-  const optTraslado = document.getElementById('opt-traslado');
-  const optDestruccion = document.getElementById('opt-destruccion');
-  if(optTraslado) optTraslado.disabled = !canTraslado;
-  if(optDestruccion) optDestruccion.disabled = !canDestruccion;
-  if(!canTraslado && document.getElementById('mov-tipo') && document.getElementById('mov-tipo').value!=='consumo'){
-    document.getElementById('mov-tipo').value='consumo';
+  // Enfermero: consumos · Supervisor: solo traslados · Administrador: todo
+  const permitidos = currentRole===4 ? ['consumo','traslado','destruccion'] : currentRole===3 ? ['traslado'] : ['consumo'];
+  const selTipo = document.getElementById('mov-tipo');
+  if(selTipo){
+    [...selTipo.options].forEach(o => { const ok = permitidos.includes(o.value); o.disabled = !ok; o.hidden = !ok; });
+    if(!permitidos.includes(selTipo.value)) selTipo.value = permitidos[0];
   }
   const msg = document.getElementById('mov-locked-msg');
   if(msg) msg.innerHTML='';

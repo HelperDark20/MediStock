@@ -54,4 +54,16 @@ const verificarNivel = (nivelMinimo) => {
   };
 };
 
-module.exports = { verificarToken, verificarNivel };
+// Solo los niveles indicados (p. ej. consumos: enfermero y administrador,
+// no el supervisor)
+const verificarNiveles = (...niveles) => {
+  return (req, res, next) => {
+    if (!req.usuario) return res.status(401).json({ error: 'No autenticado' });
+    if (niveles.indexOf(Number(req.usuario.nivel)) < 0) {
+      return res.status(403).json({ error: 'Tu nivel no tiene permiso para esta acción' });
+    }
+    next();
+  };
+};
+
+module.exports = { verificarToken, verificarNivel, verificarNiveles };
