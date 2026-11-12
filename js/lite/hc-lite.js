@@ -385,6 +385,25 @@ var HCLite = (function(){
 
   function fechaAtencion(){ return U.fechaCO(hc.inicio_atencion); }
 
+  // Fecha de nacimiento: mínimo un mes antes de la atención (no se acepta la
+  // fecha del día, que se ponía por no preguntarla)
+  var ERROR_NACIMIENTO = 'La fecha de nacimiento no es válida: el paciente debe tener mínimo un mes de nacido (no se acepta la fecha de hoy)';
+  function menorDeUnMes(nac){
+    if(!fechaValida(nac)) return false;
+    var a = nac.split('-'), b = fechaAtencion().split('-');
+    var meses = (+b[0] - +a[0]) * 12 + (+b[1] - +a[1]);
+    if(+b[2] < +a[2]) meses--;
+    return nac <= fechaAtencion() && meses < 1;
+  }
+  // Para el selector de fecha: el mismo día del mes anterior
+  function maxNacimiento(){
+    var b = fechaAtencion().split('-'), y = +b[0], m = +b[1] - 1, d = +b[2];
+    if(m < 1){ m = 12; y--; }
+    var ult = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    if(d > ult) d = ult;
+    return y + '-' + (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d;
+  }
+
   // ¿El navegador tiene selector de fecha? (Safari de iOS sí; si no, se
   // escribe DD/MM/AAAA)
   var _soportaFecha = null;
@@ -452,7 +471,7 @@ var HCLite = (function(){
         ' data-campo="' + ruta + '" value="' + U.escHtml(v) + '" autocomplete="off">';
     } else if(opts.tipo === 'fecha'){
       if(soportaFecha()){
-        html += '<input class="lt-input" type="date"' + (opts.sinMax ? '' : ' max="' + fechaAtencion() + '"') + ' min="1900-01-01"' + attrs + ' value="' + U.escHtml(v) + '">';
+        html += '<input class="lt-input" type="date"' + (opts.sinMax ? '' : ' max="' + (opts.maxFecha || fechaAtencion()) + '"') + ' min="1900-01-01"' + attrs + ' value="' + U.escHtml(v) + '">';
       } else {
         html += '<input class="lt-input" type="tel" data-fecha-dma="1" placeholder="DD/MM/AAAA" maxlength="10"' +
           ' data-campo="' + ruta + '" value="' + U.escHtml(v ? U.fmtFecha(v) : '') + '">';
@@ -548,9 +567,10 @@ var HCLite = (function(){
         ph: alfanum ? 'Letras y números' : 'Solo números',
         ayuda: navigator.onLine !== false && !st.offline && !hc.modo ? 'Si el paciente ya fue atendido antes, se ofrecerá cargar sus datos.' : ''
       }) +
-      fila([campo('paciente.fecha_nacimiento', 'Fecha de nacimiento', { req: req, tipo: 'fecha' }),
+      fila([campo('paciente.fecha_nacimiento', 'Fecha de nacimiento', { req: req, tipo: 'fecha', maxFecha: maxNacimiento() }),
             '<div class="lt-campo"><label class="lt-label">Edad</label><div class="lt-edad" id="lt-hc-edad">' +
-            (edad ? U.escHtml(edad) : '<span class="lt-gris">Se calcula con la fecha de nacimiento</span>') + '</div></div>']) +
+            (edad && menorDeUnMes(p.fecha_nacimiento) ? '<span class="lt-error-txt">Mínimo un mes de nacido</span>'
+              : edad ? U.escHtml(edad) : '<span class="lt-gris">Se calcula con la fecha de nacimiento</span>') + '</div></div>']) +
       chips('paciente.sexo', 'Sexo', SEXOS, req) +
       fila([chips('paciente.rh', 'RH', RH, true), chips('paciente.grupo', 'Grupo sanguíneo', GRUPOS, true)]) +
       chips('paciente.procedencia', 'Ubicación del paciente', PROCEDENCIAS, true) +
@@ -1339,6 +1359,7 @@ var HCLite = (function(){
       else if(documentoDeRelleno(doc)) err('paciente.documento', 'El número de documento no es válido (parece un dato de relleno)');
       if(!fechaValida(p.fecha_nacimiento)) err('paciente.fecha_nacimiento', 'Indica la fecha de nacimiento');
       else if(!calcularEdad(p.fecha_nacimiento, fechaAtencion())) err('paciente.fecha_nacimiento', 'La fecha de nacimiento no puede ser posterior a hoy');
+      else if(menorDeUnMes(p.fecha_nacimiento)) err('paciente.fecha_nacimiento', ERROR_NACIMIENTO);
       if(!p.sexo) err('paciente.sexo', 'Selecciona el sexo');
       if(!p.rh) err('paciente.rh', 'Selecciona el RH');
       if(!p.grupo) err('paciente.grupo', 'Selecciona el grupo sanguíneo');
@@ -1616,7 +1637,8 @@ var HCLite = (function(){
     fijarCampo(ruta, v);
     if(ruta === 'paciente.fecha_nacimiento'){
       var edad = calcularEdad(v, fechaAtencion());
-      U.$('lt-hc-edad').innerHTML = edad ? U.escHtml(edad) : (v ? '<span class="lt-error-txt">Fecha no válida</span>' : '<span class="lt-gris">Se calcula con la fecha de nacimiento</span>');
+      U.$('lt-hc-edad').innerHTML = edad && menorDeUnMes(v) ? '<span class="lt-error-txt">Mínimo un mes de nacido</span>'
+        : edad ? U.escHtml(edad) : (v ? '<span class="lt-error-txt">Fecha no válida</span>' : '<span class="lt-gris">Se calcula con la fecha de nacimiento</span>');
       var conChips = !!document.querySelector('[data-chip="paciente.estado_civil"]');
       if(conChips === esMenorEstadoCivil()){
         guardarHC();

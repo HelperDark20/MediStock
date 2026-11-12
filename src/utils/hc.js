@@ -129,6 +129,7 @@ function documentoDeRelleno(v) {
   if (d.length < 3) return false;
   return /^(.)\1*$/.test(d) || (/^\d+$/.test(d) && _secuencia(d, d.length));
 }
+const ERROR_NACIMIENTO = 'La fecha de nacimiento no es válida: el paciente debe tener mínimo un mes de nacido (no se acepta la fecha de hoy)';
 const ERROR_TELEFONO = 'escribe un número de mínimo 8 dígitos (nacional o extranjero), sin 5 números iguales o seguidos (55555, 12345)';
 
 function firmaValida(v) {
@@ -207,6 +208,9 @@ function _paciente(p, fechaAtencion, errores) {
   if (out.fecha_nacimiento) {
     out.edad = calcularEdad(out.fecha_nacimiento, fechaAtencion);
     if (!out.edad) errores.push('La fecha de nacimiento no puede ser posterior a la fecha de atención');
+    // Mínimo un mes de nacido: evita que se registre la fecha del día
+    // (o una muy cercana) por no preguntarla
+    else if (out.edad.anios < 1 && out.edad.meses < 1) errores.push(ERROR_NACIMIENTO);
   }
   if (!out.rh) errores.push('Selecciona el RH del paciente');
   if (!out.grupo) errores.push('Selecciona el grupo sanguíneo del paciente');
