@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const acorn = require('acorn');
 
-const ARCHIVOS = ['js/lite/enfermero-lite.js', 'js/lite/hc-lite.js', 'js/compat-check.js', 'js/lite/datacontrol-lite.js'];
+const ARCHIVOS = ['js/lite/enfermero-lite.js', 'js/lite/hc-lite.js', 'js/lite/fugaz-lite.js', 'js/compat-check.js', 'js/lite/datacontrol-lite.js'];
 
 // API ausentes en Safari 9 (iOS 9.3)
 const PROHIBIDAS = [

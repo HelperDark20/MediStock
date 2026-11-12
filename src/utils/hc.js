@@ -225,16 +225,28 @@ function _paciente(p, fechaAtencion, errores) {
   return out;
 }
 
-// Paciente con tarjeta de identidad (menor de edad): acompañante obligatorio
+// Paciente con tarjeta de identidad (menor de edad): acompañante obligatorio.
+// Si el menor llega sin acudiente se escribe el motivo y, de todas formas,
+// los datos de alguien que sirva de testigo (nombre, cédula, relación y
+// teléfono).
 function _acompanante(a, tipoDoc, errores) {
   const out = { tiene: bool(a.tiene) || tipoDoc === 'TI', nombre: '', parentesco: '', telefono: '' };
   if (!out.tiene) return out;
+  const sinAcudiente = tipoDoc === 'TI' && bool(a.sin_acudiente);
   out.nombre = mayus(a.nombre, 120);
   out.parentesco = mayus(a.parentesco, 60);
   out.telefono = telefono(a.telefono);
-  if (out.nombre.length < 3 || textoDeRelleno(out.nombre)) errores.push('Escribe el nombre completo del acompañante (sin datos de relleno)');
-  if (out.parentesco.length < 3 || textoDeRelleno(out.parentesco)) errores.push('Escribe el parentesco del acompañante');
-  if (!telefonoValido(out.telefono)) errores.push('Teléfono del acompañante: ' + ERROR_TELEFONO);
+  const quien = sinAcudiente ? 'testigo' : 'acompañante';
+  if (sinAcudiente) {
+    out.sin_acudiente = true;
+    out.motivo_sin_acudiente = txtLargo(a.motivo_sin_acudiente, 1000);
+    out.documento = digitos(a.documento).slice(0, 15);
+    if (out.motivo_sin_acudiente.length < 10 || textoDeRelleno(out.motivo_sin_acudiente)) errores.push('Escribe el motivo por el que el menor llega sin acudiente');
+    if (out.documento.length < 5 || documentoDeRelleno(out.documento)) errores.push('Escribe la cédula del testigo');
+  }
+  if (out.nombre.length < 3 || textoDeRelleno(out.nombre)) errores.push(`Escribe el nombre completo del ${quien} (sin datos de relleno)`);
+  if (out.parentesco.length < 3 || textoDeRelleno(out.parentesco)) errores.push(sinAcudiente ? 'Escribe la relación del testigo con el paciente o su cargo' : 'Escribe el parentesco del acompañante');
+  if (!telefonoValido(out.telefono)) errores.push(`Teléfono del ${quien}: ` + ERROR_TELEFONO);
   return out;
 }
 
@@ -641,7 +653,7 @@ function diferencias(antes, despues) {
 // ── Supervisor (nivel 3): ve las HC sin los datos que identifican al
 // paciente y al acompañante ──
 const CONFIDENCIAL = 'CONFIDENCIAL';
-const RE_CAMPO_CONFIDENCIAL = /^(paciente\.(nombres|apellidos|documento|telefono|direccion)|acompanante\.(nombre|telefono))$/;
+const RE_CAMPO_CONFIDENCIAL = /^(paciente\.(nombres|apellidos|documento|telefono|direccion)|acompanante\.(nombre|telefono|documento))$/;
 function hcConfidencial(h) {
   const out = { ...h, paciente_nombre: CONFIDENCIAL, paciente_documento: h.paciente_documento ? CONFIDENCIAL : h.paciente_documento };
   if (h.datos) {
@@ -651,7 +663,7 @@ function hcConfidencial(h) {
       ['documento', 'telefono', 'direccion'].forEach(k => { if (d.paciente[k]) d.paciente[k] = CONFIDENCIAL; });
     }
     if (d.acompanante && d.acompanante.tiene) {
-      ['nombre', 'telefono'].forEach(k => { if (d.acompanante[k]) d.acompanante[k] = CONFIDENCIAL; });
+      ['nombre', 'telefono', 'documento'].forEach(k => { if (d.acompanante[k]) d.acompanante[k] = CONFIDENCIAL; });
     }
     out.datos = d;
   }

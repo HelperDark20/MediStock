@@ -32,7 +32,7 @@ app.get('/hc-editor', (req, res) => res.sendFile(path.join(__dirname, 'hc-editor
 const crypto = require('crypto');
 const fs = require('fs');
 const ARCHIVOS_PANEL = [
-  'enfermero.html', 'css/enfermero-lite.css', 'js/lite/enfermero-lite.js', 'js/lite/hc-lite.js', 'js/lite/sw-enfermero.js',
+  'enfermero.html', 'css/enfermero-lite.css', 'js/lite/enfermero-lite.js', 'js/lite/hc-lite.js', 'js/lite/fugaz-lite.js', 'js/lite/sw-enfermero.js',
   'fonts/METHANERSE_Free_Trial.woff2', 'fonts/METHANERSE_Free_Trial.woff', 'logo.png', 'img/avatares/enfermero.svg'
 ];
 const hashPanel = crypto.createHash('sha1');
@@ -46,6 +46,7 @@ app.get('/enfermero.appcache', (req, res) => {
     'CACHE:',
     '/css/enfermero-lite.css',
     '/js/lite/hc-lite.js',
+    '/js/lite/fugaz-lite.js',
     '/js/lite/enfermero-lite.js',
     '/fonts/METHANERSE_Free_Trial.woff',
     '/logo.png',

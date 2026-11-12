@@ -594,11 +594,23 @@ var HCLite = (function(){
     // Tarjeta de identidad (menor de edad): el acompañante es obligatorio
     var acompObligatorio = p.tipo_doc === 'TI';
     if(acompObligatorio && !a.tiene) a.tiene = true;
-    html += seccion('Contacto de acompañante',
+    // Menor que llega sin acudiente: se escribe el motivo y, de todas formas,
+    // los datos de un testigo
+    if(!acompObligatorio && a.sin_acudiente) a.sin_acudiente = false;
+    var sinAcud = acompObligatorio && a.sin_acudiente;
+    html += seccion(sinAcud ? 'Menor sin acudiente: datos del testigo' : 'Contacto de acompañante',
       (acompObligatorio
-        ? '<div class="lt-aviso">Paciente con <strong>tarjeta de identidad</strong>: los datos del acompañante son obligatorios.</div>'
+        ? '<div class="lt-aviso">Paciente con <strong>tarjeta de identidad</strong>: los datos del acompañante son obligatorios.</div>' +
+          interruptor('acompanante.sin_acudiente', 'El menor llega sin acudiente')
         : interruptor('acompanante.tiene', '¿El paciente tiene acompañante?')) +
-      (a.tiene ? campo('acompanante.nombre', 'Nombre y apellidos completos', { req: true, max: 120, mayus: true }) +
+      (sinAcud
+        ? campo('acompanante.motivo_sin_acudiente', 'Motivo por el que el menor no tiene acudiente', { req: true, tipo: 'area', filas: 3, max: 1000 }) +
+          '<div class="lt-muted">Registra los datos de alguien que sirva de testigo de la atención (por ejemplo, personal de logística, policía o un adulto que lo acompañe).</div>' +
+          campo('acompanante.nombre', 'Nombre y apellidos del testigo', { req: true, max: 120, mayus: true }) +
+          fila([campo('acompanante.documento', 'Cédula del testigo', { req: true, tipo: 'digitos', max: 15 }),
+                campo('acompanante.parentesco', 'Relación con el paciente o cargo', { req: true, max: 60, mayus: true, ph: 'Ej. LOGÍSTICA' })]) +
+          campo('acompanante.telefono', 'Teléfono del testigo', { req: true, tipo: 'telefono', max: 20, ph: 'Ej. 3157778899' })
+        : a.tiene ? campo('acompanante.nombre', 'Nombre y apellidos completos', { req: true, max: 120, mayus: true }) +
         fila([campo('acompanante.parentesco', 'Parentesco', { req: true, max: 60, mayus: true, ph: 'Ej. MADRE' }),
               campo('acompanante.telefono', 'Teléfono', { req: true, tipo: 'telefono', max: 20, ph: 'Ej. 3157778899' })]) : ''));
     return html;
@@ -1371,10 +1383,16 @@ var HCLite = (function(){
       if(p.otra_aseguradora && !txt(p.aseguradora)) err('paciente.aseguradora', 'Escribe el nombre de la otra aseguradora');
       var a = d.acompanante;
       if(p.tipo_doc === 'TI' && !a.tiene) a.tiene = true;   // TI: acompañante obligatorio
+      var sinAcud = p.tipo_doc === 'TI' && a.sin_acudiente;
+      if(sinAcud){
+        if(txt(a.motivo_sin_acudiente).length < 10 || textoDeRelleno(a.motivo_sin_acudiente)) err('acompanante.motivo_sin_acudiente', 'Escribe el motivo por el que el menor llega sin acudiente');
+        if(digitos(a.documento).length < 5 || documentoDeRelleno(a.documento)) err('acompanante.documento', 'Escribe la cédula del testigo');
+      }
       if(a.tiene){
-        if(txt(a.nombre).length < 3 || textoDeRelleno(a.nombre)) err('acompanante.nombre', 'Escribe el nombre completo del acompañante (sin datos de relleno)');
-        if(txt(a.parentesco).length < 3 || textoDeRelleno(a.parentesco)) err('acompanante.parentesco', 'Escribe el parentesco del acompañante');
-        if(!telefonoValido(a.telefono)) err('acompanante.telefono', 'Teléfono del acompañante: ' + ERROR_TELEFONO);
+        var quien = sinAcud ? 'testigo' : 'acompañante';
+        if(txt(a.nombre).length < 3 || textoDeRelleno(a.nombre)) err('acompanante.nombre', 'Escribe el nombre completo del ' + quien + ' (sin datos de relleno)');
+        if(txt(a.parentesco).length < 3 || textoDeRelleno(a.parentesco)) err('acompanante.parentesco', sinAcud ? 'Escribe la relación del testigo con el paciente o su cargo' : 'Escribe el parentesco del acompañante');
+        if(!telefonoValido(a.telefono)) err('acompanante.telefono', 'Teléfono del ' + quien + ': ' + ERROR_TELEFONO);
       }
     }
     if(n === 3){

@@ -243,9 +243,11 @@
   function textoSesionVencida(){
     var n = st.usuario ? leerCola(st.usuario.id).length : 0;
     var h = st.usuario ? HCLite.contar(st.usuario.id) : { total: 0 };
+    var nf = st.usuario ? FugazLite.pendientes(st.usuario.id) : 0;
     var partes = [];
     if(n) partes.push(plural(n, 'consumo pendiente', 'consumos pendientes'));
     if(h.total) partes.push(plural(h.total, 'historia clínica', 'historias clínicas'));
+    if(nf) partes.push(plural(nf, 'atención fugaz', 'atenciones fugaces'));
     return partes.length
       ? 'Tu sesión venció. Ingresa de nuevo: tus ' + partes.join(' y ') + ' siguen guardados en esta tablet.'
       : 'Tu sesión venció. Ingresa de nuevo.';
@@ -255,8 +257,8 @@
   // historias clínicas en curso o pendientes de envío
   function pendientesTablet(idUsuario){
     var n = leerCola(idUsuario).length;
-    var h = HCLite.contar(idUsuario);
-    return { consumos: n, hc: h.total, hcPorEnviar: h.porEnviar, hcEnCurso: h.enCurso, porSubir: n + h.porEnviar };
+    var h = HCLite.contar(idUsuario), nf = FugazLite.pendientes(idUsuario);
+    return { consumos: n, hc: h.total, hcPorEnviar: h.porEnviar, hcEnCurso: h.enCurso, fugaces: nf, porSubir: n + h.porEnviar + nf };
   }
 
   // Foto de perfil del nivel (la misma del panel admin). Si la imagen no
@@ -317,6 +319,7 @@
   function cerrarSesion(){
     var id = st.usuario ? st.usuario.id : null;
     HCLite.salir();
+    FugazLite.salir();
     var p = id ? pendientesTablet(id) : null;
     if(id && !p.consumos && !p.hc){
       // Sin pendientes: no queda nada de este usuario en la tablet
@@ -576,6 +579,12 @@
 
   // Volver a en línea: requiere no tener pendientes
   function volverEnLinea(){
+    var nfug = FugazLite.pendientes(st.usuario.id);
+    if(nfug && !leerCola(st.usuario.id).length){
+      modal('Primero sincroniza', 'Tienes <strong>' + plural(nfug, 'atención fugaz pendiente', 'atenciones fugaces pendientes') + ' por sincronizar</strong>. Sincronízalas antes de volver al modo en línea.',
+        [{ texto: 'Cancelar' }, { texto: 'Sincronizar', clase: 'primario', accion: sincronizar }]);
+      return;
+    }
     if(leerCola(st.usuario.id).length){
       var ps = HCLite.porSincronizar(st.usuario.id, leerCola(st.usuario.id));
       modal('Primero sincroniza', 'Tienes <strong>' + plural(ps.hc || 1, 'historia clínica pendiente', 'historias clínicas pendientes') + ' por sincronizar</strong>. Sincronízalas antes de volver al modo en línea.',
@@ -592,18 +601,36 @@
   // inventario antes de aceptarla.
   function sincronizar(){
     if(st.sincronizando) return;
-    var nc = leerCola(st.usuario.id).length, nh = HCLite.contar(st.usuario.id).porEnviar;
-    if(!nc && !nh){ toast('No hay nada pendiente de sincronizar', 'ok'); return; }
+    var nc = leerCola(st.usuario.id).length, nh = HCLite.contar(st.usuario.id).porEnviar, nf = FugazLite.pendientes(st.usuario.id);
+    if(!nc && !nh && !nf){ toast('No hay nada pendiente de sincronizar', 'ok'); return; }
     st.sincronizando = true;
     renderModo();
+    // Atenciones fugaces al final (no dependen de los consumos de la cola)
+    function fugaces(rc, rh){
+      if(!nf || rc.sinRed || (rh && rh.sinRed)){ terminarSincronizacion(rc, rh, null); return; }
+      FugazLite.sincronizar(function(rf){
+        if(rf.sesion){ st.sincronizando = false; renderModo(); salirSinBorrar(textoSesionVencida()); return; }
+        terminarSincronizacion(rc, rh, rf);
+      });
+    }
     sincronizarConsumos(function(rc){
       if(rc.sesion){ st.sincronizando = false; renderModo(); salirSinBorrar(textoSesionVencida()); return; }
-      if(rc.sinRed || !nh){ terminarSincronizacion(rc, null); return; }
+      if(rc.sinRed || !nh){ fugaces(rc, null); return; }
       HCLite.sincronizar(function(rh){
         if(rh.sesion){ st.sincronizando = false; renderModo(); salirSinBorrar(textoSesionVencida()); return; }
-        terminarSincronizacion(rc, rh);
+        fugaces(rc, rh);
       });
     });
+  }
+
+  // Resumen del envío de atenciones fugaces
+  function resumenFugaces(r){
+    if(!r || !r.total) return '';
+    var t = r.enviadas ? (r.enviadas === 1 ? 'Se envió' : 'Se enviaron') + ' <strong>' + plural(r.enviadas, 'atención fugaz', 'atenciones fugaces') + '</strong>. ' : '';
+    if(r.sinRed) t += 'Sin conexión: quedan atenciones fugaces pendientes de envío. ';
+    if(r.errores) t += '<strong>' + plural(r.errores, 'atención fugaz fue rechazada', 'atenciones fugaces fueron rechazadas') + '</strong>: ábrela en "Atenciones fugaces" para ver el motivo y corregirla. ';
+    if(r.error) t += escHtml(r.error) + ' ';
+    return t;
   }
 
   // Resumen del envío de historias clínicas para los avisos de sincronización
@@ -617,20 +644,23 @@
     return t;
   }
 
-  function terminarSincronizacion(rc, rh){
+  function terminarSincronizacion(rc, rh, rf){
     st.sincronizando = false;
     renderModo();
     renderHistorial();
     HCLite.mostrarInicio();
+    FugazLite.mostrarInicio();
     var quedanConsumos = leerCola(st.usuario.id).length;
     var quedanHC = HCLite.contar(st.usuario.id).porEnviar;
-    var incompleto = rc.sinRed || rc.errores || quedanConsumos || quedanHC || (rh && (rh.errores || rh.errores_nov));
+    var quedanFug = FugazLite.pendientes(st.usuario.id);
+    var incompleto = rc.sinRed || rc.errores || quedanConsumos || quedanHC || quedanFug || (rh && (rh.errores || rh.errores_nov));
     var t = '';
     if(rc.ok) t += 'Se subieron <strong>' + plural(rc.ok, 'consumo', 'consumos') + '</strong>. ';
     if(rc.errores) t += '<strong>' + plural(rc.errores, 'consumo no se pudo registrar', 'consumos no se pudieron registrar') + '</strong>: ábrelos en el módulo 6 de su historia clínica para ver el motivo. ';
     if(rc.sinRed) t += 'Sin conexión: lo pendiente sigue guardado en la tablet; sincroniza cuando tengas señal. ';
     else if(rc.error) t += escHtml(rc.error) + ' ';
     t += resumenHC(rh);
+    t += resumenFugaces(rf);
     if(!incompleto) t += 'Todo quedó en el servidor. Los datos de las historias clínicas se borran de esta tablet cuando finaliza el evento.';
     modal(incompleto ? 'Sincronización incompleta' : 'Sincronización completa', t,
       !incompleto && st.offline
@@ -796,13 +826,15 @@
     var masViejo = null;
     for(var i = 0; i < n; i++){ if(!masViejo || cola[i].fecha_atencion < masViejo) masViejo = cola[i].fecha_atencion; }
     var viejos = masViejo && (new Date().getTime() - new Date(masViejo).getTime()) > HORAS_AVISO_PENDIENTES * 3600 * 1000;
-    var total = ps.hc + ps.consumosSueltos;
+    var nFug = FugazLite.pendientes(st.usuario.id);
+    var total = ps.hc + ps.consumosSueltos + nFug;
     var btnSync = total ? '<button type="button" class="lt-btn-sec primario" data-accion="sincronizar"' + (st.sincronizando ? ' disabled' : '') + '>' +
       (st.sincronizando ? 'Sincronizando…' : 'Sincronizar (' + total + ')') + '</button>' : '';
     var aviso = viejos ? '<div class="lt-modo-detalle"><strong>Tienes información sin sincronizar desde el ' + fechaHoraCO(masViejo) + '.</strong> Sincroniza apenas tengas conexión.</div>' : '';
     var partes = [];
     if(ps.hc) partes.push(plural(ps.hc, 'historia clínica pendiente', 'historias clínicas pendientes') + ' por sincronizar');
     if(ps.consumosSueltos) partes.push(plural(ps.consumosSueltos, 'consumo pendiente', 'consumos pendientes'));
+    if(nFug) partes.push(plural(nFug, 'atención fugaz pendiente', 'atenciones fugaces pendientes'));
     var html;
     if(st.offline){
       html = '<div class="lt-modo-titulo">● Modo offline</div>' +
@@ -865,6 +897,7 @@
     renderModo();
     renderHistorial();
     HCLite.mostrarInicio();
+    FugazLite.mostrarInicio();
     // Sin bodegas puede diligenciar historias clínicas, pero no registrar consumos
     if(!bodegas.length){
       errorEn('lt-consumo-error', 'No tienes bodegas asignadas en este evento: no puedes registrar consumos. Contacta al administrador.');
@@ -1140,6 +1173,15 @@
       registrarConsumoHC: registrarConsumoHC, consumoEnCola: consumoEnCola,
       quitarConsumoDeCola: quitarConsumoDeCola, devolverLocal: devolverLocal,
       sincronizar: sincronizar, fechaHoraCO: fechaHoraCO, semHtml: semHtml
+    });
+    // Atención de pacientes fugaces (js/lite/fugaz-lite.js)
+    FugazLite.conectar({
+      $: $, on: on, mostrar: mostrar, escHtml: escHtml, api: api, sesionVencida: sesionVencida,
+      modal: modal, toast: toast, leerJSON: leerJSON, guardarJSON: guardarJSON, claveUsuario: claveUsuario,
+      nuevoClientId: nuevoClientId, fechaCO: fechaCO, horaCO: horaCO, fmtFecha: fmtFecha, semHtml: semHtml,
+      closestData: closestData, renderModo: renderModo, estado: st,
+      descontarLocal: descontarLocal, devolverLocal: devolverLocal, guardarPaquete: guardarPaquete,
+      guardarModo: function(v){ guardar(claveUsuario('modo'), v); }
     });
     on($('lt-login-form'), 'submit', enviarLogin);
     on($('lt-logout'), 'click', function(){ if(st.usuario) pedirSalir(); else cerrarSesion(); });
