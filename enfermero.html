@@ -81,11 +81,28 @@
       <!-- ═══ HISTORIAS CLÍNICAS (js/lite/hc-lite.js) ═══ -->
       <div class="lt-tabpanel on" id="lt-tab-hc">
         <div id="lt-hc-inicio" class="on">
-          <button type="button" class="lt-btn lt-btn-nueva" data-hc="nueva">+ Nueva historia clínica</button>
+          <div class="lt-nuevas">
+            <button type="button" class="lt-btn lt-btn-nueva" data-hc="nueva">+ Nueva historia clínica</button>
+            <button type="button" class="lt-btn lt-btn-nueva lt-btn-fugaz" data-fug="nueva">+ Atención fugaz</button>
+          </div>
           <div class="lt-card">
             <div class="lt-card-title">Mis historias clínicas</div>
             <div id="lt-hc-lista"></div>
           </div>
+          <div class="lt-card">
+            <div class="lt-card-title">Atenciones fugaces</div>
+            <div class="lt-muted">Pacientes atendidos donde están, solo con insumos del botiquín tipo 1 (BTQ I).</div>
+            <div id="lt-fug-lista"></div>
+          </div>
+        </div>
+
+        <!-- Atención de pacientes fugaces (js/lite/fugaz-lite.js) -->
+        <div id="lt-fug-editor">
+          <div class="lt-hc-top">
+            <button type="button" class="lt-btn-sec" data-fug="volver">‹ Volver</button>
+            <div class="lt-hc-titulo">Atención fugaz</div>
+          </div>
+          <div id="lt-fug-cuerpo"></div>
         </div>
 
         <div id="lt-hc-editor">
@@ -180,6 +197,7 @@
 
 <!-- hc-lite.js va antes: enfermero-lite.js lo conecta al arrancar -->
 <script src="js/lite/hc-lite.js"></script>
+<script src="js/lite/fugaz-lite.js"></script>
 <script src="js/lite/enfermero-lite.js"></script>
 </body>
 </html>

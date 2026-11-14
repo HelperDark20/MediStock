@@ -196,7 +196,10 @@ function hcHtml(h, imprimir){
     hcDato('Dirección', hcV(p.direccion)) + hcDato('Ciudad', hcV(p.ciudad)) + hcDato('Teléfono', hcV(p.telefono)) +
     hcDato('Estado civil', p.edad && p.edad.anios < 15 ? 'Soltero/a' : hcT('estado_civil', p.estado_civil)) + hcDato('Ocupación', hcV(p.ocupacion)) +
     hcDato('EPS', hcV(p.eps)) + hcDato('ARL', hcV(p.arl)) + hcDato('Otra aseguradora', p.otra_aseguradora ? hcV(p.aseguradora) : 'No'));
-  html += hcSec('Contacto de acompañante', a.tiene
+  html += hcSec(a.sin_acudiente ? 'Menor sin acudiente: testigo' : 'Contacto de acompañante', a.sin_acudiente
+    ? hcDato('Motivo sin acudiente', hcV(a.motivo_sin_acudiente), true) + hcDato('Nombre del testigo', hcV(a.nombre), true) +
+      hcDato('Cédula', hcV(a.documento)) + hcDato('Relación o cargo', hcV(a.parentesco)) + hcDato('Teléfono', hcV(a.telefono))
+    : a.tiene
     ? hcDato('Nombre completo', hcV(a.nombre), true) + hcDato('Parentesco', hcV(a.parentesco)) + hcDato('Teléfono', hcV(a.telefono))
     : '<div class="hc-nada">Sin acompañante</div>');
   html += hcSec('Motivo de consulta', `<div class="hc-texto">${hcV(d.motivo && d.motivo.relato)}</div>`);
@@ -605,6 +608,80 @@ async function hcDescargarReporte(btn){
       document.getElementById('hcrep-aviso').innerHTML = r.pendientes
         ? `<div class="asis-carga-aviso">Se descargaron ${r.filas.length} atenciones. <b>${r.pendientes}</b> aún no tienen la clasificación de la IA (diagnóstico, categoría, procedimiento y triage): salen como "Pendiente de clasificar". Vuelve a descargar en unos minutos.</div>`
         : `<div class="asis-carga-ok">✓ Se descargaron ${r.filas.length} atenciones.</div>`;
+    } catch(err){ toastError(err.message); }
+  });
+}
+
+// ══════════════════════════════════════════
+// ATENCIONES FUGACES — pacientes atendidos donde están, con insumos de
+// botiquín tipo 1. Consulta y Excel (supervisor: paciente CONFIDENCIAL).
+// ══════════════════════════════════════════
+let _fugFilas = [];
+const FUG_COLS = [
+  ['fecha', 'Fecha', 12], ['hora', 'Hora', 9], ['evento', 'Evento', 26], ['ubicacion', 'Ubicación', 20],
+  ['tipo_doc', 'Tipo Doc.', 9], ['documento', 'Documento', 16], ['nombre', 'Nombre Paciente', 30],
+  ['motivo', 'Motivo', 40], ['procedimiento', 'Procedimiento', 40], ['insumos', 'Insumos', 50],
+  ['enfermero', 'Enfermero/a', 26]
+];
+function _fugFiltros(){
+  return { evento_id: document.getElementById('fug-evento').value, desde: document.getElementById('fug-desde').value,
+    hasta: document.getElementById('fug-hasta').value,
+    documento: currentRole === 4 ? document.getElementById('fug-documento').value.trim() : '' };
+}
+function _fugInsumos(x){
+  return (x.insumos || []).map(i => `${i.cantidad} ${i.unidad || ''} ${i.nombre} (${i.bodega})${i.estado === 'ok' ? '' : ' — NO DESCONTADO: ' + (i.error || '')}`.replace(/\s+/g, ' ').trim());
+}
+function _fugFila(x){
+  const fh = hcFechaHora(x.fecha_atencion), coma = fh.indexOf(',');
+  return { fecha: coma > 0 ? fh.slice(0, coma) : fh, hora: coma > 0 ? fh.slice(coma + 1).trim() : '', evento: x.evento_nombre || '', ubicacion: x.ubicacion || '',
+    tipo_doc: x.tipo_doc, documento: x.documento, nombre: x.nombre, motivo: x.motivo, procedimiento: x.procedimiento,
+    insumos: _fugInsumos(x).join(' + ') || 'Sin insumos', enfermero: x.usuario_nombre || '' };
+}
+function fugAbrir(){
+  const sel = document.getElementById('fug-evento');
+  sel.innerHTML = '<option value="">Todos los eventos</option>' + (S.eventos || []).map(e => `<option value="${e.id}">${escHtml(e.nombre)}</option>`).join('');
+  sel.value = document.getElementById('hcf-evento').value;
+  document.getElementById('fug-desde').value = document.getElementById('hcf-desde').value;
+  document.getElementById('fug-hasta').value = document.getElementById('hcf-hasta').value;
+  document.getElementById('fug-doc-wrap').style.display = currentRole === 4 ? '' : 'none';
+  document.getElementById('fug-resultado').innerHTML = '';
+  document.getElementById('modal-fugaces').classList.add('open');
+  fugBuscar();
+}
+async function fugBuscar(btn){
+  const cont = document.getElementById('fug-resultado');
+  await unaVez('fug-buscar', btn, async () => {
+    cont.innerHTML = '<div class="hc-nada">Buscando…</div>';
+    try {
+      _fugFilas = await Fugaces.listar(_fugFiltros());
+      if(!_fugFilas.length){ cont.innerHTML = '<div class="hc-nada">No hay atenciones fugaces con esos filtros.</div>'; return; }
+      cont.innerHTML = `<div class="fug-total">${_fugFilas.length} ${_fugFilas.length !== 1 ? 'atenciones fugaces' : 'atención fugaz'}${_fugFilas.length >= 5000 ? ' (se muestran las 5000 más recientes)' : ''}</div>` +
+        '<div class="fug-tabla-wrap"><table class="fug-tabla"><thead><tr><th>Fecha</th><th>Evento</th><th>Paciente</th><th>Motivo</th><th>Procedimiento</th><th>Insumos</th><th>Enfermero/a</th></tr></thead><tbody>' +
+        _fugFilas.map(x => {
+          const f = _fugFila(x), ins = _fugInsumos(x);
+          return `<tr><td>${escHtml(f.fecha)}<br><span class="fug-gris">${escHtml(f.hora)}</span></td>
+            <td>${escHtml(f.evento)}${f.ubicacion ? '<br><span class="fug-gris">' + escHtml(f.ubicacion) + '</span>' : ''}</td>
+            <td><b>${escHtml(f.nombre)}</b><br><span class="fug-gris">${escHtml(f.tipo_doc + ' ' + f.documento)}</span></td>
+            <td>${escHtml(f.motivo)}</td><td>${escHtml(f.procedimiento)}</td>
+            <td>${ins.length ? ins.map(i => '<div' + (i.indexOf('NO DESCONTADO') >= 0 ? ' class="fug-error"' : '') + '>' + escHtml(i) + '</div>').join('') : '<span class="fug-gris">Sin insumos</span>'}</td>
+            <td>${escHtml(f.enfermero)}</td></tr>`;
+        }).join('') + '</tbody></table></div>';
+    } catch(err){ cont.innerHTML = ''; toastError(err.message); }
+  });
+}
+async function fugExcel(btn){
+  if(typeof XLSX === 'undefined') return toastError('No se pudo cargar el generador de Excel. Revisa la conexión.');
+  await unaVez('fug-excel', btn, async () => {
+    try {
+      const filas = await Fugaces.listar(_fugFiltros());
+      if(!filas.length){ toastError('No hay atenciones fugaces con esos filtros'); return; }
+      const tabla = [FUG_COLS.map(c => c[1])].concat(filas.map(x => { const f = _fugFila(x); return FUG_COLS.map(c => f[c[0]] || ''); }));
+      const ws = XLSX.utils.aoa_to_sheet(tabla);
+      ws['!cols'] = FUG_COLS.map(c => ({ wch: c[2] }));
+      ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: tabla.length - 1, c: FUG_COLS.length - 1 } }) };
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Atenciones fugaces');
+      XLSX.writeFile(wb, `atenciones_fugaces_${fechaColombia()}.xlsx`);
     } catch(err){ toastError(err.message); }
   });
 }

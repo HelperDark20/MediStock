@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const { verificarToken, verificarNivel } = require('../middlewares/auth');
 const { validarParamsId } = require('../utils/validar');
 
+
 // :id debe ser un id numérico (si no, 400 en vez de error 500)
 validarParamsId(router, 'id');
 const NIVELES_VALIDOS = [1, 2, 3, 4];
@@ -12,6 +13,9 @@ const NIVELES_VALIDOS = [1, 2, 3, 4];
 // (responsable y firma), pero no tiene contraseña ni acceso a la app. Su
 // cédula hace también de registro profesional (normalmente son el mismo).
 const NIVEL_MEDICO = 1;
+// Nivel 2 = Enfermero/a: su contraseña es siempre su número de cédula (se
+// asigna sola al crearlo o editarlo; supervisores y administradores no)
+const NIVEL_ENFERMERO = 2;
 
 // GET /api/usuarios/me — cualquier nivel autenticado
 router.get('/me', verificarToken, async (req, res) => {
@@ -58,7 +62,8 @@ router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
   const { nombre, cedula, nivel, genero, password, ubicacion_id } = req.body;
   const nivelNum = parseInt(nivel);
   const esMedico = nivelNum === NIVEL_MEDICO;
-  if (!nombre || !cedula || !nivel || (!esMedico && !password)) {
+  const esEnfermero = nivelNum === NIVEL_ENFERMERO;
+  if (!nombre || !cedula || !nivel || (!esMedico && !esEnfermero && !password)) {
     return res.status(400).json({ error: 'Faltan campos obligatorios' });
   }
   // FIX SEGURIDAD: validar que nivel esté en rango permitido
@@ -70,7 +75,7 @@ router.post('/', verificarToken, verificarNivel(4), async (req, res) => {
     if (existe.rows.length > 0 && existe.rows[0].activo) {
       return res.status(400).json({ error: 'Esta cédula ya está registrada' });
     }
-    const password_hash = esMedico ? null : await bcrypt.hash(password, 10);
+    const password_hash = esMedico ? null : await bcrypt.hash(esEnfermero ? String(cedula).trim() : password, 10);
     let result;
     if (existe.rows.length > 0 && !existe.rows[0].activo) {
       result = await pool.query(
@@ -105,7 +110,7 @@ router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
   }
   try {
     const actual = await pool.query(
-      'SELECT nivel, password_hash IS NOT NULL AS tiene_password FROM usuarios WHERE id = $1 AND activo = true',
+      'SELECT nivel, cedula, password_hash IS NOT NULL AS tiene_password FROM usuarios WHERE id = $1 AND activo = true',
       [req.params.id]
     );
     if (!actual.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -114,11 +119,14 @@ router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
     if (esMedico && parseInt(req.params.id) === req.usuario.id) {
       return res.status(400).json({ error: 'No puedes cambiar tu propio usuario a Médico: perderías el acceso' });
     }
-    if (!esMedico && !password && !actual.rows[0].tiene_password) {
+    const esEnfermero = nivelFinal === NIVEL_ENFERMERO;
+    if (!esMedico && !esEnfermero && !password && !actual.rows[0].tiene_password) {
       return res.status(400).json({ error: 'Asigna una contraseña: este usuario no tenía acceso a la app' });
     }
     let password_hash = null;
-    if (password && !esMedico) {
+    if (esEnfermero) {
+      password_hash = await bcrypt.hash(String(actual.rows[0].cedula).trim(), 10);
+    } else if (password && !esMedico) {
       password_hash = await bcrypt.hash(password, 10);
     }
     // FIX: ubicacion_id solo se modifica si viene en el body. Antes se

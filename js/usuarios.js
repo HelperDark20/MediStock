@@ -9,16 +9,21 @@
 // usuarios ya no se pide.
 
 const NIVEL_MEDICO = 1;
+// Enfermero/a: su contraseña es su número de cédula (la asigna el servidor)
+const NIVEL_ENFERMERO = 2;
 
 // Muestra/oculta los campos según el nivel elegido. prefijo: 'u' (crear) o
 // 'edit-u' (editar)
 function usuarioNivelCambio(prefijo){
-  const esMedico = parseInt(document.getElementById(`${prefijo}-nivel`).value) === NIVEL_MEDICO;
+  const nivelSel = parseInt(document.getElementById(`${prefijo}-nivel`).value);
+  const esMedico = nivelSel === NIVEL_MEDICO;
+  const esEnfermero = nivelSel === NIVEL_ENFERMERO;
   document.getElementById(`${prefijo}-medico-hint`).style.display = esMedico ? '' : 'none';
+  document.getElementById(`${prefijo}-enf-hint`).style.display = esEnfermero ? '' : 'none';
   const etiqueta = document.getElementById(`${prefijo}-cedula-label`);
   if(etiqueta) etiqueta.textContent = esMedico ? 'Cédula / Registro profesional' : 'Número de cédula';
   if(prefijo === 'edit-u') _editSubtitulo();
-  document.getElementById(`${prefijo}-pass-wrap`).style.display = esMedico ? 'none' : '';
+  document.getElementById(`${prefijo}-pass-wrap`).style.display = esMedico || esEnfermero ? 'none' : '';
   if(prefijo === 'edit-u') _editPassLabel();
 }
 
@@ -48,10 +53,11 @@ async function crearUsuario(){
   const nivel    = parseInt(document.getElementById('u-nivel').value);
   const genero   = document.getElementById('u-genero').value;
   const esMedico = nivel === NIVEL_MEDICO;
-  const password = esMedico ? '' : document.getElementById('u-pass').value.trim();
+  const sinClave = esMedico || nivel === NIVEL_ENFERMERO;
+  const password = sinClave ? '' : document.getElementById('u-pass').value.trim();
 
-  if(!nombre || !cedula || (!esMedico && !password)){
-    toast(esMedico ? 'Completa nombre y cédula' : 'Completa nombre, cédula y contraseña','error');
+  if(!nombre || !cedula || (!sinClave && !password)){
+    toast(sinClave ? 'Completa nombre y cédula' : 'Completa nombre, cédula y contraseña','error');
     return;
   }
   try {
@@ -59,7 +65,7 @@ async function crearUsuario(){
     ['u-nombre','u-cedula','u-pass'].forEach(id => document.getElementById(id).value='');
     S.usuarios = await Usuarios.getAll();
     renderUsuarios();
-    toast(esMedico ? '✓ Médico creado (sin acceso a la app)' : '✓ Usuario creado','success');
+    toast(esMedico ? '✓ Médico creado (sin acceso a la app)' : nivel === NIVEL_ENFERMERO ? '✓ Enfermero/a creado: su contraseña es su cédula' : '✓ Usuario creado','success');
   } catch(err){
     toast(err.message,'error');
   }
@@ -84,11 +90,12 @@ async function guardarEdicionUsuario(){
   const nombre   = document.getElementById('edit-u-nombre').value.trim();
   const nivel    = parseInt(document.getElementById('edit-u-nivel').value);
   const esMedico = nivel === NIVEL_MEDICO;
-  const password = esMedico ? '' : document.getElementById('edit-u-pass').value.trim();
+  const sinClave = esMedico || nivel === NIVEL_ENFERMERO;
+  const password = sinClave ? '' : document.getElementById('edit-u-pass').value.trim();
   const anterior = S.usuarios.find(x => x.id === id);
 
   if(!nombre){ toast('El nombre no puede estar vacío','error'); return; }
-  if(!esMedico && anterior && anterior.nivel === NIVEL_MEDICO && !password){
+  if(!sinClave && anterior && anterior.nivel === NIVEL_MEDICO && !password){
     toast('Asigna una contraseña: este usuario no tenía acceso a la app','error');
     return;
   }

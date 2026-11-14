@@ -392,3 +392,16 @@ select.lt-input{ background:#fff url("data:image/svg+xml;utf8,<svg xmlns='http:/
 .lt-m6-siguiente .lt-btn{ margin-top:8px; }
 .lt-item-tipo{ font-size:12px; font-weight:700; color:#1A5C8C; margin-top:6px; }
 .lt-cantidad{ max-width:200px; font-size:20px; font-weight:700; }
+
+/* ── Atención de pacientes fugaces (js/lite/fugaz-lite.js) ── */
+#lt-fug-editor{ display:none; }
+#lt-fug-editor.on{ display:block; }
+.lt-nuevas{ overflow:hidden; margin:0 0 14px; }
+.lt-nuevas .lt-btn-nueva{ margin:0; float:left; width:49%; }
+.lt-nuevas .lt-btn-fugaz{ float:right; background:#fff; color:#1A5C8C; box-shadow:inset 0 0 0 2px #2196D3; }
+.lt-pend.ok{ background:#EAF6EE; color:#1E7B44; }
+.lt-fug-guardar{ margin-top:4px; }
+@media (max-width:520px){
+  .lt-nuevas .lt-btn-nueva{ float:none; width:100%; }
+  .lt-nuevas .lt-btn-fugaz{ margin-top:10px; }
+}

@@ -288,6 +288,26 @@ const MIGRACIONES = [
 
   // Registro de las migraciones que deben correr UNA sola vez
   'CREATE TABLE IF NOT EXISTS migraciones_aplicadas (nombre TEXT PRIMARY KEY, aplicada_at TIMESTAMPTZ NOT NULL DEFAULT NOW())',
+  // Atención de pacientes fugaces (src/routes/fugaces.js): registro corto con
+  // los insumos de botiquín tipo 1 que se usaron (cada uno con su movimiento)
+  `CREATE TABLE IF NOT EXISTS atenciones_fugaces (
+     id SERIAL PRIMARY KEY,
+     client_id TEXT NOT NULL UNIQUE,
+     evento_id INTEGER REFERENCES eventos(id),
+     usuario_id INTEGER REFERENCES usuarios(id),
+     usuario_nombre TEXT,
+     tipo_doc TEXT NOT NULL,
+     documento TEXT NOT NULL,
+     nombre TEXT NOT NULL,
+     motivo TEXT NOT NULL,
+     procedimiento TEXT NOT NULL,
+     insumos JSONB NOT NULL DEFAULT '[]'::jsonb,
+     fecha_atencion TIMESTAMPTZ NOT NULL,
+     es_offline BOOLEAN NOT NULL DEFAULT false,
+     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   )`,
+  'CREATE INDEX IF NOT EXISTS atenciones_fugaces_evento_idx ON atenciones_fugaces (evento_id, usuario_id)',
+  'CREATE INDEX IF NOT EXISTS atenciones_fugaces_fecha_idx ON atenciones_fugaces (fecha_atencion)',
 ];
 
 // Migraciones de datos que corren una sola vez (quedan anotadas en
@@ -364,6 +384,18 @@ const MIGRACIONES_UNICAS = [
   },
   {
     // HC ya clasificadas: su triage pasa a ser el de la clasificación
+    // Enfermeros (nivel 2): la contraseña pasa a ser su número de cédula
+    nombre: 'enfermeros_clave_cedula',
+    fn: async (client) => {
+      const bcrypt = require('bcryptjs');
+      const r = await client.query('SELECT id, cedula FROM usuarios WHERE nivel = 2');
+      for (const u of r.rows) {
+        await client.query('UPDATE usuarios SET password_hash = $1 WHERE id = $2',
+          [await bcrypt.hash(String(u.cedula).trim(), 10), u.id]);
+      }
+    }
+  },
+  {
     nombre: 'hc_triage_desde_clasificacion',
     sql: `UPDATE historias_clinicas
           SET triage_enfermero = COALESCE(triage_enfermero, datos->>'triage'),

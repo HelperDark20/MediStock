@@ -108,6 +108,11 @@ const Asistencia = {
   }
 };
 
+// Atención de pacientes fugaces (consulta: administrador y supervisor)
+const Fugaces = {
+  listar: (f) => request('GET', '/api/fugaces?' + new URLSearchParams(Object.entries(f || {}).filter(([, v]) => v)).toString())
+};
+
 const HistoriasClinicas = {
   listar: (filtros) => {
     const q = Object.entries(filtros || {}).filter(([, v]) => v !== '' && v !== null && v !== undefined)

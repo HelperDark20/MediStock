@@ -506,7 +506,10 @@
                 <div class="form-group fg-full" id="u-medico-hint" style="display:none">
                   <span class="hint">El médico no tiene contraseña ni ingresa a la app: se asigna a los eventos desde "Agregar personal" y su nombre y cédula / registro profesional salen en la historia clínica.</span>
                 </div>
-                <div class="form-group fg-full" id="u-pass-wrap">
+                <div class="form-group fg-full" id="u-enf-hint">
+                  <span class="hint">La contraseña del enfermero/a es su número de cédula: se asigna sola y no se escribe. La ubicación y los depósitos se asignan desde el módulo Eventos.</span>
+                </div>
+                <div class="form-group fg-full" id="u-pass-wrap" style="display:none">
                   <label>Contraseña asignada</label>
                   <input type="text" id="u-pass" placeholder="Ej. NB2026*Carlos" style="font-family:var(--font-mono)">
                   <span class="hint">El usuario no puede cambiarla · Si el nivel es Enfermero/a, la asignación de ubicación y depósitos se hace desde el módulo Eventos</span>
@@ -545,6 +548,9 @@
             </div>
             <div class="form-group fg-full" id="edit-u-medico-hint" style="display:none">
               <span class="hint">Un médico no tiene contraseña ni acceso a la app.</span>
+            </div>
+            <div class="form-group fg-full" id="edit-u-enf-hint" style="display:none">
+              <span class="hint">La contraseña del enfermero/a es su número de cédula: al guardar queda asignada.</span>
             </div>
             <div class="form-group fg-full" id="edit-u-pass-wrap">
               <label id="edit-u-pass-label">Nueva contraseña <span style="font-weight:400;color:#aaa">(opcional)</span></label>
@@ -1424,6 +1430,28 @@
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal('modal-hc-reporte')">Cerrar</button>
       <button class="btn-confirm" onclick="hcDescargarReporte(this)">Descargar Excel</button>
+    </div>
+  </div>
+</div>
+<!-- MODAL ATENCIONES FUGACES (js/historias.js) -->
+<div class="modal-overlay" id="modal-fugaces">
+  <div class="modal-sheet" style="max-width:980px">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Atenciones fugaces</div>
+    <div class="modal-sub" id="fug-sub">Pacientes atendidos donde están (no fueron al punto de atención), solo con insumos de botiquín tipo 1 (BTQ I).</div>
+    <div class="form-grid fug-filtros">
+      <div class="form-group"><label>Evento</label><select id="fug-evento"></select></div>
+      <div class="form-group"><label>Desde</label><input type="date" id="fug-desde"></div>
+      <div class="form-group"><label>Hasta</label><input type="date" id="fug-hasta"></div>
+      <div class="form-group" id="fug-doc-wrap"><label>Paciente</label><input type="text" id="fug-documento" placeholder="Documento o nombre"></div>
+    </div>
+    <div class="fug-acciones">
+      <button class="btn-cancel" onclick="fugBuscar()">Buscar</button>
+      <button class="btn-confirm" onclick="fugExcel(this)">Descargar Excel</button>
+    </div>
+    <div id="fug-resultado"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-fugaces')">Cerrar</button>
     </div>
   </div>
 </div>

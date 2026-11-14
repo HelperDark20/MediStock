@@ -104,7 +104,8 @@ function goTo(viewId){
       `<button class="tb-btn" onclick="asisCerrarSesiones()"><img class="btn-ico" src="img/iconos/salir.svg" alt="">Cerrar sesión de tablets</button>`;
   }
   if(viewId==='historias'&&currentRole>=3){
-    ta.innerHTML=`<button class="tb-btn" onclick="hcAbrirReporte()"><img class="btn-ico" src="img/iconos/excel.svg" alt="">Reporte Excel</button>`;
+    ta.innerHTML=`<button class="tb-btn" onclick="hcAbrirReporte()"><img class="btn-ico" src="img/iconos/excel.svg" alt="">Reporte Excel</button>`+
+      `<button class="tb-btn" onclick="fugAbrir()"><img class="btn-ico" src="img/iconos/dep-botiquin.svg" alt="">Atenciones fugaces</button>`;
     // Página aparte (solo administrador): el editor de la tablet con todas las historias clínicas
     if(currentRole===4) ta.innerHTML+=`<button class="tb-btn primary" onclick="window.open('/hc-editor','_blank')"><img class="btn-ico" src="img/iconos/editar.svg" alt="">Editar Historias Clínicas</button>`;
   }

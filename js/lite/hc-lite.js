@@ -385,6 +385,25 @@ var HCLite = (function(){
 
   function fechaAtencion(){ return U.fechaCO(hc.inicio_atencion); }
 
+  // Fecha de nacimiento: mínimo un mes antes de la atención (no se acepta la
+  // fecha del día, que se ponía por no preguntarla)
+  var ERROR_NACIMIENTO = 'La fecha de nacimiento no es válida: el paciente debe tener mínimo un mes de nacido (no se acepta la fecha de hoy)';
+  function menorDeUnMes(nac){
+    if(!fechaValida(nac)) return false;
+    var a = nac.split('-'), b = fechaAtencion().split('-');
+    var meses = (+b[0] - +a[0]) * 12 + (+b[1] - +a[1]);
+    if(+b[2] < +a[2]) meses--;
+    return nac <= fechaAtencion() && meses < 1;
+  }
+  // Para el selector de fecha: el mismo día del mes anterior
+  function maxNacimiento(){
+    var b = fechaAtencion().split('-'), y = +b[0], m = +b[1] - 1, d = +b[2];
+    if(m < 1){ m = 12; y--; }
+    var ult = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    if(d > ult) d = ult;
+    return y + '-' + (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d;
+  }
+
   // ¿El navegador tiene selector de fecha? (Safari de iOS sí; si no, se
   // escribe DD/MM/AAAA)
   var _soportaFecha = null;
@@ -452,7 +471,7 @@ var HCLite = (function(){
         ' data-campo="' + ruta + '" value="' + U.escHtml(v) + '" autocomplete="off">';
     } else if(opts.tipo === 'fecha'){
       if(soportaFecha()){
-        html += '<input class="lt-input" type="date"' + (opts.sinMax ? '' : ' max="' + fechaAtencion() + '"') + ' min="1900-01-01"' + attrs + ' value="' + U.escHtml(v) + '">';
+        html += '<input class="lt-input" type="date"' + (opts.sinMax ? '' : ' max="' + (opts.maxFecha || fechaAtencion()) + '"') + ' min="1900-01-01"' + attrs + ' value="' + U.escHtml(v) + '">';
       } else {
         html += '<input class="lt-input" type="tel" data-fecha-dma="1" placeholder="DD/MM/AAAA" maxlength="10"' +
           ' data-campo="' + ruta + '" value="' + U.escHtml(v ? U.fmtFecha(v) : '') + '">';
@@ -548,9 +567,10 @@ var HCLite = (function(){
         ph: alfanum ? 'Letras y números' : 'Solo números',
         ayuda: navigator.onLine !== false && !st.offline && !hc.modo ? 'Si el paciente ya fue atendido antes, se ofrecerá cargar sus datos.' : ''
       }) +
-      fila([campo('paciente.fecha_nacimiento', 'Fecha de nacimiento', { req: req, tipo: 'fecha' }),
+      fila([campo('paciente.fecha_nacimiento', 'Fecha de nacimiento', { req: req, tipo: 'fecha', maxFecha: maxNacimiento() }),
             '<div class="lt-campo"><label class="lt-label">Edad</label><div class="lt-edad" id="lt-hc-edad">' +
-            (edad ? U.escHtml(edad) : '<span class="lt-gris">Se calcula con la fecha de nacimiento</span>') + '</div></div>']) +
+            (edad && menorDeUnMes(p.fecha_nacimiento) ? '<span class="lt-error-txt">Mínimo un mes de nacido</span>'
+              : edad ? U.escHtml(edad) : '<span class="lt-gris">Se calcula con la fecha de nacimiento</span>') + '</div></div>']) +
       chips('paciente.sexo', 'Sexo', SEXOS, req) +
       fila([chips('paciente.rh', 'RH', RH, true), chips('paciente.grupo', 'Grupo sanguíneo', GRUPOS, true)]) +
       chips('paciente.procedencia', 'Ubicación del paciente', PROCEDENCIAS, true) +
@@ -574,11 +594,23 @@ var HCLite = (function(){
     // Tarjeta de identidad (menor de edad): el acompañante es obligatorio
     var acompObligatorio = p.tipo_doc === 'TI';
     if(acompObligatorio && !a.tiene) a.tiene = true;
-    html += seccion('Contacto de acompañante',
+    // Menor que llega sin acudiente: se escribe el motivo y, de todas formas,
+    // los datos de un testigo
+    if(!acompObligatorio && a.sin_acudiente) a.sin_acudiente = false;
+    var sinAcud = acompObligatorio && a.sin_acudiente;
+    html += seccion(sinAcud ? 'Menor sin acudiente: datos del testigo' : 'Contacto de acompañante',
       (acompObligatorio
-        ? '<div class="lt-aviso">Paciente con <strong>tarjeta de identidad</strong>: los datos del acompañante son obligatorios.</div>'
+        ? '<div class="lt-aviso">Paciente con <strong>tarjeta de identidad</strong>: los datos del acompañante son obligatorios.</div>' +
+          interruptor('acompanante.sin_acudiente', 'El menor llega sin acudiente')
         : interruptor('acompanante.tiene', '¿El paciente tiene acompañante?')) +
-      (a.tiene ? campo('acompanante.nombre', 'Nombre y apellidos completos', { req: true, max: 120, mayus: true }) +
+      (sinAcud
+        ? campo('acompanante.motivo_sin_acudiente', 'Motivo por el que el menor no tiene acudiente', { req: true, tipo: 'area', filas: 3, max: 1000 }) +
+          '<div class="lt-muted">Registra los datos de alguien que sirva de testigo de la atención (por ejemplo, personal de logística, policía o un adulto que lo acompañe).</div>' +
+          campo('acompanante.nombre', 'Nombre y apellidos del testigo', { req: true, max: 120, mayus: true }) +
+          fila([campo('acompanante.documento', 'Cédula del testigo', { req: true, tipo: 'digitos', max: 15 }),
+                campo('acompanante.parentesco', 'Relación con el paciente o cargo', { req: true, max: 60, mayus: true, ph: 'Ej. LOGÍSTICA' })]) +
+          campo('acompanante.telefono', 'Teléfono del testigo', { req: true, tipo: 'telefono', max: 20, ph: 'Ej. 3157778899' })
+        : a.tiene ? campo('acompanante.nombre', 'Nombre y apellidos completos', { req: true, max: 120, mayus: true }) +
         fila([campo('acompanante.parentesco', 'Parentesco', { req: true, max: 60, mayus: true, ph: 'Ej. MADRE' }),
               campo('acompanante.telefono', 'Teléfono', { req: true, tipo: 'telefono', max: 20, ph: 'Ej. 3157778899' })]) : ''));
     return html;
@@ -1339,6 +1371,7 @@ var HCLite = (function(){
       else if(documentoDeRelleno(doc)) err('paciente.documento', 'El número de documento no es válido (parece un dato de relleno)');
       if(!fechaValida(p.fecha_nacimiento)) err('paciente.fecha_nacimiento', 'Indica la fecha de nacimiento');
       else if(!calcularEdad(p.fecha_nacimiento, fechaAtencion())) err('paciente.fecha_nacimiento', 'La fecha de nacimiento no puede ser posterior a hoy');
+      else if(menorDeUnMes(p.fecha_nacimiento)) err('paciente.fecha_nacimiento', ERROR_NACIMIENTO);
       if(!p.sexo) err('paciente.sexo', 'Selecciona el sexo');
       if(!p.rh) err('paciente.rh', 'Selecciona el RH');
       if(!p.grupo) err('paciente.grupo', 'Selecciona el grupo sanguíneo');
@@ -1350,10 +1383,16 @@ var HCLite = (function(){
       if(p.otra_aseguradora && !txt(p.aseguradora)) err('paciente.aseguradora', 'Escribe el nombre de la otra aseguradora');
       var a = d.acompanante;
       if(p.tipo_doc === 'TI' && !a.tiene) a.tiene = true;   // TI: acompañante obligatorio
+      var sinAcud = p.tipo_doc === 'TI' && a.sin_acudiente;
+      if(sinAcud){
+        if(txt(a.motivo_sin_acudiente).length < 10 || textoDeRelleno(a.motivo_sin_acudiente)) err('acompanante.motivo_sin_acudiente', 'Escribe el motivo por el que el menor llega sin acudiente');
+        if(digitos(a.documento).length < 5 || documentoDeRelleno(a.documento)) err('acompanante.documento', 'Escribe la cédula del testigo');
+      }
       if(a.tiene){
-        if(txt(a.nombre).length < 3 || textoDeRelleno(a.nombre)) err('acompanante.nombre', 'Escribe el nombre completo del acompañante (sin datos de relleno)');
-        if(txt(a.parentesco).length < 3 || textoDeRelleno(a.parentesco)) err('acompanante.parentesco', 'Escribe el parentesco del acompañante');
-        if(!telefonoValido(a.telefono)) err('acompanante.telefono', 'Teléfono del acompañante: ' + ERROR_TELEFONO);
+        var quien = sinAcud ? 'testigo' : 'acompañante';
+        if(txt(a.nombre).length < 3 || textoDeRelleno(a.nombre)) err('acompanante.nombre', 'Escribe el nombre completo del ' + quien + ' (sin datos de relleno)');
+        if(txt(a.parentesco).length < 3 || textoDeRelleno(a.parentesco)) err('acompanante.parentesco', sinAcud ? 'Escribe la relación del testigo con el paciente o su cargo' : 'Escribe el parentesco del acompañante');
+        if(!telefonoValido(a.telefono)) err('acompanante.telefono', 'Teléfono del ' + quien + ': ' + ERROR_TELEFONO);
       }
     }
     if(n === 3){
@@ -1616,7 +1655,8 @@ var HCLite = (function(){
     fijarCampo(ruta, v);
     if(ruta === 'paciente.fecha_nacimiento'){
       var edad = calcularEdad(v, fechaAtencion());
-      U.$('lt-hc-edad').innerHTML = edad ? U.escHtml(edad) : (v ? '<span class="lt-error-txt">Fecha no válida</span>' : '<span class="lt-gris">Se calcula con la fecha de nacimiento</span>');
+      U.$('lt-hc-edad').innerHTML = edad && menorDeUnMes(v) ? '<span class="lt-error-txt">Mínimo un mes de nacido</span>'
+        : edad ? U.escHtml(edad) : (v ? '<span class="lt-error-txt">Fecha no válida</span>' : '<span class="lt-gris">Se calcula con la fecha de nacimiento</span>');
       var conChips = !!document.querySelector('[data-chip="paciente.estado_civil"]');
       if(conChips === esMenorEstadoCivil()){
         guardarHC();
