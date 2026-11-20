@@ -282,6 +282,7 @@ var HCLite = (function(){
         lugar: ev.ubicacion_nombre || '',
         municipio: ev.municipio_nombre || '',
         departamento: ev.municipio_departamento || '',
+        punto: ev.punto ? ev.punto.nombre : '',
         medicos: medicos
       },
       inicio_atencion: new Date().toISOString(),   // hora del dispositivo
@@ -436,7 +437,7 @@ var HCLite = (function(){
   // como máximo) o, si no hay, quien diligencia
   function responsableTexto(){
     var meds = hc.servicio.medicos || [];
-    return meds.length ? meds[0].nombre + ' (médico del evento)' : diligencia().nombre + ' (quien diligencia)';
+    return meds.length ? meds[0].nombre + ' (médico del punto)' : diligencia().nombre + ' (quien diligencia)';
   }
   function esMenorEstadoCivil(){
     var e = edadAnios();
@@ -549,7 +550,8 @@ var HCLite = (function(){
         : 'Sin municipio: avisa al administrador para que lo registre en la ubicación', !s.municipio) +
       dato('Evento', U.escHtml(s.evento || '—')) +
       dato('Diligencia', U.escHtml(diligencia().nombre) + ' <span class="lt-gris">· CC ' + U.escHtml(diligencia().cedula || '') + '</span>') +
-      dato('Médico del evento', medicos.length ? medicos.join('<br>') : 'Sin médico asignado', !medicos.length));
+      (s.punto ? dato('Punto de atención', U.escHtml(s.punto)) : '') +
+      dato('Médico del punto', medicos.length ? medicos.join('<br>') : 'Sin médico: responde quien diligencia', !medicos.length));
   }
 
   function modulo2(){
@@ -1296,7 +1298,7 @@ var HCLite = (function(){
     for(var i = 0; i < meds.length; i++) if(String(meds[i].id) === String(idMed)) med = meds[i];
     var cuerpoMed;
     if(!meds.length){
-      cuerpoMed = '<div class="lt-aviso">Este evento no tiene médico asignado: la atención queda bajo la responsabilidad de quien diligencia la historia clínica.</div>';
+      cuerpoMed = '<div class="lt-aviso">Tu punto de atención no tiene médico asignado: la atención queda bajo la responsabilidad de quien diligencia la historia clínica.</div>';
     } else {
       var opciones = [];
       for(var j = 0; j < meds.length; j++) opciones.push([String(meds[j].id), meds[j].nombre]);

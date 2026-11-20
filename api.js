@@ -241,6 +241,9 @@ const Eventos = {
   getActivos: () => request('GET', '/api/eventos/activos'),
   create: (data) => request('POST', '/api/eventos', data),
   update: (id, data) => request('PUT', `/api/eventos/${id}`, data),
+  // Vista completa del evento: datos, puntos, médicos y enfermeros de una vez
+  guardarEstructura: (id, data) => request('PUT', `/api/eventos/${id}/estructura`, data),
+  sugerenciaPuntos: (ubicacionId, excluir) => request('GET', `/api/eventos/sugerencia-puntos?ubicacion_id=${ubicacionId}${excluir ? '&excluir=' + excluir : ''}`),
   addEnfermero: (id, data) => request('POST', `/api/eventos/${id}/enfermeros`, data),
   updateEnfermero: (id, usuarioId, data) => request('PUT', `/api/eventos/${id}/enfermeros/${usuarioId}`, data),
   removeEnfermero: (id, usuarioId) => request('DELETE', `/api/eventos/${id}/enfermeros/${usuarioId}`),

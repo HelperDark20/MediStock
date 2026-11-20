@@ -308,6 +308,30 @@ const MIGRACIONES = [
    )`,
   'CREATE INDEX IF NOT EXISTS atenciones_fugaces_evento_idx ON atenciones_fugaces (evento_id, usuario_id)',
   'CREATE INDEX IF NOT EXISTS atenciones_fugaces_fecha_idx ON atenciones_fugaces (fecha_atencion)',
+
+  // Puntos de atención de cada evento (CARPA 1, PUERTA 3…): cada enfermero
+  // queda en un punto y cada punto tiene como máximo un médico responsable
+  // (un médico puede cubrir varios puntos). Reemplazan el texto libre
+  // evento_usuarios.ubicacion, que se conserva para los eventos viejos.
+  `CREATE TABLE IF NOT EXISTS evento_puntos (
+     id SERIAL PRIMARY KEY,
+     evento_id INTEGER NOT NULL REFERENCES eventos(id),
+     nombre TEXT NOT NULL,
+     medico_id INTEGER REFERENCES usuarios(id),
+     activo BOOLEAN NOT NULL DEFAULT true,
+     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+     UNIQUE (evento_id, id)
+   )`,
+  'CREATE UNIQUE INDEX IF NOT EXISTS evento_puntos_nombre_uq ON evento_puntos (evento_id, UPPER(nombre)) WHERE activo',
+  'CREATE INDEX IF NOT EXISTS evento_puntos_evento_idx ON evento_puntos (evento_id)',
+  'ALTER TABLE evento_usuarios ADD COLUMN IF NOT EXISTS punto_id INTEGER',
+  'CREATE INDEX IF NOT EXISTS evento_usuarios_punto_idx ON evento_usuarios (punto_id)',
+  'CREATE INDEX IF NOT EXISTS eventos_ubicacion_fecha_idx ON eventos (ubicacion_id, fecha_inicio)',
+  // Versión de la estructura del evento: la vista la envía al guardar y si
+  // otro administrador guardó antes, se rechaza (409) en vez de pisarlo
+  'ALTER TABLE eventos ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 0',
+  // Punto de atención en que se hizo la atención fugaz (tal como estaba)
+  'ALTER TABLE atenciones_fugaces ADD COLUMN IF NOT EXISTS punto TEXT',
 ];
 
 // Migraciones de datos que corren una sola vez (quedan anotadas en
@@ -392,6 +416,49 @@ const MIGRACIONES_UNICAS = [
       for (const u of r.rows) {
         await client.query('UPDATE usuarios SET password_hash = $1 WHERE id = $2',
           [await bcrypt.hash(String(u.cedula).trim(), 10), u.id]);
+      }
+    }
+  },
+  {
+    // El enfermero solo puede apuntar a un punto de SU evento
+    nombre: 'evento_usuarios_punto_fk',
+    sql: `ALTER TABLE evento_usuarios ADD CONSTRAINT evento_usuarios_punto_fk
+          FOREIGN KEY (evento_id, punto_id) REFERENCES evento_puntos (evento_id, id)`
+  },
+  {
+    // Eventos existentes: cada ubicación escrita a mano a los enfermeros pasa
+    // a ser un punto de atención; en eventos programados o en curso, quien no
+    // tenía ubicación va al punto "PRINCIPAL". El médico del evento (máximo
+    // uno hasta ahora) queda a cargo de todos sus puntos: nada cambia para
+    // las historias clínicas el día del despliegue.
+    nombre: 'puntos_atencion_desde_ubicacion',
+    fn: async (client) => {
+      const { normalizarPunto } = require('../utils/puntos');
+      const evs = await client.query('SELECT id, estado FROM eventos');
+      for (const ev of evs.rows) {
+        const enf = await client.query(
+          `SELECT eu.usuario_id, eu.ubicacion FROM evento_usuarios eu
+           JOIN usuarios us ON us.id = eu.usuario_id
+           WHERE eu.evento_id = $1 AND us.nivel <> 1 AND eu.punto_id IS NULL`, [ev.id]);
+        if (!enf.rows.length) continue;
+        const med = await client.query(
+          `SELECT us.id FROM evento_usuarios eu JOIN usuarios us ON us.id = eu.usuario_id
+           WHERE eu.evento_id = $1 AND us.nivel = 1 ORDER BY us.id LIMIT 1`, [ev.id]);
+        const medicoId = med.rows.length ? med.rows[0].id : null;
+        const abierto = ev.estado === 'creado' || ev.estado === 'en_curso';
+        const puntos = {};
+        for (const e of enf.rows) {
+          let nombre = normalizarPunto(e.ubicacion || '');
+          if (nombre.length < 2) { if (!abierto) continue; nombre = 'PRINCIPAL'; }
+          if (!puntos[nombre]) {
+            const r = await client.query(
+              'INSERT INTO evento_puntos (evento_id, nombre, medico_id) VALUES ($1, $2, $3) RETURNING id',
+              [ev.id, nombre, medicoId]);
+            puntos[nombre] = r.rows[0].id;
+          }
+          await client.query('UPDATE evento_usuarios SET punto_id = $3 WHERE evento_id = $1 AND usuario_id = $2',
+            [ev.id, e.usuario_id, puntos[nombre]]);
+        }
       }
     }
   },

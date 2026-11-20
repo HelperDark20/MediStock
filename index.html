@@ -779,10 +779,14 @@
 
       <!-- ═══ EVENTOS (Admin) ═══ -->
       <div class="view" id="view-eventos">
-        <div class="sec-header">
-          <div class="sec-title">Eventos activos y programados</div>
+        <div id="eventos-lista">
+          <div class="sec-header">
+            <div class="sec-title">Eventos activos y programados</div>
+          </div>
+          <div class="grid-3" id="eventos-grid"></div>
         </div>
-        <div class="grid-3" id="eventos-grid"></div>
+        <!-- Vista completa del evento (crear / ver / editar), js/eventos.js -->
+        <div id="evento-editor" style="display:none"></div>
       </div>
 
       <!-- ═══ ASISTENCIAS (Admin, js/asistencia.js) ═══ -->
@@ -1225,52 +1229,6 @@
   </div>
 </div>
 
-<!-- MODAL CREAR EVENTO -->
-<div class="modal-overlay" id="modal-crear-evento">
-  <div class="modal-sheet" style="max-width:480px">
-    <div class="modal-handle"></div>
-    <div class="modal-title">Crear evento</div>
-    <div class="modal-sub">Después de crear el evento podrás agregar el personal: enfermeros (con sus depósitos) y el médico del evento.</div>
-
-    <div class="form-grid" style="margin-bottom:14px">
-      <div class="form-group fg-full">
-        <label>Nombre del evento</label>
-        <input type="text" id="evt-nombre" placeholder="Ej. Maratón CAT 2026">
-      </div>
-      <div class="form-group">
-        <label>Fecha de inicio</label>
-        <input type="date" id="evt-fecha-inicio">
-      </div>
-      <div class="form-group">
-        <label>Fecha de finalización</label>
-        <input type="date" id="evt-fecha-fin">
-      </div>
-      <div class="form-group">
-        <label>Hora de inicio</label>
-        <input type="text" id="evt-hora-inicio" class="evt-hora" placeholder="Ej. 18:00 o 6:00 pm" maxlength="9" autocomplete="off" oninput="evtHoraEscribir('evt-hora-inicio')" onblur="evtHoraEscribir('evt-hora-inicio', true)">
-        <div class="evt-hora-ayuda" id="evt-hora-inicio-ayuda"></div>
-      </div>
-      <div class="form-group">
-        <label>Hora final</label>
-        <input type="text" id="evt-hora-fin" class="evt-hora" placeholder="Ej. 02:00 o 2:00 am" maxlength="9" autocomplete="off" oninput="evtHoraEscribir('evt-hora-fin')" onblur="evtHoraEscribir('evt-hora-fin', true)">
-        <div class="evt-hora-ayuda" id="evt-hora-fin-ayuda"></div>
-      </div>
-      <div class="form-group fg-full"><span class="hint">Las horas aplican a todos los días del evento (si la final es menor, pasa la medianoche). Se usan en el reporte de atenciones: antes (PRE), durante (IN) o después (POST).</span></div>
-      <div class="form-group fg-full">
-        <label>Ubicación del evento</label>
-        <select id="evt-ubicacion">
-          <option value="">Seleccionar ubicación…</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeModal('modal-crear-evento')">Cancelar</button>
-      <button class="btn-confirm" onclick="crearEvento()">Crear evento</button>
-    </div>
-  </div>
-</div>
-
 <!-- ═══ MODALES DE ASISTENCIAS (js/asistencia.js) ═══ -->
 <div class="modal-overlay" id="modal-asis-carga">
   <div class="modal-sheet" style="max-width:560px">
@@ -1452,88 +1410,6 @@
     <div id="fug-resultado"></div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal('modal-fugaces')">Cerrar</button>
-    </div>
-  </div>
-</div>
-<!-- MODAL DETALLE DE EVENTO -->
-<div class="modal-overlay" id="modal-evento-detalle">
-  <div class="modal-sheet" style="max-width:600px">
-    <div class="modal-handle"></div>
-    <div class="modal-title">Detalle del evento</div>
-    <div class="modal-sub">Edita los datos del evento y gestiona el personal asignado (enfermeros y médico).</div>
-
-    <input type="hidden" id="evtdet-id">
-    <div class="form-grid" style="margin-bottom:14px">
-      <div class="form-group fg-full">
-        <label>Nombre del evento</label>
-        <input type="text" id="evtdet-nombre" placeholder="Ej. Maratón CAT 2026">
-      </div>
-      <div class="form-group">
-        <label>Fecha de inicio</label>
-        <input type="date" id="evtdet-fecha-inicio">
-      </div>
-      <div class="form-group">
-        <label>Fecha de finalización</label>
-        <input type="date" id="evtdet-fecha-fin">
-      </div>
-      <div class="form-group">
-        <label>Hora de inicio</label>
-        <input type="text" id="evtdet-hora-inicio" class="evt-hora" placeholder="Ej. 18:00 o 6:00 pm" maxlength="9" autocomplete="off" oninput="evtHoraEscribir('evtdet-hora-inicio')" onblur="evtHoraEscribir('evtdet-hora-inicio', true)">
-        <div class="evt-hora-ayuda" id="evtdet-hora-inicio-ayuda"></div>
-      </div>
-      <div class="form-group">
-        <label>Hora final</label>
-        <input type="text" id="evtdet-hora-fin" class="evt-hora" placeholder="Ej. 02:00 o 2:00 am" maxlength="9" autocomplete="off" oninput="evtHoraEscribir('evtdet-hora-fin')" onblur="evtHoraEscribir('evtdet-hora-fin', true)">
-        <div class="evt-hora-ayuda" id="evtdet-hora-fin-ayuda"></div>
-      </div>
-      <div class="form-group fg-full">
-        <label>Ubicación del evento</label>
-        <select id="evtdet-ubicacion" onchange="evtDetUbicacionChanged()">
-          <option value="">Seleccionar ubicación…</option>
-        </select>
-        <span class="hint" id="evtdet-ubicacion-warn" style="display:none;color:var(--amber)">
-          Si cambias la ubicación se reiniciarán los depósitos asignados a todos los enfermeros
-        </span>
-      </div>
-    </div>
-    <button class="btn-submit" style="margin-bottom:20px" onclick="guardarDetalleEvento()">
-      <i class="ti ti-device-floppy"></i>Guardar cambios del evento
-    </button>
-
-    <div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono);margin-bottom:8px">Agregar personal</div>
-    <div class="ac-wrap" id="evtdet-enf-wrap" style="margin-bottom:14px">
-      <i class="ti ti-search ac-icon"></i>
-      <input type="text" class="ac-input" id="evtdet-enf-input" placeholder="Buscar enfermero o médico por nombre o cédula…" autocomplete="off"
-        oninput="evtDetEnfFilter()" onfocus="evtDetEnfFilter()">
-      <div class="ac-dropdown" id="evtdet-enf-drop"></div>
-    </div>
-
-    <div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-mono);margin-bottom:8px">Personal asignado</div>
-    <div id="evtdet-enfermeros-list"></div>
-
-    <div class="modal-actions">
-      <button class="btn-danger-solid" id="evtdet-eliminar-btn" style="display:none;margin-right:auto" onclick="confirmEliminarEvento()"><i class="ti ti-trash"></i> Eliminar evento</button>
-      <button class="btn-cancel" onclick="closeModal('modal-evento-detalle')">Cerrar</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL ASIGNAR DEPÓSITOS A UN ENFERMERO -->
-<div class="modal-overlay" id="modal-asignar-depositos">
-  <div class="modal-sheet" style="max-width:440px">
-    <div class="modal-handle"></div>
-    <div class="modal-title">Depósitos asignados</div>
-    <div class="modal-sub" id="evtasig-sub">Selecciona los depósitos que puede usar este enfermero durante el evento.</div>
-    <div class="form-group fg-full" style="margin-bottom:12px">
-      <label>Ubicación dentro del evento <span style="color:var(--red2)">*</span></label>
-      <input type="text" id="evtasig-ubicacion" maxlength="120" placeholder="Ej. CARPA PRINCIPAL · PUERTA 3 · ZONA VIP" autocomplete="off">
-      <span class="hint">Dónde estará el enfermero. Sale en el reporte de atenciones de sus historias clínicas.</span>
-    </div>
-    <input type="hidden" id="evtasig-usuario-id">
-    <div class="evt-checklist" id="evtasig-checklist" style="max-height:260px"></div>
-    <div class="modal-actions">
-      <button class="btn-cancel" onclick="evtCancelarAsignacion()">Cancelar</button>
-      <button class="btn-confirm" onclick="evtGuardarAsignacion()">Guardar depósitos</button>
     </div>
   </div>
 </div>

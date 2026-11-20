@@ -24,6 +24,7 @@ const { verificarToken, verificarNivel } = require('../middlewares/auth');
 const { idValido, validarParamsId } = require('../utils/validar');
 const { fechaValida } = require('../utils/fechas');
 const clasificador = require('../utils/clasificador-hc');
+const { medicoDelPunto } = require('../utils/puntos');
 const {
   normalizarHC, normalizarMedicamentos, estadoInicial, normalizarEntrega, diferencias,
   firmaValida, TIPOS_DOC, responsableProcedimientos, MAX_TOMAS_EXTRA,
@@ -123,19 +124,26 @@ router.post('/enviar', verificarToken, verificarNivel(2), async (req, res) => {
     if (!ev.rows.length) return res.status(400).json({ error: 'No perteneces a ese evento' });
     const evento = ev.rows[0];
 
-    // Médico del evento (máximo uno): responsable de la atención, de los
-    // procedimientos y de los medicamentos. Sin médico, quien diligencia.
+    // Médicos del evento y punto de atención de quien diligencia: el médico
+    // del punto es el responsable de la atención, de los procedimientos y de
+    // los medicamentos. Punto sin médico: quien diligencia.
     const medicos = await pool.query(
-      `SELECT us.id, us.nombre, us.cedula FROM evento_usuarios eu
+      `SELECT us.id, us.nombre, us.cedula, us.activo FROM evento_usuarios eu
        JOIN usuarios us ON us.id = eu.usuario_id
        WHERE eu.evento_id = $1 AND us.nivel = 1`,
       [evento.id]
     );
+    const asig = (await pool.query(
+      `SELECT p.id AS punto_id, p.nombre AS punto_nombre, p.medico_id, eu.ubicacion
+       FROM evento_usuarios eu
+       LEFT JOIN evento_puntos p ON p.id = eu.punto_id AND p.activo = true
+       WHERE eu.evento_id = $1 AND eu.usuario_id = $2`, [evento.id, req.usuario.id])).rows[0] || {};
 
     const fechaAtencion = _fechaCO(inicio);
     const lugar = [evento.ubicacion_nombre, evento.municipio_nombre].filter(Boolean).join(' — ');
     const { datos, firmas, errores } = normalizarHC(body, fechaAtencion, {
-      medicos: medicos.rows,
+      medicos: medicos.rows.map(({ activo, ...m }) => m),
+      medicoPunto: medicoDelPunto(medicos.rows.filter(m => m.activo), asig),
       enfermero: { id: req.usuario.id, nombre: req.usuario.nombre, cedula: req.usuario.cedula },
       lugar
     });
@@ -160,10 +168,10 @@ router.post('/enviar', verificarToken, verificarNivel(2), async (req, res) => {
       departamento: evento.municipio_departamento || ''
     };
     datos.enfermero = { id: req.usuario.id, nombre: req.usuario.nombre, cedula: req.usuario.cedula };
-    // Ubicación dentro del evento asignada al enfermero (para el reporte): se
-    // guarda como estaba al atender, aunque después la cambien
-    const ubic = await pool.query('SELECT ubicacion FROM evento_usuarios WHERE evento_id = $1 AND usuario_id = $2', [evento.id, req.usuario.id]);
-    datos.servicio.ubicacion_asignada = (ubic.rows[0] && ubic.rows[0].ubicacion) || '';
+    // Punto de atención del enfermero dentro del evento (para el reporte): se
+    // guarda como estaba al atender, aunque después lo cambien
+    if (asig.punto_id) datos.servicio.punto = { id: asig.punto_id, nombre: asig.punto_nombre };
+    datos.servicio.ubicacion_asignada = asig.punto_nombre || asig.ubicacion || '';
 
     const p = datos.paciente;
     const anio = Number(fechaAtencion.slice(0, 4));
@@ -369,10 +377,11 @@ router.get('/reporte', verificarToken, verificarNivel(3), async (req, res) => {
     const r = await pool.query(
       `SELECT h.id, h.consecutivo, h.inicio_atencion, h.datos, h.clasificacion,
               e.nombre AS evento_nombre, e.fecha_inicio::text AS fecha_inicio, e.fecha_fin::text AS fecha_fin,
-              e.hora_inicio, e.hora_fin, eu.ubicacion AS ubicacion_actual
+              e.hora_inicio, e.hora_fin, COALESCE(pu.nombre, eu.ubicacion) AS ubicacion_actual
        FROM historias_clinicas h
        LEFT JOIN eventos e ON e.id = h.evento_id
        LEFT JOIN evento_usuarios eu ON eu.evento_id = h.evento_id AND eu.usuario_id = h.usuario_id
+       LEFT JOIN evento_puntos pu ON pu.id = eu.punto_id AND pu.activo = true
        ${cond.length ? 'WHERE ' + cond.join(' AND ') : ''}
        ORDER BY h.inicio_atencion, h.id
        LIMIT 20000`, params);
@@ -671,6 +680,7 @@ async function _normalizarEdicion(hc, entrada, db) {
   const medico = antes.responsables && antes.responsables.medico;
   const { datos, errores } = normalizarHC({ datos: entrada, firmas: hc.firmas }, antes.servicio.fecha, {
     medicos: medico ? [medico] : [],
+    medicoPunto: medico || null,
     enfermero: enf,
     lugar
   });

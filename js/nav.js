@@ -61,6 +61,9 @@ function goTo(viewId){
     toast('Sin permiso','error');
     return;
   }
+  // Vista del evento con cambios sin guardar: preguntar antes de salir
+  if(typeof evpPuedeSalir === 'function' && !evpPuedeSalir(()=>goTo(viewId))) return;
+  if(typeof evpCerrar === 'function') evpCerrar();
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
   document.getElementById('view-'+viewId)?.classList.add('active');

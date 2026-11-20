@@ -879,7 +879,8 @@
     st.evento = evento;
     guardar(claveUsuario('evento'), String(evento.id));
     mostrar('lt-elegir', false);
-    $('lt-evento-txt').innerHTML = 'Evento: <strong>' + escHtml(evento.nombre) + '</strong> · ' + escHtml(evento.ubicacion_nombre || '');
+    $('lt-evento-txt').innerHTML = 'Evento: <strong>' + escHtml(evento.nombre) + '</strong> · ' + escHtml(evento.ubicacion_nombre || '') +
+      (evento.punto ? ' · Punto: <strong>' + escHtml(evento.punto.nombre) + '</strong>' : '');
     $('lt-cambiar-evento').style.display = st.eventos.length > 1 ? '' : 'none';
     $('lt-actualizar').style.display = st.offline ? 'none' : '';
 
