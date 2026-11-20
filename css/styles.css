@@ -1023,22 +1023,32 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
   #rep-print-table td{ border:none; padding:0; }
   #rep-print-header{ margin-bottom:16px; }
 
-  /* PDF de Inventario: se imprime solo #inv-print y se retira todo lo
-     demás del flujo para que no queden páginas en blanco al final. */
-  /* La app fija html/body a la altura de la pantalla con overflow:hidden;
-     al imprimir eso corta todo lo que no cabe en la primera página. */
-  html.print-inv, html.print-inv body{ height:auto !important; overflow:visible !important; }
-  body.print-inv > *:not(#inv-print){ display:none !important; }
-  body.print-inv #inv-print{ display:block; padding:20px; }   /* mismo margen interno que #view-reportes */
-  body.print-inv #inv-print, body.print-inv #inv-print *{ visibility:visible; }
-  .inv-print-table{ width:100%; border-collapse:collapse; table-layout:fixed; }
-  .inv-print-table thead{ display:table-row-group; }  /* encabezado solo en la 1.ª página, ver #rep-print-table */
-  .inv-print-table td{ border:none; padding:0; }
-  .inv-print-table .rep-header{ margin-bottom:16px; }
+  /* PDF de Reportes e Inventario (imprimirHoja en helpers.js): se imprime
+     solo #hoja-print y todo lo demás sale del flujo. La app fija html/body
+     al alto de la pantalla con overflow:hidden: al imprimir eso cortaba lo
+     que no cabía en la primera hoja (Safari). */
+  html.imprimiendo, html.imprimiendo body{ height:auto !important; overflow:visible !important; background:#fff !important; }
+  body.imprimiendo > *:not(#hoja-print){ display:none !important; }
+  body.imprimiendo #hoja-print{ display:block; }
+  body.imprimiendo #hoja-print, body.imprimiendo #hoja-print *{ visibility:visible; }
+  /* Un contenedor con overflow:hidden que pasa de una hoja a otra se corta
+     en Safari: los grupos se imprimen sin recorte ni esquinas redondeadas */
+  #hoja-print .rep-group{ overflow:visible; border-radius:0; }
+  #hoja-print .rep-header{ margin-bottom:14px; padding-bottom:12px; }
+  #hoja-print .rep-logo-mini-img{ height:56px; }
+  #hoja-print .rep-title-lg{ font-size:19px; }
+  /* Columnas proporcionales al ancho de la hoja (ver _hojaGridProporcional):
+     el texto largo se parte dentro de su columna en vez de encimarse */
+  #hoja-print .rep-row, #hoja-print .rep-cols{ padding-left:10px; padding-right:10px; gap:6px; }
+  #hoja-print .rep-row > *, #hoja-print .rep-cols > *{ overflow-wrap:anywhere; }
+  #hoja-print .rep-item-name{ font-size:11px; }
+  #hoja-print .rep-cell-mono{ font-size:10px; }
+  #hoja-print .rep-stats{ grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); }
+  #hoja-print .rep-stat{ padding:8px 10px; }
 }
 
-/* Contenedor del PDF de Inventario: solo existe para imprimir */
-#inv-print{ display:none; }
+/* Hoja de impresión de Reportes e Inventario: solo existe para imprimir */
+#hoja-print{ display:none; }
 
 /* ══════════════════════════════════════════
    EVENTOS — grid, badges de estado y checklist

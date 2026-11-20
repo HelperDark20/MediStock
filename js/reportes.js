@@ -1233,26 +1233,22 @@ function _repTituloDocumento(){
   return partes.join(' · ');
 }
 
-let _repTituloOriginal = null;
-
-function _repPonerTitulo(){
-  if(_repTituloOriginal === null) _repTituloOriginal = document.title;
-  document.title = _repTituloDocumento();
+// Lo que va al PDF: el encabezado (logo, título, filtros) y el reporte.
+// Se imprime una copia en #hoja-print (ver imprimirHoja en helpers.js):
+// así sale completo y con las columnas en su sitio también en Safari (Mac).
+function _repHtmlImpresion(){
+  const enc = document.getElementById('rep-print-header');
+  const cont = document.getElementById('rep-contenido');
+  return `<div class="hoja-rep">${enc ? enc.outerHTML : ''}${cont ? cont.innerHTML : ''}</div>`;
 }
 
 function repExportPDF(){
-  _repPonerTitulo();
-  window.print();
+  imprimirHoja(_repHtmlImpresion(), _repTituloDocumento());
 }
 
 // También cuando se imprime con Ctrl/Cmd + P estando en Reportes
 window.addEventListener('beforeprint', ()=>{
-  if(document.body.classList.contains('print-inv')) return;
+  if(document.body.classList.contains('imprimiendo')) return;
   if(!document.getElementById('view-reportes')?.classList.contains('active')) return;
-  _repPonerTitulo();
-});
-window.addEventListener('afterprint', ()=>{
-  if(_repTituloOriginal === null) return;
-  document.title = _repTituloOriginal;
-  _repTituloOriginal = null;
+  hojaPreparar(_repHtmlImpresion(), _repTituloDocumento());
 });

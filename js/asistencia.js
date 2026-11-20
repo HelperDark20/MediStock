@@ -582,13 +582,27 @@ function asisExportPDF(){
   if(!w) return toastError('El navegador bloqueó la ventana: permite las ventanas emergentes para este sitio');
   const cons = _asisConsolidado(filas);
   w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Asistencia de personal</title>
-<style>@page{size:A4 landscape;margin:12mm}body{font-family:Arial,sans-serif;font-size:10.5px;color:#111}h1{font-size:15px;margin:0}
-.sub{color:#555;margin:2px 0 12px}h2{font-size:12px;margin:14px 0 6px}table{width:100%;border-collapse:collapse}
-th,td{border:1px solid #bbb;padding:4px 6px;text-align:left}th{background:#eee}td.n{text-align:right}</style></head><body>
+<style>
+/* Safari (Mac) no respeta el tamaño ni la orientación de @page: la tabla
+   reparte el ancho en porcentajes para caber también en Carta vertical, el
+   texto largo se parte dentro de su celda y el encabezado de la tabla se
+   repite en cada hoja */
+@page{size:A4 landscape;margin:12mm}
+*{-webkit-print-color-adjust:exact;print-color-adjust:exact;box-sizing:border-box}
+html,body{width:auto;height:auto;margin:0}
+body{font-family:Arial,sans-serif;font-size:9.5px;color:#111}h1{font-size:15px;margin:0}
+.sub{color:#555;margin:2px 0 12px}h2{font-size:12px;margin:14px 0 6px;break-after:avoid}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}
+th,td{border:1px solid #bbb;padding:3px 5px;text-align:left;vertical-align:top;overflow-wrap:anywhere;word-wrap:break-word}
+th{background:#eee}td.n{text-align:right}
+</style></head><body>
 <h1>NOVA BRIDGE SAS — Asistencia de personal</h1><div class="sub">${escHtml(_asisTituloPeriodo())} · Generado el ${_asisFechaCO(new Date().toISOString())}</div>
-<h2>Consolidado para nómina</h2><table><tr><th>Persona</th><th>Cédula</th><th>Jornadas</th><th>Completas</th><th>Sin salida</th><th>Horas trabajadas</th></tr>
+<h2>Consolidado para nómina</h2><table><colgroup><col style="width:34%"><col style="width:16%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:17%"></colgroup>
+<thead><tr><th>Persona</th><th>Cédula</th><th>Jornadas</th><th>Completas</th><th>Sin salida</th><th>Horas trabajadas</th></tr></thead>
 ${cons.map(p => `<tr><td>${escHtml(p.persona)}</td><td>${escHtml(p.cedula)}</td><td class="n">${p.jornadas}</td><td class="n">${p.completas}</td><td class="n">${p.sin_salida}</td><td class="n">${_asisDur(p.minutos)}</td></tr>`).join('')}</table>
-<h2>Jornadas</h2><table><tr><th>Persona</th><th>Cédula</th><th>Evento</th><th>Fecha de entrada</th><th>Hora de entrada</th><th>Fecha de salida</th><th>Hora de salida</th><th>Horas</th><th>Estado</th><th>Motivo salida manual</th></tr>
+<h2>Jornadas</h2><table><colgroup><col style="width:13%"><col style="width:9%"><col style="width:12%"><col style="width:8.5%"><col style="width:6.5%"><col style="width:8.5%"><col style="width:6.5%"><col style="width:7%"><col style="width:12%"><col style="width:17%"></colgroup>
+<thead><tr><th>Persona</th><th>Cédula</th><th>Evento</th><th>Fecha de entrada</th><th>Hora de entrada</th><th>Fecha de salida</th><th>Hora de salida</th><th>Horas</th><th>Estado</th><th>Motivo salida manual</th></tr></thead>
 ${filas.map(f => `<tr><td>${escHtml(f.persona)}</td><td>${escHtml(f.cedula)}</td><td>${escHtml(f.evento)}</td><td>${f.fecha_entrada}</td><td>${f.hora_entrada}</td><td>${f.fecha_salida || 'Sin salida'}</td><td>${f.hora_salida}</td><td class="n">${f.horas || '—'}</td><td>${escHtml(f.estado)}</td><td>${escHtml(f.motivo)}${f.registrada_por ? ' (' + escHtml(f.registrada_por) + ')' : ''}</td></tr>`).join('')}</table>
 </body></html>`);
   w.document.close();

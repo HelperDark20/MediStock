@@ -697,16 +697,19 @@ function hcImprimir(){
   if(!w) return toastError('El navegador bloqueó la ventana: permite las ventanas emergentes para este sitio');
   w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>${escHtml(h.consecutivo)} — Historia clínica prehospitalaria</title>
 <style>
+  /* Safari (Mac) puede imprimir en Carta y sin fondos: se fuerzan los
+     colores, las tablas reparten el ancho y el texto largo se parte */
   @page{ size:A4; margin:12mm }
-  *{ box-sizing:border-box }
-  body{ font-family:Arial,Helvetica,sans-serif; font-size:10.5px; color:#111; margin:0 }
+  *{ box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact }
+  html, body{ width:auto; height:auto }
+  body{ font-family:Arial,Helvetica,sans-serif; font-size:10.5px; color:#111; margin:0; overflow-wrap:anywhere }
   .enc{ display:flex; justify-content:space-between; align-items:center; border:1.5px solid #111; padding:8px 10px; margin-bottom:6px }
   .enc h1{ font-size:14px; margin:0 0 2px } .enc .cod{ text-align:right; font-size:10px }
   .enc .num{ font-size:15px; font-weight:bold }
   /* Logos: no más altos que los datos de la cabecera */
   .enc-lado{ display:flex; align-items:center; gap:10px }
   .enc-logo{ height:60px; width:auto; display:block }
-  .hc-sec{ border:1px solid #111; margin-bottom:5px; page-break-inside:avoid }
+  .hc-sec{ border:1px solid #111; margin-bottom:5px; page-break-inside:avoid; break-inside:avoid }
   .hc-sec-t{ background:#e6e6e6; font-weight:bold; text-transform:uppercase; padding:3px 6px; border-bottom:1px solid #111; font-size:10px }
   .hc-sec > .hc-dato, .hc-sec > div:not(.hc-sec-t){ }
   .hc-dato{ display:inline-block; vertical-align:top; width:33%; padding:3px 6px }
@@ -719,6 +722,7 @@ function hcImprimir(){
   .hc-sub{ font-size:9px; color:#555; padding:0 6px 3px }
   .hc-grande{ font-size:13px; font-weight:bold }
   table.hc-tabla{ width:100%; border-collapse:collapse }
+  .hc-tabla thead{ display:table-header-group } .hc-tabla tr{ break-inside:avoid; page-break-inside:avoid }
   .hc-tabla th, .hc-tabla td{ border-top:1px solid #999; padding:3px 5px; text-align:left; font-size:9.5px; vertical-align:top }
   .hc-tabla th{ background:#f2f2f2 }
   .hc-firmas{ display:flex; gap:12px; padding:6px }

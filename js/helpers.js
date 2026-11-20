@@ -226,3 +226,71 @@ function cedulaPacienteValida(v){
   const s = String(v ?? '').replace(/[\s.\-]/g, '');
   return /^\d{5,15}$/.test(s) ? s : null;
 }
+
+
+// ══════════════════════════════════════════
+// IMPRESIÓN A PDF EN LA MISMA PÁGINA (Reportes e Inventario)
+// Safari (Mac) imprimía mal la app tal cual: la página está fijada al alto
+// de la pantalla (cortaba lo que no cabía en la primera hoja), el contenido
+// iba dentro de una sola celda de tabla (Safari no la reparte entre hojas)
+// y las columnas de ancho fijo se encimaban en una hoja Carta vertical
+// (Safari no respeta @page size ni la orientación). Por eso lo que se va a
+// imprimir se copia a #hoja-print, hijo directo de <body>; el CSS de
+// impresión oculta todo lo demás, y las columnas pasan a ser proporcionales
+// al ancho de la hoja.
+// ══════════════════════════════════════════
+
+// "90px 1fr 110px" → "minmax(0,90fr) minmax(0,170fr) minmax(0,110fr)":
+// mantiene la proporción de la pantalla pero cabe en cualquier ancho de hoja
+const _HOJA_PX_POR_FR = 170;
+function _hojaGridProporcional(raiz){
+  raiz.querySelectorAll('[style*="--rep-grid"]').forEach(el => {
+    const g = el.style.getPropertyValue('--rep-grid').trim();
+    if(!g) return;
+    const prop = g.split(/\s+/).map(t => {
+      let m = /^(\d+(?:\.\d+)?)px$/.exec(t);
+      if(m) return `minmax(0,${m[1]}fr)`;
+      m = /^(\d*\.?\d+)fr$/.exec(t);
+      if(m) return `minmax(0,${Math.round(parseFloat(m[1]) * _HOJA_PX_POR_FR)}fr)`;
+      return t;
+    }).join(' ');
+    el.style.setProperty('--rep-grid', prop);
+  });
+}
+
+// Pone el contenido en la hoja de impresión. Devuelve la función que la
+// limpia (se llama sola después de imprimir).
+function hojaPreparar(html, titulo){
+  let hoja = document.getElementById('hoja-print');
+  if(!hoja){
+    hoja = document.createElement('div');
+    hoja.id = 'hoja-print';
+    document.body.appendChild(hoja);
+  }
+  hoja.innerHTML = html;
+  hoja.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));   // es una copia
+  _hojaGridProporcional(hoja);
+  const tituloAntes = document.title;
+  // El título del documento es el nombre sugerido del archivo PDF
+  if(titulo) document.title = titulo;
+  document.documentElement.classList.add('imprimiendo');
+  document.body.classList.add('imprimiendo');
+  const limpiar = () => {
+    window.removeEventListener('afterprint', limpiar);
+    document.documentElement.classList.remove('imprimiendo');
+    document.body.classList.remove('imprimiendo');
+    document.title = tituloAntes;
+    hoja.innerHTML = '';
+  };
+  window.addEventListener('afterprint', limpiar);
+  return limpiar;
+}
+
+// Prepara la hoja, espera las imágenes (logo) y abre el diálogo de impresión
+function imprimirHoja(html, titulo){
+  hojaPreparar(html, titulo);
+  const imgs = [...document.getElementById('hoja-print').querySelectorAll('img')];
+  // Si una imagen tarda (red lenta), no se espera más de 2 segundos
+  const cargadas = Promise.all(imgs.map(i => i.complete ? null : new Promise(ok => { i.onload = i.onerror = ok; })));
+  Promise.race([cargadas, new Promise(ok => setTimeout(ok, 2000))]).then(() => window.print());
+}
