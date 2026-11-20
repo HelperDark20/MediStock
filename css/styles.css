@@ -1524,6 +1524,9 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 .evp-x img{width:20px;height:20px}
 .evp-vacio-txt{font-size:12.5px;color:#999}
 .evp-buscar-wrap{margin-top:10px}
+/* La lista de médicos disponibles sobresale de la tarjeta (no se recorta) */
+.card.evp-card-lista{overflow:visible}
+.card.evp-card-lista .card-header{border-radius:var(--r-lg) var(--r-lg) 0 0}
 .evp-buscar-wrap .ac-input{padding-left:36px}
 .evp-buscar-ico{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:18px;height:18px;pointer-events:none}
 .evp-sec{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}

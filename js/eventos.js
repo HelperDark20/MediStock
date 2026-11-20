@@ -221,7 +221,7 @@ function _evpAbrir(evento){
               </select></div>
           </div></div>
         </div>
-        <div class="card">
+        <div class="card evp-card-lista">
           <div class="card-header"><img class="card-ico" src="${avatarNivel(1)}" alt=""><span class="card-title">Médicos del evento</span></div>
           <div class="card-body" id="evp-medicos"></div>
         </div>
