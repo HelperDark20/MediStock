@@ -271,14 +271,9 @@ function invExportPDF(){
     </div>`;
   }).join('');
 
-  let cont = document.getElementById('inv-print');
-  if(!cont){
-    cont = document.createElement('div');
-    cont.id = 'inv-print';
-    document.body.appendChild(cont);
-  }
-  cont.innerHTML = `<table class="inv-print-table">
-    <thead><tr><td>
+  // El encabezado va solo en la primera hoja. El título del documento es el
+  // nombre sugerido del archivo PDF. imprimirHoja (helpers.js) espera el logo.
+  imprimirHoja(`<div class="hoja-rep">
       <div class="rep-header">
         <div>
           <div class="rep-meta">Generado el ${escHtml(new Date().toLocaleString('es-CO',{dateStyle:'long',timeStyle:'short',timeZone:'America/Bogota'}))}</div>
@@ -287,33 +282,10 @@ function invExportPDF(){
         </div>
         <div class="rep-logo-mini"><img src="logo.png" alt="Nova Bridge" class="rep-logo-mini-img"></div>
       </div>
-    </td></tr></thead>
-    <tbody><tr><td>
       ${stats}
       <div class="rep-section-title">Existencias agrupadas por ubicación / depósito</div>
       ${gruposHtml}
-    </td></tr></tbody>
-  </table>`;
-
-  // El título del documento sale en la línea superior de cada página y es
-  // el nombre sugerido del archivo PDF (ver _repTituloDocumento en reportes.js)
-  const tituloOriginal = document.title;
-  document.title = _invTituloDocumento();
-  document.documentElement.classList.add('print-inv');
-  document.body.classList.add('print-inv');
-  const limpiar = ()=>{
-    document.documentElement.classList.remove('print-inv');
-    document.body.classList.remove('print-inv');
-    document.title = tituloOriginal;
-    window.removeEventListener('afterprint', limpiar);
-  };
-  window.addEventListener('afterprint', limpiar);
-
-  // Espera a que cargue el logo para que salga en el PDF
-  const logo = cont.querySelector('img');
-  const imprimir = ()=> window.print();
-  if(logo.complete) imprimir();
-  else { logo.onload = imprimir; logo.onerror = imprimir; }
+    </div>`, _invTituloDocumento());
 }
 
 // ══════════════════════════════════════════

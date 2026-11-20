@@ -282,6 +282,7 @@ var HCLite = (function(){
         lugar: ev.ubicacion_nombre || '',
         municipio: ev.municipio_nombre || '',
         departamento: ev.municipio_departamento || '',
+        punto: ev.punto ? ev.punto.nombre : '',
         medicos: medicos
       },
       inicio_atencion: new Date().toISOString(),   // hora del dispositivo
@@ -436,7 +437,7 @@ var HCLite = (function(){
   // como máximo) o, si no hay, quien diligencia
   function responsableTexto(){
     var meds = hc.servicio.medicos || [];
-    return meds.length ? meds[0].nombre + ' (médico del evento)' : diligencia().nombre + ' (quien diligencia)';
+    return meds.length ? meds[0].nombre + ' (médico del punto)' : diligencia().nombre + ' (quien diligencia)';
   }
   function esMenorEstadoCivil(){
     var e = edadAnios();
@@ -549,7 +550,8 @@ var HCLite = (function(){
         : 'Sin municipio: avisa al administrador para que lo registre en la ubicación', !s.municipio) +
       dato('Evento', U.escHtml(s.evento || '—')) +
       dato('Diligencia', U.escHtml(diligencia().nombre) + ' <span class="lt-gris">· CC ' + U.escHtml(diligencia().cedula || '') + '</span>') +
-      dato('Médico del evento', medicos.length ? medicos.join('<br>') : 'Sin médico asignado', !medicos.length));
+      (s.punto ? dato('Punto de atención', U.escHtml(s.punto)) : '') +
+      dato('Médico del punto', medicos.length ? medicos.join('<br>') : 'Sin médico: responde quien diligencia', !medicos.length));
   }
 
   function modulo2(){
@@ -1296,7 +1298,7 @@ var HCLite = (function(){
     for(var i = 0; i < meds.length; i++) if(String(meds[i].id) === String(idMed)) med = meds[i];
     var cuerpoMed;
     if(!meds.length){
-      cuerpoMed = '<div class="lt-aviso">Este evento no tiene médico asignado: la atención queda bajo la responsabilidad de quien diligencia la historia clínica.</div>';
+      cuerpoMed = '<div class="lt-aviso">Tu punto de atención no tiene médico asignado: la atención queda bajo la responsabilidad de quien diligencia la historia clínica.</div>';
     } else {
       var opciones = [];
       for(var j = 0; j < meds.length; j++) opciones.push([String(meds[j].id), meds[j].nombre]);
@@ -2454,19 +2456,70 @@ var HCLite = (function(){
     salir();
   }
 
+  // Descartar un borrador: primero sus medicamentos e insumos vuelven al
+  // depósito (antes quedaban descontados del inventario sin historia
+  // clínica). Los que siguen en la cola sin sincronizar se borran de la
+  // tablet; los ya registrados se anulan en el servidor, lo que necesita
+  // conexión: sin señal la HC no se descarta.
+  var _descartando = false;
   function pedirDescartar(clientId){
     var lista = leerTodas();
     var i = buscarHC(lista, clientId);
     if(i < 0) return;
+    var meds = (lista[i].datos && lista[i].datos.medicamentos) || [];
     U.modal('Descartar historia clínica',
-      '¿Descartar la historia clínica de <strong>' + U.escHtml(nombrePaciente(lista[i])) + '</strong>? Se borrará de la tablet y no se podrá recuperar.',
+      '¿Descartar la historia clínica de <strong>' + U.escHtml(nombrePaciente(lista[i])) + '</strong>? Se borrará de la tablet y no se podrá recuperar.' +
+      (meds.length ? '<br><br>' + (meds.length === 1 ? 'Su medicamento o insumo vuelve' : 'Sus <strong>' + meds.length + '</strong> medicamentos e insumos vuelven') +
+        ' al depósito (queda registrado como reversión). Se necesita conexión.' : ''),
       [{ texto: 'Cancelar' }, { texto: 'Descartar', clase: 'peligro', accion: function(){
-        var l = leerTodas(), j = buscarHC(l, clientId);
-        if(j >= 0){ l.splice(j, 1); guardarTodas(l); }
-        renderLista();
-        U.renderModo();
-        U.toast('Historia clínica descartada');
+        if(_descartando) return;   // doble toque: no devolver dos veces
+        _descartando = true;
+        devolverConsumos(meds.slice(), function(err){
+          _descartando = false;
+          if(err){
+            U.modal('No se pudo descartar', U.escHtml(err.sinRed
+              ? 'Sin conexión: los medicamentos e insumos de esta historia clínica ya se descontaron del inventario y hay que devolverlos antes de descartarla. Intenta de nuevo cuando tengas señal.'
+              : err.message), [{ texto: 'Entendido', clase: 'primario' }]);
+            renderLista();
+            return;
+          }
+          var l = leerTodas(), j = buscarHC(l, clientId);
+          // Si el servidor la había rechazado, se le avisa (el administrador la ve como descartada)
+          if(j >= 0 && l[j].error_envio) U.api('POST', '/api/hc/descartada', { client_id: clientId }, function(){});
+          if(j >= 0){ l.splice(j, 1); guardarTodas(l); }
+          renderLista();
+          U.renderModo();
+          U.toast('Historia clínica descartada' + (meds.length ? ': sus consumos volvieron al depósito' : ''));
+        });
       } }]);
+  }
+
+  // Devuelve al depósito, uno por uno, los consumos de una HC. Los que se
+  // devuelven se quitan de la HC guardada (si algo falla a mitad de camino,
+  // al reintentar no se devuelven dos veces).
+  function devolverConsumos(meds, cb){
+    var k = 0;
+    function quitarDeLaHC(idConsumo, idHC){
+      var l = leerTodas();
+      for(var a = 0; a < l.length; a++){
+        var ms = (l[a].datos && l[a].datos.medicamentos) || [];
+        for(var b = 0; b < ms.length; b++) if(ms[b].client_id === idConsumo){ ms.splice(b, 1); guardarTodas(l); return; }
+      }
+    }
+    function siguiente(){
+      if(k >= meds.length){ cb(null); return; }
+      var m = meds[k++];
+      if(!m || !m.client_id){ siguiente(); return; }
+      if(U.quitarConsumoDeCola(m.client_id)){ quitarDeLaHC(m.client_id); siguiente(); return; }
+      U.api('POST', '/api/movimientos/anular-consumo', { client_id: m.client_id }, function(err){
+        // 404: nunca llegó al inventario
+        if(err && err.status !== 404){ cb(err); return; }
+        if(!err) U.devolverLocal({ sub_sku_id: m.sub_sku_id, bodega_nombre: m.bodega_nombre, cantidad: m.cantidad });
+        quitarDeLaHC(m.client_id);
+        siguiente();
+      });
+    }
+    siguiente();
   }
 
   // ══════════════════════════════════════════

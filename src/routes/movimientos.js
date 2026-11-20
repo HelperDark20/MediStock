@@ -76,7 +76,8 @@ router.get('/', verificarToken, async (req, res) => {
              ubo.nombre AS origen_ubicacion_nombre,
              ubd.nombre AS destino_ubicacion_nombre,
              COALESCE(m.usuario_nombre, u.nombre) AS usuario_nombre,
-             u.nivel                               AS usuario_nivel
+             u.nivel                               AS usuario_nivel,
+             (m.hc_client_id IS NOT NULL AND EXISTS (SELECT 1 FROM historias_clinicas h WHERE h.client_id = m.hc_client_id)) AS hc_enviada
       FROM movimientos m
       JOIN sub_skus s      ON m.sub_sku_id = s.id
       JOIN skus_globales g ON s.sku_global_id = g.id
@@ -160,7 +161,8 @@ router.get('/reportes', verificarToken, verificarNivel(4), async (req, res) => {
              ubo.nombre AS origen_ubicacion_nombre,
              ubd.nombre AS destino_ubicacion_nombre,
              COALESCE(m.usuario_nombre, u.nombre) AS usuario_nombre,
-             u.nivel                               AS usuario_nivel
+             u.nivel                               AS usuario_nivel,
+             (m.hc_client_id IS NOT NULL AND EXISTS (SELECT 1 FROM historias_clinicas h WHERE h.client_id = m.hc_client_id)) AS hc_enviada
       FROM movimientos m
       JOIN sub_skus s      ON m.sub_sku_id = s.id
       JOIN skus_globales g ON s.sku_global_id = g.id

@@ -167,13 +167,19 @@ async function registrar(usuario, body, offline) {
       }
       lista.push(item);
     }
+    // Punto de atención del enfermero, tal como estaba al registrar
+    const pu = await client.query(
+      `SELECT COALESCE(p.nombre, eu.ubicacion) AS punto FROM evento_usuarios eu
+       LEFT JOIN evento_puntos p ON p.id = eu.punto_id AND p.activo = true
+       WHERE eu.evento_id = $1 AND eu.usuario_id = $2`, [evento_id, usuario.id]);
     const ins = await client.query(
       `INSERT INTO atenciones_fugaces
          (client_id, evento_id, usuario_id, usuario_nombre, tipo_doc, documento, nombre, motivo, procedimiento,
-          insumos, fecha_atencion, es_offline)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+          insumos, fecha_atencion, es_offline, punto)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
       [client_id, evento_id, usuario.id, usuario.nombre, datos.tipo_doc, datos.documento, datos.nombre,
-       datos.motivo, datos.procedimiento, JSON.stringify(lista), fecha.toISOString(), !!offline]);
+       datos.motivo, datos.procedimiento, JSON.stringify(lista), fecha.toISOString(), !!offline,
+       (pu.rows[0] && pu.rows[0].punto) || null]);
     await client.query('COMMIT');
     const fallidos = lista.filter(x => x.estado !== 'ok');
     return { estado: 'ok', id: ins.rows[0].id, insumos_no_descontados: fallidos.map(x => x.error) };
@@ -264,10 +270,12 @@ router.get('/', verificarToken, verificarNivel(3), async (req, res) => {
   try {
     const r = await pool.query(
       `SELECT f.id, f.fecha_atencion, f.tipo_doc, f.documento, f.nombre, f.motivo, f.procedimiento, f.insumos,
-              f.usuario_nombre, f.es_offline, e.nombre AS evento_nombre, eu.ubicacion
+              f.usuario_nombre, f.es_offline, e.nombre AS evento_nombre,
+              COALESCE(f.punto, pu.nombre, eu.ubicacion) AS ubicacion
        FROM atenciones_fugaces f
        LEFT JOIN eventos e ON e.id = f.evento_id
        LEFT JOIN evento_usuarios eu ON eu.evento_id = f.evento_id AND eu.usuario_id = f.usuario_id
+       LEFT JOIN evento_puntos pu ON pu.id = eu.punto_id AND pu.activo = true
        ${cond.length ? 'WHERE ' + cond.join(' AND ') : ''}
        ORDER BY f.fecha_atencion DESC, f.id DESC
        LIMIT 5000`, params);

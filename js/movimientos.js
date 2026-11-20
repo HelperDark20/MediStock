@@ -249,6 +249,7 @@ function renderMovBody(){
   }
 
   body.innerHTML = movs.map(m=>{
+    const tipoTxt = _movTipoTexto(m);
     const puedeRevertir = currentRole===4 && !m.revertido && m.tipo!=='reversion';
     const contTip = m.es_contingencia
       ? `Cargado por ${escHtml(m.cargado_por_nombre||'—')} · Atención: ${m.fecha_atencion?new Date(m.fecha_atencion).toLocaleString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—'}`
@@ -264,16 +265,17 @@ function renderMovBody(){
       <td data-label="Ítem" style="font-weight:500">
         ${escHtml(m.nombre||'—')}
         <div class="mrow-meta">
-          <span class="mov-tipo ${m.tipo}" style="font-size:8px">${m.tipo==='reversion'?'Reversión':escHtml(m.tipo)}</span>
+          <span class="mov-tipo ${m.tipo}" style="font-size:8px">${escHtml(tipoTxt)}</span>
           ${escHtml(m.origen_nombre||'—')} → ${escHtml(m.destino_nombre||'—')}
         </div>
         <div class="mrow-meta">
           ${new Date(_movFecha(m)).toLocaleString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})} · ${escHtml(m.usuario_nombre||'—')}${m.tipo==='consumo'&&m.cedula_paciente?' · Pac: '+escHtml(m.cedula_paciente):''}
         </div>
+        ${m.tipo==='consumo'&&m.hc_client_id&&!m.hc_enviada&&!m.revertido?'<div class="mrow-meta" style="color:var(--amber)">Sin historia clínica (ver Historias clínicas → Rechazadas y sin HC)</div>':''}
       </td>
       <td data-label="Sub-SKU"><span class="sub-sku" style="font-size:9px">${escHtml((m.sub_sku||'').split('-').slice(0,2).join('-'))}</span></td>
       <td data-label="Tipo">
-        <span class="mov-tipo ${m.tipo}">${m.tipo==='reversion'?'Reversión':escHtml(m.tipo)}</span>
+        <span class="mov-tipo ${m.tipo}">${escHtml(tipoTxt)}</span>
         ${m.revertido?'<span class="mov-tipo" style="background:#F0F0EE;color:#888;margin-left:4px">Revertido</span>':''}
         ${m.es_contingencia?`<span class="mov-tipo" style="background:var(--amber-bg);color:var(--amber);margin-left:4px" title="${contTip}">Contingencia</span>`:''}
         ${m.movimiento_original_id?`<div style="font-size:10px;color:#aaa;margin-top:2px">de mov. #${m.movimiento_original_id}</div>`:''}
@@ -301,6 +303,13 @@ function renderMovBody(){
 // una ubicación, al llegar desde el dashboard). Sin el tope de 1000 filas de
 // la tabla: usa /api/movimientos/reportes (nivel 4).
 // ══════════════════════════════════════════
+// Una reversión hecha por un enfermero es la anulación de un consumo de su
+// propia historia clínica aún no enviada (lo quitó de la HC en la tablet);
+// la del administrador es la reversión de un movimiento ya registrado.
+function _movTipoTexto(m){
+  if(m.tipo === 'reversion') return m.usuario_nivel === 2 ? 'Anulación (enfermero)' : 'Reversión';
+  return m.tipo;
+}
 const _MOV_TIPO_LABEL = { compra:'Entrada', consumo:'Consumo', traslado:'Traslado', destruccion:'Destrucción', reversion:'Reversión' };
 
 function abrirExportMovimientos(){
@@ -364,7 +373,7 @@ async function descargarExcelMovimientos(){
       const precio = Number(m.precio)||0;
       aoa.push([
         m.id, fmtFecha(m.fecha_real), fmtFecha(m.created_at),
-        _MOV_TIPO_LABEL[m.tipo] || m.tipo,
+        m.tipo === 'reversion' && m.usuario_nivel === 2 ? 'Anulación (enfermero)' : (_MOV_TIPO_LABEL[m.tipo] || m.tipo),
         m.sku_global_codigo||'', m.nombre||'', m.sub_sku||'', m.lote||'', m.caducidad?fmtDate(m.caducidad):'',
         m.cantidad, m.unidad||'', precio, precio*m.cantidad,
         m.origen_ubicacion_nombre||'', m.origen_nombre||'', m.destino_ubicacion_nombre||'', m.destino_nombre||'',

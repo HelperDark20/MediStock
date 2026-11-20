@@ -697,16 +697,19 @@ function hcImprimir(){
   if(!w) return toastError('El navegador bloqueó la ventana: permite las ventanas emergentes para este sitio');
   w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>${escHtml(h.consecutivo)} — Historia clínica prehospitalaria</title>
 <style>
+  /* Safari (Mac) puede imprimir en Carta y sin fondos: se fuerzan los
+     colores, las tablas reparten el ancho y el texto largo se parte */
   @page{ size:A4; margin:12mm }
-  *{ box-sizing:border-box }
-  body{ font-family:Arial,Helvetica,sans-serif; font-size:10.5px; color:#111; margin:0 }
+  *{ box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact }
+  html, body{ width:auto; height:auto }
+  body{ font-family:Arial,Helvetica,sans-serif; font-size:10.5px; color:#111; margin:0; overflow-wrap:anywhere }
   .enc{ display:flex; justify-content:space-between; align-items:center; border:1.5px solid #111; padding:8px 10px; margin-bottom:6px }
   .enc h1{ font-size:14px; margin:0 0 2px } .enc .cod{ text-align:right; font-size:10px }
   .enc .num{ font-size:15px; font-weight:bold }
   /* Logos: no más altos que los datos de la cabecera */
   .enc-lado{ display:flex; align-items:center; gap:10px }
   .enc-logo{ height:60px; width:auto; display:block }
-  .hc-sec{ border:1px solid #111; margin-bottom:5px; page-break-inside:avoid }
+  .hc-sec{ border:1px solid #111; margin-bottom:5px; page-break-inside:avoid; break-inside:avoid }
   .hc-sec-t{ background:#e6e6e6; font-weight:bold; text-transform:uppercase; padding:3px 6px; border-bottom:1px solid #111; font-size:10px }
   .hc-sec > .hc-dato, .hc-sec > div:not(.hc-sec-t){ }
   .hc-dato{ display:inline-block; vertical-align:top; width:33%; padding:3px 6px }
@@ -719,6 +722,7 @@ function hcImprimir(){
   .hc-sub{ font-size:9px; color:#555; padding:0 6px 3px }
   .hc-grande{ font-size:13px; font-weight:bold }
   table.hc-tabla{ width:100%; border-collapse:collapse }
+  .hc-tabla thead{ display:table-header-group } .hc-tabla tr{ break-inside:avoid; page-break-inside:avoid }
   .hc-tabla th, .hc-tabla td{ border-top:1px solid #999; padding:3px 5px; text-align:left; font-size:9.5px; vertical-align:top }
   .hc-tabla th{ background:#f2f2f2 }
   .hc-firmas{ display:flex; gap:12px; padding:6px }
@@ -741,4 +745,92 @@ ${hcNotasAclaratorias(h)}
   const imgs = [...w.document.images];
   Promise.all(imgs.map(i => i.complete ? null : new Promise(ok => { i.onload = i.onerror = ok; })))
     .then(() => setTimeout(() => w.print(), 200));
+}
+
+// ══════════════════════════════════════════
+// HC RECHAZADAS Y CONSUMOS SIN HISTORIA CLÍNICA
+// Rechazadas: HC que el servidor no aceptó al recibirlas (siguen en la
+// tablet como borrador con el motivo). Consumos sin HC: se descontaron del
+// inventario dentro de una HC que nunca llegó (rechazada, sin terminar, sin
+// enviar o descartada en la tablet antes de que se devolvieran solos).
+// ══════════════════════════════════════════
+let _penDatos = null;
+const _PEN_RECIENTE_MS = 6 * 3600 * 1000;   // en las últimas 6 h puede estar diligenciándose
+
+async function penContar(){
+  try {
+    const d = await HistoriasClinicas.pendientes();
+    _penDatos = d;
+    const n = d.rechazadas.filter(r => !r.descartada_at).length +
+      d.sin_hc.filter(x => !x.rechazada && Date.now() - new Date(x.registrado).getTime() > _PEN_RECIENTE_MS).length;
+    const el = document.getElementById('tb-hc-pendientes-n');
+    if(el){ el.textContent = n; el.style.display = n ? '' : 'none'; }
+  } catch(e){ /* el contador es informativo */ }
+}
+
+function penAbrir(){
+  document.getElementById('modal-pendientes').classList.add('open');
+  penBuscar();
+}
+
+async function penBuscar(){
+  const cont = document.getElementById('pen-resultado');
+  cont.innerHTML = '<div class="hc-nada">Buscando…</div>';
+  try {
+    _penDatos = await HistoriasClinicas.pendientes();
+    penPintar();
+    penContar();
+  } catch(err){ cont.innerHTML = ''; toastError(err.message); }
+}
+
+function penPintar(){
+  const d = _penDatos, cont = document.getElementById('pen-resultado');
+  const rech = d.rechazadas, sin = d.sin_hc;
+  const fh = v => v ? hcFechaHora(v) : '—';
+  let html = `<div class="pen-sec">Rechazadas por el servidor <span class="n">${rech.length}</span></div>
+    <div class="pen-ayuda">El motivo es el mismo que ve la enfermera en su tablet. Al corregirla y enviarla, desaparece de esta lista.</div>`;
+  html += rech.length ? `<div class="fug-tabla-wrap"><table class="fug-tabla"><thead><tr>
+      <th>Atención</th><th>Evento</th><th>Paciente</th><th>Motivo del rechazo</th><th>Consumos</th><th>Enfermero/a</th></tr></thead><tbody>` +
+    rech.map(r => `<tr>
+      <td>${escHtml(fh(r.inicio_atencion))}<br><span class="fug-gris">${r.intentos} intento${r.intentos !== 1 ? 's' : ''} · último ${escHtml(fh(r.ultimo_intento))}</span>
+        ${r.descartada_at ? `<br><span class="pen-etq descartada">Descartada en la tablet ${escHtml(fh(r.descartada_at))}</span>` : ''}</td>
+      <td>${escHtml(r.evento || '—')}${r.ubicacion ? '<br><span class="fug-gris">' + escHtml(r.ubicacion) + '</span>' : ''}</td>
+      <td><b>${escHtml(r.paciente || '—')}</b><br><span class="fug-gris">${escHtml(r.documento || '')}</span></td>
+      <td class="pen-error">${(r.errores && r.errores.length ? r.errores : [r.error]).slice(0, 4).map(escHtml).join('<br>')}</td>
+      <td>${r.consumos ? r.consumos + ' sin HC' : '<span class="fug-gris">Ninguno</span>'}</td>
+      <td>${escHtml(r.usuario_nombre || '—')}</td></tr>`).join('') + '</tbody></table></div>'
+    : '<div class="hc-nada">No hay historias clínicas rechazadas.</div>';
+
+  html += `<div class="pen-sec">Consumos sin historia clínica <span class="n">${sin.length}</span></div>
+    <div class="pen-ayuda">Medicamentos e insumos descontados del inventario dentro de una historia clínica que no llegó. Si la enfermera confirma que esa historia clínica no se va a enviar (por ejemplo, la descartó), devuélvelos al inventario.</div>`;
+  html += sin.length ? `<div class="fug-tabla-wrap"><table class="fug-tabla"><thead><tr>
+      <th>Atención</th><th>Ubicación / depósito</th><th>Paciente</th><th>Medicamentos e insumos</th><th>Enfermero/a</th>${currentRole === 4 ? '<th></th>' : ''}</tr></thead><tbody>` +
+    sin.map(x => {
+      const reciente = Date.now() - new Date(x.registrado).getTime() < _PEN_RECIENTE_MS;
+      return `<tr>
+      <td>${escHtml(fh(x.primera))}<br>${x.rechazada ? '<span class="pen-etq rechazada">HC rechazada</span>' : reciente ? '<span class="pen-etq reciente">Reciente: puede estar diligenciándose</span>' : '<span class="pen-etq sinenviar">Sin enviar</span>'}</td>
+      <td>${escHtml(x.ubicacion || '—')}<br><span class="fug-gris">${escHtml(x.depositos || '')}</span></td>
+      <td>${escHtml(x.documento || '—')}</td>
+      <td>${escHtml(x.items || '')}</td>
+      <td>${escHtml(x.usuario || '—')}</td>
+      ${currentRole === 4 ? `<td class="pen-acc">${reciente && !x.rechazada ? '<span class="fug-gris">Espera a que pasen 6 horas</span>'
+        : `<button class="btn-cancel" onclick="penDevolver(${jsArg(x.hc_client_id)}, ${x.consumos}, this)">Devolver al inventario</button>`}</td>` : ''}</tr>`;
+    }).join('') + '</tbody></table></div>'
+    : '<div class="hc-nada">No hay consumos sin historia clínica.</div>';
+  cont.innerHTML = html;
+}
+
+function penDevolver(hcClientId, n, btn){
+  document.getElementById('modal-title').textContent = 'Devolver al inventario';
+  document.getElementById('modal-sub').textContent =
+    `¿Devolver ${n} consumo${n !== 1 ? 's' : ''} al inventario? Hazlo solo si la enfermera confirmó que esa historia clínica no se va a enviar: si llega después, llegará sin estos medicamentos e insumos. Queda registrado como reversión a tu nombre.`;
+  document.getElementById('modal-ok-btn').onclick = async () => {
+    closeModal('modal-confirm');
+    try {
+      const r = await HistoriasClinicas.devolverSinHC(hcClientId);
+      toast('✓ ' + r.mensaje, 'success');
+      penBuscar();
+    } catch(err){ toastError(err.message); }
+  };
+  document.getElementById('modal-confirm').classList.add('open');
 }

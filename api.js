@@ -123,6 +123,11 @@ const HistoriasClinicas = {
   editar: (id, datos, motivo) => request('PUT', `/api/hc/${id}`, { datos, motivo }),
   // Reporte de atenciones (Excel) y clasificación por IA
   reporte: (f) => request('GET', '/api/hc/reporte?' + new URLSearchParams(Object.entries(f || {}).filter(([, v]) => v)).toString()),
+  // HC rechazadas por el servidor y consumos registrados sin historia clínica
+  pendientes: () => request('GET', '/api/hc/pendientes'),
+  devolverSinHC: (hcClientId) => request('POST', '/api/hc/sin-hc/devolver', { hc_client_id: hcClientId }),
+  // Atenciones (HC y fugaces) para el reporte de pacientes atendidos
+  atenciones: (f) => request('GET', '/api/hc/atenciones?' + new URLSearchParams(Object.entries(f || {}).filter(([, v]) => v)).toString()),
   entrega: (id, data) => request('POST', `/api/hc/${id}/entrega`, data),
   firmaMedico: (id, firma) => request('POST', `/api/hc/${id}/firma-medico`, { firma }),
   // Sube el recibido de la IPS (foto o PDF) tal cual, sin JSON
@@ -241,6 +246,9 @@ const Eventos = {
   getActivos: () => request('GET', '/api/eventos/activos'),
   create: (data) => request('POST', '/api/eventos', data),
   update: (id, data) => request('PUT', `/api/eventos/${id}`, data),
+  // Vista completa del evento: datos, puntos, médicos y enfermeros de una vez
+  guardarEstructura: (id, data) => request('PUT', `/api/eventos/${id}/estructura`, data),
+  sugerenciaPuntos: (ubicacionId, excluir) => request('GET', `/api/eventos/sugerencia-puntos?ubicacion_id=${ubicacionId}${excluir ? '&excluir=' + excluir : ''}`),
   addEnfermero: (id, data) => request('POST', `/api/eventos/${id}/enfermeros`, data),
   updateEnfermero: (id, usuarioId, data) => request('PUT', `/api/eventos/${id}/enfermeros/${usuarioId}`, data),
   removeEnfermero: (id, usuarioId) => request('DELETE', `/api/eventos/${id}/enfermeros/${usuarioId}`),

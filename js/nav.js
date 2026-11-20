@@ -61,6 +61,9 @@ function goTo(viewId){
     toast('Sin permiso','error');
     return;
   }
+  // Vista del evento con cambios sin guardar: preguntar antes de salir
+  if(typeof evpPuedeSalir === 'function' && !evpPuedeSalir(()=>goTo(viewId))) return;
+  if(typeof evpCerrar === 'function') evpCerrar();
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
   document.getElementById('view-'+viewId)?.classList.add('active');
@@ -105,7 +108,10 @@ function goTo(viewId){
   }
   if(viewId==='historias'&&currentRole>=3){
     ta.innerHTML=`<button class="tb-btn" onclick="hcAbrirReporte()"><img class="btn-ico" src="img/iconos/excel.svg" alt="">Reporte Excel</button>`+
-      `<button class="tb-btn" onclick="fugAbrir()"><img class="btn-ico" src="img/iconos/dep-botiquin.svg" alt="">Atenciones fugaces</button>`;
+      `<button class="tb-btn" onclick="fugAbrir()"><img class="btn-ico" src="img/iconos/dep-botiquin.svg" alt="">Atenciones fugaces</button>`+
+      // HC rechazadas por el servidor y consumos sin HC (el número se llena al consultar)
+      `<button class="tb-btn" id="tb-hc-pendientes" onclick="penAbrir()"><img class="btn-ico" src="img/iconos/advertencia.svg" alt="">Rechazadas y sin HC<span class="tb-contador" id="tb-hc-pendientes-n" style="display:none"></span></button>`;
+    penContar();
     // Página aparte (solo administrador): el editor de la tablet con todas las historias clínicas
     if(currentRole===4) ta.innerHTML+=`<button class="tb-btn primary" onclick="window.open('/hc-editor','_blank')"><img class="btn-ico" src="img/iconos/editar.svg" alt="">Editar Historias Clínicas</button>`;
   }

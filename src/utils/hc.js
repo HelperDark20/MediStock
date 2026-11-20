@@ -432,24 +432,31 @@ function _cierre(c, rechazo, lugarOrigen, errores) {
   return out;
 }
 
-// Responsables de la atención (16): el médico del evento (si tiene) y el
-// enfermero que diligencia. La firma del enfermero es obligatoria; si el
-// médico no alcanzó a firmar, queda "firma médica pendiente".
-function _responsables(r, medicos, enfermero, firmasIn, errores) {
+// Responsables de la atención (16): el médico del punto de atención del
+// enfermero (si tiene) y el enfermero que diligencia. La firma del enfermero
+// es obligatoria; si el médico no alcanzó a firmar, queda "firma médica
+// pendiente".
+//   medicos: TODOS los médicos del evento (candidatos válidos)
+//   medicoPunto: el médico del punto del enfermero ahora (o null)
+// La tablet manda el médico que mostró (y que firmó, si firmó). Si es un
+// médico del evento, se respeta aunque mientras tanto hayan cambiado el
+// médico del punto (HC hecha sin señal). Si no manda ninguno, o manda uno
+// que no es del evento, queda el médico del punto con la firma PENDIENTE:
+// una firma capturada nunca se atribuye a otro médico.
+function _responsables(r, medicos, medicoPunto, enfermero, firmasIn, errores) {
+  const pedido = r.medico_id === undefined || r.medico_id === null ? '' : String(r.medico_id).trim();
+  let m = pedido ? (medicos.find(x => String(x.id) === pedido) || null) : null;
+  const firmoEse = !!m;
+  if (!m) m = medicoPunto || null;
   const out = {
     medico: null, medico_firma_pendiente: false,
     enfermero: { id: enfermero.id, nombre: enfermero.nombre, cedula: enfermero.cedula },
-    // Evento sin médico: la atención queda bajo la responsabilidad de quien diligencia
-    responsable_principal: medicos.length ? 'medico' : 'enfermero'
+    // Punto sin médico: la atención queda bajo la responsabilidad de quien diligencia
+    responsable_principal: m ? 'medico' : 'enfermero'
   };
-  if (medicos.length) {
-    // Un solo médico por evento (regla del cliente): queda elegido solo
-    const m = medicos.length === 1 ? medicos[0] : medicos.find(x => String(x.id) === String(r.medico_id));
-    if (!m) errores.push('Selecciona el médico responsable de la atención');
-    else {
-      out.medico = { id: m.id, nombre: m.nombre, cedula: m.cedula };
-      out.medico_firma_pendiente = !firmaValida(firmasIn.medico);
-    }
+  if (m) {
+    out.medico = { id: m.id, nombre: m.nombre, cedula: m.cedula };
+    out.medico_firma_pendiente = !(firmoEse && firmaValida(firmasIn.medico));
   }
   if (!firmaValida(firmasIn.enfermero)) errores.push('Falta tu firma como responsable de la atención');
   return out;
@@ -527,8 +534,8 @@ function normalizarMedicamentos(movs, enviados, enfermero, medico) {
 // Normaliza y valida la HC completa.
 //   cuerpo: { datos, firmas } tal como los envía la tablet
 //   fechaAtencion: 'YYYY-MM-DD' (hora de Colombia) del inicio de la atención
-//   contexto: { medicos, enfermero, lugar } — médicos del evento (máximo uno)
-//             y quien diligencia
+//   contexto: { medicos, medicoPunto, enfermero, lugar } — médicos del
+//             evento, el médico del punto de quien diligencia y quien diligencia
 // Devuelve { datos, firmas, errores }
 function normalizarHC(cuerpo, fechaAtencion, contexto) {
   const errores = [];
@@ -560,7 +567,11 @@ function normalizarHC(cuerpo, fechaAtencion, contexto) {
   // Módulo 7: cierre y responsables
   const ctx = contexto || {};
   datos.cierre = _cierre(obj(d.cierre), datos.consentimiento.decision === 'rechaza', ctx.lugar || '', errores);
-  datos.responsables = _responsables(obj(d.responsables), ctx.medicos || [], ctx.enfermero || {}, firmasIn, errores);
+  // Sin medicoPunto en el contexto (llamadas anteriores a los puntos): con
+  // un solo médico, ese es el del punto
+  const medicos = ctx.medicos || [];
+  const medicoPunto = ctx.medicoPunto !== undefined ? ctx.medicoPunto : (medicos.length === 1 ? medicos[0] : null);
+  datos.responsables = _responsables(obj(d.responsables), medicos, medicoPunto, ctx.enfermero || {}, firmasIn, errores);
   // Procedimientos: responsable el médico (si hay) o quien diligencia
   if (datos.consentimiento.decision !== 'rechaza') {
     datos.procedimientos = _procedimientos(d.procedimientos, responsableProcedimientos(datos.responsables), errores);
@@ -572,7 +583,7 @@ function normalizarHC(cuerpo, fechaAtencion, contexto) {
   // Solo se guardan las firmas que corresponden a lo diligenciado
   const firmas = {};
   if (datos.consentimiento.decision === 'rechaza' && firmaValida(firmasIn.paciente)) firmas.paciente = firmasIn.paciente;
-  if (datos.responsables.medico && firmaValida(firmasIn.medico)) firmas.medico = firmasIn.medico;
+  if (datos.responsables.medico && !datos.responsables.medico_firma_pendiente) firmas.medico = firmasIn.medico;
   if (firmaValida(firmasIn.enfermero)) firmas.enfermero = firmasIn.enfermero;
   return { datos, firmas, errores };
 }

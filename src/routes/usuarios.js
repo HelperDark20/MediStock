@@ -155,6 +155,16 @@ router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
            AND evento_id IN (SELECT id FROM eventos WHERE estado IN ('creado', 'en_curso'))`,
         [req.params.id]
       );
+      // …ni queda en un punto de atención como enfermero
+      await pool.query(
+        `UPDATE evento_usuarios SET punto_id = NULL
+         WHERE usuario_id = $1
+           AND evento_id IN (SELECT id FROM eventos WHERE estado IN ('creado', 'en_curso'))`,
+        [req.params.id]
+      );
+    } else if (actual.rows[0].nivel === NIVEL_MEDICO) {
+      // Dejó de ser médico: los puntos de eventos abiertos quedan sin médico
+      await _liberarPuntosDelMedico(req.params.id);
     }
     res.json(result.rows[0]);
   } catch (err) {
@@ -162,6 +172,23 @@ router.put('/:id', verificarToken, verificarNivel(4), async (req, res) => {
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
+
+// Un médico que se desactiva o cambia de nivel deja de ser el responsable de
+// los puntos de atención de los eventos abiertos (los finalizados no cambian)
+async function _liberarPuntosDelMedico(usuarioId) {
+  await pool.query(
+    `UPDATE eventos SET version = version + 1
+     WHERE estado IN ('creado', 'en_curso')
+       AND id IN (SELECT evento_id FROM evento_puntos WHERE medico_id = $1)`,
+    [usuarioId]
+  );
+  await pool.query(
+    `UPDATE evento_puntos SET medico_id = NULL
+     WHERE medico_id = $1
+       AND evento_id IN (SELECT id FROM eventos WHERE estado IN ('creado', 'en_curso'))`,
+    [usuarioId]
+  );
+}
 
 // DELETE /api/usuarios/:id — nivel 4 (soft delete)
 router.delete('/:id', verificarToken, verificarNivel(4), async (req, res) => {
@@ -176,6 +203,7 @@ router.delete('/:id', verificarToken, verificarNivel(4), async (req, res) => {
     if (!result.rows.length) {
       return res.status(404).json({ error: 'Usuario no encontrado o ya desactivado' });
     }
+    await _liberarPuntosDelMedico(req.params.id);
     res.json({ mensaje: 'Usuario desactivado' });
   } catch (err) {
     console.error(err);
