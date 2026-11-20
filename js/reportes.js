@@ -48,6 +48,8 @@ const _REP_ILUSTRACION = {
   'ti-scale': 'img/iconos/diferencia.svg',
   'ti-x': 'img/iconos/vencidos.svg',
   'ti-bell': 'img/iconos/alertas.svg',
+  'ti-report-medical': 'img/modulos/historias.png',
+  'ti-first-aid-kit': 'img/iconos/dep-botiquin.svg',
   'ti-clock': 'img/iconos/vencimiento.svg'
 };
 function _repStatPill(tono, icon, num, label){
@@ -241,7 +243,7 @@ async function actualizarReporte(){
       _repRenderConsumos(movs);
     } else if(tipo === 'pacientes'){
       if(printSub) printSub.textContent = `${fDesde||'—'} a ${fHasta||'—'} · ${ubLabel} · Generado el ${new Date().toLocaleDateString('es-CO')}`;
-      _repRenderPacientes(movs);
+      _repRenderPacientes(movs, await _repFetchAtenciones());
     } else if(tipo === 'top'){
       if(printSub) printSub.textContent = `${fDesde||'—'} a ${fHasta||'—'} · ${ubLabel} · ${depLabel} · Generado el ${new Date().toLocaleDateString('es-CO')}`;
       _repRenderTop(movs);
@@ -404,26 +406,55 @@ function _repRenderCedula(movs, cedula){
 
 // ══════════════════════════════════════════
 // REPORTE 3 — PACIENTES ATENDIDOS POR UBICACIÓN
-// (cuenta cédulas DISTINTAS; consumos sin cédula —anteriores a que fuera
-// obligatoria— no se cuentan). Muestra las cédulas atendidas cada día y un
-// resumen por cédula con todo lo que se le registró a cada paciente.
+// Cuenta ATENCIONES registradas: historias clínicas y atenciones fugaces
+// (antes contaba las cédulas con consumos, y así entraban borradores que
+// nunca llegaron y consumos anulados). Aparte muestra los consumos que se
+// registraron dentro de una historia clínica que no llegó, y el resumen de
+// consumos por cédula (sin los anulados).
 // ══════════════════════════════════════════
-function _repAgruparPacientes(movs){
-  const conCedula = movs.filter(m => m.cedula_paciente);
-  const porFechaUbicacion = {};
-  const totalPorUbicacion = {};
+let _repAtencionesCache = null, _repAtencionesKey = null;
+async function _repFetchAtenciones(){
+  const f = {
+    fecha_inicio: document.getElementById('rep-fecha-desde').value || '',
+    fecha_fin: document.getElementById('rep-fecha-hasta').value || '',
+    ubicacion_id: document.getElementById('rep-ubicacion').value || ''
+  };
+  const key = JSON.stringify(f);
+  if(_repAtencionesKey === key && _repAtencionesCache) return _repAtencionesCache;
+  _repAtencionesCache = await HistoriasClinicas.atenciones(f);
+  _repAtencionesKey = key;
+  return _repAtencionesCache;
+}
+
+function _repAgruparPacientes(movs, atenciones){
+  const porFechaUbicacion = {}, totalPorUbicacion = {}, pacientes = new Set();
+  let nHC = 0, nFug = 0;
+  (atenciones || []).forEach(a => {
+    // Paciente: su documento; sin documento cuenta como una persona aparte
+    const doc = a.documento ? String(a.documento) : (a.tipo === 'HC' ? a.consecutivo : 'FUGAZ-' + a.id);
+    const key = `${a.fecha}|${a.ubicacion}`;
+    const d = porFechaUbicacion[key] = porFechaUbicacion[key] || { fecha: a.fecha, ubNombre: a.ubicacion, hc: 0, fugaces: 0, docs: new Set() };
+    const t = totalPorUbicacion[a.ubicacion] = totalPorUbicacion[a.ubicacion] || { hc: 0, fugaces: 0, docs: new Set() };
+    if(a.tipo === 'HC'){ d.hc++; t.hc++; nHC++; } else { d.fugaces++; t.fugaces++; nFug++; }
+    d.docs.add(doc); t.docs.add(doc); pacientes.add(doc);
+  });
+
+  // Consumos vigentes (los anulados o revertidos no cuentan)
+  const vigentes = movs.filter(m => !m.revertido);
+  // Consumos de una HC que no llegó al servidor
+  const sinHC = {};
+  vigentes.filter(m => m.hc_client_id && !m.hc_enviada).forEach(m => {
+    const g = sinHC[m.hc_client_id] = sinHC[m.hc_client_id] ||
+      { fecha: m.fecha_real || m.created_at, ubNombre: m.origen_ubicacion_nombre || 'Sin ubicación', cedula: m.cedula_paciente || '', usuario: m.usuario_nombre || '', items: [], unidades: 0 };
+    g.items.push(`${m.nombre || '—'} × ${m.cantidad}`);
+    g.unidades += m.cantidad;
+    if(String(m.fecha_real || m.created_at) < String(g.fecha)) g.fecha = m.fecha_real || m.created_at;
+  });
+
   const porCedula = {};
-
-  conCedula.forEach(m=>{
-    const fecha = fechaColombia(m.fecha_real||m.created_at);   // hora real de atención
+  vigentes.filter(m => m.cedula_paciente).forEach(m => {
+    const fecha = fechaColombia(m.fecha_real||m.created_at);
     const ubNombre = m.origen_ubicacion_nombre || 'Sin ubicación';
-    const key = `${fecha}|${ubNombre}`;
-    if(!porFechaUbicacion[key]) porFechaUbicacion[key] = { fecha, ubNombre, cedulas: new Set() };
-    porFechaUbicacion[key].cedulas.add(m.cedula_paciente);
-
-    if(!totalPorUbicacion[ubNombre]) totalPorUbicacion[ubNombre] = new Set();
-    totalPorUbicacion[ubNombre].add(m.cedula_paciente);
-
     const c = porCedula[m.cedula_paciente] = porCedula[m.cedula_paciente] ||
       { cedula: m.cedula_paciente, consumos: [], ubicaciones: new Set(), dias: new Set(), unidades: 0, valor: 0, ultima: '' };
     c.consumos.push(m);
@@ -434,63 +465,76 @@ function _repAgruparPacientes(movs){
     const f = m.fecha_real||m.created_at;
     if(f > c.ultima) c.ultima = f;
   });
-
-  // Pacientes atendidos más recientemente primero; sus consumos en orden cronológico
+  // Pacientes con consumos más recientes primero; sus consumos en orden cronológico
   const cedulas = Object.values(porCedula).sort((a,b)=> b.ultima.localeCompare(a.ultima));
   cedulas.forEach(c => c.consumos.sort((a,b)=> String(a.fecha_real||a.created_at).localeCompare(String(b.fecha_real||b.created_at))));
 
-  const totalGeneral = cedulas.length;
-  return { porFechaUbicacion, totalPorUbicacion, cedulas, totalGeneral, sinCedula: movs.length - conCedula.length };
+  const sinHCLista = Object.values(sinHC).sort((a,b)=> String(b.fecha).localeCompare(String(a.fecha)));
+  return { porFechaUbicacion, totalPorUbicacion, cedulas, totalGeneral: pacientes.size, nHC, nFug, sinHC: sinHCLista };
 }
 
 function _repFechaHora(v){
   return new Date(v).toLocaleString('es-CO',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'});
 }
 
-function _repRenderPacientes(movs){
-  const { porFechaUbicacion, totalPorUbicacion, cedulas, totalGeneral, sinCedula } = _repAgruparPacientes(movs);
+function _repRenderPacientes(movs, atenciones){
+  const { porFechaUbicacion, totalPorUbicacion, cedulas, totalGeneral, nHC, nFug, sinHC } = _repAgruparPacientes(movs, atenciones);
   const diasConAtencion = new Set(Object.values(porFechaUbicacion).map(d=>d.fecha)).size;
 
   const stats = _repStatsHtml([
     _repStatPill('blue','ti-users', totalGeneral, 'Pacientes distintos atendidos'),
+    _repStatPill('green','ti-report-medical', nHC, nHC === 1 ? 'Historia clínica' : 'Historias clínicas'),
+    _repStatPill('gray','ti-first-aid-kit', nFug, nFug === 1 ? 'Atención fugaz' : 'Atenciones fugaces'),
     _repStatPill('green','ti-calendar', diasConAtencion, 'Días con atención registrada'),
-    _repStatPill('gray','ti-package', movs.length - sinCedula, 'Consumos con cédula'),
-    _repStatPill('amber','ti-alert-triangle', sinCedula, 'Consumos sin cédula')
+    _repStatPill('amber','ti-alert-triangle', sinHC.length, sinHC.length === 1 ? 'Atención con consumos sin HC' : 'Atenciones con consumos sin HC')
   ]);
 
-  const resumenEntries = Object.entries(totalPorUbicacion).sort((a,b)=>b[1].size-a[1].size);
+  const gridUb = '1fr 120px 120px 130px';
+  const resumenEntries = Object.entries(totalPorUbicacion).sort((a,b)=>b[1].docs.size-a[1].docs.size);
   const resumenRows = resumenEntries.length
-    ? resumenEntries.map(([ub,set])=>`<div class="rep-row" style="--rep-grid:1fr 160px"><div class="rep-item-name">${escHtml(ub)}</div><div class="rep-cell-mono strong">${set.size}</div></div>`).join('')
-    : '<div class="empty-state"><i class="ti ti-users"></i><p>Sin datos</p></div>';
+    ? resumenEntries.map(([ub,t])=>`<div class="rep-row" style="--rep-grid:${gridUb}"><div class="rep-item-name">${escHtml(ub)}</div><div class="rep-cell-mono">${t.hc}</div><div class="rep-cell-mono">${t.fugaces}</div><div class="rep-cell-mono strong">${t.docs.size}</div></div>`).join('')
+    : '<div class="empty-state"><i class="ti ti-users"></i><p>Sin atenciones registradas en este período</p></div>';
 
   const porUb = {};
-  Object.values(porFechaUbicacion).forEach(d=>{
-    if(!porUb[d.ubNombre]) porUb[d.ubNombre] = [];
-    porUb[d.ubNombre].push(d);
-  });
-
+  Object.values(porFechaUbicacion).forEach(d=>{ (porUb[d.ubNombre] = porUb[d.ubNombre] || []).push(d); });
   let detalleHtml = '';
   const ubs = Object.keys(porUb).sort();
   if(!ubs.length){
-    detalleHtml = '<div class="empty-state"><i class="ti ti-users"></i><p>Sin pacientes registrados (con cédula) en este período</p></div>';
+    detalleHtml = '<div class="empty-state"><i class="ti ti-users"></i><p>Sin atenciones registradas en este período</p></div>';
   } else {
-    const gridDia = '110px 110px 1fr';
+    const gridDia = '100px 70px 80px 1fr';
     ubs.forEach(ub=>{
       const dias = porUb[ub].sort((a,b)=>b.fecha.localeCompare(a.fecha));
       const rows = dias.map(d=>`<div class="rep-row" style="--rep-grid:${gridDia}">
         <div class="rep-cell-mono">${fmtDate(d.fecha)}</div>
-        <div class="rep-cell-mono strong">${d.cedulas.size} paciente${d.cedulas.size!==1?'s':''}</div>
-        <div class="rep-cedulas">${[...d.cedulas].sort().map(escHtml).join(', ')}</div>
+        <div class="rep-cell-mono strong">${d.hc}</div>
+        <div class="rep-cell-mono">${d.fugaces}</div>
+        <div class="rep-cedulas">${[...d.docs].sort().map(escHtml).join(', ')}</div>
       </div>`).join('');
       detalleHtml += `<div class="rep-group">
         <div class="rep-group-head"><div class="rep-group-name"><img class="grp-ico" src="img/iconos/ubicacion.svg" alt=""> ${escHtml(ub)}</div><div class="rep-group-count">${dias.length} día${dias.length!==1?'s':''}</div></div>
-        <div class="rep-cols" style="--rep-grid:${gridDia}"><div class="rep-col-num">Fecha</div><div class="rep-col-num">Pacientes</div><div>Cédulas atendidas</div></div>
+        <div class="rep-cols" style="--rep-grid:${gridDia}"><div class="rep-col-num">Fecha</div><div class="rep-col-num">HC</div><div class="rep-col-num">Fugaces</div><div>Documentos atendidos</div></div>
         ${rows}
       </div>`;
     });
   }
 
-  // Resumen por cédula: todo lo registrado a cada paciente en el período
+  // Consumos registrados dentro de una HC que no llegó
+  const gridSin = '130px 120px 1fr 1fr';
+  const sinHCHtml = sinHC.length ? `<div class="rep-section-title">Consumos registrados sin historia clínica</div>
+    <div class="rep-group">
+      <div class="rep-group-head tono-amber"><div class="rep-group-name">Historias clínicas que no llegaron</div><div class="rep-group-count">${sinHC.length}</div></div>
+      <div class="rep-cols" style="--rep-grid:${gridSin}"><div class="rep-col-num">Fecha</div><div class="rep-col-num">Documento</div><div>Medicamentos e insumos</div><div>Ubicación · Registrado por</div></div>
+      ${sinHC.map(g=>`<div class="rep-row" style="--rep-grid:${gridSin}">
+        <div class="rep-cell-mono" style="font-size:10px">${_repFechaHora(g.fecha)}</div>
+        <div class="rep-cell-mono">${escHtml(g.cedula || '—')}</div>
+        <div style="font-size:11px">${g.items.map(escHtml).join(', ')}</div>
+        <div style="font-size:11px;color:#666">${escHtml(g.ubNombre)} · ${escHtml(g.usuario)}</div>
+      </div>`).join('')}
+    </div>
+    <div class="rep-nota no-print">No se cuentan como atenciones. Revísalos en Historias clínicas → "Rechazadas y sin HC".</div>` : '';
+
+  // Resumen por cédula: consumos vigentes registrados a cada paciente
   const gridCed = '135px 1fr 130px 90px 1fr 120px';
   const cedulasHtml = cedulas.length
     ? cedulas.map(c=>`<div class="rep-group">
@@ -501,21 +545,22 @@ function _repRenderPacientes(movs){
         <div class="rep-cols" style="--rep-grid:${gridCed}"><div class="rep-col-num">Fecha</div><div>Ítem</div><div class="rep-col-num">Sub-SKU</div><div class="rep-col-num">Cantidad</div><div>Ubicación / Depósito</div><div>Registrado por</div></div>
         ${c.consumos.map(m=>`<div class="rep-row" style="--rep-grid:${gridCed}">
           <div class="rep-cell-mono" style="font-size:10px">${_repFechaHora(m.fecha_real||m.created_at)}</div>
-          <div><div class="rep-item-name">${escHtml(m.nombre||'—')}</div><div class="rep-item-code">${escHtml(m.sku_global_codigo||'')}</div></div>
+          <div><div class="rep-item-name">${escHtml(m.nombre||'—')}</div><div class="rep-item-code">${escHtml(m.sku_global_codigo||'')}${m.hc_client_id && !m.hc_enviada ? ' · <span style="color:var(--amber)">sin HC</span>' : ''}</div></div>
           <div class="rep-cell-mono" style="font-size:10px">${escHtml(m.sub_sku||'—')}</div>
           <div class="rep-cell-mono strong">${m.cantidad} ${escHtml(m.unidad||'')}</div>
           <div style="font-size:11px;color:#666">${escHtml(m.origen_ubicacion_nombre||'—')} — ${escHtml(m.origen_nombre||'—')}</div>
           <div style="font-size:11px">${escHtml(m.usuario_nombre||'—')}</div>
         </div>`).join('')}
       </div>`).join('')
-    : '<div class="empty-state"><img class="empty-ico" src="img/iconos/cedula.svg" alt=""><p>Sin pacientes registrados (con cédula) en este período</p></div>';
+    : '<div class="empty-state"><img class="empty-ico" src="img/iconos/cedula.svg" alt=""><p>Sin consumos registrados a pacientes en este período</p></div>';
 
   document.getElementById('rep-contenido').innerHTML = `
     ${stats}
-    <div class="rep-section-title">Total de pacientes atendidos por ubicación</div>
-    <div class="rep-group"><div class="rep-cols" style="--rep-grid:1fr 160px"><div>Ubicación</div><div class="rep-col-num">Pacientes distintos</div></div>${resumenRows}</div>
+    <div class="rep-section-title">Total de atenciones por ubicación</div>
+    <div class="rep-group"><div class="rep-cols" style="--rep-grid:${gridUb}"><div>Ubicación</div><div class="rep-col-num">Historias clínicas</div><div class="rep-col-num">Atenciones fugaces</div><div class="rep-col-num">Pacientes distintos</div></div>${resumenRows}</div>
     <div class="rep-section-title">Detalle diario por ubicación</div>
     ${detalleHtml}
+    ${sinHCHtml}
     <div class="rep-section-title">Resumen por cédula — consumos registrados a cada paciente</div>
     ${cedulasHtml}`;
 }
@@ -983,7 +1028,7 @@ async function repExportExcel(){
     } else {
       const movs = await _repFetchConsumos();
       if(tipo === 'consumos') _repExportConsumosExcel(movs);
-      else if(tipo === 'pacientes') _repExportPacientesExcel(movs);
+      else if(tipo === 'pacientes') _repExportPacientesExcel(movs, await _repFetchAtenciones());
       else if(tipo === 'top') _repExportTopExcel(movs);
     }
   } catch(err){
@@ -1093,8 +1138,8 @@ function _repExportCedulaExcel(movs, cedula){
   _repDescargarExcel(aoa, `Reporte_Cedula_${cedula}`, [20,16,24,20,14,10,10,16,20,20,20]);
 }
 
-function _repExportPacientesExcel(movs){
-  const { porFechaUbicacion, totalPorUbicacion, cedulas, totalGeneral, sinCedula } = _repAgruparPacientes(movs);
+function _repExportPacientesExcel(movs, atenciones){
+  const { porFechaUbicacion, totalPorUbicacion, cedulas, totalGeneral, nHC, nFug, sinHC } = _repAgruparPacientes(movs, atenciones);
   const diasConAtencion = new Set(Object.values(porFechaUbicacion).map(d=>d.fecha)).size;
   const desde = document.getElementById('rep-fecha-desde').value||'—';
   const hasta = document.getElementById('rep-fecha-hasta').value||'—';
@@ -1106,26 +1151,34 @@ function _repExportPacientesExcel(movs){
     `${desde} a ${hasta} · ${ubLabel} · Generado el ${new Date().toLocaleString('es-CO')}`,
     [
       ['Pacientes distintos atendidos', totalGeneral],
+      ['Historias clínicas', nHC],
+      ['Atenciones fugaces', nFug],
       ['Días con atención registrada', diasConAtencion],
-      ['Consumos con cédula', movs.length - sinCedula],
-      ['Consumos sin cédula', sinCedula]
+      ['Atenciones con consumos sin historia clínica', sinHC.length]
     ]
   );
 
   aoa.push(['Total por ubicación (rango completo)']);
-  aoa.push(['Ubicación', 'Pacientes distintos atendidos']);
-  Object.entries(totalPorUbicacion).sort((a,b)=>b[1].size-a[1].size).forEach(([ub,set])=>{
-    aoa.push([ub, set.size]);
+  aoa.push(['Ubicación', 'Historias clínicas', 'Atenciones fugaces', 'Pacientes distintos']);
+  Object.entries(totalPorUbicacion).sort((a,b)=>b[1].docs.size-a[1].docs.size).forEach(([ub,t])=>{
+    aoa.push([ub, t.hc, t.fugaces, t.docs.size]);
   });
   aoa.push([]);
   aoa.push(['Detalle diario']);
-  aoa.push(['Fecha', 'Ubicación', 'Pacientes atendidos', 'Cédulas atendidas']);
+  aoa.push(['Fecha', 'Ubicación', 'Historias clínicas', 'Atenciones fugaces', 'Documentos atendidos']);
   Object.values(porFechaUbicacion).sort((a,b)=> a.fecha.localeCompare(b.fecha) || a.ubNombre.localeCompare(b.ubNombre)).forEach(d=>{
-    aoa.push([d.fecha, d.ubNombre, d.cedulas.size, [...d.cedulas].sort().join(', ')]);
+    aoa.push([d.fecha, d.ubNombre, d.hc, d.fugaces, [...d.docs].sort().join(', ')]);
   });
 
+  if(sinHC.length){
+    aoa.push([]);
+    aoa.push(['Consumos registrados sin historia clínica (no se cuentan como atenciones)']);
+    aoa.push(['Fecha', 'Ubicación', 'Documento', 'Medicamentos e insumos', 'Registrado por']);
+    sinHC.forEach(g => aoa.push([new Date(g.fecha).toLocaleString('es-CO'), g.ubNombre, g.cedula, g.items.join(', '), g.usuario]));
+  }
+
   aoa.push([]);
-  aoa.push(['Resumen por cédula']);
+  aoa.push(['Resumen por cédula (consumos vigentes)']);
   aoa.push(['Cédula', 'Consumos', 'Unidades', 'Valor (COP)', 'Días atendido', 'Ubicaciones', 'Última atención']);
   cedulas.forEach(c=>{
     aoa.push([c.cedula, c.consumos.length, c.unidades, c.valor, c.dias.size, [...c.ubicaciones].join(', '), new Date(c.ultima).toLocaleString('es-CO')]);
@@ -1133,18 +1186,19 @@ function _repExportPacientesExcel(movs){
 
   aoa.push([]);
   aoa.push(['Consumos registrados a cada paciente']);
-  aoa.push(['Cédula', 'Fecha', 'Ubicación', 'Depósito', 'SKU', 'Ítem', 'Sub-SKU', 'Lote', 'Cantidad', 'Unidad', 'Valor (COP)', 'Registrado por']);
+  aoa.push(['Cédula', 'Fecha', 'Ubicación', 'Depósito', 'SKU', 'Ítem', 'Sub-SKU', 'Lote', 'Cantidad', 'Unidad', 'Valor (COP)', 'Registrado por', 'Historia clínica']);
   cedulas.forEach(c=>{
     c.consumos.forEach(m=>{
       aoa.push([
         c.cedula, new Date(m.fecha_real||m.created_at).toLocaleString('es-CO'),
         m.origen_ubicacion_nombre||'', m.origen_nombre||'', m.sku_global_codigo||'', m.nombre||'',
-        m.sub_sku||'', m.lote||'', m.cantidad, m.unidad||'', (Number(m.precio)||0)*m.cantidad, m.usuario_nombre||''
+        m.sub_sku||'', m.lote||'', m.cantidad, m.unidad||'', (Number(m.precio)||0)*m.cantidad, m.usuario_nombre||'',
+        m.hc_client_id ? (m.hc_enviada ? 'Sí' : 'No llegó') : ''
       ]);
     });
   });
 
-  _repDescargarExcel(aoa, `Reporte_Pacientes_${desde}_a_${hasta}`, [16,22,22,28,14,26,20,14,10,10,14,22]);
+  _repDescargarExcel(aoa, `Reporte_Pacientes_${desde}_a_${hasta}`, [16,22,22,28,14,26,20,14,10,10,14,22,14]);
 }
 
 function _repExportTopExcel(movs){

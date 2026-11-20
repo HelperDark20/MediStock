@@ -401,6 +401,10 @@
         return;
       }
       st.eventos = eventos || [];
+      if(!st.avisoVersion){
+        st.avisoVersion = true;
+        versionVigente(function(alDia){ if(!alDia) pedirActualizar(null); });
+      }
       if(!st.eventos.length){
         guardar(claveUsuario('paquete'), null);
         estado('No tienes un evento activo asignado.<br>Contacta al administrador para que te asigne a un evento.' +
@@ -599,10 +603,71 @@
   // Primero los consumos y después las historias clínicas pendientes de envío:
   // el servidor exige que los consumos de una HC estén registrados en el
   // inventario antes de aceptarla.
-  function sincronizar(){
+  // ══════════════════════════════════════════
+  // VERSIÓN DEL PANEL
+  // Si salió una versión nueva y la tablet sigue con la anterior (p. ej. trabajó
+  // sin conexión), lo que envía puede no pasar las validaciones nuevas del
+  // servidor. Antes de sincronizar se compara con la versión vigente.
+  // ══════════════════════════════════════════
+  function versionLocal(){
+    var m = document.querySelector('meta[name="version-panel"]');
+    var v = m ? m.getAttribute('content') : '';
+    return /^[0-9a-f]{6,}$/.test(v || '') ? v : '';
+  }
+  // cb(true) si está al día o no se puede saber (sin red: se sigue igual)
+  function versionVigente(cb){
+    var local = versionLocal();
+    if(!local){ cb(true); return; }
+    api('GET', '/api/version-panel?t=' + new Date().getTime(), null, function(err, data){
+      if(err || !data || !data.version){ cb(true); return; }
+      cb(data.version === local);
+    });
+  }
+  // alSeguir: si se ofrece seguir sin actualizar (p. ej. sincronizar igual)
+  function pedirActualizar(alSeguir){
+    modal('Hay una versión nueva del panel',
+      'Esta tablet tiene una versión anterior del panel. Actualízala antes de enviar: lo que tienes pendiente (historias clínicas, consumos y atenciones) se conserva en la tablet.' +
+      (alSeguir ? '<br><br>Si envías sin actualizar, el servidor puede rechazar historias clínicas hechas con la versión anterior: quedarán como borrador para corregirlas.' : ''),
+      [{ texto: alSeguir ? 'Enviar sin actualizar' : 'Más tarde', accion: alSeguir || null },
+       { texto: 'Actualizar ahora', clase: 'primario', accion: actualizarApp }]);
+  }
+  function actualizarApp(){
+    toast('Actualizando el panel…');
+    function recargar(){ window.location.reload(); }
+    var ac = window.applicationCache;
+    if(ac && typeof ac.status === 'number'){
+      // Al terminar, 'updateready' cambia la caché y recarga (prepararAppSinSenal)
+      try { ac.update(); } catch(e){ recargar(); return; }
+      setTimeout(recargar, 10000);
+      return;
+    }
+    if(navigator.serviceWorker && navigator.serviceWorker.getRegistration){
+      setTimeout(recargar, 10000);
+      navigator.serviceWorker.getRegistration('/enfermero').then(function(reg){
+        if(!reg){ recargar(); return; }
+        reg.update().then(function(){
+          var w = reg.installing || reg.waiting;
+          if(!w){ recargar(); return; }
+          w.addEventListener('statechange', function(){ if(w.state === 'activated') recargar(); });
+        }, recargar);
+      }, recargar);
+      return;
+    }
+    recargar();
+  }
+
+  // versionRevisada: ya se comparó la versión (o se eligió enviar sin actualizar)
+  function sincronizar(versionRevisada){
     if(st.sincronizando) return;
     var nc = leerCola(st.usuario.id).length, nh = HCLite.contar(st.usuario.id).porEnviar, nf = FugazLite.pendientes(st.usuario.id);
     if(!nc && !nh && !nf){ toast('No hay nada pendiente de sincronizar', 'ok'); return; }
+    if(versionRevisada !== true){
+      versionVigente(function(alDia){
+        if(alDia) sincronizar(true);
+        else pedirActualizar(function(){ sincronizar(true); });
+      });
+      return;
+    }
     st.sincronizando = true;
     renderModo();
     // Atenciones fugaces al final (no dependen de los consumos de la cola)

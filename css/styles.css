@@ -780,6 +780,7 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 .deposito-name{font-size:12px;font-weight:600;color:var(--ink);font-family:var(--font-mono)}
 
 /* Reporte de pacientes: lista de cédulas atendidas en el día */
+.rep-nota{font-size:11.5px;color:#888;margin:-8px 0 16px}
 .rep-cedulas{font-size:10px;font-family:var(--font-mono);color:#666;line-height:1.5;word-break:break-word}
 
 /* ── MODIFICAR SUB-SKUs ── */
@@ -1491,6 +1492,18 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 .fug-tabla td{ padding:8px 10px; border-top:1px solid var(--border,#eee); vertical-align:top; }
 .fug-gris{ color:var(--text-muted,#888); font-size:11.5px; }
 .fug-error{ color:#c0392b; }
+/* HC rechazadas y consumos sin HC (js/historias.js) */
+.tb-contador{ margin-left:6px; background:var(--red2); color:#fff; border-radius:999px; font-size:11px; font-weight:700; padding:1px 7px; line-height:16px; }
+.pen-sec{ font-family:var(--font-head); font-size:14px; font-weight:700; color:var(--ink); margin:14px 0 4px; display:flex; align-items:center; gap:8px; }
+.pen-sec .n{ font-family:var(--font-mono); font-size:11px; background:var(--cream); border:1px solid var(--cream3); border-radius:999px; padding:1px 8px; color:var(--ink3); }
+.pen-ayuda{ font-size:12px; color:#888; margin-bottom:8px; }
+.pen-error{ color:#B0321F; font-size:12px; }
+.pen-etq{ display:inline-block; font-size:10.5px; font-weight:700; border-radius:6px; padding:1px 7px; margin-top:3px; }
+.pen-etq.rechazada{ background:var(--red-bg); color:var(--red2); }
+.pen-etq.reciente{ background:var(--blue-bg); color:var(--blue); }
+.pen-etq.descartada{ background:#F0F0EE; color:#777; }
+.pen-etq.sinenviar{ background:var(--amber-bg); color:var(--amber); }
+.pen-acc button{ white-space:nowrap; }
 @media (max-width:760px){ .fug-filtros{ grid-template-columns:1fr 1fr; } }
 
 /* ── EVENTOS: tarjeta con puntos de atención ── */

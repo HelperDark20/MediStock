@@ -332,6 +332,26 @@ const MIGRACIONES = [
   'ALTER TABLE eventos ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 0',
   // Punto de atención en que se hizo la atención fugaz (tal como estaba)
   'ALTER TABLE atenciones_fugaces ADD COLUMN IF NOT EXISTS punto TEXT',
+
+  // HC que el servidor rechazó al recibirlas (datos que no pasan la
+  // validación). Quedan en la tablet como borrador; aquí el administrador
+  // las ve para hacerles seguimiento. Se borran cuando la HC llega bien.
+  `CREATE TABLE IF NOT EXISTS hc_rechazos (
+     client_id TEXT PRIMARY KEY,
+     usuario_id INTEGER,
+     usuario_nombre TEXT,
+     evento_id INTEGER,
+     paciente TEXT,
+     documento TEXT,
+     inicio_atencion TIMESTAMPTZ,
+     error TEXT,
+     errores JSONB NOT NULL DEFAULT '[]'::jsonb,
+     intentos INTEGER NOT NULL DEFAULT 1,
+     primer_intento TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+     ultimo_intento TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   )`,
+  // La enfermera descartó en la tablet una HC que había sido rechazada
+  'ALTER TABLE hc_rechazos ADD COLUMN IF NOT EXISTS descartada_at TIMESTAMPTZ',
 ];
 
 // Migraciones de datos que corren una sola vez (quedan anotadas en

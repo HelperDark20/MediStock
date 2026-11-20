@@ -123,6 +123,11 @@ const HistoriasClinicas = {
   editar: (id, datos, motivo) => request('PUT', `/api/hc/${id}`, { datos, motivo }),
   // Reporte de atenciones (Excel) y clasificación por IA
   reporte: (f) => request('GET', '/api/hc/reporte?' + new URLSearchParams(Object.entries(f || {}).filter(([, v]) => v)).toString()),
+  // HC rechazadas por el servidor y consumos registrados sin historia clínica
+  pendientes: () => request('GET', '/api/hc/pendientes'),
+  devolverSinHC: (hcClientId) => request('POST', '/api/hc/sin-hc/devolver', { hc_client_id: hcClientId }),
+  // Atenciones (HC y fugaces) para el reporte de pacientes atendidos
+  atenciones: (f) => request('GET', '/api/hc/atenciones?' + new URLSearchParams(Object.entries(f || {}).filter(([, v]) => v)).toString()),
   entrega: (id, data) => request('POST', `/api/hc/${id}/entrega`, data),
   firmaMedico: (id, firma) => request('POST', `/api/hc/${id}/firma-medico`, { firma }),
   // Sube el recibido de la IPS (foto o PDF) tal cual, sin JSON

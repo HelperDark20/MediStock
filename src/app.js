@@ -86,14 +86,30 @@ app.use('/api/asistencia/kiosco/marcas', (req, res, next) => {
 }, express.json({ limit: '4mb' }));
 app.use(express.json());
 
-// ── Rate limit login: 10 intentos / 15 min por IP (anti fuerza bruta) ──
-const loginLimiter = rateLimit({
+// ── Rate limit login (anti fuerza bruta) ──
+// 10 intentos cada 15 min por PERSONA (cédula o usuario) desde una misma IP.
+// Antes era por IP: en un evento todas las tablets salen por la misma red, y
+// los intentos fallidos de un enfermero bloqueaban el ingreso de todos.
+// Se mantiene un tope por IP más amplio contra quien prueba muchas cédulas.
+const _quienIntenta = (req) => String((req.body && (req.body.cedula || req.body.usuario)) || '')
+  .trim().toUpperCase().slice(0, 40);
+const loginLimiterPersona = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
-  message: { error: 'Demasiados intentos de inicio de sesión. Intenta en 15 minutos.' },
+  message: { error: 'Demasiados intentos de inicio de sesión con este usuario. Intenta en 15 minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  // ipKeyGenerator agrupa las IPv6 por su red (/56), como hace el límite por IP
+  keyGenerator: (req) => `${rateLimit.ipKeyGenerator(req.ip)}|${_quienIntenta(req)}`,
+});
+const loginLimiterIp = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { error: 'Demasiados intentos de inicio de sesión desde esta red. Intenta en 15 minutos.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
+const loginLimiter = [loginLimiterIp, loginLimiterPersona];
 
 // El hosting (cPanel) atiende a través de un proxy (Apache). Sin esto,
 // req.ip es la dirección del proxy y TODOS los usuarios compartían un

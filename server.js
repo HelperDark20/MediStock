@@ -20,7 +20,15 @@ app.get('/logo.png', (req, res) => res.sendFile(path.join(__dirname, 'logo.png')
 // Panel de enfermero compatible con navegadores antiguos (iPad con iOS 9–12).
 // Página independiente y liviana; js/compat-check.js redirige aquí a los
 // navegadores que no pueden ejecutar la app principal.
-app.get('/enfermero', (req, res) => res.sendFile(path.join(__dirname, 'enfermero.html')));
+// La página lleva la versión del panel (meta version-panel): la tablet la
+// compara con /api/version-panel antes de sincronizar
+let _paginaEnfermero = null;
+app.get('/enfermero', (req, res) => {
+  if (!_paginaEnfermero) {
+    _paginaEnfermero = fs.readFileSync(path.join(__dirname, 'enfermero.html'), 'utf8').replace(/__VERSION_PANEL__/g, VERSION_PANEL);
+  }
+  res.type('html').set('Cache-Control', 'no-cache').send(_paginaEnfermero);
+});
 // Editar historias clínicas (solo administrador; la sesión es la del WMS)
 app.get('/hc-editor', (req, res) => res.sendFile(path.join(__dirname, 'hc-editor.html')));
 
@@ -38,6 +46,13 @@ const ARCHIVOS_PANEL = [
 const hashPanel = crypto.createHash('sha1');
 ARCHIVOS_PANEL.forEach(f => hashPanel.update(fs.readFileSync(path.join(__dirname, f))));
 const VERSION_PANEL = hashPanel.digest('hex').slice(0, 12);
+
+// Versión vigente del panel de enfermero (sin sesión: la tablet la consulta
+// antes de sincronizar para avisar si tiene una versión anterior)
+app.locals.versionPanel = VERSION_PANEL;   // (el laboratorio la usa en su /enfermero)
+app.get('/api/version-panel', (req, res) => {
+  res.set('Cache-Control', 'no-store').json({ version: VERSION_PANEL });
+});
 
 app.get('/enfermero.appcache', (req, res) => {
   res.type('text/cache-manifest').set('Cache-Control', 'no-cache').send([

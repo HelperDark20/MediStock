@@ -1413,6 +1413,19 @@
     </div>
   </div>
 </div>
+<!-- MODAL HC RECHAZADAS Y CONSUMOS SIN HC (js/historias.js) -->
+<div class="modal-overlay" id="modal-pendientes">
+  <div class="modal-sheet" style="max-width:1080px">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Historias clínicas rechazadas y consumos sin historia clínica</div>
+    <div class="modal-sub">Lo que se registró en las tablets pero no llegó como historia clínica. Las rechazadas siguen en la tablet de quien las diligenció como borrador: debe corregirlas y volver a enviarlas.</div>
+    <div id="pen-resultado"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="penBuscar()">Actualizar</button>
+      <button class="btn-cancel" onclick="closeModal('modal-pendientes')">Cerrar</button>
+    </div>
+  </div>
+</div>
 <!-- MODAL ELEGIR EVENTO (enfermero con más de un evento en curso) -->
 <div class="modal-overlay" id="modal-elegir-evento">
   <div class="modal-sheet" style="max-width:480px">

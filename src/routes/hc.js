@@ -77,6 +77,27 @@ function _estadoSegunCierre(datos) {
   return datos.cierre && datos.cierre.destino === 'TRASLADO' && !datos.entrega ? 'abierta' : 'cerrada';
 }
 
+// HC rechazada al recibirla: se anota (o se suma un intento) para que el
+// administrador la vea en "HC rechazadas y consumos sin HC". La HC sigue en
+// la tablet como borrador con el mismo mensaje.
+async function _anotarRechazo(req, clientId, body, error, errores) {
+  try {
+    const p = (body && body.datos && body.datos.paciente) || {};
+    const nombre = `${String(p.nombres || '').trim()} ${String(p.apellidos || '').trim()}`.trim().slice(0, 160);
+    const inicio = new Date(body && body.inicio_atencion);
+    await pool.query(
+      `INSERT INTO hc_rechazos (client_id, usuario_id, usuario_nombre, evento_id, paciente, documento, inicio_atencion, error, errores)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       ON CONFLICT (client_id) DO UPDATE SET error = EXCLUDED.error, errores = EXCLUDED.errores,
+         paciente = EXCLUDED.paciente, documento = EXCLUDED.documento, evento_id = EXCLUDED.evento_id,
+         intentos = hc_rechazos.intentos + 1, ultimo_intento = NOW()`,
+      [clientId, req.usuario.id, req.usuario.nombre, idValido(body && body.evento_id), nombre || null,
+       String(p.documento || '').toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 20) || null,
+       isNaN(inicio.getTime()) ? null : inicio.toISOString(),
+       String(error || '').slice(0, 500), JSON.stringify((errores || [error]).slice(0, 30))]);
+  } catch (e) { console.error('No se pudo anotar el rechazo de la HC', clientId, e.message); }
+}
+
 async function _hcExistente(clientId) {
   const r = await pool.query(
     'SELECT id, consecutivo, estado FROM historias_clinicas WHERE client_id = $1', [clientId]
@@ -90,24 +111,32 @@ router.post('/enviar', verificarToken, verificarNivel(2), async (req, res) => {
   const body = req.body || {};
   const clientId = _clientIdValido(body.client_id);
   if (!clientId) return res.status(400).json({ error: 'Identificador de la historia clínica inválido' });
+  // Desde aquí cada rechazo queda anotado para el administrador
+  const rechazar = async (error, errores) => {
+    await _anotarRechazo(req, clientId, body, error, errores);
+    return res.status(400).json(errores ? { error, errores } : { error });
+  };
   const eventoId = idValido(body.evento_id);
-  if (!eventoId) return res.status(400).json({ error: 'Falta el evento de la atención' });
+  if (!eventoId) return rechazar('Falta el evento de la atención');
 
   const inicio = new Date(body.inicio_atencion);
   if (typeof body.inicio_atencion !== 'string' || isNaN(inicio.getTime())) {
-    return res.status(400).json({ error: 'La fecha de inicio de la atención no es válida' });
+    return rechazar('La fecha de inicio de la atención no es válida');
   }
   if (inicio.getTime() > Date.now() + TOLERANCIA_RELOJ_MS) {
-    return res.status(400).json({ error: 'La hora de inicio de la atención está en el futuro: revisa la fecha y hora de la tablet' });
+    return rechazar('La hora de inicio de la atención está en el futuro: revisa la fecha y hora de la tablet');
   }
   if (inicio.getTime() < Date.now() - ANTIGUEDAD_MAXIMA_MS) {
-    return res.status(400).json({ error: 'La atención tiene más de 60 días: entrégala al administrador' });
+    return rechazar('La atención tiene más de 60 días: entrégala al administrador');
   }
 
   try {
     // Reenvío de una HC que ya llegó (p. ej. se cortó la red antes de la respuesta)
     const previa = await _hcExistente(clientId);
-    if (previa) return res.json({ ...previa, duplicado: true });
+    if (previa) {
+      await pool.query('DELETE FROM hc_rechazos WHERE client_id = $1', [clientId]);
+      return res.json({ ...previa, duplicado: true });
+    }
 
     // El enfermero debe pertenecer al evento (aunque ya haya finalizado: la
     // HC pudo quedar pendiente de envío sin señal)
@@ -121,7 +150,7 @@ router.post('/enviar', verificarToken, verificarNivel(2), async (req, res) => {
        WHERE e.id = $1 AND e.activo = true`,
       [eventoId, req.usuario.id]
     );
-    if (!ev.rows.length) return res.status(400).json({ error: 'No perteneces a ese evento' });
+    if (!ev.rows.length) return rechazar('No perteneces a ese evento');
     const evento = ev.rows[0];
 
     // Médicos del evento y punto de atención de quien diligencia: el médico
@@ -148,13 +177,18 @@ router.post('/enviar', verificarToken, verificarNivel(2), async (req, res) => {
       lugar
     });
 
-    // Módulo 6: lo que salió del inventario para esta HC + dosis y vía
+    // Módulo 6: lo que salió del inventario para esta HC + dosis y vía. Los
+    // consumos ya revertidos (p. ej. el administrador los devolvió porque la
+    // HC no llegaba) se ignoran: la HC llega sin ellos en vez de rechazarse.
     const movs = await _consumosDeHC(pool, clientId);
-    const meds = normalizarMedicamentos(movs, body.datos && body.datos.medicamentos,
+    const revertidos = new Set((await pool.query(
+      "SELECT client_id FROM movimientos WHERE hc_client_id = $1 AND tipo = 'consumo' AND revertido = true", [clientId])).rows.map(x => x.client_id));
+    const medsEnviados = ((body.datos && body.datos.medicamentos) || []).filter(m => !(m && revertidos.has(m.client_id)));
+    const meds = normalizarMedicamentos(movs, medsEnviados,
       { id: req.usuario.id, nombre: req.usuario.nombre }, datos.responsables.medico);
     datos.medicamentos = meds.lista;
     errores.push(...meds.errores);
-    if (errores.length) return res.status(400).json({ error: errores[0], errores });
+    if (errores.length) return rechazar(errores[0], errores);
 
     // Datos del servicio tal como estaban al atender: si después se renombra
     // la ubicación o el evento, la HC conserva lo original
@@ -179,6 +213,15 @@ router.post('/enviar', verificarToken, verificarNivel(2), async (req, res) => {
     let choque = false;
     try {
       await client.query('BEGIN');
+      // Los consumos se bloquean y se comparan con los leídos: si mientras
+      // tanto se devolvieron al inventario (o llegó uno nuevo), se reintenta
+      const vivos = (await client.query(
+        "SELECT client_id, revertido FROM movimientos WHERE hc_client_id = $1 AND tipo = 'consumo' FOR UPDATE", [clientId])).rows;
+      const firmaAhora = vivos.filter(x => !x.revertido).map(x => x.client_id).sort().join(',');
+      if (firmaAhora !== movs.map(x => x.client_id).sort().join(',')) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'Los consumos de esta historia clínica cambiaron mientras se enviaba. Intenta de nuevo.' });
+      }
       // Siguiente número del año. Avanza en esta misma transacción: si la
       // inserción falla, el número no se pierde (consecutivo sin huecos)
       const n = await client.query(
@@ -205,6 +248,8 @@ router.post('/enviar', verificarToken, verificarNivel(2), async (req, res) => {
         "UPDATE movimientos SET cedula_paciente = $2 WHERE hc_client_id = $1 AND tipo = 'consumo'",
         [clientId, p.documento || null]
       );
+      // Si antes se había rechazado, ya llegó bien
+      await client.query('DELETE FROM hc_rechazos WHERE client_id = $1', [clientId]);
       await client.query('COMMIT');
       clasificador.pronto();   // clasificación para el reporte (en segundo plano)
       return res.status(201).json(r.rows[0]);
@@ -476,6 +521,165 @@ router.post('/:id/clasificacion/rehacer', verificarToken, verificarNivel(4), asy
 
 // GET /api/hc/:id — HC completa, sus adjuntos (sin el contenido) y el rastro.
 // El supervisor la ve sin los datos que identifican al paciente ni adjuntos.
+const CONFIDENCIAL = 'CONFIDENCIAL';
+
+// GET /api/hc/pendientes — nivel 3+. Lo que quedó sin historia clínica:
+//   rechazadas: HC que el servidor rechazó (siguen en la tablet como borrador)
+//   sin_hc: consumos registrados dentro de una HC que nunca llegó (rechazada,
+//           sin terminar, aún sin enviar o descartada en la tablet)
+// El supervisor ve paciente y documento como CONFIDENCIAL.
+router.get('/pendientes', verificarToken, verificarNivel(3), async (req, res) => {
+  try {
+    // Protección de datos (Ley 1581): los rechazos guardan nombre y documento
+    // del paciente; pasados 120 días sin novedad se borran
+    await pool.query("DELETE FROM hc_rechazos WHERE ultimo_intento < NOW() - INTERVAL '120 days'");
+    const rechazadas = (await pool.query(`
+      SELECT r.client_id, r.usuario_nombre, r.paciente, r.documento, r.inicio_atencion, r.error, r.errores,
+             r.intentos, r.primer_intento, r.ultimo_intento, r.descartada_at, e.nombre AS evento, u.nombre AS ubicacion,
+             (SELECT COUNT(*)::int FROM movimientos m WHERE m.hc_client_id = r.client_id AND m.tipo = 'consumo' AND m.revertido = false) AS consumos
+      FROM hc_rechazos r
+      LEFT JOIN eventos e ON e.id = r.evento_id
+      LEFT JOIN ubicaciones u ON u.id = e.ubicacion_id
+      ORDER BY r.ultimo_intento DESC LIMIT 500`)).rows;
+    const sinHC = (await pool.query(`
+      SELECT m.hc_client_id,
+             MIN(COALESCE(m.fecha_atencion, m.created_at)) AS primera,
+             MAX(COALESCE(m.fecha_atencion, m.created_at)) AS ultima,
+             MAX(m.created_at) AS registrado,
+             COUNT(*)::int AS consumos,
+             string_agg(g.nombre || ' × ' || m.cantidad, ', ' ORDER BY m.id) AS items,
+             MAX(COALESCE(m.usuario_nombre, us.nombre)) AS usuario,
+             MAX(m.cedula_paciente) AS documento,
+             string_agg(DISTINCT bo.nombre, ', ') AS depositos,
+             MAX(ub.nombre) AS ubicacion,
+             BOOL_OR(r.client_id IS NOT NULL) AS rechazada,
+             MAX(r.error) AS error
+      FROM movimientos m
+      JOIN sub_skus s ON s.id = m.sub_sku_id
+      JOIN skus_globales g ON g.id = s.sku_global_id
+      LEFT JOIN usuarios us ON us.id = m.usuario_id
+      LEFT JOIN bodegas bo ON bo.id = m.bodega_origen_id
+      LEFT JOIN ubicaciones ub ON ub.id = COALESCE(m.ubicacion_origen_id, bo.ubicacion_id)
+      LEFT JOIN hc_rechazos r ON r.client_id = m.hc_client_id
+      WHERE m.tipo = 'consumo' AND m.revertido = false AND m.hc_client_id IS NOT NULL
+        AND m.created_at > NOW() - INTERVAL '120 days'
+        AND NOT EXISTS (SELECT 1 FROM historias_clinicas h WHERE h.client_id = m.hc_client_id)
+      GROUP BY m.hc_client_id
+      ORDER BY MIN(COALESCE(m.fecha_atencion, m.created_at)) DESC
+      LIMIT 500`)).rows;
+    const ocultar = req.usuario.nivel < 4;
+    res.json({
+      rechazadas: rechazadas.map(r => ocultar ? { ...r, paciente: CONFIDENCIAL, documento: CONFIDENCIAL } : r),
+      sin_hc: sinHC.map(x => ocultar ? { ...x, documento: x.documento ? CONFIDENCIAL : null } : x)
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// POST /api/hc/descartada — nivel 2 — { client_id }. La enfermera descartó
+// en la tablet una HC que el servidor había rechazado: queda anotado para el
+// administrador (solo sus propias HC).
+router.post('/descartada', verificarToken, verificarNivel(2), async (req, res) => {
+  const clientId = _clientIdValido(req.body && req.body.client_id);
+  if (!clientId) return res.status(400).json({ error: 'Identificador de la historia clínica inválido' });
+  try {
+    await pool.query('UPDATE hc_rechazos SET descartada_at = NOW() WHERE client_id = $1 AND usuario_id = $2', [clientId, req.usuario.id]);
+    res.json({ mensaje: 'Anotado' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// POST /api/hc/sin-hc/devolver — nivel 4 — { hc_client_id }. Devuelve al
+// inventario los consumos de una HC que nunca llegó (p. ej. descartada en la
+// tablet): cada uno queda revertido, con su reversión a nombre del
+// administrador. Si esa HC llega después, llega sin esos consumos (/enviar
+// ignora los consumos revertidos).
+router.post('/sin-hc/devolver', verificarToken, verificarNivel(4), async (req, res) => {
+  const hcClientId = _clientIdValido(req.body && req.body.hc_client_id);
+  if (!hcClientId) return res.status(400).json({ error: 'Identificador de historia clínica inválido' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const ya = await client.query('SELECT 1 FROM historias_clinicas WHERE client_id = $1', [hcClientId]);
+    if (ya.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Esa historia clínica ya llegó: corrige sus consumos desde "Editar historias clínicas"' });
+    }
+    const movs = (await client.query(
+      "SELECT * FROM movimientos WHERE hc_client_id = $1 AND tipo = 'consumo' AND revertido = false ORDER BY id FOR UPDATE",
+      [hcClientId])).rows;
+    for (const mov of movs) {
+      await client.query(
+        `INSERT INTO stock (sub_sku_id, bodega_id, cantidad) VALUES ($1, $2, $3)
+         ON CONFLICT (sub_sku_id, bodega_id) DO UPDATE SET cantidad = stock.cantidad + $3`,
+        [mov.sub_sku_id, mov.bodega_origen_id, mov.cantidad]);
+      await client.query('UPDATE movimientos SET revertido = true, revertido_at = NOW(), revertido_por = $1 WHERE id = $2', [req.usuario.id, mov.id]);
+      await client.query(
+        `INSERT INTO movimientos (sub_sku_id, tipo, bodega_origen_id, cantidad, usuario_id, usuario_nombre, movimiento_original_id)
+         VALUES ($1, 'reversion', $2, $3, $4, $5, $6)`,
+        [mov.sub_sku_id, mov.bodega_origen_id, mov.cantidad, req.usuario.id, req.usuario.nombre, mov.id]);
+    }
+    // El caso queda cerrado: se borra también su rechazo (datos del paciente)
+    await client.query('DELETE FROM hc_rechazos WHERE client_id = $1', [hcClientId]);
+    await client.query('COMMIT');
+    res.json({ mensaje: movs.length ? `${movs.length} consumo(s) devuelto(s) al inventario` : 'No había consumos por devolver', devueltos: movs.length });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  } finally {
+    client.release();
+  }
+});
+
+// GET /api/hc/atenciones?fecha_inicio&fecha_fin&ubicacion_id — nivel 4.
+// Atenciones registradas para el reporte "Pacientes atendidos": historias
+// clínicas y atenciones fugaces (fecha y hora de Colombia).
+router.get('/atenciones', verificarToken, verificarNivel(4), async (req, res) => {
+  const q = req.query || {};
+  if ((q.fecha_inicio && !fechaValida(q.fecha_inicio)) || (q.fecha_fin && !fechaValida(q.fecha_fin))) {
+    return res.status(400).json({ error: 'Rango de fechas inválido' });
+  }
+  const ub = q.ubicacion_id ? idValido(q.ubicacion_id) : null;
+  if (q.ubicacion_id && !ub) return res.status(400).json({ error: 'Ubicación inválida' });
+  const params = [q.fecha_inicio || null, q.fecha_fin || null, ub];
+  const filtro = campo => `
+      ($1::date IS NULL OR (${campo} AT TIME ZONE 'America/Bogota') >= $1::date)
+      AND ($2::date IS NULL OR (${campo} AT TIME ZONE 'America/Bogota') < $2::date + INTERVAL '1 day')`;
+  try {
+    const r = await pool.query(`
+      SELECT 'HC' AS tipo, h.id, h.consecutivo,
+             to_char(h.inicio_atencion AT TIME ZONE 'America/Bogota', 'YYYY-MM-DD') AS fecha,
+             to_char(h.inicio_atencion AT TIME ZONE 'America/Bogota', 'HH24:MI') AS hora,
+             COALESCE(u.nombre, 'Sin ubicación') AS ubicacion, h.paciente_tipo_doc AS tipo_doc,
+             h.paciente_documento AS documento, h.paciente_nombre AS paciente, e.nombre AS evento, us.nombre AS enfermero
+      FROM historias_clinicas h
+      LEFT JOIN eventos e ON e.id = h.evento_id
+      LEFT JOIN ubicaciones u ON u.id = COALESCE(h.ubicacion_id, e.ubicacion_id)
+      LEFT JOIN usuarios us ON us.id = h.usuario_id
+      WHERE ${filtro('h.inicio_atencion')} AND ($3::int IS NULL OR COALESCE(h.ubicacion_id, e.ubicacion_id) = $3::int)
+      UNION ALL
+      SELECT 'FUGAZ', f.id, NULL,
+             to_char(f.fecha_atencion AT TIME ZONE 'America/Bogota', 'YYYY-MM-DD'),
+             to_char(f.fecha_atencion AT TIME ZONE 'America/Bogota', 'HH24:MI'),
+             COALESCE(u.nombre, 'Sin ubicación'), f.tipo_doc, f.documento, f.nombre, e.nombre, f.usuario_nombre
+      FROM atenciones_fugaces f
+      LEFT JOIN eventos e ON e.id = f.evento_id
+      LEFT JOIN ubicaciones u ON u.id = e.ubicacion_id
+      WHERE ${filtro('f.fecha_atencion')} AND ($3::int IS NULL OR e.ubicacion_id = $3::int)
+      ORDER BY 4, 5
+      LIMIT 20000`, params);
+    res.json(r.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
 router.get('/:id', verificarToken, verificarNivel(3), async (req, res) => {
   try {
     const r = await pool.query('SELECT * FROM historias_clinicas WHERE id = $1', [req.params.id]);
