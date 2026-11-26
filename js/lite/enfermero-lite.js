@@ -407,13 +407,35 @@
       }
       if(!st.eventos.length){
         guardar(claveUsuario('paquete'), null);
-        estado('No tienes un evento activo asignado.<br>Contacta al administrador para que te asigne a un evento.' +
-          '<button class="lt-btn" type="button" data-accion="reintentar">Volver a consultar</button>' +
-          (leerCola(st.usuario.id).length ? '<button class="lt-btn" type="button" data-accion="sincronizar">Sincronizar consumos pendientes</button>' : ''));
+        pantallaSinEvento();
         return;
       }
       cargarStock(function(){ elegirEventoInicial(); });
     });
+  }
+
+  // Sin evento en curso: el panel no se muestra, pero lo que quedó en la
+  // tablet (consumos, historias clínicas por enviar y atenciones fugaces)
+  // se puede sincronizar desde aquí (p. ej. eventos ya finalizados)
+  function pantallaSinEvento(){
+    var p = pendientesTablet(st.usuario.id), partes = [];
+    if(p.consumos) partes.push(plural(p.consumos, 'consumo', 'consumos'));
+    if(p.hcPorEnviar) partes.push(plural(p.hcPorEnviar, 'historia clínica por enviar', 'historias clínicas por enviar'));
+    if(p.fugaces) partes.push(plural(p.fugaces, 'atención fugaz', 'atenciones fugaces'));
+    var rech = FugazLite.rechazadas(st.usuario.id);
+    var html = 'No tienes un evento activo asignado.<br>Contacta al administrador para que te asigne a un evento.';
+    if(p.porSubir){
+      html += '<div class="lt-sin-evento-pend">En esta tablet tienes <strong>' + partes.join(', ') + '</strong> sin sincronizar.' +
+        (rech ? ' ' + plural(rech, 'atención fugaz fue rechazada', 'atenciones fugaces fueron rechazadas') + ' antes: al sincronizar se vuelven a enviar.' : '') +
+        '</div><button class="lt-btn" type="button" data-accion="sincronizar"' + (st.sincronizando ? ' disabled' : '') + '>' +
+        (st.sincronizando ? 'Sincronizando…' : 'Sincronizar') + '</button>';
+    }
+    if(p.hcEnCurso){
+      html += '<div class="lt-sin-evento-pend">Tienes <strong>' + plural(p.hcEnCurso, 'historia clínica en curso', 'historias clínicas en curso') +
+        '</strong> sin terminar. Para terminarlas, el administrador debe asignarte a un evento en curso.</div>';
+    }
+    html += '<button class="lt-btn" type="button" data-accion="reintentar">Volver a consultar</button>';
+    estado(html);
   }
 
   // Stock de TODAS las bodegas de sus eventos en curso: así, en modo
@@ -670,6 +692,7 @@
     }
     st.sincronizando = true;
     renderModo();
+    if(!st.offline && !st.eventos.length) pantallaSinEvento();
     // Atenciones fugaces al final (no dependen de los consumos de la cola)
     function fugaces(rc, rh){
       if(!nf || rc.sinRed || (rh && rh.sinRed)){ terminarSincronizacion(rc, rh, null); return; }
@@ -693,7 +716,15 @@
     if(!r || !r.total) return '';
     var t = r.enviadas ? (r.enviadas === 1 ? 'Se envió' : 'Se enviaron') + ' <strong>' + plural(r.enviadas, 'atención fugaz', 'atenciones fugaces') + '</strong>. ' : '';
     if(r.sinRed) t += 'Sin conexión: quedan atenciones fugaces pendientes de envío. ';
-    if(r.errores) t += '<strong>' + plural(r.errores, 'atención fugaz fue rechazada', 'atenciones fugaces fueron rechazadas') + '</strong>: ábrela en "Atenciones fugaces" para ver el motivo y corregirla. ';
+    if(r.errores){
+      t += '<strong>' + plural(r.errores, 'atención fugaz fue rechazada', 'atenciones fugaces fueron rechazadas') + '</strong>. Siguen guardadas en la tablet.';
+      var mot = r.motivos || [];
+      if(mot.length){
+        t += '<ul>';
+        for(var i = 0; i < mot.length && i < 3; i++) t += '<li>' + escHtml(mot[i]) + '</li>';
+        t += '</ul>';
+      } else t += ' ';
+    }
     if(r.error) t += escHtml(r.error) + ' ';
     return t;
   }
@@ -711,6 +742,7 @@
 
   function terminarSincronizacion(rc, rh, rf){
     st.sincronizando = false;
+    if(!st.offline && !st.eventos.length) pantallaSinEvento();
     renderModo();
     renderHistorial();
     HCLite.mostrarInicio();
@@ -721,7 +753,10 @@
     var incompleto = rc.sinRed || rc.errores || quedanConsumos || quedanHC || quedanFug || (rh && (rh.errores || rh.errores_nov));
     var t = '';
     if(rc.ok) t += 'Se subieron <strong>' + plural(rc.ok, 'consumo', 'consumos') + '</strong>. ';
-    if(rc.errores) t += '<strong>' + plural(rc.errores, 'consumo no se pudo registrar', 'consumos no se pudieron registrar') + '</strong>: ábrelos en el módulo 6 de su historia clínica para ver el motivo. ';
+    if(rc.errores) t += '<strong>' + plural(rc.errores, 'consumo no se pudo registrar', 'consumos no se pudieron registrar') + '</strong>' +
+      (st.eventos.length || st.offline
+        ? ': ábrelos en el módulo 6 de su historia clínica para ver el motivo. '
+        : '. Siguen guardados en la tablet. Si su evento ya finalizó, pide al administrador que habilite la sincronización tardía y vuelve a sincronizar. ');
     if(rc.sinRed) t += 'Sin conexión: lo pendiente sigue guardado en la tablet; sincroniza cuando tengas señal. ';
     else if(rc.error) t += escHtml(rc.error) + ' ';
     t += resumenHC(rh);
@@ -1247,7 +1282,8 @@
       nuevoClientId: nuevoClientId, fechaCO: fechaCO, horaCO: horaCO, fmtFecha: fmtFecha, semHtml: semHtml,
       closestData: closestData, renderModo: renderModo, estado: st,
       descontarLocal: descontarLocal, devolverLocal: devolverLocal, guardarPaquete: guardarPaquete,
-      guardarModo: function(v){ guardar(claveUsuario('modo'), v); }
+      guardarModo: function(v){ guardar(claveUsuario('modo'), v); },
+      sincronizarTodo: function(){ sincronizar(); }
     });
     on($('lt-login-form'), 'submit', enviarLogin);
     on($('lt-logout'), 'click', function(){ if(st.usuario) pedirSalir(); else cerrarSesion(); });

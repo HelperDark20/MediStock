@@ -11,6 +11,12 @@
    POST /api/fugaces. Sin conexión queda en la tablet y sale con el botón
    Sincronizar (POST /api/fugaces/sincronizar; es seguro repetir).
 
+   Si el servidor rechaza una guardada en la tablet, queda marcada
+   "Revisar" con el motivo. Sincronizar (o "Reintentar") la vuelve a
+   enviar: p. ej. cuando el administrador abre la sincronización tardía de
+   un evento finalizado. "Corregir" la edita y la vuelve a guardar en la
+   tablet con su evento y su hora reales, y la envía por Sincronizar.
+
    ES5 a propósito (iPad con iOS 9): ver la nota de enfermero-lite.js.
 
    Datos en el dispositivo (U = id del usuario):
@@ -112,7 +118,8 @@ var FugazLite = (function(){
           (a.error ? '<div class="lt-hist-error">' + U.escHtml(a.error) + '</div>' : '') +
         '</div>' +
         '<div class="lt-hc-item-btns">' +
-          (a.error ? '<button type="button" class="lt-btn-sec primario" data-fug="corregir" data-id="' + U.escHtml(a.client_id) + '">Corregir</button>' +
+          (a.error ? '<button type="button" class="lt-btn-sec primario" data-fug="reintentar">Reintentar</button>' +
+                     '<button type="button" class="lt-btn-sec" data-fug="corregir" data-id="' + U.escHtml(a.client_id) + '">Corregir</button>' +
                      '<button type="button" class="lt-btn-sec peligro" data-fug="descartar" data-id="' + U.escHtml(a.client_id) + '">Descartar</button>' : '') +
         '</div></div>';
     }
@@ -361,6 +368,15 @@ var FugazLite = (function(){
       nombre: mayus(f.nombre).replace(/\s+/g, ' '), motivo: mayus(f.motivo), procedimiento: mayus(f.procedimiento),
       insumos: f.insumos, fecha_atencion: f.fecha_atencion || new Date().toISOString()
     };
+    // Corrigiendo una guardada en la tablet: conserva su evento y su hora
+    // real, se vuelve a guardar en la tablet y sale por Sincronizar (que
+    // acepta eventos finalizados si la atención fue antes del cierre o si
+    // el administrador abrió la sincronización tardía)
+    if(f.corrigiendo){
+      var enLinea = !st.offline;
+      if(encolar(a) && enLinea) U.sincronizarTodo();
+      return;
+    }
     if(st.offline){ encolar(a); return; }
     f.enviando = true;
     redibujar();
@@ -368,9 +384,6 @@ var FugazLite = (function(){
       if(!f || f.client_id !== a.client_id) return;
       f.enviando = false;
       if(!err){
-        // Corrigiendo una pendiente: sus insumos ya se habían descontado en
-        // la tablet; se devuelven y se descuentan los corregidos
-        if(f.corrigiendo){ quitarPendiente(a.client_id, true); U.renderModo(); }
         descontar(a);
         anotarEnviada(a);
         U.toast('✓ Atención fugaz guardada', 'ok');
@@ -394,19 +407,27 @@ var FugazLite = (function(){
     });
   }
 
+  // Guarda en la tablet (reemplaza la misma atención si se estaba
+  // corrigiendo). Se escribe una sola vez: si no hay espacio, la versión
+  // anterior sigue guardada.
   function encolar(a){
-    if(f.corrigiendo) quitarPendiente(a.client_id, true);
-    var pend = leerPendientes(st.usuario.id);
-    pend.push(a);
-    if(!guardarPendientes(pend)){
+    var pend = leerPendientes(st.usuario.id), previa = null, lista = [];
+    for(var i = 0; i < pend.length; i++){
+      if(pend[i].client_id === a.client_id) previa = pend[i]; else lista.push(pend[i]);
+    }
+    lista.push(a);
+    if(!guardarPendientes(lista)){
       f.error = 'No hay espacio para guardar en esta tablet. La atención NO se guardó: sincroniza los pendientes.';
       redibujar();
-      return;
+      return false;
     }
+    // Lo que la versión anterior había descontado del stock de la tablet
+    if(previa) for(var j = 0; j < previa.insumos.length; j++) U.devolverLocal(previa.insumos[j]);
     descontar(a);
     U.renderModo();
     U.toast('Atención guardada en la tablet: se subirá al sincronizar', 'ok');
     cerrar();
+    return true;
   }
 
   // devolver: true → devuelve al stock local lo que se había descontado
@@ -432,9 +453,17 @@ var FugazLite = (function(){
   // SINCRONIZAR (lo llama enfermero-lite.js)
   // cb({ total, enviadas, errores, sinRed, sesion, error })
   // ══════════════════════════════════════════
-  function sincronizar(cb){
-    var pend = leerPendientes(st.usuario.id), envio = [], res = { total: 0, enviadas: 0, errores: 0 };
-    for(var i = 0; i < pend.length && envio.length < LOTE; i++) if(!pend[i].error) envio.push(paraEnviar(pend[i]));
+  // Envía también las marcadas "Revisar" (el motivo pudo resolverse, p. ej.
+  // sincronización tardía abierta). intentados: client_id ya enviados en
+  // esta pasada, para no repetirlos al seguir con el siguiente lote.
+  function sincronizar(cb, intentados){
+    intentados = intentados || {};
+    var pend = leerPendientes(st.usuario.id), envio = [], res = { total: 0, enviadas: 0, errores: 0, motivos: [] };
+    for(var i = 0; i < pend.length && envio.length < LOTE; i++){
+      if(intentados[pend[i].client_id]) continue;
+      intentados[pend[i].client_id] = true;
+      envio.push(paraEnviar(pend[i]));
+    }
     res.total = envio.length;
     if(!envio.length){ cb(res); return; }
     U.api('POST', '/api/fugaces/sincronizar', { atenciones: envio }, function(err, data){
@@ -451,20 +480,26 @@ var FugazLite = (function(){
       for(var q = 0; q < actual.length; q++){
         var a = actual[q], x = porId[a.client_id];
         if(x && (x.estado === 'ok' || x.estado === 'duplicado')){ res.enviadas++; anotarEnviada(a); continue; }
-        if(x && x.estado === 'error' && !x.reintentar){ a.error = x.error; res.errores++; }
+        if(x && x.estado === 'error' && !x.reintentar){
+          a.error = x.error; res.errores++;
+          // Sin la hora de cada atención, para no repetir el mismo motivo
+          var motivo = x.error ? x.error.replace(/ \([^)]*\)/g, '') : '';
+          if(motivo && res.motivos.indexOf(motivo) < 0) res.motivos.push(motivo);
+        }
         resto.push(a);
       }
       guardarPendientes(resto);
       renderLista();
-      // Quedan más (lotes de LOTE): seguir
+      // Quedan más sin intentar (lotes de LOTE): seguir
       var quedan = 0;
-      for(var z = 0; z < resto.length; z++) if(!resto[z].error) quedan++;
-      if(quedan && res.enviadas){
+      for(var z = 0; z < resto.length; z++) if(!intentados[resto[z].client_id]) quedan++;
+      if(quedan){
         sincronizar(function(r2){
           res.total += r2.total; res.enviadas += r2.enviadas; res.errores += r2.errores;
+          for(var m = 0; m < r2.motivos.length; m++) if(res.motivos.indexOf(r2.motivos[m]) < 0) res.motivos.push(r2.motivos[m]);
           res.sinRed = r2.sinRed; res.sesion = r2.sesion; res.error = r2.error;
           cb(res);
-        });
+        }, intentados);
         return;
       }
       cb(res);
@@ -479,6 +514,7 @@ var FugazLite = (function(){
     if(a === 'nueva') nueva();
     else if(a === 'volver') pedirCerrar();
     else if(a === 'corregir') corregir(b.getAttribute('data-id'));
+    else if(a === 'reintentar') U.sincronizarTodo();
     else if(a === 'descartar') pedirDescartar(b.getAttribute('data-id'));
     if(!f) return;
     if(a === 'tipo'){ f.tipo_doc = b.getAttribute('data-v'); redibujar(); }
@@ -521,6 +557,12 @@ var FugazLite = (function(){
     editando: function(){ return !!f; },
     // Pendientes de envío del usuario (para "Sincronizar (n)" y al salir)
     pendientes: function(idUsuario){ return leerPendientes(idUsuario).length; },
+    // De esas, las que el servidor rechazó ("Revisar")
+    rechazadas: function(idUsuario){
+      var p = leerPendientes(idUsuario), n = 0;
+      for(var i = 0; i < p.length; i++) if(p[i].error) n++;
+      return n;
+    },
     sincronizar: sincronizar,
     salir: function(){ f = null; pick = null; U.mostrar('lt-fug-editor', false); },
     // Para las pruebas

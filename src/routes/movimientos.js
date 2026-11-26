@@ -4,6 +4,7 @@ const pool = require('../config/db');
 const { verificarToken, verificarNivel, verificarNiveles } = require('../middlewares/auth');
 const { validarParamsId, idValido } = require('../utils/validar');
 const { fechaValida } = require('../utils/fechas');
+const { SQL_VENTANA_ABIERTA } = require('../utils/sync-tardia');
 
 // :id debe ser un id numérico (si no, 400 en vez de error 500)
 validarParamsId(router, 'id');
@@ -278,8 +279,9 @@ function _clientIdValido(v) {
 // asignado en un evento. En línea el evento debe estar en curso; al
 // sincronizar consumos hechos sin conexión vale también un evento ya
 // finalizado, siempre que la atención haya sido antes del cierre (más 10 min
-// de tolerancia por el reloj de la tablet). Supervisor y administrador sin
-// restricción (registran desde el panel principal).
+// de tolerancia por el reloj de la tablet) o que el administrador haya
+// abierto la sincronización tardía del evento. Supervisor y administrador
+// sin restricción (registran desde el panel principal).
 async function _depositoAsignado(client, usuario, bodegaId, fechaAtencion) {
   if (usuario.nivel !== 2) return true;
   const r = await client.query(
@@ -288,13 +290,17 @@ async function _depositoAsignado(client, usuario, bodegaId, fechaAtencion) {
      WHERE eub.usuario_id = $1 AND eub.bodega_id = $2 AND e.activo = true
        AND (e.estado = 'en_curso'
             OR ($3::timestamptz IS NOT NULL AND e.estado = 'finalizado'
-                AND $3::timestamptz <= e.finalizado_at + INTERVAL '10 minutes'))
+                AND ($3::timestamptz <= e.finalizado_at + INTERVAL '10 minutes'
+                     OR ${SQL_VENTANA_ABIERTA})))
      LIMIT 1`,
     [usuario.id, bodegaId, fechaAtencion || null]
   );
   return r.rows.length > 0;
 }
 const ERROR_SIN_ASIGNACION = 'Ese depósito no está asignado a ti en un evento en curso';
+// Al sincronizar: el evento pudo finalizar antes de la atención
+const ERROR_SIN_ASIGNACION_SYNC = ERROR_SIN_ASIGNACION +
+  '. Si el evento ya finalizó y la atención fue después del cierre, pide al administrador que habilite la sincronización tardía y vuelve a sincronizar';
 
 // Registra un consumo dentro de una transacción propia.
 // Devuelve { estado: 'ok' | 'duplicado' | 'sin_stock' | 'hc_enviada' | 'sin_asignacion' }.
@@ -449,7 +455,7 @@ router.post('/sincronizar', verificarToken, verificarNiveles(2, 4), async (req, 
       });
       if (r.estado === 'sin_stock') resultados.push({ client_id, estado: 'error', error: 'Stock insuficiente en la bodega' });
       else if (r.estado === 'hc_enviada') resultados.push({ client_id, estado: 'error', error: ERROR_HC_ENVIADA });
-      else if (r.estado === 'sin_asignacion') resultados.push({ client_id, estado: 'error', error: ERROR_SIN_ASIGNACION });
+      else if (r.estado === 'sin_asignacion') resultados.push({ client_id, estado: 'error', error: ERROR_SIN_ASIGNACION_SYNC });
       else resultados.push({ client_id, estado: r.estado });
     } catch (err) {
       console.error('ERROR sincronizando consumo', client_id, err.message);

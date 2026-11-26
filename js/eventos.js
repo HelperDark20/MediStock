@@ -180,6 +180,8 @@ function _evpAbrir(evento){
     estado: e.estado || 'creado',
     version: e.version || 0,
     nombreOriginal: e.nombre || '',
+    syncTardia: e.sync_tardia || null,
+    syncTardiaHistorial: e.sync_tardia_historial || [],
     ubicacionOriginal: e.ubicacion_id || null,
     medicosOriginales: personal.filter(p => p.es_medico).map(p => p.id),
     enfermerosOriginales: personal.filter(p => !p.es_medico).map(p => p.id),
@@ -314,7 +316,12 @@ function _evpRenderHead(){
     acciones = `<button class="evp-btn" onclick="evpVolver()">Cancelar</button>
       <button class="evp-btn primario" id="evp-guardar" onclick="evpGuardar()"><img src="img/iconos/crear-evento.svg" alt="">Crear evento</button>`;
   } else if(_evp.estado === 'finalizado'){
-    acciones = '<span class="evp-nota">Evento finalizado: solo lectura</span>';
+    const t = _evp.syncTardia;
+    acciones = t
+      ? `<span class="evp-tardia" title="${escHtml('Motivo: ' + t.motivo + ' — habilitada por ' + (t.usuario_nombre || ''))}">Sincronización tardía abierta hasta ${escHtml(_fechaHoraCO(t.hasta))}</span>
+         <button class="evp-btn" onclick="evpCerrarSyncTardia()">Cerrar sincronización tardía</button>`
+      : `<span class="evp-nota">Evento finalizado: solo lectura</span>
+         <button class="evp-btn" onclick="evpAbrirSyncTardia()" title="Para recibir lo que quedó sin sincronizar en las tablets"><img src="img/iconos/contingencia.svg" alt="">Permitir sincronización tardía</button>`;
   } else {
     acciones = (_evp.estado === 'creado' ? `<button class="evp-btn peligro" onclick="evpEliminar()"><img src="img/iconos/eliminar.svg" alt="">Eliminar</button>
         <button class="evp-btn" onclick="evpIniciar()"${bloqueo}><img src="img/iconos/iniciar-evento.svg" alt="">Iniciar evento</button>`
@@ -722,6 +729,62 @@ function evpEliminar(){
         toast('Evento eliminado');
         goTo('eventos');
       } catch(err){ toastError(err.message); }
+    });
+}
+
+// ── SINCRONIZACIÓN TARDÍA (evento finalizado) ──
+// Mientras esté abierta, el servidor recibe lo que quedó guardado en las
+// tablets (atenciones fugaces y consumos sin conexión) aunque la atención
+// sea posterior al cierre. El evento sigue finalizado.
+function _fechaHoraCO(f){
+  const d = new Date(f);
+  if(isNaN(d.getTime())) return '';
+  return d.toLocaleString('es-CO', { timeZone: 'America/Bogota', day: '2-digit', month: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function evpAbrirSyncTardia(){
+  if(!_evp || _evp.estado !== 'finalizado') return;
+  document.getElementById('sta-evento').textContent = _evp.nombreOriginal;
+  document.getElementById('sta-motivo').value = '';
+  document.getElementById('sta-horas').value = '24';
+  document.getElementById('sta-error').textContent = '';
+  const h = _evp.syncTardiaHistorial;
+  document.getElementById('sta-historial').innerHTML = h.length
+    ? '<div class="sta-hist-tit">Veces anteriores</div>' + h.slice(0, 5).map(t =>
+        `<div class="sta-hist">${escHtml(_fechaHoraCO(t.created_at))} · ${escHtml(t.usuario_nombre || '')}: ${escHtml(t.motivo)}</div>`).join('')
+    : '';
+  document.getElementById('modal-sync-tardia').classList.add('open');
+  setTimeout(() => document.getElementById('sta-motivo').focus(), 50);
+}
+
+async function staConfirmar(){
+  const motivo = document.getElementById('sta-motivo').value.trim();
+  const horas = parseInt(document.getElementById('sta-horas').value, 10);
+  const err = document.getElementById('sta-error');
+  if(motivo.length < 5){ err.textContent = 'Escribe el motivo (mínimo 5 caracteres)'; return; }
+  const btn = document.getElementById('sta-confirmar');
+  btn.disabled = true;
+  try {
+    const id = _evp.id;
+    await Eventos.abrirSyncTardia(id, { motivo, horas });
+    closeModal('modal-sync-tardia');
+    toast('✓ Sincronización tardía abierta: los enfermeros ya pueden pulsar Sincronizar', 'success');
+    if(_evp && _evp.id === id) _evpAbrir(await Eventos.getOne(id));
+  } catch(e){ err.textContent = e.message; }
+  finally { btn.disabled = false; }
+}
+
+function evpCerrarSyncTardia(){
+  if(!_evp || !_evp.syncTardia) return;
+  _evpConfirmar('Cerrar sincronización tardía',
+    `¿Cerrar la sincronización tardía de "${_evp.nombreOriginal}"? Lo que aún no se haya sincronizado volverá a ser rechazado si la atención fue después del cierre.`,
+    'Cerrar', async () => {
+      try {
+        const id = _evp.id;
+        await Eventos.cerrarSyncTardia(id);
+        toast('Sincronización tardía cerrada');
+        if(_evp && _evp.id === id) _evpAbrir(await Eventos.getOne(id));
+      } catch(e){ toastError(e.message); }
     });
 }
 

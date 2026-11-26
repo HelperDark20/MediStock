@@ -1529,6 +1529,11 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 .evp-btn.peligro{color:var(--red2)}
 .evp-btn:disabled{opacity:.45;cursor:not-allowed}
 .evp-nota{font-size:12.5px;color:#888}
+.evp-tardia{font-size:12.5px;font-weight:600;color:#8a5a00;background:#fff4d6;border:1px solid #f0d58a;border-radius:var(--r-md);padding:7px 10px}
+#sta-motivo{width:100%;resize:vertical}
+.sta-error{color:var(--red2);font-size:12.5px;min-height:16px;margin-top:8px}
+.sta-hist-tit{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#888;margin:4px 0 4px}
+.sta-hist{font-size:12px;color:#666;margin-bottom:3px}
 .evp-resumen{display:flex;gap:8px;flex-wrap:wrap;margin:-2px 0 16px}
 .evp-pill{font-size:11.5px;font-family:var(--font-mono);background:#fff;border:1px solid var(--cream3);border-radius:999px;padding:4px 11px;color:var(--ink3)}
 .evp-pill b{color:var(--ink)}

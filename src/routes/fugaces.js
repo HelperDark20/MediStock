@@ -21,6 +21,7 @@ const pool = require('../config/db');
 const { verificarToken, verificarNivel } = require('../middlewares/auth');
 const { idValido } = require('../utils/validar');
 const { TIPOS_DOC, textoDeRelleno, documentoDeRelleno, esFamiliaMedicamento, CONFIDENCIAL } = require('../utils/hc');
+const { SQL_VENTANA_ABIERTA, fechaHoraCO } = require('../utils/sync-tardia');
 
 const TIPOS_DOC_ALFANUMERICOS = ['PAS', 'OTRO'];
 const RE_NOMBRE = /^[A-ZÁÉÍÓÚÜÑ][A-ZÁÉÍÓÚÜÑ .'-]*$/;
@@ -90,18 +91,26 @@ function _fecha(v) {
   return !f || isNaN(f.getTime()) || f.getTime() > Date.now() + TOLERANCIA_RELOJ_MS ? new Date() : f;
 }
 
-// El enfermero debe estar en el evento y éste en curso (sin conexión: si la
-// atención fue antes de que se finalizara)
+// El enfermero debe estar en el evento y éste en curso. Sin conexión (al
+// sincronizar) vale también un evento finalizado si la atención fue antes
+// del cierre, o si el administrador abrió la sincronización tardía.
+// Devuelve null si se puede registrar, o el motivo del rechazo.
 async function _eventoDelEnfermero(client, usuarioId, eventoId, fecha, offline) {
   const r = await client.query(
-    `SELECT e.id, e.estado, e.finalizado_at FROM eventos e
-     JOIN evento_usuarios eu ON eu.evento_id = e.id AND eu.usuario_id = $2
-     WHERE e.id = $1 AND e.activo = true`, [eventoId, usuarioId]);
-  if (!r.rows.length) return false;
+    `SELECT e.id, e.nombre, e.estado, e.finalizado_at,
+            EXISTS (SELECT 1 FROM evento_usuarios eu WHERE eu.evento_id = e.id AND eu.usuario_id = $2) AS asignado,
+            ${SQL_VENTANA_ABIERTA} AS tardia
+     FROM eventos e WHERE e.id = $1 AND e.activo = true`, [eventoId, usuarioId]);
+  if (!r.rows.length) return 'El evento de la atención no existe o fue eliminado';
   const e = r.rows[0];
-  if (e.estado === 'en_curso') return true;
-  return !!(offline && e.estado === 'finalizado' && e.finalizado_at &&
-    fecha.getTime() <= new Date(e.finalizado_at).getTime() + TOLERANCIA_RELOJ_MS);
+  if (!e.asignado) return 'No estás asignado a ese evento';
+  if (e.estado === 'en_curso') return null;
+  if (e.estado !== 'finalizado') return `El evento "${e.nombre}" no está en curso`;
+  if (!offline) return `El evento "${e.nombre}" ya finalizó`;
+  if (e.tardia) return null;
+  if (e.finalizado_at && fecha.getTime() <= new Date(e.finalizado_at).getTime() + TOLERANCIA_RELOJ_MS) return null;
+  return `La atención (${fechaHoraCO(fecha)}) es posterior al cierre del evento "${e.nombre}" (${fechaHoraCO(e.finalizado_at)}). ` +
+    'Pide al administrador que habilite la sincronización tardía de ese evento y vuelve a sincronizar';
 }
 
 // Registra una atención con sus insumos en una transacción.
@@ -123,9 +132,10 @@ async function registrar(usuario, body, offline) {
     await client.query('BEGIN');
     const ya = await client.query('SELECT id FROM atenciones_fugaces WHERE client_id = $1', [client_id]);
     if (ya.rows.length) { await client.query('ROLLBACK'); return { estado: 'duplicado', id: ya.rows[0].id }; }
-    if (!await _eventoDelEnfermero(client, usuario.id, evento_id, fecha, offline)) {
+    const rechazo = await _eventoDelEnfermero(client, usuario.id, evento_id, fecha, offline);
+    if (rechazo) {
       await client.query('ROLLBACK');
-      return { estado: 'error', error: 'No estás asignado a ese evento o ya finalizó' };
+      return { estado: 'error', error: rechazo };
     }
     const lista = [];
     for (let i = 0; i < datos.insumos.length; i++) {

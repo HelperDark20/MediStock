@@ -1025,6 +1025,33 @@
   </div>
 </div>
 <div id="mobile-bottom-nav" class="mobile-bottom-nav"></div>
+<!-- MODAL SINCRONIZACIÓN TARDÍA (evento finalizado) -->
+<div class="modal-overlay" id="modal-sync-tardia">
+  <div class="modal-sheet" style="max-width:520px">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Permitir sincronización tardía</div>
+    <div class="modal-sub">Evento <b id="sta-evento"></b>. Por el tiempo que elijas, el servidor recibirá lo que quedó guardado en las tablets (atenciones fugaces y consumos sin conexión), aunque la atención haya sido después del cierre. El evento sigue finalizado: no reaparece en las tablets ni se puede registrar nada nuevo.</div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label for="sta-motivo">Motivo</label>
+      <textarea id="sta-motivo" rows="3" maxlength="500" placeholder="Ej. Sincronizaciones faltantes de atenciones fugaces"></textarea>
+      <label for="sta-horas" style="margin-top:10px">Abierta durante</label>
+      <select id="sta-horas">
+        <option value="6">6 horas</option>
+        <option value="12">12 horas</option>
+        <option value="24">24 horas</option>
+        <option value="48">48 horas</option>
+        <option value="72">72 horas</option>
+      </select>
+      <div class="sta-error" id="sta-error"></div>
+    </div>
+    <div id="sta-historial"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-sync-tardia')">Cancelar</button>
+      <button class="btn-confirm" id="sta-confirmar" onclick="staConfirmar()">Permitir sincronización</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL CONFIRMACIÓN -->
 <div class="modal-overlay" id="modal-confirm">
   <div class="modal-sheet">

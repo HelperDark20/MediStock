@@ -352,6 +352,22 @@ const MIGRACIONES = [
    )`,
   // La enfermera descartó en la tablet una HC que había sido rechazada
   'ALTER TABLE hc_rechazos ADD COLUMN IF NOT EXISTS descartada_at TIMESTAMPTZ',
+
+  // Sincronización tardía de un evento finalizado (src/utils/sync-tardia.js):
+  // el administrador la abre con un motivo y por unas horas. Queda el
+  // historial de quién la abrió, por qué y quién la cerró.
+  `CREATE TABLE IF NOT EXISTS evento_sync_tardia (
+     id SERIAL PRIMARY KEY,
+     evento_id INTEGER NOT NULL REFERENCES eventos(id),
+     motivo TEXT NOT NULL,
+     hasta TIMESTAMPTZ NOT NULL,
+     usuario_id INTEGER,
+     usuario_nombre TEXT,
+     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+     cerrada_at TIMESTAMPTZ,
+     cerrada_por TEXT
+   )`,
+  'CREATE INDEX IF NOT EXISTS evento_sync_tardia_evento_idx ON evento_sync_tardia (evento_id)',
 ];
 
 // Migraciones de datos que corren una sola vez (quedan anotadas en
