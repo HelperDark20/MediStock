@@ -195,6 +195,7 @@ async function _repFetchConsumos(){
 async function actualizarReporte(){
   const tipo = document.getElementById('rep-tipo-reporte')?.value;
   if(!tipo) return;
+  _repPdf = null;   // lo llena el render (ver reportes-pdf.js)
   const contenido = document.getElementById('rep-contenido');
   contenido.innerHTML = '<div class="empty-state"><i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i><p>Cargando reporte...</p></div>';
 
@@ -295,6 +296,7 @@ function _repAgruparConsumos(movs){
 }
 
 function _repRenderConsumos(movs){
+  _repPdf = { tipo: 'consumos', movs };
   const { porUbicacion, totalUnidades, totalValor, itemsSinPrecio } = _repAgruparConsumos(movs);
   const depositosConMov = Object.values(porUbicacion).reduce((a,u)=>a+Object.keys(u.depositos).length,0);
   const entries = Object.values(porUbicacion).sort((a,b)=>b.valor-a.valor);
@@ -367,6 +369,7 @@ function _repRenderConsumos(movs){
 function _repRenderCedula(movs, cedula){
   const contenido = document.getElementById('rep-contenido');
   const filtrados = movs.filter(m => !cedula || (m.cedula_paciente||'') === cedula);
+  _repPdf = { tipo: 'cedula', movs: filtrados, cedula };
 
   if(!filtrados.length){
     contenido.innerHTML = `<div class="empty-state"><i class="ti ti-id-off"></i><p>Sin consumos registrados para la cédula ${escHtml(cedula)}</p></div>`;
@@ -478,6 +481,7 @@ function _repFechaHora(v){
 }
 
 function _repRenderPacientes(movs, atenciones){
+  _repPdf = { tipo: 'pacientes', movs, atenciones };
   const { porFechaUbicacion, totalPorUbicacion, cedulas, totalGeneral, nHC, nFug, sinHC } = _repAgruparPacientes(movs, atenciones);
   const diasConAtencion = new Set(Object.values(porFechaUbicacion).map(d=>d.fecha)).size;
 
@@ -595,6 +599,7 @@ function _repTopItemsDetallado(movs, limite=30){
 }
 
 function _repRenderTop(movs){
+  _repPdf = { tipo: 'top', movs };
   const top = _repTopItemsDetallado(movs, 30);
   const totalValor = top.reduce((a,it)=>a+it.valor,0);
   const totalUnidades = top.reduce((a,it)=>a+it.unidades,0);
@@ -1287,22 +1292,16 @@ function _repTituloDocumento(){
   return partes.join(' · ');
 }
 
-// Lo que va al PDF: el encabezado (logo, título, filtros) y el reporte.
-// Se imprime una copia en #hoja-print (ver imprimirHoja en helpers.js):
-// así sale completo y con las columnas en su sitio también en Safari (Mac).
-function _repHtmlImpresion(){
-  const enc = document.getElementById('rep-print-header');
-  const cont = document.getElementById('rep-contenido');
-  return `<div class="hoja-rep">${enc ? enc.outerHTML : ''}${cont ? cont.innerHTML : ''}</div>`;
-}
-
+// El PDF se arma en hojas carta con su encabezado y pie (reportes-pdf.js)
+// y se imprime desde #hoja-print (imprimirHoja en helpers.js), lo que
+// también funciona en Safari (Mac).
 function repExportPDF(){
-  imprimirHoja(_repHtmlImpresion(), _repTituloDocumento());
+  imprimirHoja('', _repTituloDocumento(), _repPdfPaginar);
 }
 
 // También cuando se imprime con Ctrl/Cmd + P estando en Reportes
 window.addEventListener('beforeprint', ()=>{
   if(document.body.classList.contains('imprimiendo')) return;
   if(!document.getElementById('view-reportes')?.classList.contains('active')) return;
-  hojaPreparar(_repHtmlImpresion(), _repTituloDocumento());
+  hojaPreparar('', _repTituloDocumento(), _repPdfPaginar);
 });

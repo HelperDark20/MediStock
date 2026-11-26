@@ -259,8 +259,10 @@ function _hojaGridProporcional(raiz){
 }
 
 // Pone el contenido en la hoja de impresión. Devuelve la función que la
-// limpia (se llama sola después de imprimir).
-function hojaPreparar(html, titulo){
+// limpia (se llama sola después de imprimir). paginar(hoja), opcional,
+// arma el contenido midiéndolo: mientras corre, la hoja se muestra fuera
+// de la pantalla (los PDF de Reportes, ver reportes-pdf.js).
+function hojaPreparar(html, titulo, paginar){
   let hoja = document.getElementById('hoja-print');
   if(!hoja){
     hoja = document.createElement('div');
@@ -270,6 +272,10 @@ function hojaPreparar(html, titulo){
   hoja.innerHTML = html;
   hoja.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));   // es una copia
   _hojaGridProporcional(hoja);
+  if(paginar){
+    hoja.classList.add('midiendo');
+    try { paginar(hoja); } finally { hoja.classList.remove('midiendo'); }
+  }
   const tituloAntes = document.title;
   // El título del documento es el nombre sugerido del archivo PDF
   if(titulo) document.title = titulo;
@@ -286,11 +292,20 @@ function hojaPreparar(html, titulo){
   return limpiar;
 }
 
-// Prepara la hoja, espera las imágenes (logo) y abre el diálogo de impresión
-function imprimirHoja(html, titulo){
-  hojaPreparar(html, titulo);
-  const imgs = [...document.getElementById('hoja-print').querySelectorAll('img')];
-  // Si una imagen tarda (red lenta), no se espera más de 2 segundos
-  const cargadas = Promise.all(imgs.map(i => i.complete ? null : new Promise(ok => { i.onload = i.onerror = ok; })));
-  Promise.race([cargadas, new Promise(ok => setTimeout(ok, 2000))]).then(() => window.print());
+// Prepara la hoja, espera las imágenes (logo) y abre el diálogo de impresión.
+// Si hay que paginar, antes espera las fuentes: con otra fuente las medidas
+// no coinciden con lo que se imprime.
+function imprimirHoja(html, titulo, paginar){
+  const tope = ms => new Promise(ok => setTimeout(ok, ms));
+  const fuentes = paginar && document.fonts && document.fonts.load
+    ? Promise.all(["700 12pt Methanerse", "400 8pt 'Instrument Sans'", "700 8pt 'Instrument Sans'", "400 8pt 'JetBrains Mono'", "700 8pt Syne"]
+        .map(f => document.fonts.load(f).catch(() => null)))
+    : Promise.resolve();
+  Promise.race([fuentes, tope(2500)]).then(() => {
+    hojaPreparar(html, titulo, paginar);
+    const imgs = [...document.getElementById('hoja-print').querySelectorAll('img')];
+    // Si una imagen tarda (red lenta), no se espera más de 2 segundos
+    const cargadas = Promise.all(imgs.map(i => i.complete ? null : new Promise(ok => { i.onload = i.onerror = ok; })));
+    return Promise.race([cargadas, tope(2000)]);
+  }).then(() => window.print());
 }
