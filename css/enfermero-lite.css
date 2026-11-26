@@ -84,6 +84,7 @@ select.lt-input{ background:#fff url("data:image/svg+xml;utf8,<svg xmlns='http:/
 .lt-state{ display:none; text-align:center; color:#888; padding:40px 16px; font-size:14px; line-height:1.5; }
 .lt-state.on{ display:block; }
 .lt-state .lt-btn{ max-width:260px; margin:16px auto 0; }
+.lt-sin-evento-pend{ margin:18px auto 0; max-width:420px; padding:12px 14px; border-radius:10px; background:#FFF4D6; border:1px solid #F0D58A; color:#6B4A00; text-align:left; }
 
 .lt-card{ background:#fff; border:1px solid #D8D4C8; border-radius:16px; padding:16px; margin-bottom:14px; }
 .lt-card-title{ font-size:15px; font-weight:700; margin-bottom:10px; }

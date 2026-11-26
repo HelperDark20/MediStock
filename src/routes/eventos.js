@@ -6,6 +6,7 @@ const { validarParamsId, idValido, idsValidos, texto } = require('../utils/valid
 const { fechaValida } = require('../utils/fechas');
 const { bloqueoPorTurnosAbiertos } = require('../utils/asistencia');
 const { normalizarPunto, medicoDelPunto } = require('../utils/puntos');
+const { HORAS_PERMITIDAS } = require('../utils/sync-tardia');
 
 // :id, :usuarioId deben ser ids numéricos (si no, 400 en vez de error 500)
 validarParamsId(router, 'id', 'usuarioId');
@@ -283,7 +284,13 @@ router.get('/:id', verificarToken, verificarNivel(4), async (req, res) => {
     const evento = eventoRes.rows[0];
     const personalPorEvento = await _cargarPersonal([evento.id]);
     const puntosPorEvento = await _cargarPuntos([evento.id]);
-    res.json({ ...evento, puntos: puntosPorEvento[evento.id] || [], personal: personalPorEvento[evento.id] || [] });
+    // Sincronización tardía: la abierta (si hay) y el historial
+    const tardia = await pool.query(
+      `SELECT id, motivo, hasta, usuario_nombre, created_at, cerrada_at, cerrada_por,
+              (cerrada_at IS NULL AND hasta > NOW()) AS abierta
+       FROM evento_sync_tardia WHERE evento_id = $1 ORDER BY id DESC`, [evento.id]);
+    res.json({ ...evento, puntos: puntosPorEvento[evento.id] || [], personal: personalPorEvento[evento.id] || [],
+      sync_tardia: tardia.rows.find(t => t.abierta) || null, sync_tardia_historial: tardia.rows });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
@@ -888,6 +895,56 @@ router.post('/:id/finalizar', verificarToken, verificarNivel(4), async (req, res
       return res.status(400).json({ error: 'El evento no está en curso' });
     }
     res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// POST /api/eventos/:id/sync-tardia — nivel 4. Abre la sincronización
+// tardía de un evento finalizado (ver src/utils/sync-tardia.js).
+// body: { motivo, horas }. Si ya había una abierta, se reemplaza.
+router.post('/:id/sync-tardia', verificarToken, verificarNivel(4), async (req, res) => {
+  const motivo = texto(req.body && req.body.motivo);
+  const horas = Number(req.body && req.body.horas);
+  if (motivo.length < 5) return res.status(400).json({ error: 'Escribe el motivo (mínimo 5 caracteres)' });
+  if (motivo.length > 500) return res.status(400).json({ error: 'El motivo admite máximo 500 caracteres' });
+  if (!HORAS_PERMITIDAS.includes(horas)) return res.status(400).json({ error: 'Duración no válida' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const ev = await client.query('SELECT id, estado FROM eventos WHERE id = $1 AND activo = true FOR UPDATE', [req.params.id]);
+    if (!ev.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Evento no encontrado' }); }
+    if (ev.rows[0].estado !== 'finalizado') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Solo se habilita en un evento finalizado' });
+    }
+    await client.query(
+      `UPDATE evento_sync_tardia SET cerrada_at = NOW(), cerrada_por = $2
+       WHERE evento_id = $1 AND cerrada_at IS NULL AND hasta > NOW()`, [req.params.id, req.usuario.nombre]);
+    const r = await client.query(
+      `INSERT INTO evento_sync_tardia (evento_id, motivo, hasta, usuario_id, usuario_nombre)
+       VALUES ($1, $2, NOW() + ($3 || ' hours')::interval, $4, $5) RETURNING *`,
+      [req.params.id, motivo, String(horas), req.usuario.id, req.usuario.nombre]);
+    await client.query('COMMIT');
+    res.status(201).json(r.rows[0]);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  } finally {
+    client.release();
+  }
+});
+
+// POST /api/eventos/:id/sync-tardia/cerrar — nivel 4. Cierra antes de tiempo.
+router.post('/:id/sync-tardia/cerrar', verificarToken, verificarNivel(4), async (req, res) => {
+  try {
+    const r = await pool.query(
+      `UPDATE evento_sync_tardia SET cerrada_at = NOW(), cerrada_por = $2
+       WHERE evento_id = $1 AND cerrada_at IS NULL AND hasta > NOW() RETURNING id`, [req.params.id, req.usuario.nombre]);
+    if (!r.rows.length) return res.status(400).json({ error: 'El evento no tiene la sincronización tardía abierta' });
+    res.json({ mensaje: 'Sincronización tardía cerrada' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });

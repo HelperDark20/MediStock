@@ -254,5 +254,8 @@ const Eventos = {
   removeEnfermero: (id, usuarioId) => request('DELETE', `/api/eventos/${id}/enfermeros/${usuarioId}`),
   iniciar: (id) => request('POST', `/api/eventos/${id}/iniciar`),
   finalizar: (id) => request('POST', `/api/eventos/${id}/finalizar`),
+  // Sincronización tardía de un evento finalizado (motivo y horas)
+  abrirSyncTardia: (id, data) => request('POST', `/api/eventos/${id}/sync-tardia`, data),
+  cerrarSyncTardia: (id) => request('POST', `/api/eventos/${id}/sync-tardia/cerrar`),
   delete: (id) => request('DELETE', `/api/eventos/${id}`)
 };
