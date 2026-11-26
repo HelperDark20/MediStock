@@ -1052,6 +1052,111 @@ select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/s
 #hoja-print{ display:none; }
 
 /* ══════════════════════════════════════════
+   PDF DE REPORTES (js/reportes-pdf.js): hojas carta con su propio
+   encabezado (logo, nombre del reporte, fecha y hora) y pie (Página X de Y).
+   Medidas en pt/in: se miden en pantalla y se imprimen igual.
+   ══════════════════════════════════════════ */
+@page pdfrep{ size:letter; margin:0; }
+#hoja-print.midiendo{ display:block; position:absolute; left:-10000px; top:0; visibility:hidden; }
+.pdf-pg{ page:pdfrep; box-sizing:border-box; margin:0 auto; overflow:hidden; display:flex; flex-direction:column;
+  padding:0.42in 0.45in 0.3in; background:#fff; color:#0A1628; font-family:var(--font-body); font-size:7.6pt; line-height:1.28;
+  break-after:page; page-break-after:always; break-inside:avoid; page-break-inside:avoid;
+  -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+.pdf-pg.safari{ padding:0.06in 0.08in 0.02in; }
+.pdf-pg:last-child{ break-after:auto; page-break-after:auto; }
+.pdf-pg *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+.pdf-h{ flex-shrink:0; display:flex; align-items:center; gap:8pt; padding-bottom:6pt; border-bottom:0.8pt solid #0A1628; }
+.pdf-h img{ width:22pt; height:22pt; object-fit:contain; display:block; margin:-3pt 0; }
+.pdf-h-t{ flex:1; min-width:0; font-weight:600; font-size:7.4pt; }
+.pdf-h-d{ font-family:var(--font-mono); font-size:6.6pt; color:#2D4060; white-space:nowrap; }
+.pdf-b{ flex:1; min-height:0; overflow:hidden; padding-top:10pt; }
+.pdf-b > * + *{ margin-top:9pt; }
+.pdf-f{ flex-shrink:0; display:flex; justify-content:space-between; gap:10pt; padding-top:5pt; border-top:0.5pt solid #CFCABD;
+  font-family:var(--font-mono); font-size:6pt; color:#6B7280; }
+
+.pdf-cv{ display:grid; grid-template-columns:1fr auto; gap:10pt; align-items:end; }
+.pdf-cv-eb{ font-family:var(--font-mono); font-size:6.2pt; letter-spacing:.14em; text-transform:uppercase; color:#6B7280; }
+.pdf-cv h1{ font-family:var(--font-brand); font-weight:700; font-size:22pt; line-height:1.05; margin:2pt 0 6pt; color:#0A1628; }
+.pdf-cv-ch{ display:flex; flex-wrap:wrap; gap:4pt; }
+.pdf-cv-ch span{ font-family:var(--font-mono); font-size:6.4pt; border:0.6pt solid #CFCABD; padding:1.6pt 5pt; border-radius:3pt; color:#2D4060; }
+.pdf-cv-g{ font-family:var(--font-mono); font-size:6.2pt; color:#6B7280; margin-top:6pt; }
+.pdf-cv img{ width:66pt; height:66pt; object-fit:contain; display:block; }
+
+.pdf-kp{ display:grid; gap:5pt; }
+.pdf-k{ border:0.6pt solid #CFCABD; border-radius:3pt; padding:6pt 8pt; min-width:0; }
+.pdf-k-n{ font-family:var(--font-body); font-weight:700; font-size:13pt; line-height:1.1; letter-spacing:-.01em; white-space:nowrap; overflow:hidden; font-variant-numeric:tabular-nums; }
+.pdf-k-l{ font-family:var(--font-mono); font-size:5.6pt; letter-spacing:.06em; text-transform:uppercase; color:#6B7280; margin-top:2.5pt; }
+.pdf-k.hero{ background:#0A1628; border-color:#0A1628; color:#fff; }
+.pdf-k.hero .pdf-k-n{ font-size:18pt; }
+.pdf-k.hero .pdf-k-l{ color:#AFC3DA; }
+.pdf-k.sm .pdf-k-n{ font-size:12pt; padding-top:2pt; }
+.pdf-k.warn .pdf-k-n{ color:#D2402F; }
+.pdf-k.orange .pdf-k-n{ color:#C2660B; }
+.pdf-k.amber .pdf-k-n{ color:#9A5A08; }
+
+.pdf-st{ font-family:var(--font-head); font-weight:700; font-size:9.6pt; color:#0A1628; display:flex; justify-content:space-between; align-items:baseline; gap:8pt; }
+.pdf-st small{ font-family:var(--font-mono); font-weight:400; font-size:6pt; color:#6B7280; }
+.pdf-st em, .pdf-gh em{ font-style:normal; opacity:.75; }
+.pdf-vacio{ border:0.6pt dashed #CFCABD; border-radius:3pt; padding:14pt; text-align:center; color:#6B7280; }
+.pdf-gh{ display:flex; justify-content:space-between; align-items:center; gap:8pt; background:#0A1628; color:#fff; padding:3.6pt 6pt;
+  font-family:var(--font-mono); font-size:6.8pt; letter-spacing:.04em; }
+.pdf-gh .r{ color:#C9D6E6; white-space:nowrap; }
+.pdf-gh.light{ background:#F6F4EF; color:#0A1628; border-top:0.8pt solid #0A1628; }
+.pdf-gh.light .r{ color:#2D4060; }
+.pdf-gh.red{ background:#7A1F1F; }
+.pdf-gh.amber{ background:#7A4E08; }
+.pdf-gh.green{ background:#1A6B3C; }
+
+.pdf-t{ width:100%; border-collapse:collapse; table-layout:fixed; color:#0A1628; font-size:7.6pt; line-height:1.28; }
+.pdf-t th{ font-family:var(--font-mono); font-weight:500; font-size:5.5pt; letter-spacing:.07em; text-transform:uppercase; color:#6B7280; text-align:left;
+  padding:3pt 4pt; border-bottom:0.6pt solid #CFCABD; white-space:nowrap; overflow:hidden; }
+.pdf-t thead tr{ background:none; border:none; }
+.pdf-t td{ padding:2.6pt 4pt; border-bottom:0.4pt solid #E6E2D8; vertical-align:middle; overflow-wrap:anywhere; font-size:inherit; color:inherit; }
+.pdf-t tr:hover td{ background:inherit; }
+.pdf-t tbody tr:nth-child(even):not(.sub):not(.tot) td{ background:#FBFAF7; }
+.pdf-t .num{ text-align:right; font-family:var(--font-mono); font-size:7pt; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.pdf-t th.num{ font-size:5.5pt; }
+.pdf-t .centro{ text-align:center; }
+.pdf-t .mono{ font-family:var(--font-mono); font-size:6.2pt; color:#2D4060; }
+.pdf-t .faint{ color:#9AA0A8; }
+.pdf-t .nm{ font-weight:500; }
+.pdf-t .code{ font-family:var(--font-mono); font-size:5.6pt; color:#9AA0A8; margin-left:3pt; }
+.pdf-t .u{ font-family:var(--font-mono); font-size:5.6pt; color:#6B7280; margin-left:1.5pt; }
+.pdf-t .lote, .pdf-t .linea{ display:block; font-family:var(--font-mono); font-size:5.6pt; color:#6B7280; margin-top:1pt; }
+.pdf-t .linea{ font-size:6.2pt; color:#2D4060; }
+.pdf-t .donde{ font-size:6.2pt; }
+.pdf-t .docs{ font-family:var(--font-mono); font-size:5.6pt; color:#2D4060; line-height:1.45; }
+.pdf-t .nota{ font-family:var(--font-mono); font-size:5.6pt; color:#6B7280; font-weight:400; }
+.pdf-t .neg{ color:#D2402F; }
+.pdf-t .pos{ color:#9A5A08; }
+.pdf-t .venc{ color:#7A1F1F; font-weight:600; }
+.pdf-t .marca{ display:block; font-family:var(--font-mono); font-size:5.2pt; color:#2196D3; }
+.pdf-t .marca-amb{ font-family:var(--font-mono); font-size:5.6pt; color:#9A5A08; margin-left:3pt; }
+.pdf-t tr.sub td{ background:#F6F4EF; font-weight:600; border-bottom:none; }
+.pdf-t tr.tot td{ border-top:0.8pt solid #0A1628; font-weight:700; border-bottom:none; }
+.pdf-t tr.vacia td{ color:#6B7280; text-align:center; padding:6pt; }
+.pdf-t tr.dos td:nth-child(3){ padding-left:12pt; }
+.pdf-bar{ display:flex; align-items:center; gap:4pt; justify-content:flex-end; }
+.pdf-bar .trk{ flex:1; max-width:60pt; height:4.4pt; background:#E3F4FC; border-radius:1pt; display:flex; }
+.pdf-bar .trk i{ display:block; height:100%; background:#2196D3; border-radius:1pt; }
+.pdf-stk{ display:flex; height:5pt; border-radius:1pt; overflow:hidden; background:#E6E2D8; }
+.pdf-stk .a, .pdf-lg i.a{ background:#0A1628; }
+.pdf-stk .b, .pdf-lg i.b{ background:#2196D3; }
+.pdf-lg{ display:flex; gap:8pt; font-family:var(--font-mono); font-weight:400; font-size:5.6pt; color:#6B7280; align-items:center; }
+.pdf-lg i{ display:inline-block; width:6pt; height:4pt; margin-right:2pt; vertical-align:middle; border-radius:1pt; }
+.pdf-pill{ display:inline-flex; align-items:center; gap:2.4pt; font-family:var(--font-mono); font-weight:600; font-size:5.4pt; text-transform:uppercase; letter-spacing:.04em;
+  padding:1.4pt 4.4pt; border-radius:6pt; white-space:nowrap; }
+.pdf-pill::before{ content:""; width:3.2pt; height:3.2pt; border-radius:50%; background:currentColor; }
+.pdf-pill.N{ background:#F5E6E5; color:#7A1F1F; }
+.pdf-pill.P{ background:#FDF0EF; color:#D2402F; }
+.pdf-pill.R{ background:#FDF1E5; color:#C2660B; }
+.pdf-pill.A{ background:#FDF6EC; color:#9A5A08; }
+.pdf-pill.ok{ background:#EDF7F1; color:#1A6B3C; }
+.pdf-caja{ display:inline-block; width:26pt; height:10pt; border:0.7pt solid #2D4060; border-radius:1.5pt; vertical-align:middle; }
+.pdf-firmas{ display:grid; grid-template-columns:repeat(3,1fr); gap:18pt; padding-top:26pt; }
+.pdf-firmas div{ border-top:0.6pt solid #0A1628; padding-top:3pt; font-family:var(--font-mono); font-size:5.8pt; color:#6B7280; }
+
+/* ══════════════════════════════════════════
    EVENTOS — grid, badges de estado y checklist
    de depósitos en el modal de creación
    ══════════════════════════════════════════ */
