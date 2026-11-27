@@ -206,7 +206,7 @@ async function enfRegistrarConsumo(){
     acClear('enf');
     document.getElementById('enf-med-card').classList.remove('show');
 
-    await loadState();
+    await loadState(CARGA_MOVIMIENTO);
     renderEnfHistorial();
     toast('✓ Consumo registrado','success');
 

@@ -270,7 +270,7 @@ async function registrarEntrada(){
     ['reg-cad-dia','reg-cad-mes','reg-cad-año']
       .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
 
-    await loadState();
+    await loadState(CARGA_MOVIMIENTO);
     populateSelects();
     toast('✓ Entrada registrada','success');
     setTimeout(()=>goTo('inventario'), 700);
@@ -416,7 +416,7 @@ async function subskuGuardar(confirmar){
     closeModal('modal-subsku-editar');
     toast(r.accion === 'ninguna' ? 'Sin cambios' : `✓ ${r.mensaje}`, r.accion === 'ninguna' ? '' : 'success');
     if(r.accion !== 'ninguna'){
-      await loadState();
+      await loadState(CARGA_MOVIMIENTO);
       populateSelects();
       subskuCargar(false);
     }

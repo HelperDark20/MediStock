@@ -12,30 +12,51 @@ let S = {
   stockSeguridad: [],
 };
 
-async function loadState(){
+// Lo que cambia al registrar un movimiento (entrada, traslado, consumo,
+// destrucción, reversión): el stock (y con él los Sub-SKU) y el historial.
+const CARGA_MOVIMIENTO = ['stock', 'movimientos'];
+
+// partes: qué recargar ('bodegas', 'globales', 'stock', 'movimientos',
+// 'ubicaciones', 'eventos', 'usuarios', 'seguridad'); sin partes, todo.
+// Recargar todo tras cada acción eran 9 consultas por clic y mantenía la base
+// de datos (Neon cobra por hora encendida) trabajando de más.
+async function loadState(partes){
   if(!localStorage.getItem('nb_token')) return;
+  const quiere = p => !partes || partes.includes(p);
+  const admin = currentRole === 4;
   try {
     showLoading(true);
-    const [bodegas, globales, stock, movs, ubicaciones, eventos] = await Promise.all([
-      Bodegas.getAll(),
-      SKUs.getGlobales(),
-      SKUs.getStock(),
-      Movimientos.getAll(),
-      Ubicaciones.getAll(),
-      Eventos.getAll()
-    ]);
+    const tareas = {
+      bodegas:     quiere('bodegas')     ? Bodegas.getAll()       : null,
+      globales:    quiere('globales')    ? SKUs.getGlobales()     : null,
+      stock:       quiere('stock')       ? SKUs.getStock()        : null,
+      movimientos: quiere('movimientos') ? Movimientos.getAll()   : null,
+      ubicaciones: quiere('ubicaciones') ? Ubicaciones.getAll()   : null,
+      eventos:     quiere('eventos')     ? Eventos.getAll()       : null,
+      usuarios:    admin && quiere('usuarios')    ? Usuarios.getAll()           : null,
+      seguridad:   admin && quiere('seguridad')   ? StockSeguridad.getAll()     : null,
+      historicas:  admin && quiere('ubicaciones') ? Ubicaciones.getHistoricas() : null,
+    };
+    const claves = Object.keys(tareas);
+    const res = await Promise.all(claves.map(k => tareas[k]));
+    const r = {};
+    claves.forEach((k, i) => { r[k] = res[i]; });
 
-    S.bodegas = bodegas.map(b => b.nombre);
-    S.bodegasRaw = bodegas;
-    S.ubicaciones = ubicaciones;
-    S.skusGlobales = globales;
-    S.stock = stock;
-    S.movimientos = movs;
-    S.eventos = eventos;
+    // S solo se reemplaza si todo cargó (Promise.all falla si falla una)
+    if(r.bodegas){ S.bodegas = r.bodegas.map(b => b.nombre); S.bodegasRaw = r.bodegas; }
+    if(r.ubicaciones) S.ubicaciones = r.ubicaciones;
+    if(r.globales) S.skusGlobales = r.globales;
+    if(r.movimientos) S.movimientos = r.movimientos;
+    if(r.eventos) S.eventos = r.eventos;
+    if(r.usuarios) S.usuarios = r.usuarios;
+    if(r.seguridad) S.stockSeguridad = r.seguridad;
+    if(r.historicas) S.ubicacionesHistoricas = r.historicas;
 
+    if(r.stock){
+    S.stock = r.stock;
     // Construir subSkus desde stock
     const subMap = {};
-    stock.forEach(row => {
+    r.stock.forEach(row => {
       // FIX: ignorar filas con sub_sku_id null (LEFT JOIN sin stock)
       const sid = row.sub_sku_id;
       if(!sid) return;
@@ -67,11 +88,6 @@ async function loadState(){
       ...s,
       agotado: Object.values(s.stock).reduce((a, v) => a + v, 0) === 0
     }));
-
-    if(currentRole === 4){
-      S.usuarios = await Usuarios.getAll();
-      S.stockSeguridad = await StockSeguridad.getAll();
-      S.ubicacionesHistoricas = await Ubicaciones.getHistoricas();
     }
 
     _avisoCargaDatos(null);

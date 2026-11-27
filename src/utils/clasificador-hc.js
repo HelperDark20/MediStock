@@ -223,15 +223,20 @@ async function _tomarPendiente() {
   return r.rows[0] || null;
 }
 
-let _corriendo = false, _timer = null;
+// _hayPendientes: si puede haber HC por clasificar. El repaso de cada minuto
+// solo consulta la base cuando es true: consultar siempre la mantenía
+// encendida (Neon cobra por hora encendida). Arranca en true para revisar
+// lo que haya quedado de antes, y pronto()/reclasificar() lo vuelven a poner.
+let _corriendo = false, _timer = null, _hayPendientes = true;
 async function procesarPendientes(max) {
   if (_corriendo || !proveedor()) return 0;
   _corriendo = true;
-  let n = 0;
+  _hayPendientes = false;
+  let n = 0, fallas = false, agotado = false;
   try {
     for (let i = 0; i < (max || 20); i++) {
       const hc = await _tomarPendiente();
-      if (!hc) break;
+      if (!hc) { agotado = true; break; }
       try {
         const c = await clasificarDatos(hc.datos);
         // Triage puesto a mano por el administrador: se respeta
@@ -239,12 +244,17 @@ async function procesarPendientes(max) {
         await guardarClasificacion(pool, hc.id, c);
         n++;
       } catch (err) {
+        fallas = true;
         console.error('Clasificación de HC', hc.id, err.message);
         await pool.query('UPDATE historias_clinicas SET clasificacion_error = $2 WHERE id = $1', [hc.id, err.message.slice(0, 300)]);
         if (/OpenAI (401|429)|tiempo de espera|ENOTFOUND|ECONN/.test(err.message)) break;   // no insistir si el proveedor falla
       }
     }
+    // Sin turno libre puede quedar alguna esperando su reintento (fallo hace
+    // menos de 5 min): se sigue repasando mientras exista
+    if (!agotado || fallas || await _quedanPendientes()) _hayPendientes = true;
   } catch (err) {
+    _hayPendientes = true;
     console.error('Clasificación de HC:', err.message);
   } finally {
     _corriendo = false;
@@ -264,23 +274,31 @@ async function guardarClasificacion(db, hcId, c, extraSet) {
      WHERE id = $1`, [hcId, JSON.stringify(c), c.triage]);
 }
 
+async function _quedanPendientes() {
+  const r = await pool.query(
+    'SELECT EXISTS (SELECT 1 FROM historias_clinicas WHERE clasificacion IS NULL AND clasificacion_intentos < $1) AS hay', [MAX_INTENTOS]);
+  return r.rows[0].hay;
+}
+
 // Marca una HC para (re)clasificar y la procesa en un momento
 async function reclasificar(db, hcId) {
   await (db || pool).query('UPDATE historias_clinicas SET clasificacion = NULL, clasificacion_intentos = 0, clasificada_at = NULL, clasificacion_error = NULL WHERE id = $1', [hcId]);
   pronto();
 }
 function pronto() {
+  _hayPendientes = true;
   if (!proveedor()) return;
   clearTimeout(_timer);
   _timer = setTimeout(() => { procesarPendientes(20).catch(() => {}); }, 1500);
 }
 
-// Al arrancar: cada minuto revisa si hay pendientes (HC anteriores, fallos)
+// Al arrancar revisa las pendientes (HC anteriores, fallos); después, cada
+// minuto, solo si quedó alguna por clasificar o reintentar
 function iniciar() {
   if (!proveedor()) { console.log('Clasificación de HC: sin OPENAI_API_KEY, queda pendiente'); return; }
   console.log(`Clasificación de HC activa (${proveedor()})`);
   pronto();
-  setInterval(() => { procesarPendientes(20).catch(() => {}); }, 60000).unref();
+  setInterval(() => { if (_hayPendientes) procesarPendientes(20).catch(() => {}); }, 60000).unref();
 }
 
 module.exports = { cargarCatalogos, clasificarDatos, procesarPendientes, reclasificar, guardarClasificacion, pronto, iniciar, entradaDeHC, proveedor };

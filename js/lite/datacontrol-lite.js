@@ -342,11 +342,21 @@
     renderMarca();
   }
 
-  function buscarPersona(){
+  function buscarPersona(reintento){
     if(st.cedula.length < 5){ error('dc-marcar-error', 'Escribe tu número de cédula'); return; }
     var e = st.evento, p = null;
     for(var i = 0; i < e.personal.length; i++) if(e.personal[i].cedula === st.cedula) p = e.personal[i];
-    if(!p){ error('dc-marcar-error', 'Esa cédula no está asignada a este evento'); return; }
+    if(!p){
+      // Pudieron asignarla después de la última descarga (cada 30 min):
+      // con señal se descarga de nuevo una vez antes de rechazarla
+      if(!reintento && !st.offline){
+        error('dc-marcar-error', 'Buscando la cédula…');
+        descargar(function(){ buscarPersona(true); }, true);
+        return;
+      }
+      error('dc-marcar-error', 'Esa cédula no está asignada a este evento');
+      return;
+    }
     // ¿Tiene una jornada abierta (de cualquier evento) de menos de 16 h?
     var ab = st.abiertas[p.cedula], abierta = null;
     if(ab){
@@ -682,11 +692,14 @@
       else if(accion === 'reintentar') descargar(function(){ elegirEventoInicial(); });
     });
     on($('dc-foto-input'), 'change', fotoElegida);
-    // Datos frescos cada 10 minutos (en línea) y reintento de la cola
+    // Datos frescos cada 30 minutos (en línea) y reintento de la cola. Cada
+    // 10 min despertaba la base de datos (Neon se apaga a los 5 min sin uso y
+    // cobra por hora encendida) aunque nadie marcara; con la pantalla apagada
+    // o en otra app no se descarga. Las marcas se suben al hacerlas.
     setInterval(function(){
-      if(st.offline || !leer('dc_token') || st.persona) return;
+      if(st.offline || !leer('dc_token') || st.persona || document.hidden) return;
       descargar(function(ok){ if(ok && st.cola.length) sincronizar(true); if(ok && !st.evento) elegirEventoInicial(); }, true);
-    }, 10 * 60000);
+    }, 30 * 60000);
   }
 
   conectar();
