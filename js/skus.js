@@ -76,7 +76,7 @@ async function guardarEdicionSKU(){
   try {
     const r = await SKUs.updateGlobal(id, { nombre, familia, subgrupo, campos });
     closeModal('modal-edit-sku');
-    await loadState();
+    await loadState(['globales', ...CARGA_MOVIMIENTO]);
     renderSKUs();
     toast(r.items_seguridad_actualizados
       ? `✓ SKU actualizado · también en ${r.items_seguridad_actualizados} lista(s) de stock de seguridad`
@@ -119,7 +119,7 @@ async function crearSKUGlobal(){
     document.getElementById('sku-familia-hint').style.display  = 'none';
     document.getElementById('sku-subgrupo-hint').style.display = 'none';
     document.getElementById('sku-unidad-hint').style.display   = 'none';
-    await loadState();
+    await loadState(['globales', 'stock']);
     renderSKUs();
     toast(`✓ SKU ${codigo} creado`, 'success');
   } catch(err){

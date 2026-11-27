@@ -206,7 +206,7 @@ async function registrarMovimiento(){
     if(document.getElementById('mov-paciente')) document.getElementById('mov-paciente').value='';
     if(document.getElementById('mov-motivo'))   document.getElementById('mov-motivo').value='';
     movResetItemSelection();
-    await loadState();
+    await loadState(CARGA_MOVIMIENTO);
     renderMovBody();
     buildNav();
     toast(`✓ ${tipo.charAt(0).toUpperCase()+tipo.slice(1)} registrado`,'success');
@@ -409,7 +409,7 @@ function confirmRevertirMovimiento(id){
     try {
       await Movimientos.revertir(id);
       closeModal('modal-confirm');
-      await loadState();
+      await loadState(CARGA_MOVIMIENTO);
       renderMovBody();
       buildNav();
       toast('✓ Movimiento revertido — stock actualizado','success');
@@ -831,7 +831,7 @@ async function registrarContingencia(){
     await Movimientos.contingencia({ ...payload, client_id: idEnvio('contingencia', payload) });
     idEnvioListo('contingencia');
     closeModal('modal-contingencia');
-    await loadState();
+    await loadState(CARGA_MOVIMIENTO);
     renderMovBody();
     buildNav();
     toast('✓ Contingencia registrada','success');
